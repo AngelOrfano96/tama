@@ -1,4 +1,4 @@
-// script.js (persistenza con valori arrotondati per integer DB)
+// script.js (codice corretto e funzionante)
 
 // Inizializza Supabase
 const supabaseClient = supabase.createClient(
@@ -12,7 +12,7 @@ let petId = null;
 let eggType = null;
 let hunger = 100, fun = 100, clean = 100;
 let alive = true;
-// Rate di decadimento per secondo
+// Rate di decadimento per secondo (non salvati al tick)
 const decayRatesPerSecond = {
   hunger: 0.005, // 1% ogni 200s
   fun:     0.003, // 1% ogni ~333s
@@ -20,8 +20,8 @@ const decayRatesPerSecond = {
 };
 
 // Utils: mostra/nascondi elementi
-function show(id) { document.getElementById(id).classList.remove('hidden'); }
-function hide(id) { document.getElementById(id).classList.add('hidden'); }
+const show = id => document.getElementById(id).classList.remove('hidden');
+const hide = id => document.getElementById(id).classList.add('hidden');
 
 // --- Autenticazione ---
 async function signUp(email, password) {
@@ -34,36 +34,26 @@ async function signIn(email, password) {
   if (error) throw error;
   return data.user;
 }
-async function seedUserRecord(u) {
-  const { error } = await supabaseClient
-    .from('users')
-    .upsert({ id: u.id, email: u.email }, { onConflict: 'id' });
-  if (error) console.error('User seed error:', error);
-}
 
 // --- Form Login / Registrazione ---
 const authForm  = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
 authForm.addEventListener('submit', async e => {
   e.preventDefault();
+  const email = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value;
   try {
-    user = await signIn(
-      document.getElementById('email-input').value,
-      document.getElementById('password-input').value
-    );
-    await seedUserRecord(user);
+    user = await signIn(email, password);
     await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
   }
 });
 signupBtn.addEventListener('click', async () => {
+  const email = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value;
   try {
-    user = await signUp(
-      document.getElementById('email-input').value,
-      document.getElementById('password-input').value
-    );
-    await seedUserRecord(user);
+    user = await signUp(email, password);
     await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
@@ -73,55 +63,35 @@ signupBtn.addEventListener('click', async () => {
 // --- Flusso Iniziale ---
 async function initFlow() {
   hide('login-container');
-  // Recupera pet esistente
+  // Ottieni pet esistente
   const { data: pet, error: petErr } = await supabaseClient
     .from('pets')
     .select('*')
     .eq('user_id', user.id)
     .single();
-  if (petErr && petErr.code !== 'PGRST116') return console.error(petErr);
+  if (petErr && petErr.code !== 'PGRST116') {
+    console.error(petErr);
+    return;
+  }
   if (!pet) {
     show('egg-selection');
     return;
   }
+
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Recupera stato salvato
+  // Carica stato
   const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean')
     .eq('pet_id', petId)
     .single();
   if (!stateErr && state) {
-    // Carica direttamente i valori dal DB
     hunger = state.hunger;
     fun    = state.fun;
     clean  = state.clean;
-    startGame();
-  } else {
-    startHatchSequence(eggType);
-  }
-}
-  petId   = pet.id;
-  eggType = pet.egg_type;
-  hide('egg-selection');
-
-  // Recupera stato
-  const { data: state, error: stateErr } = await supabaseClient
-    .from('pet_states')
-    .select('hunger, fun, clean, updated_at')
-    .eq('pet_id', petId)
-    .single();
-  if (!stateErr && state) {
-    // Degradazione offline
-    const last    = new Date(state.updated_at).getTime();
-    const now     = Date.now();
-    const diffSec = (now - last) / 1000;
-    hunger = Math.max(0, state.hunger - decayRatesPerSecond.hunger * diffSec);
-    fun    = Math.max(0, state.fun    - decayRatesPerSecond.fun    * diffSec);
-    clean  = Math.max(0, state.clean  - decayRatesPerSecond.clean  * diffSec);
     startGame();
   } else {
     startHatchSequence(eggType);
@@ -131,9 +101,9 @@ async function initFlow() {
 // --- Selezione Uovo ---
 document.querySelectorAll('.egg.selectable').forEach(img =>
   img.addEventListener('click', () => {
-    document.querySelectorAll('.egg').forEach(i => i.classList.remove('selected'));
+    document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
     img.classList.add('selected');
-    eggType = +img.dataset.egg;
+    eggType = Number(img.dataset.egg);
     document.getElementById('confirm-egg-btn').disabled = false;
   })
 );
@@ -159,10 +129,11 @@ function startHatchSequence(type) {
   document.getElementById('selected-egg').src = `assets/eggs/egg_${type}.png`;
   show('hatch-container');
   let count = 15;
-  document.getElementById('countdown').textContent = count;
+  const countdownEl = document.getElementById('countdown');
+  countdownEl.textContent = count;
   const iv = setInterval(async () => {
     count--;
-    document.getElementById('countdown').textContent = count;
+    countdownEl.textContent = count;
     if (count <= 0) {
       clearInterval(iv);
       hide('hatch-container');
@@ -182,12 +153,12 @@ function startGame() {
 
 // --- Aggiorna Barre ---
 function updateBars() {
-  document.getElementById('hunger-bar').style.width = hunger.toFixed(0) + '%';
-  document.getElementById('fun-bar').style.width    = fun.toFixed(0)    + '%';
-  document.getElementById('clean-bar').style.width  = clean.toFixed(0)  + '%';
+  document.getElementById('hunger-bar').style.width = `${hunger}%`;
+  document.getElementById('fun-bar').style.width    = `${fun}%`;
+  document.getElementById('clean-bar').style.width  = `${clean}%`;
 }
 
-// --- Salvataggio Stato (arrotondato) ---
+// --- Salvataggio Stato (arrotondando interi) ---
 async function saveState() {
   const { error } = await supabaseClient
     .from('pet_states')
@@ -218,8 +189,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
   if (currentUser) {
     user = currentUser;
-    await seedUserRecord(user);
-    initFlow();
+    await initFlow();
   } else {
     show('login-container');
   }

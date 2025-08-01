@@ -84,6 +84,26 @@ async function initFlow() {
     show('egg-selection');
     return;
   }
+  petId = pet.id;
+  eggType = pet.egg_type;
+  hide('egg-selection');
+
+  // Recupera stato salvato
+  const { data: state, error: stateErr } = await supabaseClient
+    .from('pet_states')
+    .select('hunger, fun, clean')
+    .eq('pet_id', petId)
+    .single();
+  if (!stateErr && state) {
+    // Carica direttamente i valori dal DB
+    hunger = state.hunger;
+    fun    = state.fun;
+    clean  = state.clean;
+    startGame();
+  } else {
+    startHatchSequence(eggType);
+  }
+}
   petId   = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');

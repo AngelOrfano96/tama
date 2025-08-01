@@ -27,15 +27,14 @@
     <div class="form-box">
       <h2>Scegli un uovo</h2>
       <div class="eggs-grid">
-        <!-- Otto uova selezionabili -->
-        <img src="assets/eggs/egg_1.png" class="egg selectable" data-egg="1" />
-        <img src="assets/eggs/egg_2.png" class="egg selectable" data-egg="2" />
-        <img src="assets/eggs/egg_3.png" class="egg selectable" data-egg="3" />
-        <img src="assets/eggs/egg_4.png" class="egg selectable" data-egg="4" />
-        <img src="assets/eggs/egg_5.png" class="egg selectable" data-egg="5" />
-        <img src="assets/eggs/egg_6.png" class="egg selectable" data-egg="6" />
-        <img src="assets/eggs/egg_7.png" class="egg selectable" data-egg="7" />
-        <img src="assets/eggs/egg_8.png" class="egg selectable" data-egg="8" />
+        <img src="assets/eggs/egg_1.png" class="egg selectable" data-egg="1" alt="Uovo tipo 1" />
+        <img src="assets/eggs/egg_2.png" class="egg selectable" data-egg="2" alt="Uovo tipo 2" />
+        <img src="assets/eggs/egg_3.png" class="egg selectable" data-egg="3" alt="Uovo tipo 3" />
+        <img src="assets/eggs/egg_4.png" class="egg selectable" data-egg="4" alt="Uovo tipo 4" />
+        <img src="assets/eggs/egg_5.png" class="egg selectable" data-egg="5" alt="Uovo tipo 5" />
+        <img src="assets/eggs/egg_6.png" class="egg selectable" data-egg="6" alt="Uovo tipo 6" />
+        <img src="assets/eggs/egg_7.png" class="egg selectable" data-egg="7" alt="Uovo tipo 7" />
+        <img src="assets/eggs/egg_8.png" class="egg selectable" data-egg="8" alt="Uovo tipo 8" />
       </div>
       <button id="confirm-egg-btn" disabled>Conferma Uovo</button>
     </div>
@@ -51,21 +50,17 @@
 
   <!-- Container Gioco -->
   <div id="game" class="fullscreen center hidden">
-    <img id="background" src="assets/backgrounds/day.png" alt="Background giorno" />
     <img id="pet" alt="Il tuo pet" />
-
     <div class="bars">
       <div id="hunger-bar" class="bar"></div>
       <div id="fun-bar" class="bar"></div>
       <div id="clean-bar" class="bar"></div>
     </div>
-
     <div class="controls">
       <button id="feed-btn">🍖 Feed</button>
       <button id="play-btn">🎮 Play</button>
       <button id="clean-btn">🧼 Clean</button>
     </div>
-
     <div id="game-over" class="hidden">💔 Il tuo pet è scappato! Ricarica la pagina per riprovare.</div>
   </div>
 
@@ -74,9 +69,10 @@
   <!-- Configurazione chiavi (in produzione usare env vars) -->
   <script>
     window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
-    window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWNpZnlic2hvYXdod2VjaGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNzM0MDQsImV4cCI6MjA2OTY0OTQwNH0.Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
+    window.SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE';
+    console.log('⚙️ script.js caricato ed eseguito');
   </script>
   <!-- Logica gioco -->
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>

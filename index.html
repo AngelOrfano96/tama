@@ -50,17 +50,23 @@
 
   <!-- Container Gioco -->
   <div id="game" class="fullscreen center hidden">
-    <img id="pet" alt="Il tuo pet" />
-    <div class="bars">
+    <!-- Wake button when offline -->
+    <button id="wake-btn" class="form-box">Sveglia il tuo pet</button>
+
+    <!-- Pet image and status bars hidden until wake -->
+    <img id="pet" alt="Il tuo pet" class="hidden" />
+    <div class="bars hidden">
       <div id="hunger-bar" class="bar"></div>
       <div id="fun-bar" class="bar"></div>
       <div id="clean-bar" class="bar"></div>
     </div>
-    <div class="controls">
+
+    <div class="controls hidden">
       <button id="feed-btn">🍖 Feed</button>
       <button id="play-btn">🎮 Play</button>
       <button id="clean-btn">🧼 Clean</button>
     </div>
+
     <div id="game-over" class="hidden">💔 Il tuo pet è scappato! Ricarica la pagina per riprovare.</div>
   </div>
 
@@ -69,8 +75,7 @@
   <!-- Configurazione chiavi (in produzione usare env vars) -->
   <script>
     window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
-    window.SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE';
-    console.log('⚙️ script.js caricato ed eseguito');
+    window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWNpZnlic2hvYXdod2VjaGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNzM0MDQsImV4cCI6MjA2OTY0OTQwNH0.Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
   </script>
   <!-- Logica gioco -->
   <script src="script.js" defer></script>

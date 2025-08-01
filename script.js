@@ -1,4 +1,4 @@
-// script.js (versione finale: degradazione live e fetch iniziale)
+// script.js (con pulsante "Sveglia" per avvio) 
 
 // Inizializza Supabase
 const supabaseClient = supabase.createClient(
@@ -6,7 +6,8 @@ const supabaseClient = supabase.createClient(
   window.SUPABASE_ANON_KEY
 );
 
-// Stato globale\ let user = null;
+// Stato globale
+let user = null;
 let petId = null;
 let eggType = null;
 let hunger = 100;
@@ -22,12 +23,8 @@ const decayRates = {
 };
 
 // Utils: mostra/nascondi elementi
-function show(id) {
-  document.getElementById(id).classList.remove('hidden');
-}
-function hide(id) {
-  document.getElementById(id).classList.add('hidden');
-}
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
 // --- AUTH FUNCTIONS ---
 async function signUp(email, password) {
@@ -94,24 +91,44 @@ async function initFlow() {
     .eq('pet_id', petId)
     .single();
   if (state) {
-    // Degrado offline
+    // Degrado offline visuale
     const elapsed = (Date.now() - new Date(state.updated_at).getTime()) / 1000;
     hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
     fun    = Math.max(0, state.fun    - decayRates.fun    * elapsed);
     clean  = Math.max(0, state.clean  - decayRates.clean  * elapsed);
   }
 
-  // Avvia il gioco
-  startGame();
+  // Mostra interfaccia di risveglio
+  show('game');
+  show('wake-btn');
+  hide('pet');
+  hide('hunger-bar');
+  hide('fun-bar');
+  hide('clean-bar');
+  hide('feed-btn');
+  hide('play-btn');
+  hide('clean-btn');
+
+  // Imposta listener wake
+  document.getElementById('wake-btn').addEventListener('click', wakePet);
 }
 
-// --- START GAME ---
-function startGame() {
-  show('game');
+// --- RISVEGLIA PET ---
+async function wakePet() {
+  hide('wake-btn');
+  // mostra elementi di gioco
+  show('pet');
+  show('hunger-bar');
+  show('fun-bar');
+  show('clean-bar');
+  show('feed-btn');
+  show('play-btn');
+  show('clean-btn');
+
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   updateBars();
 
-  // Tick live: valore cambia ogni secondo
+  // Inizia tick live
   setInterval(() => {
     if (!alive) return;
     hunger = Math.max(0, hunger - decayRates.hunger);
@@ -120,7 +137,7 @@ function startGame() {
     updateBars();
   }, 1000);
 
-  // Salvataggio periodico ogni 5 secondi
+  // Salvataggio periodico
   setInterval(saveState, 5000);
 }
 
@@ -135,13 +152,7 @@ function updateBars() {
 async function saveState() {
   const { error } = await supabaseClient
     .from('pet_states')
-    .upsert({
-      pet_id:     petId,
-      hunger:     Math.round(hunger),
-      fun:        Math.round(fun),
-      clean:      Math.round(clean),
-      updated_at: new Date()
-    });
+    .upsert({ pet_id: petId, hunger: Math.round(hunger), fun: Math.round(fun), clean: Math.round(clean), updated_at: new Date() });
   if (error) console.error('Save error:', error);
 }
 
@@ -149,8 +160,8 @@ async function saveState() {
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
-    if (action === 'feed')  hunger = Math.min(100, hunger + 20);
-    if (action === 'play')  fun    = Math.min(100, fun    + 20);
+    if (action === 'feed') hunger = Math.min(100, hunger + 20);
+    if (action === 'play') fun    = Math.min(100, fun    + 20);
     if (action === 'clean') clean  = Math.min(100, clean  + 20);
     updateBars();
     await saveState();
@@ -178,7 +189,7 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     hide('egg-selection');
     hunger = fun = clean = 100;
     await saveState();
-    startGame();
+    wakePet();
   }
 });
 
@@ -196,7 +207,7 @@ function startHatchSequence(type) {
       hide('hatch-container');
       hunger = fun = clean = 100;
       saveState();
-      startGame();
+      wakePet();
     }
   }, 1000);
 }

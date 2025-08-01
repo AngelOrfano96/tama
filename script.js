@@ -1,4 +1,4 @@
-// script.js (updated resume logic)
+// script.js (with offline degradation and proper resume)
 
 // Inizializza Supabase
 const supabaseClient = supabase.createClient(
@@ -12,7 +12,11 @@ let petId = null;
 let eggType = null;
 let hunger = 100, fun = 100, clean = 100;
 let alive = true;
-let countdownInterval = null;
+const decayRatesPerSecond = {
+  hunger: 0.005, // 0.005 units per sec (~1 unit per 200s)
+  fun:     0.003, // ~1 unit per 333s
+  clean:   0.002  // ~1 unit per 500s
+};
 
 // Utils
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -24,14 +28,11 @@ async function signUp(email, password) {
   if (error) throw error;
   return data.user;
 }
-
 async function signIn(email, password) {
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data.user;
 }
-
-// Seed tabella custom users
 async function seedUserRecord(user) {
   const { error } = await supabaseClient
     .from('users')
@@ -39,7 +40,7 @@ async function seedUserRecord(user) {
   if (error) console.error('User seed error:', error);
 }
 
-// Login/Signup
+// Eventi login/signup
 const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
 authForm.addEventListener('submit', async e => {
@@ -66,55 +67,55 @@ signupBtn.addEventListener('click', async () => {
   }
 });
 
-// Flusso principale dopo autenticazione
+// Inizializza flusso
 async function initFlow() {
   hide('login-container');
-  // Carica il pet se esiste
+  // Recupera pet esistente
   const { data: pet, error: petErr } = await supabaseClient
     .from('pets')
     .select('*')
     .eq('user_id', user.id)
     .single();
-  if (petErr && petErr.code !== 'PGRST116') {
-    console.error('Pet fetch error:', petErr);
-    return;
-  }
+  if (petErr && petErr.code !== 'PGRST116') { console.error(petErr); return; }
   if (!pet) {
-    // nessun pet, mostra selezione uovo
     show('egg-selection');
     return;
   }
-  // pet esiste, imposta valori
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Verifica stato esistenza per decidere se schiudere o riprendere
+  // Recupera stato
   const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
-    .select('*')
+    .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
-  if (state && !stateErr) {
-    // ha già uno stato, riprendi gioco
-    hunger = state.hunger;
-    fun = state.fun;
-    clean = state.clean;
+  if (!stateErr && state) {
+    // Calcola degradazione offline
+    const last = new Date(state.updated_at).getTime();
+    const now = Date.now();
+    const diffSec = (now - last) / 1000;
+    hunger = Math.max(0, state.hunger - decayRatesPerSecond.hunger * diffSec);
+    fun    = Math.max(0, state.fun    - decayRatesPerSecond.fun    * diffSec);
+    clean  = Math.max(0, state.clean  - decayRatesPerSecond.clean  * diffSec);
+    // Avvia gioco
     startGame();
   } else {
-    // primo accesso, avvia sequenza di schiusa
+    // Primo accesso: schiusa
     startHatchSequence(eggType);
   }
 }
 
-// Selezione Uovo
-const eggEls = document.querySelectorAll('.egg.selectable');
-eggEls.forEach(img => img.addEventListener('click', () => {
-  eggEls.forEach(i => i.classList.remove('selected'));
+// Selezione uovo
+document.querySelectorAll('.egg.selectable').forEach(img => img.addEventListener('click', () => {
+  document.querySelectorAll('.egg').forEach(i => i.classList.remove('selected'));
   img.classList.add('selected');
-  eggType = parseInt(img.dataset.egg, 10);
+  eggType = +img.dataset.egg;
   document.getElementById('confirm-egg-btn').disabled = false;
 }));
+
+// Conferma uovo
 document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
   try {
     const { data, error } = await supabaseClient
@@ -127,45 +128,41 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     hide('egg-selection');
     startHatchSequence(eggType);
   } catch (err) {
-    console.error('Pet creation error:', err);
-    alert('Errore nella creazione del pet. Riprova.');
+    console.error(err);
+    alert('Errore creazione pet');
   }
 });
 
-// Schiusa uovo con countdown
+// Sequenza di schiusa
 function startHatchSequence(type) {
   document.getElementById('selected-egg').src = `assets/eggs/egg_${type}.png`;
   show('hatch-container');
   let count = 15;
   document.getElementById('countdown').textContent = count;
-  countdownInterval = setInterval(() => {
-    count--;
-    document.getElementById('countdown').textContent = count;
-    if (count <= 0) {
-      clearInterval(countdownInterval);
+  const iv = setInterval(() => {
+    if (--count <= 0) {
+      clearInterval(iv);
       hide('hatch-container');
-      // inizializza a 100 tutte le stats
       hunger = fun = clean = 100;
-      // salva stato iniziale
       saveState();
       startGame();
-    }
+    } else document.getElementById('countdown').textContent = count;
   }, 1000);
 }
 
-// Avvia il gioco vero e proprio
+// Avvia il gioco
 function startGame() {
   show('game');
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   updateBars();
-  setInterval(tick, 2000);
+  setInterval(tick, 1000); // ogni secondo calcola degradazione
 }
 
-// Game Loop
-function updateBars() {
-  document.getElementById('hunger-bar').style.width = hunger + '%';
-  document.getElementById('fun-bar').style.width = fun + '%';
-  document.getElementById('clean-bar').style.width = clean + '%';
+// Game loo
+ function updateBars() {
+  document.getElementById('hunger-bar').style.width = hunger.toFixed(1) + '%';
+  document.getElementById('fun-bar').style.width    = fun.toFixed(1)    + '%';
+  document.getElementById('clean-bar').style.width  = clean.toFixed(1)  + '%';
 }
 async function saveState() {
   const { error } = await supabaseClient
@@ -175,9 +172,9 @@ async function saveState() {
 }
 function tick() {
   if (!alive) return;
-  hunger = Math.max(0, hunger - 1);
-  fun = Math.max(0, fun - 0.5);
-  clean = Math.max(0, clean - 0.3);
+  hunger = Math.max(0, hunger - decayRatesPerSecond.hunger);
+  fun    = Math.max(0, fun    - decayRatesPerSecond.fun);
+  clean  = Math.max(0, clean  - decayRatesPerSecond.clean);
   if (hunger === 0 || fun === 0 || clean === 0) {
     alive = false;
     document.getElementById('game-over').classList.remove('hidden');
@@ -186,26 +183,24 @@ function tick() {
   saveState();
 }
 
-// Bottoni interazione
-['feed','play','clean'].forEach(action => {
-  document.getElementById(`${action}-btn`).addEventListener('click', () => {
+// Interazioni
+['feed','play','clean'].forEach(act => {
+  document.getElementById(`${act}-btn`).addEventListener('click', () => {
     if (!alive) return;
-    if (action === 'feed') hunger = Math.min(100, hunger + 20);
-    if (action === 'play') fun = Math.min(100, fun + 20);
-    if (action === 'clean') clean = Math.min(100, clean + 20);
+    if (act==='feed') hunger = Math.min(100, hunger + 20);
+    if (act==='play') fun    = Math.min(100, fun    + 20);
+    if (act==='clean') clean  = Math.min(100, clean  + 20);
     updateBars();
     saveState();
   });
 });
 
-// Auto-login se già loggato
+// Auto-login
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
   if (currentUser) {
     user = currentUser;
     await seedUserRecord(user);
     initFlow();
-  } else {
-    show('login-container');
-  }
+  } else show('login-container');
 });

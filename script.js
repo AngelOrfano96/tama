@@ -1,4 +1,4 @@
-// script.js (ottimizzato per persistenza immediata e degradazione offline)
+// script.js (versione corretta con await e funzioni valide)
 
 // Inizializza Supabase
 const supabaseClient = supabase.createClient(
@@ -18,7 +18,7 @@ const decayRatesPerSecond = {
   clean:   0.002
 };
 
-// Utils per mostrare/nascondere
+// Utils per mostrare/nascondere elementi
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -33,15 +33,16 @@ async function signIn(email, password) {
   if (error) throw error;
   return data.user;
 }
+
 // Seed custom users table
-async function seedUserRecord(user) {
+async function seedUserRecord(u) {
   const { error } = await supabaseClient
     .from('users')
-    .upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+    .upsert({ id: u.id, email: u.email }, { onConflict: 'id' });
   if (error) console.error('User seed error:', error);
 }
 
-// Forms
+// Form login/signup
 const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
 authForm.addEventListener('submit', async e => {
@@ -70,16 +71,19 @@ signupBtn.addEventListener('click', async () => {
   }
 });
 
-// Inizializza flusso di gioco
+// Flusso iniziale dopo autenticazione
 async function initFlow() {
   hide('login-container');
-  // Carica il pet
+  // Recupera pet esistente
   const { data: pet, error: petErr } = await supabaseClient
     .from('pets')
     .select('*')
     .eq('user_id', user.id)
     .single();
-  if (petErr && petErr.code !== 'PGRST116') return console.error(petErr);
+  if (petErr && petErr.code !== 'PGRST116') {
+    console.error(petErr);
+    return;
+  }
   if (!pet) {
     show('egg-selection');
     return;
@@ -87,21 +91,22 @@ async function initFlow() {
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
-  // Carica stato
+
+  // Recupera stato esistente
   const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
   if (!stateErr && state) {
-    // Degradazione offline
+    // Calcola degradazione offline
     const last = new Date(state.updated_at).getTime();
     const now = Date.now();
     const diffSec = (now - last) / 1000;
     hunger = Math.max(0, state.hunger - decayRatesPerSecond.hunger * diffSec);
     fun    = Math.max(0, state.fun    - decayRatesPerSecond.fun    * diffSec);
     clean  = Math.max(0, state.clean  - decayRatesPerSecond.clean  * diffSec);
-    // Persisti nuovo stato degradato
+    // Salva subito il nuovo stato degradato
     await saveState();
     startGame();
   } else {
@@ -128,12 +133,12 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     hide('egg-selection');
     startHatchSequence(eggType);
   } catch (err) {
-    console.error(err);
+    console.error('Pet creation error:', err);
     alert('Errore creazione pet');
   }
 });
 
-// Schiusa uovo
+// Sequenza di schiusa
 function startHatchSequence(type) {
   document.getElementById('selected-egg').src = `assets/eggs/egg_${type}.png`;
   show('hatch-container');
@@ -152,27 +157,31 @@ function startHatchSequence(type) {
   }, 1000);
 }
 
-// Avvia gioco
-def startGame() {
+// Avvia il gioco
+function startGame() {
   show('game');
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   updateBars();
   setInterval(tick, 1000);
 }
 
-// Loop di gioco
+// Aggiorna barre nel DOM
 function updateBars() {
   document.getElementById('hunger-bar').style.width = hunger.toFixed(1) + '%';
   document.getElementById('fun-bar').style.width    = fun.toFixed(1)    + '%';
   document.getElementById('clean-bar').style.width  = clean.toFixed(1)  + '%';
 }
+
+// Salvataggio stato
 async function saveState() {
   const { error } = await supabaseClient
     .from('pet_states')
     .upsert({ pet_id: petId, hunger, fun, clean, updated_at: new Date() });
   if (error) console.error('Save error:', error);
 }
-function tick() {
+
+// Tick di gioco
+async function tick() {
   if (!alive) return;
   hunger = Math.max(0, hunger - decayRatesPerSecond.hunger);
   fun    = Math.max(0, fun    - decayRatesPerSecond.fun);
@@ -182,27 +191,29 @@ function tick() {
     document.getElementById('game-over').classList.remove('hidden');
   }
   updateBars();
-  saveState();
+  await saveState();
 }
 
 // Interazioni utente
 ['feed','play','clean'].forEach(act => {
   document.getElementById(`${act}-btn`).addEventListener('click', async () => {
     if (!alive) return;
-    if (act==='feed') hunger = Math.min(100, hunger + 20);
-    if (act==='play') fun    = Math.min(100, fun    + 20);
-    if (act==='clean') clean  = Math.min(100, clean  + 20);
+    if (act === 'feed') hunger = Math.min(100, hunger + 20);
+    if (act === 'play') fun    = Math.min(100, fun    + 20);
+    if (act === 'clean') clean  = Math.min(100, clean  + 20);
     updateBars();
     await saveState();
   });
 });
 
-// Auto-login
+// Auto-login al caricamento
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
   if (currentUser) {
     user = currentUser;
     await seedUserRecord(user);
-    initFlow();
-  } else show('login-container');
+    await initFlow();
+  } else {
+    show('login-container');
+  }
 });

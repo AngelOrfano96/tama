@@ -16,7 +16,7 @@ let alive = true;
 const decayRatesPerSecond = { hunger: 0.005, fun: 0.003, clean: 0.002 };
 
 // Utils mostra/nascondi
-def show(id) { document.getElementById(id).classList.remove('hidden'); }
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
 // --- Autenticazione ---

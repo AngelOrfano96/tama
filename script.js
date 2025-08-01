@@ -1,4 +1,4 @@
-// script.js (aggiunto tick online e degradazione offline all'avvio)
+// script.js (finale: tick decrement locale, salvataggio solo su interazioni e al tick ogni minuto)
 
 // Inizializza Supabase
 const supabaseClient = supabase.createClient(
@@ -13,47 +13,45 @@ let eggType = null;
 let hunger = 100, fun = 100, clean = 100;
 let alive = true;
 // Rate di decadimento per secondo
-const decayRatesPerSecond = {
-  hunger: 0.005, // 1% ogni 200s
-  fun:     0.003, // 1% ogni ~333s
-  clean:   0.002  // 1% ogni 500s
-};
+const decayRatesPerSecond = { hunger: 0.005, fun: 0.003, clean: 0.002 };
 
-// Utils: mostra/nascondi elementi
+// Utils
 const show = id => document.getElementById(id).classList.remove('hidden');
 const hide = id => document.getElementById(id).classList.add('hidden');
 
-// --- Autenticazione ---
-async function signUp(email, password) {
-  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+// --- Auth ---
+async function signUp(email, pwd) {
+  const { data, error } = await supabaseClient.auth.signUp({ email, password: pwd });
   if (error) throw error;
   return data.user;
 }
-async function signIn(email, password) {
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+async function signIn(email, pwd) {
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pwd });
   if (error) throw error;
   return data.user;
 }
 
-// --- Form Login / Registrazione ---
-const authForm  = document.getElementById('auth-form');
+// --- Login/Signup handlers ---
+const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
 authForm.addEventListener('submit', async e => {
   e.preventDefault();
-  const email = document.getElementById('email-input').value.trim();
-  const password = document.getElementById('password-input').value;
   try {
-    user = await signIn(email, password);
+    user = await signIn(
+      document.getElementById('email-input').value.trim(),
+      document.getElementById('password-input').value
+    );
     await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
   }
 });
 signupBtn.addEventListener('click', async () => {
-  const email = document.getElementById('email-input').value.trim();
-  const password = document.getElementById('password-input').value;
   try {
-    user = await signUp(email, password);
+    user = await signUp(
+      document.getElementById('email-input').value.trim(),
+      document.getElementById('password-input').value
+    );
     await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
@@ -64,35 +62,25 @@ signupBtn.addEventListener('click', async () => {
 async function initFlow() {
   hide('login-container');
 
-  // Recupera pet esistente
+  // Carica pet
   const { data: pet, error: petErr } = await supabaseClient
-    .from('pets')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-  if (petErr && petErr.code !== 'PGRST116') {
-    console.error(petErr);
-    return;
-  }
+    .from('pets').select('*').eq('user_id', user.id).single();
+  if (petErr && petErr.code !== 'PGRST116') return console.error(petErr);
   if (!pet) {
     show('egg-selection');
     return;
   }
+
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Recupera stato salvato
-  const { data: state, error: stateErr } = await supabaseClient
-    .from('pet_states')
-    .select('hunger, fun, clean, updated_at')
-    .eq('pet_id', petId)
-    .single();
-  if (!stateErr && state) {
-    // Degradazione offline
-    const last    = new Date(state.updated_at).getTime();
-    const now     = Date.now();
-    const diffSec = (now - last) / 1000;
+  // Carica stato
+  const { data: state } = await supabaseClient
+    .from('pet_states').select('hunger, fun, clean, updated_at').eq('pet_id', petId).single();
+  if (state) {
+    // degrado offline
+    const diffSec = (Date.now() - new Date(state.updated_at).getTime()) / 1000;
     hunger = Math.max(0, state.hunger - decayRatesPerSecond.hunger * diffSec);
     fun    = Math.max(0, state.fun    - decayRatesPerSecond.fun    * diffSec);
     clean  = Math.max(0, state.clean  - decayRatesPerSecond.clean  * diffSec);
@@ -103,29 +91,19 @@ async function initFlow() {
 }
 
 // --- Selezione Uovo ---
-document.querySelectorAll('.egg.selectable').forEach(img =>
-  img.addEventListener('click', () => {
-    document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
-    img.classList.add('selected');
-    eggType = Number(img.dataset.egg);
-    document.getElementById('confirm-egg-btn').disabled = false;
-  })
-);
+document.querySelectorAll('.egg.selectable').forEach(el => el.addEventListener('click', () => {
+  document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  eggType = +el.dataset.egg;
+  document.getElementById('confirm-egg-btn').disabled = false;
+}));
 document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
-  try {
-    const { data, error } = await supabaseClient
-      .from('pets')
-      .insert({ user_id: user.id, egg_type: eggType })
-      .select('id')
-      .single();
-    if (error) throw error;
-    petId = data.id;
-    hide('egg-selection');
-    startHatchSequence(eggType);
-  } catch (err) {
-    console.error('Pet creation error:', err);
-    alert('Errore creazione pet');
-  }
+  const { data, error } = await supabaseClient
+    .from('pets').insert({ user_id: user.id, egg_type: eggType }).select('id').single();
+  if (error) return console.error(error);
+  petId = data.id;
+  hide('egg-selection');
+  startHatchSequence(eggType);
 });
 
 // --- Schiusa Uovo ---
@@ -133,17 +111,17 @@ function startHatchSequence(type) {
   document.getElementById('selected-egg').src = `assets/eggs/egg_${type}.png`;
   show('hatch-container');
   let count = 15;
-  const countdownEl = document.getElementById('countdown');
-  countdownEl.textContent = count;
+  const cd = document.getElementById('countdown');
+  cd.textContent = count;
   const iv = setInterval(async () => {
-    count--;
-    countdownEl.textContent = count;
-    if (count <= 0) {
+    if (--count <= 0) {
       clearInterval(iv);
       hide('hatch-container');
       hunger = fun = clean = 100;
       await saveState();
       startGame();
+    } else {
+      cd.textContent = count;
     }
   }, 1000);
 }
@@ -153,7 +131,7 @@ function startGame() {
   show('game');
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   updateBars();
-  // Avvia tick online
+  // tick ogni secondo
   setInterval(tick, 1000);
 }
 
@@ -164,49 +142,45 @@ function updateBars() {
   document.getElementById('clean-bar').style.width  = `${Math.round(clean)}%`;
 }
 
-// --- Tick di gioco ---
+// --- Tick di gioco (decrement locale e persistenza) ---
 async function tick() {
   if (!alive) return;
   hunger = Math.max(0, hunger - decayRatesPerSecond.hunger);
   fun    = Math.max(0, fun    - decayRatesPerSecond.fun);
   clean  = Math.max(0, clean  - decayRatesPerSecond.clean);
   updateBars();
-  await saveState();
+  // salva ogni minuto, non ogni tick
+  // accumula un timer semplificato:
+  if (tick.counter === undefined) tick.counter = 0;
+  if (++tick.counter >= 60) {
+    tick.counter = 0;
+    await saveState();
+  }
 }
 
 // --- Salvataggio Stato ---
 async function saveState() {
   const { error } = await supabaseClient
     .from('pet_states')
-    .upsert({
-      pet_id:     petId,
-      hunger:     Math.round(hunger),
-      fun:        Math.round(fun),
-      clean:      Math.round(clean),
-      updated_at: new Date()
-    });
+    .upsert({ pet_id: petId, hunger: Math.round(hunger), fun: Math.round(fun), clean: Math.round(clean), updated_at: new Date() });
   if (error) console.error('Save error:', error);
 }
 
-// --- Interazioni Utente ---
+// --- Interazioni Utente (persistenza immediata) ---
 ['feed','play','clean'].forEach(act => {
   document.getElementById(`${act}-btn`).addEventListener('click', async () => {
     if (!alive) return;
-    if (act === 'feed') hunger = Math.min(100, hunger + 20);
-    if (act === 'play') fun    = Math.min(100, fun    + 20);
-    if (act === 'clean') clean  = Math.min(100, clean  + 20);
+    if (act==='feed') hunger = Math.min(100, hunger + 20);
+    if (act==='play') fun    = Math.min(100, fun    + 20);
+    if (act==='clean') clean  = Math.min(100, clean  + 20);
     updateBars();
     await saveState();
   });
 });
 
-// --- Auto-login al Caricamento Pagina ---
+// --- Auto-login ---
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
-  if (currentUser) {
-    user = currentUser;
-    await initFlow();
-  } else {
-    show('login-container');
-  }
+  if (currentUser) { user = currentUser; initFlow(); }
+  else show('login-container');
 });

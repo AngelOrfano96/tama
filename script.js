@@ -1,4 +1,4 @@
-// script.js (codice corretto e funzionante)
+// script.js (aggiunto tick online e degradazione offline all'avvio)
 
 // Inizializza Supabase
 const supabaseClient = supabase.createClient(
@@ -12,7 +12,7 @@ let petId = null;
 let eggType = null;
 let hunger = 100, fun = 100, clean = 100;
 let alive = true;
-// Rate di decadimento per secondo (non salvati al tick)
+// Rate di decadimento per secondo
 const decayRatesPerSecond = {
   hunger: 0.005, // 1% ogni 200s
   fun:     0.003, // 1% ogni ~333s
@@ -63,7 +63,8 @@ signupBtn.addEventListener('click', async () => {
 // --- Flusso Iniziale ---
 async function initFlow() {
   hide('login-container');
-  // Ottieni pet esistente
+
+  // Recupera pet esistente
   const { data: pet, error: petErr } = await supabaseClient
     .from('pets')
     .select('*')
@@ -77,21 +78,24 @@ async function initFlow() {
     show('egg-selection');
     return;
   }
-
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Carica stato
+  // Recupera stato salvato
   const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
-    .select('hunger, fun, clean')
+    .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
   if (!stateErr && state) {
-    hunger = state.hunger;
-    fun    = state.fun;
-    clean  = state.clean;
+    // Degradazione offline
+    const last    = new Date(state.updated_at).getTime();
+    const now     = Date.now();
+    const diffSec = (now - last) / 1000;
+    hunger = Math.max(0, state.hunger - decayRatesPerSecond.hunger * diffSec);
+    fun    = Math.max(0, state.fun    - decayRatesPerSecond.fun    * diffSec);
+    clean  = Math.max(0, state.clean  - decayRatesPerSecond.clean  * diffSec);
     startGame();
   } else {
     startHatchSequence(eggType);
@@ -149,16 +153,28 @@ function startGame() {
   show('game');
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   updateBars();
+  // Avvia tick online
+  setInterval(tick, 1000);
 }
 
 // --- Aggiorna Barre ---
 function updateBars() {
-  document.getElementById('hunger-bar').style.width = `${hunger}%`;
-  document.getElementById('fun-bar').style.width    = `${fun}%`;
-  document.getElementById('clean-bar').style.width  = `${clean}%`;
+  document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
+  document.getElementById('fun-bar').style.width    = `${Math.round(fun)}%`;
+  document.getElementById('clean-bar').style.width  = `${Math.round(clean)}%`;
 }
 
-// --- Salvataggio Stato (arrotondando interi) ---
+// --- Tick di gioco ---
+async function tick() {
+  if (!alive) return;
+  hunger = Math.max(0, hunger - decayRatesPerSecond.hunger);
+  fun    = Math.max(0, fun    - decayRatesPerSecond.fun);
+  clean  = Math.max(0, clean  - decayRatesPerSecond.clean);
+  updateBars();
+  await saveState();
+}
+
+// --- Salvataggio Stato ---
 async function saveState() {
   const { error } = await supabaseClient
     .from('pet_states')

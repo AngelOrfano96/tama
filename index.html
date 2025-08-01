@@ -8,10 +8,51 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="game">
-    <img id="background" src="assets/backgrounds/day.png" alt="Background giorno">
-    <img id="egg" src="assets/eggs/egg_1.png" alt="Uovo da schiudere">
-    <img id="pet" style="display:none;" alt="Il tuo pet">
+  <!-- Container Login / Registrazione -->
+  <div id="login-container" class="fullscreen center">
+    <form id="auth-form" class="form-box">
+      <h2>Login / Registrati</h2>
+      <input type="email" id="email-input" placeholder="Email" required />
+      <input type="password" id="password-input" placeholder="Password" required />
+      <div class="buttons">
+        <button type="submit" id="login-btn">Entra</button>
+        <button type="button" id="signup-btn">Registrati</button>
+      </div>
+      <div id="auth-error" class="error"></div>
+    </form>
+  </div>
+
+  <!-- Container Selezione Uovo -->
+  <div id="egg-selection" class="fullscreen center hidden">
+    <div class="form-box">
+      <h2>Scegli un uovo</h2>
+      <div class="eggs-grid">
+        <!-- Otto uova selezionabili -->
+        <img src="assets/eggs/egg_1.png" class="egg selectable" data-egg="1" />
+        <img src="assets/eggs/egg_2.png" class="egg selectable" data-egg="2" />
+        <img src="assets/eggs/egg_3.png" class="egg selectable" data-egg="3" />
+        <img src="assets/eggs/egg_4.png" class="egg selectable" data-egg="4" />
+        <img src="assets/eggs/egg_5.png" class="egg selectable" data-egg="5" />
+        <img src="assets/eggs/egg_6.png" class="egg selectable" data-egg="6" />
+        <img src="assets/eggs/egg_7.png" class="egg selectable" data-egg="7" />
+        <img src="assets/eggs/egg_8.png" class="egg selectable" data-egg="8" />
+      </div>
+      <button id="confirm-egg-btn" disabled>Conferma Uovo</button>
+    </div>
+  </div>
+
+  <!-- Container Schiusa con Countdown -->
+  <div id="hatch-container" class="fullscreen center hidden">
+    <div class="form-box">
+      <h2>Il tuo uovo si schiuderà in <span id="countdown">15</span> secondi</h2>
+      <img id="selected-egg" src="" alt="Uovo selezionato" />
+    </div>
+  </div>
+
+  <!-- Container Gioco -->
+  <div id="game" class="fullscreen center hidden">
+    <img id="background" src="assets/backgrounds/day.png" alt="Background giorno" />
+    <img id="pet" alt="Il tuo pet" />
 
     <div class="bars">
       <div id="hunger-bar" class="bar"></div>
@@ -28,14 +69,14 @@
     <div id="game-over" class="hidden">💔 Il tuo pet è scappato! Ricarica la pagina per riprovare.</div>
   </div>
 
-  <!-- Client Supabase -->
+  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Configurazione Supabase (sostituisci con le tue credenziali o usa env vars al build) -->
+  <!-- Configurazione chiavi (in produzione usare env vars) -->
   <script>
     window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
     window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6...Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
   </script>
-  <!-- Logica del gioco -->
+  <!-- Logica gioco -->
   <script src="script.js"></script>
 </body>
 </html>

@@ -76,7 +76,6 @@ async function initFlow() {
     .select('id, egg_type')
     .eq('user_id', user.id)
     .single();
-
   if (petErr && petErr.code !== 'PGRST116') return;
   if (!pet) { show('egg-selection'); hide('game'); return; }
   petId = pet.id;
@@ -93,13 +92,13 @@ async function initFlow() {
     const now = Date.now();
     const lastUpdate = new Date(state.updated_at).getTime();
     const elapsed = (now - lastUpdate) / 1000;
-    if (elapsed < 7) {
-      // DB fresco: prendi il valore così com'è
+
+    // >>> Modifica qui: se l'ultimo salvataggio è recente, NON degradare!
+    if (elapsed < 5) { // o metti 6-7 se vuoi tolleranza
       hunger = state.hunger;
       fun = state.fun;
       clean = state.clean;
     } else {
-      // Sei stato via: applica degradazione offline SOLO per il tempo trascorso
       hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
       fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
       clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
@@ -122,6 +121,7 @@ async function initFlow() {
   startFakeTick();
   startDbSave();
 }
+
 
 // --- EVENTI
 ['feed','play','clean'].forEach(action => {

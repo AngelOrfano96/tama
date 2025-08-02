@@ -65,6 +65,7 @@ async function initFlow() {
   if (!pet) {
     show('egg-selection');
     hide('game');
+    show('login-container');
     return;
   }
   petId = pet.id;
@@ -147,13 +148,17 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
 });
 
 // --- LOGOUT ---
+
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async () => {
     await supabaseClient.auth.signOut();
-    location.reload();
+    show('login-container');
+    hide('egg-selection');
+    hide('game');
   });
 }
+
 
 // --- LOGIN/SIGNUP ---
 const authForm = document.getElementById('auth-form');

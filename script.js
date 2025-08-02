@@ -9,6 +9,7 @@ let tickInterval = null;
 let saveInterval = null;
 const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 };
 
+// --- UTILS
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 function updateBars() {
@@ -17,6 +18,7 @@ function updateBars() {
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 }
 
+// --- FAKE TICK: degradazione visiva ogni secondo SOLO in locale
 function startFakeTick() {
   if (tickInterval) clearInterval(tickInterval);
   tickInterval = setInterval(() => {
@@ -35,6 +37,11 @@ function startFakeTick() {
   }, 1000);
 }
 
+// --- SALVATAGGIO SU DB ogni 5s
+function startDbSave() {
+  if (saveInterval) clearInterval(saveInterval);
+  saveInterval = setInterval(saveState, 5000);
+}
 async function saveState() {
   if (!petId) return;
   await supabaseClient.from('pet_states').upsert({
@@ -46,11 +53,7 @@ async function saveState() {
   });
 }
 
-function startDbSave() {
-  if (saveInterval) clearInterval(saveInterval);
-  saveInterval = setInterval(saveState, 5000);
-}
-
+// --- RESET
 async function resetPet() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
@@ -65,6 +68,7 @@ async function resetPet() {
   show('egg-selection');
 }
 
+// --- FLOW PRINCIPALE
 async function initFlow() {
   hide('login-container');
   const { data: pet, error: petErr } = await supabaseClient
@@ -72,6 +76,7 @@ async function initFlow() {
     .select('id, egg_type')
     .eq('user_id', user.id)
     .single();
+
   if (petErr && petErr.code !== 'PGRST116') return;
   if (!pet) { show('egg-selection'); hide('game'); return; }
   petId = pet.id;
@@ -83,18 +88,18 @@ async function initFlow() {
     .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
-   if (state) {
+
+  if (state) {
     const now = Date.now();
     const lastUpdate = new Date(state.updated_at).getTime();
     const elapsed = (now - lastUpdate) / 1000;
-
     if (elapsed < 7) {
-      // Prendi i valori dal db, NON applicare degradazione offline
+      // DB fresco: prendi il valore così com'è
       hunger = state.hunger;
       fun = state.fun;
       clean = state.clean;
     } else {
-      // Applica degradazione offline SOLO se davvero sei stato via a lungo
+      // Sei stato via: applica degradazione offline SOLO per il tempo trascorso
       hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
       fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
       clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
@@ -118,6 +123,7 @@ async function initFlow() {
   startDbSave();
 }
 
+// --- EVENTI
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
@@ -163,33 +169,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     await initFlow();
   } else {
     show('login-container');
-  }
-});
-
-const authForm = document.getElementById('auth-form');
-const signupBtn = document.getElementById('signup-btn');
-authForm.addEventListener('submit', async e => {
-  e.preventDefault();
-  const email = document.getElementById('email-input').value.trim();
-  const password = document.getElementById('password-input').value;
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    user = data.user;
-    await initFlow();
-  } catch (err) {
-    document.getElementById('auth-error').textContent = err.message;
-  }
-});
-signupBtn.addEventListener('click', async () => {
-  const email = document.getElementById('email-input').value.trim();
-  const password = document.getElementById('password-input').value;
-  try {
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
-    if (error) throw error;
-    user = data.user;
-    await initFlow();
-  } catch (err) {
-    document.getElementById('auth-error').textContent = err.message;
   }
 });

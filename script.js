@@ -7,7 +7,8 @@ let hunger = 100, fun = 100, clean = 100;
 let alive = true;
 let tickInterval = null;
 let saveInterval = null;
-const decayRates = { hunger: 0.005, fun: 0.003, clean: 0.002 };
+const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 }; // cambia a piacere!
+
 
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }

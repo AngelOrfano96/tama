@@ -16,10 +16,9 @@ function updateBars() {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
-  // console.log('updateBars:', { hunger, fun, clean });
 }
 
-// --- TICK LIVE
+// --- TICK LIVE (solo client)
 function startLiveTick() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
@@ -90,7 +89,7 @@ async function initFlow() {
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Stato + degradazione offline
+  // Stato
   const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, updated_at')
@@ -100,17 +99,16 @@ async function initFlow() {
   if (stateErr) console.error('Errore nel recupero stato:', stateErr);
 
   if (state) {
-    // --- Differenza in secondi dall'ultimo salvataggio
     const now = Date.now();
     const lastUpdate = new Date(state.updated_at).getTime();
     const elapsed = (now - lastUpdate) / 1000;
-    // Se sei appena entrato (refresh in meno di 10s), prendi i valori DB
+
+    // --- Se refresh super recente, usa valore puro, altrimenti degrada
     if (elapsed < 10) {
       hunger = state.hunger;
       fun = state.fun;
       clean = state.clean;
     } else {
-      // Applica la degradazione offline "solo" per il tempo passato
       hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
       fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
       clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);

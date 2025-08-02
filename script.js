@@ -7,42 +7,19 @@ let hunger = 100, fun = 100, clean = 100;
 let alive = true;
 let tickInterval = null;
 let saveInterval = null;
-const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 }; // per secondo
+const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 };
 
+// --- UTILS
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
-
 function updateBars() {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
+  // console.log('updateBars:', { hunger, fun, clean });
 }
 
-async function saveState() {
-  if (!petId) return;
-  await supabaseClient.from('pet_states').upsert({
-    pet_id: petId,
-    hunger: Math.round(hunger),
-    fun: Math.round(fun),
-    clean: Math.round(clean),
-    updated_at: new Date()
-  });
-}
-
-async function resetPet() {
-  if (tickInterval) clearInterval(tickInterval);
-  if (saveInterval) clearInterval(saveInterval);
-  if (petId) {
-    await supabaseClient.from('pet_states').delete().eq('pet_id', petId);
-    await supabaseClient.from('pets').delete().eq('id', petId);
-    petId = null; eggType = null;
-  }
-  hunger = fun = clean = 100;
-  alive = true;
-  hide('game');
-  show('egg-selection');
-}
-
+// --- TICK LIVE
 function startLiveTick() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
@@ -66,34 +43,34 @@ function startLiveTick() {
   saveInterval = setInterval(saveState, 5000);
 }
 
-const authForm = document.getElementById('auth-form');
-const signupBtn = document.getElementById('signup-btn');
-authForm.addEventListener('submit', async e => {
-  e.preventDefault();
-  const email = document.getElementById('email-input').value.trim();
-  const password = document.getElementById('password-input').value;
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    user = data.user;
-    await initFlow();
-  } catch (err) {
-    document.getElementById('auth-error').textContent = err.message;
-  }
-});
-signupBtn.addEventListener('click', async () => {
-  const email = document.getElementById('email-input').value.trim();
-  const password = document.getElementById('password-input').value;
-  try {
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
-    if (error) throw error;
-    user = data.user;
-    await initFlow();
-  } catch (err) {
-    document.getElementById('auth-error').textContent = err.message;
-  }
-});
+// --- SALVATAGGIO
+async function saveState() {
+  if (!petId) return;
+  await supabaseClient.from('pet_states').upsert({
+    pet_id: petId,
+    hunger: Math.round(hunger),
+    fun: Math.round(fun),
+    clean: Math.round(clean),
+    updated_at: new Date()
+  });
+}
 
+// --- RESET
+async function resetPet() {
+  if (tickInterval) clearInterval(tickInterval);
+  if (saveInterval) clearInterval(saveInterval);
+  if (petId) {
+    await supabaseClient.from('pet_states').delete().eq('pet_id', petId);
+    await supabaseClient.from('pets').delete().eq('id', petId);
+    petId = null; eggType = null;
+  }
+  hunger = fun = clean = 100;
+  alive = true;
+  hide('game');
+  show('egg-selection');
+}
+
+// --- FLOW PRINCIPALE
 async function initFlow() {
   hide('login-container');
   const { data: pet, error: petErr } = await supabaseClient
@@ -101,6 +78,7 @@ async function initFlow() {
     .select('id, egg_type')
     .eq('user_id', user.id)
     .single();
+
   if (petErr && petErr.code !== 'PGRST116') {
     console.error('Errore nel recupero pet:', petErr);
     return;
@@ -112,24 +90,30 @@ async function initFlow() {
   eggType = pet.egg_type;
   hide('egg-selection');
 
+  // Stato + degradazione offline
   const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
+
   if (stateErr) console.error('Errore nel recupero stato:', stateErr);
 
   if (state) {
-    // Degradazione OFFLINE calcolata solo se manchi a lungo!
-    const elapsed = (Date.now() - new Date(state.updated_at).getTime()) / 1000;
-    if (elapsed > 7) { // es. dopo più di 7 secondi dal salvataggio, aggiorna
-      hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
-      fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
-      clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
-    } else {
+    // --- Differenza in secondi dall'ultimo salvataggio
+    const now = Date.now();
+    const lastUpdate = new Date(state.updated_at).getTime();
+    const elapsed = (now - lastUpdate) / 1000;
+    // Se sei appena entrato (refresh in meno di 10s), prendi i valori DB
+    if (elapsed < 10) {
       hunger = state.hunger;
       fun = state.fun;
       clean = state.clean;
+    } else {
+      // Applica la degradazione offline "solo" per il tempo passato
+      hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
+      fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
+      clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
     }
     if (hunger === 0 || fun === 0 || clean === 0) {
       alive = false;
@@ -149,7 +133,7 @@ async function initFlow() {
   startLiveTick();
 }
 
-// Bottoni gioco
+// --- EVENTI
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;

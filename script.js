@@ -9,6 +9,11 @@ let autoRefresh = null;
 // Utility
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
+function showOnly(id) {
+  ['login-container', 'egg-selection', 'game'].forEach(section => {
+    if (section === id) show(section); else hide(section);
+  });
+}
 
 function updateBars(hunger, fun, clean) {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
@@ -42,18 +47,15 @@ function startAutoRefresh() {
 
 // Flusso principale: login → selezione uovo → gioco
 async function initFlow() {
-  hide('login-container');
-  // Assicurati che l'oggetto user sia aggiornato
+  // Prendi l'utente aggiornato
   const { data: sessionData } = await supabaseClient.auth.getUser();
   user = sessionData.user;
   if (!user) {
-    show('login-container');
-    hide('egg-selection');
-    hide('game');
+    showOnly('login-container');
     return;
   }
 
-  // Carica il primo pet non schiuso (puoi modificare la logica qui se vuoi più pet in futuro)
+  // Carica il primo pet non schiuso (modificabile in futuro)
   const { data: pet } = await supabaseClient
     .from('pets')
     .select('id, egg_type')
@@ -63,15 +65,12 @@ async function initFlow() {
     .maybeSingle();
 
   if (!pet) {
-    show('egg-selection');
-    hide('game');
-    show('login-container');
+    showOnly('egg-selection');
     return;
   }
   petId = pet.id;
   eggType = pet.egg_type;
-  hide('egg-selection');
-  show('game');
+  showOnly('game');
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
@@ -103,7 +102,6 @@ async function initFlow() {
 });
 
 // --- SELEZIONE UOVO ---
-let lastSelectedEgg = null;
 document.querySelectorAll('.egg.selectable').forEach(img =>
   img.addEventListener('click', () => {
     document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
@@ -114,15 +112,12 @@ document.querySelectorAll('.egg.selectable').forEach(img =>
 );
 
 document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
-  // Prendi l'utente direttamente da Supabase Auth
   const { data: sessionData } = await supabaseClient.auth.getUser();
   user = sessionData.user;
-
   if (!eggType || !user || !user.id) {
     alert("Utente non autenticato!");
     return;
   }
-  // Debug: controlla l'ID utente in console
   console.log('Provo a inserire pet con user_id:', user.id, 'eggType:', eggType);
 
   const { data, error } = await supabaseClient
@@ -135,12 +130,12 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     return;
   }
   petId = data.id;
-  hide('egg-selection');
+  // Dopo la creazione, mostra solo la schermata di gioco!
+  showOnly('game');
   await supabaseClient.from('pet_states').insert({
     pet_id: petId, hunger: 100, fun: 100, clean: 100, updated_at: new Date()
   });
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
-  show('game');
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
   updateBars(100, 100, 100);
@@ -148,17 +143,13 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
 });
 
 // --- LOGOUT ---
-
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async () => {
     await supabaseClient.auth.signOut();
-    show('login-container');
-    hide('egg-selection');
-    hide('game');
+    showOnly('login-container');
   });
 }
-
 
 // --- LOGIN/SIGNUP ---
 const authForm = document.getElementById('auth-form');
@@ -184,7 +175,6 @@ signupBtn.addEventListener('click', async () => {
   try {
     const { data, error } = await supabaseClient.auth.signUp({ email, password });
     if (error) throw error;
-    // Prendi l'utente da Auth dopo signup
     const { data: sessionData } = await supabaseClient.auth.getUser();
     user = sessionData.user;
     await initFlow();
@@ -200,10 +190,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     user = currentUser;
     await initFlow();
   } else {
-    // QUI ⬇️
-    show('login-container');
-    hide('egg-selection');
-    hide('game');
+    showOnly('login-container');
   }
 });
-

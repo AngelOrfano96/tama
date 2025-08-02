@@ -39,7 +39,7 @@
     </div>
   </div>
 
-  <!-- Schiusa (se vuoi tenere l'animazione, puoi lasciarla, oppure toglierla del tutto) -->
+  <!-- Schiusa -->
   <div id="hatch-container" class="fullscreen center hidden">
     <div class="form-box">
       <h2>Il tuo uovo si schiuderà in <span id="countdown">15</span> secondi</h2>
@@ -49,11 +49,13 @@
 
   <!-- Gioco -->
   <div id="game" class="fullscreen center hidden">
-    <img id="background" src="assets/backgrounds/day.png" alt="Background giorno" />
     <img id="pet" alt="Il tuo pet" />
     <div class="bars">
+      <div class="bar-label">Fame</div>
       <div id="hunger-bar" class="bar"></div>
+      <div class="bar-label">Divertimento</div>
       <div id="fun-bar" class="bar"></div>
+      <div class="bar-label">Pulizia</div>
       <div id="clean-bar" class="bar"></div>
     </div>
     <div class="controls">
@@ -66,11 +68,20 @@
 
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Chiavi Supabase (ricorda: in produzione NON lasciarle qui in chiaro!) -->
   <script>
     window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
     window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWNpZnlic2hvYXdod2VjaGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNzM0MDQsImV4cCI6MjA2OTY0OTQwNH0.Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
   </script>
+  <div style="width:300px; background:#eee; border-radius:8px; padding:4px; margin:20px auto;">
+  <div id="prova-bar" style="width:100%; height:16px; background:#2ecc71; border-radius:8px; transition:width 0.3s;"></div>
+</div>
+<script>
+  let val = 100;
+  setInterval(() => {
+    val = Math.max(0, val - 1);
+    document.getElementById('prova-bar').style.width = val + "%";
+  }, 100);
+</script>
   <script src="script.js"></script>
 </body>
 </html>

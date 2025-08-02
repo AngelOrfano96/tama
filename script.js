@@ -83,11 +83,22 @@ async function initFlow() {
     .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
-  if (state) {
-    const elapsed = (Date.now() - new Date(state.updated_at).getTime()) / 1000;
-    hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
-    fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
-    clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
+   if (state) {
+    const now = Date.now();
+    const lastUpdate = new Date(state.updated_at).getTime();
+    const elapsed = (now - lastUpdate) / 1000;
+
+    if (elapsed < 7) {
+      // Prendi i valori dal db, NON applicare degradazione offline
+      hunger = state.hunger;
+      fun = state.fun;
+      clean = state.clean;
+    } else {
+      // Applica degradazione offline SOLO se davvero sei stato via a lungo
+      hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
+      fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
+      clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
+    }
     if (hunger === 0 || fun === 0 || clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');

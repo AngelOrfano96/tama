@@ -6,6 +6,7 @@ let eggType = null;
 let alive = true;
 let autoRefresh = null;
 
+// Utility
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -15,6 +16,7 @@ function updateBars(hunger, fun, clean) {
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 }
 
+// Aggiorna stato dal DB
 async function getStateFromDb() {
   if (!petId) return;
   const { data: state } = await supabaseClient
@@ -32,13 +34,13 @@ async function getStateFromDb() {
   }
 }
 
-// --- AUTO-REFRESH dello stato ogni 2 secondi
+// Aggiorna le barre ogni 2s leggendo il DB
 function startAutoRefresh() {
   if (autoRefresh) clearInterval(autoRefresh);
   autoRefresh = setInterval(getStateFromDb, 2000);
 }
 
-// --- FLUSSO PRINCIPALE
+// Flusso principale: login → selezione uovo → gioco
 async function initFlow() {
   hide('login-container');
   const { data: pet } = await supabaseClient
@@ -46,7 +48,12 @@ async function initFlow() {
     .select('id, egg_type')
     .eq('user_id', user.id)
     .single();
-  if (!pet) { show('egg-selection'); hide('game'); return; }
+
+  if (!pet) {
+    show('egg-selection');
+    hide('game');
+    return;
+  }
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
@@ -58,11 +65,10 @@ async function initFlow() {
   startAutoRefresh();
 }
 
-// --- BOTTONI
+// --- BOTTONI GAME ---
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
-    // Recupera stato attuale dal db
     const { data: state } = await supabaseClient
       .from('pet_states')
       .select('hunger, fun, clean')
@@ -78,11 +84,12 @@ async function initFlow() {
       hunger, fun, clean, updated_at: new Date()
     }).eq('pet_id', petId);
 
-    // Aggiorna la UI subito (o potresti aspettare il prossimo auto-refresh)
     updateBars(hunger, fun, clean);
   });
 });
 
+// --- SELEZIONE UOVO ---
+let lastSelectedEgg = null;
 document.querySelectorAll('.egg.selectable').forEach(img =>
   img.addEventListener('click', () => {
     document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
@@ -91,12 +98,19 @@ document.querySelectorAll('.egg.selectable').forEach(img =>
     document.getElementById('confirm-egg-btn').disabled = false;
   })
 );
+
 document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
-  const { data } = await supabaseClient
+  if (!eggType || !user) return;
+  // Inserisci il nuovo pet
+  const { data, error } = await supabaseClient
     .from('pets')
     .insert({ user_id: user.id, egg_type: eggType })
     .select('id')
     .single();
+  if (error) {
+    alert('Errore creazione pet: ' + error.message);
+    return;
+  }
   petId = data.id;
   hide('egg-selection');
   await supabaseClient.from('pet_states').insert({
@@ -110,11 +124,16 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   startAutoRefresh();
 });
 
-document.getElementById('logout-btn').addEventListener('click', async () => {
-  await supabaseClient.auth.signOut();
-  location.reload();
-});
+// --- LOGOUT ---
+const logoutBtn = document.getElementById('logout-btn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    location.reload();
+  });
+}
 
+// --- LOGIN/SIGNUP ---
 const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
 authForm.addEventListener('submit', async e => {
@@ -143,35 +162,7 @@ signupBtn.addEventListener('click', async () => {
   }
 });
 
-document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
-  const { data } = await supabaseClient
-    .from('pets')
-    .insert({ user_id: user.id, egg_type: eggType })
-    .select('id')
-    .single();
-  petId = data.id;
-  hide('egg-selection');
-  await supabaseClient.from('pet_states').insert({
-    pet_id: petId, hunger: 100, fun: 100, clean: 100, updated_at: new Date()
-  });
-  document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
-  show('game');
-  alive = true;
-  document.getElementById('game-over').classList.add('hidden');
-  updateBars(100, 100, 100);
-  startAutoRefresh();
-});
-
-document.querySelectorAll('.egg.selectable').forEach(img =>
-  img.addEventListener('click', () => {
-    document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
-    img.classList.add('selected');
-    eggType = Number(img.dataset.egg);
-    document.getElementById('confirm-egg-btn').disabled = false;
-  })
-);
-
-
+// --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
   if (currentUser) {
@@ -179,7 +170,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     await initFlow();
   } else {
     show('login-container');
+    hide('egg-selection');
+    hide('game');
   }
 });
-
-// Login/Signup (presumo invariato)

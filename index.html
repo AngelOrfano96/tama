@@ -39,7 +39,7 @@
     </div>
   </div>
 
-  <!-- Schiusa -->
+  <!-- Schiusa: puoi gestirla dopo, intanto lasciala hidden -->
   <div id="hatch-container" class="fullscreen center hidden">
     <div class="form-box">
       <h2>Il tuo uovo si schiuderà in <span id="countdown">15</span> secondi</h2>
@@ -48,7 +48,7 @@
   </div>
 
   <!-- Gioco -->
-  <div id="game" class="fullscreen center hidden">
+  <div id="game" class="fullscreen center hidden" style="position:relative;">
     <button id="logout-btn" style="position:absolute;top:20px;right:20px;">Logout</button>
     <img id="pet" alt="Il tuo pet" />
     <div class="bars">
@@ -64,7 +64,9 @@
       <button id="play-btn">🎮 Play</button>
       <button id="clean-btn">🧼 Clean</button>
     </div>
-    <div id="game-over" class="hidden">💔 Il tuo pet è scappato! Scegli un nuovo uovo per ricominciare.</div>
+    <div id="game-over" class="hidden">
+      💔 Il tuo pet è scappato! Scegli un nuovo uovo per ricominciare.
+    </div>
   </div>
 
   <!-- Supabase JS -->

@@ -38,9 +38,19 @@ function startLiveTick() {
     hunger = Math.max(0, hunger - decayRates.hunger);
     fun    = Math.max(0, fun    - decayRates.fun);
     clean  = Math.max(0, clean  - decayRates.clean);
+
+    // Aggiorna la UI ogni tick!
     updateBars();
+
+    // Game Over
+    if (hunger <= 0 || fun <= 0 || clean <= 0) {
+      alive = false;
+      document.getElementById('game-over').classList.remove('hidden');
+      clearInterval(tickInterval);
+    }
   }, 1000);
 
+  // Salva ogni 5s
   saveInterval = setInterval(saveState, 5000);
 }
 
@@ -51,8 +61,9 @@ authForm.addEventListener('submit', async e => {
   const email = document.getElementById('email-input').value.trim();
   const password = document.getElementById('password-input').value;
   try {
-    const { user: u } = await supabaseClient.auth.signInWithPassword({ email, password });
-    user = u;
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    user = data.user;
     await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
@@ -62,8 +73,9 @@ signupBtn.addEventListener('click', async () => {
   const email = document.getElementById('email-input').value.trim();
   const password = document.getElementById('password-input').value;
   try {
-    const { user: u } = await supabaseClient.auth.signUp({ email, password });
-    user = u;
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) throw error;
+    user = data.user;
     await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
@@ -72,17 +84,20 @@ signupBtn.addEventListener('click', async () => {
 
 async function initFlow() {
   hide('login-container');
-  const { data: pet } = await supabaseClient
+  // Controlla se hai già un pet
+  const { data: pet, error: petErr } = await supabaseClient
     .from('pets')
     .select('id, egg_type')
     .eq('user_id', user.id)
     .single();
+  if (petErr && petErr.code !== 'PGRST116') return console.error(petErr);
+
   if (!pet) { show('egg-selection'); return; }
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Carica stato e applica degradazione offline
+  // Stato + degradazione offline
   const { data: state } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, updated_at')
@@ -99,15 +114,18 @@ async function initFlow() {
   show('game');
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   updateBars();
+  alive = true; // reset se rientri!
+  document.getElementById('game-over').classList.add('hidden');
   startLiveTick();
 }
 
+// Bottoni gioco
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
     if (action === 'feed') hunger = Math.min(100, hunger + 20);
     if (action === 'play') fun    = Math.min(100, fun    + 20);
-    if (action === 'clean') clean  = Math.min(100, clean + 20);
+    if (action === 'clean') clean = Math.min(100, clean  + 20);
     updateBars();
     await saveState();
   });
@@ -133,6 +151,8 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   await saveState();
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   show('game');
+  alive = true;
+  document.getElementById('game-over').classList.add('hidden');
   updateBars();
   startLiveTick();
 });

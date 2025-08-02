@@ -11,13 +11,27 @@ const decayRates = { hunger: 0.005, fun: 0.003, clean: 0.002 };
 
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
-
+/*
 function updateBars() {
   console.log('updateBars:', { hunger, fun, clean });
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
+} */
+
+function updateBars() {
+  document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
+  document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
+  document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
+  console.log('updateBars:', { hunger, fun, clean });
 }
+setInterval(() => {
+  hunger = Math.max(0, hunger - 0.5);
+  fun = Math.max(0, fun - 0.3);
+  clean = Math.max(0, clean - 0.2);
+  updateBars();
+}, 1000);
+
 
 async function saveState() {
   if (!petId) return;

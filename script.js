@@ -130,7 +130,6 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     return;
   }
   petId = data.id;
-  // Dopo la creazione, mostra solo la schermata di gioco!
   showOnly('game');
   await supabaseClient.from('pet_states').insert({
     pet_id: petId, hunger: 100, fun: 100, clean: 100, updated_at: new Date()
@@ -164,7 +163,8 @@ authForm.addEventListener('submit', async e => {
     // Prendi l'utente da Auth dopo login
     const { data: sessionData } = await supabaseClient.auth.getUser();
     user = sessionData.user;
-    await initFlow();
+    showOnly('egg-selection'); // <--- mostra la selezione uovo subito dopo il login (oppure puoi chiamare initFlow, vedi sotto)
+    await initFlow(); // meglio far gestire la logica a initFlow
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
   }
@@ -177,7 +177,8 @@ signupBtn.addEventListener('click', async () => {
     if (error) throw error;
     const { data: sessionData } = await supabaseClient.auth.getUser();
     user = sessionData.user;
-    await initFlow();
+    showOnly('egg-selection'); // <--- mostra la selezione uovo subito dopo signup (oppure chiama initFlow)
+    await initFlow(); // meglio far gestire la logica a initFlow
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
   }

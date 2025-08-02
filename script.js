@@ -110,6 +110,11 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   startAutoRefresh();
 });
 
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await supabaseClient.auth.signOut();
+  location.reload();
+});
+
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
   if (currentUser) {

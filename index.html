@@ -5,67 +5,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tamagotchi Browser</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    .hidden { display: none !important; }
+    /* Solo per demo: migliora la posizione del logout */
+    #logout-btn { position:absolute;top:20px;right:20px; }
+    #pet { max-width: 180px; margin: 20px auto 10px auto; display: block; }
+    .bars { margin: 20px 0; }
+    .bar-label { margin-top: 8px; font-weight: 500; }
+    .bar { height: 18px; border-radius: 9px; background: #eee; margin-bottom: 8px; min-width: 120px; }
+    #hunger-bar { background: orange; }
+    #fun-bar { background: #1ec089; }
+    #clean-bar { background: #3b82f6; }
+    .controls { margin-bottom: 15px; }
+    .controls button { margin: 0 8px; }
+    #game-over { margin-top: 18px; color: #b90000; font-size: 1.1em; }
+    .form-box { background: #fff; border-radius: 15px; box-shadow: 0 2px 20px 0 #0001; padding: 32px 36px 24px 36px; }
+    .eggs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 20px; }
+    .egg { width: 60px; cursor: pointer; border-radius: 100%; border: 3px solid transparent; transition: border 0.2s; }
+    .egg.selected { border-color: #ff9900; }
+    .center { display: flex; align-items: center; justify-content: center; }
+    .fullscreen { position: absolute; top:0; left:0; width:100vw; height:100vh; }
+    body { background: #f4f7fa; margin:0; min-height:100vh; }
+    /* Per background scenico puoi usare CSS o <img> di background come preferisci */
+  </style>
 </head>
 <body>
-  <!-- Login / Registrazione -->
-  <div id="login-container" class="fullscreen center">
-    <form id="auth-form" class="form-box">
-      <h2>Login / Registrati</h2>
-      <input type="email" id="email-input" placeholder="Email" required />
-      <input type="password" id="password-input" placeholder="Password" required />
-      <div class="buttons">
-        <button type="submit" id="login-btn">Entra</button>
-        <button type="button" id="signup-btn">Registrati</button>
+  <div id="app-root">
+    <!-- Login / Registrazione -->
+    <div id="login-container" class="fullscreen center">
+      <form id="auth-form" class="form-box">
+        <h2>Login / Registrati</h2>
+        <input type="email" id="email-input" placeholder="Email" required />
+        <input type="password" id="password-input" placeholder="Password" required />
+        <div class="buttons">
+          <button type="submit" id="login-btn">Entra</button>
+          <button type="button" id="signup-btn">Registrati</button>
+        </div>
+        <div id="auth-error" class="error"></div>
+      </form>
+    </div>
+
+    <!-- Selezione Uovo -->
+    <div id="egg-selection" class="fullscreen center hidden">
+      <div class="form-box">
+        <h2>Scegli un uovo</h2>
+        <div class="eggs-grid">
+          <img src="assets/eggs/egg_1.png" class="egg selectable" data-egg="1" />
+          <img src="assets/eggs/egg_2.png" class="egg selectable" data-egg="2" />
+          <img src="assets/eggs/egg_3.png" class="egg selectable" data-egg="3" />
+          <img src="assets/eggs/egg_4.png" class="egg selectable" data-egg="4" />
+          <img src="assets/eggs/egg_5.png" class="egg selectable" data-egg="5" />
+          <img src="assets/eggs/egg_6.png" class="egg selectable" data-egg="6" />
+          <img src="assets/eggs/egg_7.png" class="egg selectable" data-egg="7" />
+          <img src="assets/eggs/egg_8.png" class="egg selectable" data-egg="8" />
+        </div>
+        <button id="confirm-egg-btn" disabled>Conferma Uovo</button>
       </div>
-      <div id="auth-error" class="error"></div>
-    </form>
-  </div>
+    </div>
 
-  <!-- Selezione Uovo -->
-  <div id="egg-selection" class="fullscreen center hidden">
-    <div class="form-box">
-      <h2>Scegli un uovo</h2>
-      <div class="eggs-grid">
-        <img src="assets/eggs/egg_1.png" class="egg selectable" data-egg="1" />
-        <img src="assets/eggs/egg_2.png" class="egg selectable" data-egg="2" />
-        <img src="assets/eggs/egg_3.png" class="egg selectable" data-egg="3" />
-        <img src="assets/eggs/egg_4.png" class="egg selectable" data-egg="4" />
-        <img src="assets/eggs/egg_5.png" class="egg selectable" data-egg="5" />
-        <img src="assets/eggs/egg_6.png" class="egg selectable" data-egg="6" />
-        <img src="assets/eggs/egg_7.png" class="egg selectable" data-egg="7" />
-        <img src="assets/eggs/egg_8.png" class="egg selectable" data-egg="8" />
+    <!-- Gioco -->
+    <div id="game" class="fullscreen center hidden">
+      <button id="logout-btn">Logout</button>
+      <div class="form-box" style="min-width:330px">
+        <img id="pet" alt="Il tuo pet" />
+        <div class="bars">
+          <div class="bar-label">Fame</div>
+          <div id="hunger-bar" class="bar"></div>
+          <div class="bar-label">Divertimento</div>
+          <div id="fun-bar" class="bar"></div>
+          <div class="bar-label">Pulizia</div>
+          <div id="clean-bar" class="bar"></div>
+        </div>
+        <div class="controls">
+          <button id="feed-btn">🍖 Feed</button>
+          <button id="play-btn">🎮 Play</button>
+          <button id="clean-btn">🧼 Clean</button>
+        </div>
+        <div id="game-over" class="hidden">💔 Il tuo pet è scappato! Scegli un nuovo uovo per ricominciare.</div>
       </div>
-      <button id="confirm-egg-btn" disabled>Conferma Uovo</button>
-    </div>
-  </div>
-
-  <!-- Schiusa: puoi gestirla dopo, intanto lasciala hidden -->
-  <div id="hatch-container" class="fullscreen center hidden">
-    <div class="form-box">
-      <h2>Il tuo uovo si schiuderà in <span id="countdown">15</span> secondi</h2>
-      <img id="selected-egg" src="" alt="Uovo selezionato" />
-    </div>
-  </div>
-
-  <!-- Gioco -->
-  <div id="game" class="fullscreen center hidden" style="position:relative;">
-    <button id="logout-btn" style="position:absolute;top:20px;right:20px;">Logout</button>
-    <img id="pet" alt="Il tuo pet" />
-    <div class="bars">
-      <div class="bar-label">Fame</div>
-      <div id="hunger-bar" class="bar"></div>
-      <div class="bar-label">Divertimento</div>
-      <div id="fun-bar" class="bar"></div>
-      <div class="bar-label">Pulizia</div>
-      <div id="clean-bar" class="bar"></div>
-    </div>
-    <div class="controls">
-      <button id="feed-btn">🍖 Feed</button>
-      <button id="play-btn">🎮 Play</button>
-      <button id="clean-btn">🧼 Clean</button>
-    </div>
-    <div id="game-over" class="hidden">
-      💔 Il tuo pet è scappato! Scegli un nuovo uovo per ricominciare.
     </div>
   </div>
 

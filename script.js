@@ -3,7 +3,7 @@ const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABAS
 let user = null;
 let petId = null;
 let eggType = null;
-//let hunger = 100, fun = 100, clean = 100;
+let hunger = 100, fun = 100, clean = 100;
 let alive = true;
 let tickInterval = null;
 let saveInterval = null;
@@ -15,8 +15,8 @@ function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
 function updateBars() {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
-  document.getElementById('fun-bar').style.width    = `${Math.round(fun)}%`;
-  document.getElementById('clean-bar').style.width  = `${Math.round(clean)}%`;
+  document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
+  document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 }
 
 async function saveState() {
@@ -30,50 +30,29 @@ async function saveState() {
   });
 }
 
-async function resetPet() {
-  if (tickInterval) clearInterval(tickInterval);
-  if (saveInterval) clearInterval(saveInterval);
-
-  if (petId) {
-    await supabaseClient.from('pet_states').delete().eq('pet_id', petId);
-    await supabaseClient.from('pets').delete().eq('id', petId);
-    petId = null;
-    eggType = null;
-  }
-  hunger = fun = clean = 100;
-  alive = true;
-  hide('game');
-  show('egg-selection');
-  document.getElementById('game-over').classList.add('hidden');
-  document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
-  document.getElementById('confirm-egg-btn').disabled = true;
-}
-
 function startLiveTick() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
 
-  tickInterval = setInterval(async () => {
+  tickInterval = setInterval(() => {
     if (!alive) return;
     hunger = Math.max(0, hunger - decayRates.hunger);
     fun    = Math.max(0, fun    - decayRates.fun);
     clean  = Math.max(0, clean  - decayRates.clean);
     updateBars();
-
+    // Pet scappa?
     if (hunger === 0 || fun === 0 || clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');
-      // Delay di 1 secondo per vedere la barra azzerata, poi reset
-      setTimeout(resetPet, 1200);
       clearInterval(tickInterval);
       clearInterval(saveInterval);
+      // Qui puoi chiamare resetPet o chiedere se vuole ricominciare
     }
   }, 1000);
 
   saveInterval = setInterval(saveState, 5000);
 }
 
-// --- Login/Signup ---
 const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
 authForm.addEventListener('submit', async e => {
@@ -104,25 +83,19 @@ signupBtn.addEventListener('click', async () => {
 
 async function initFlow() {
   hide('login-container');
+  // Recupera pet
   const { data: pet, error: petErr } = await supabaseClient
     .from('pets')
     .select('id, egg_type')
     .eq('user_id', user.id)
     .single();
   if (petErr && petErr.code !== 'PGRST116') return console.error(petErr);
-
-  if (!pet) { 
-    show('egg-selection');
-    hide('game');
-    document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
-    document.getElementById('confirm-egg-btn').disabled = true;
-    return; 
-  }
+  if (!pet) { show('egg-selection'); hide('game'); return; }
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Stato + degradazione offline
+  // Stato + degradazione offline UNA VOLTA SOLA
   const { data: state } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, updated_at')
@@ -133,8 +106,12 @@ async function initFlow() {
     hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
     fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
     clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
+    // Se è morto subito
     if (hunger === 0 || fun === 0 || clean === 0) {
-      await resetPet();
+      alive = false;
+      document.getElementById('game-over').classList.remove('hidden');
+      show('game');
+      updateBars();
       return;
     }
   } else {
@@ -148,19 +125,18 @@ async function initFlow() {
   startLiveTick();
 }
 
-// --- Bottoni gioco
+// Bottoni gioco
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
-    if (action === 'feed')  hunger = Math.min(100, hunger + 20);
-    if (action === 'play')  fun    = Math.min(100, fun    + 20);
-    if (action === 'clean') clean  = Math.min(100, clean  + 20);
+    if (action === 'feed') hunger = Math.min(100, hunger + 20);
+    if (action === 'play') fun    = Math.min(100, fun    + 20);
+    if (action === 'clean') clean = Math.min(100, clean  + 20);
     updateBars();
     await saveState();
   });
 });
 
-// --- Uovo
 document.querySelectorAll('.egg.selectable').forEach(img =>
   img.addEventListener('click', () => {
     document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
@@ -187,7 +163,6 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   startLiveTick();
 });
 
-// --- Auto-login
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
   if (currentUser) {

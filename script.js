@@ -3,7 +3,7 @@ const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABAS
 let user = null;
 let petId = null;
 let eggType = null;
-let hunger = 100, fun = 100, clean = 100;
+//let hunger = 100, fun = 100, clean = 100;
 let alive = true;
 let tickInterval = null;
 let saveInterval = null;

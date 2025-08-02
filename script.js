@@ -33,26 +33,25 @@ function startLiveTick() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
 
-  tickInterval = setInterval(() => {
+  tickInterval = setInterval(async () => {
     if (!alive) return;
     hunger = Math.max(0, hunger - decayRates.hunger);
     fun    = Math.max(0, fun    - decayRates.fun);
     clean  = Math.max(0, clean  - decayRates.clean);
-
-    // Aggiorna la UI ogni tick!
     updateBars();
 
-    // Game Over
-    if (hunger <= 0 || fun <= 0 || clean <= 0) {
+    if (hunger === 0 || fun === 0 || clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');
       clearInterval(tickInterval);
+      clearInterval(saveInterval);
+      await resetPet(); // ← qui!
     }
   }, 1000);
 
-  // Salva ogni 5s
   saveInterval = setInterval(saveState, 5000);
 }
+
 
 const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
@@ -81,6 +80,16 @@ signupBtn.addEventListener('click', async () => {
     document.getElementById('auth-error').textContent = err.message;
   }
 });
+
+async function resetPet() {
+  if (petId) {
+    // Cancella pet_states prima (dipendenza FK), poi pets
+    await supabaseClient.from('pet_states').delete().eq('pet_id', petId);
+    await supabaseClient.from('pets').delete().eq('id', petId);
+    petId = null;
+    eggType = null;
+  }
+}
 
 async function initFlow() {
   hide('login-container');

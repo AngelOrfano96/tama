@@ -12,12 +12,23 @@ const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 };
 // --- UTILS
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
 function updateBars() {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
-  // console.log('updateBars:', { hunger, fun, clean });
 }
+/*
+setInterval(() => {
+  if (!alive) return;
+  hunger = Math.max(0, hunger - 0.2);
+  fun = Math.max(0, fun - 0.1);
+  clean = Math.max(0, clean - 0.1);
+  updateBars();
+  if (hunger === 0 || fun === 0 || clean === 0) alive = false;
+}, 1000);
+updateBars();
+*/
 
 // --- TICK LOCALE (fittizio per animazione)
 function startFakeTick() {

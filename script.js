@@ -20,6 +20,7 @@ function updateBars() {
 }
 
 async function saveState() {
+  if (!petId) return;
   await supabaseClient.from('pet_states').upsert({
     pet_id: petId,
     hunger: Math.round(hunger),
@@ -27,6 +28,25 @@ async function saveState() {
     clean: Math.round(clean),
     updated_at: new Date()
   });
+}
+
+async function resetPet() {
+  if (tickInterval) clearInterval(tickInterval);
+  if (saveInterval) clearInterval(saveInterval);
+
+  if (petId) {
+    // Cancella pet_states prima (dipendenza FK), poi pets
+    await supabaseClient.from('pet_states').delete().eq('pet_id', petId);
+    await supabaseClient.from('pets').delete().eq('id', petId);
+    petId = null;
+    eggType = null;
+  }
+  // Reset variabili locali
+  hunger = fun = clean = 100;
+  alive = true;
+  // Torna alla selezione uovo
+  hide('game');
+  show('egg-selection');
 }
 
 function startLiveTick() {
@@ -43,15 +63,13 @@ function startLiveTick() {
     if (hunger === 0 || fun === 0 || clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');
-      clearInterval(tickInterval);
-      clearInterval(saveInterval);
-      await resetPet(); // ← qui!
+      await resetPet();
+      // Non restartare qui i tick, tornerai alla scelta uovo!
     }
   }, 1000);
 
   saveInterval = setInterval(saveState, 5000);
 }
-
 
 const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
@@ -81,16 +99,6 @@ signupBtn.addEventListener('click', async () => {
   }
 });
 
-async function resetPet() {
-  if (petId) {
-    // Cancella pet_states prima (dipendenza FK), poi pets
-    await supabaseClient.from('pet_states').delete().eq('pet_id', petId);
-    await supabaseClient.from('pets').delete().eq('id', petId);
-    petId = null;
-    eggType = null;
-  }
-}
-
 async function initFlow() {
   hide('login-container');
   // Controlla se hai già un pet
@@ -101,7 +109,12 @@ async function initFlow() {
     .single();
   if (petErr && petErr.code !== 'PGRST116') return console.error(petErr);
 
-  if (!pet) { show('egg-selection'); return; }
+  if (!pet) { 
+    // Nessun pet: vai a selezione uovo
+    show('egg-selection');
+    hide('game');
+    return; 
+  }
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
@@ -117,6 +130,11 @@ async function initFlow() {
     hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
     fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
     clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
+    // Se appena rientri è morto, reset subito
+    if (hunger === 0 || fun === 0 || clean === 0) {
+      await resetPet();
+      return;
+    }
   } else {
     hunger = fun = clean = 100;
   }

@@ -7,12 +7,10 @@ let hunger = 100, fun = 100, clean = 100;
 let alive = true;
 let tickInterval = null;
 let saveInterval = null;
-
 const decayRates = { hunger: 0.005, fun: 0.003, clean: 0.002 };
 
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
-
 function updateBars() {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
@@ -30,6 +28,20 @@ async function saveState() {
   });
 }
 
+async function resetPet() {
+  if (tickInterval) clearInterval(tickInterval);
+  if (saveInterval) clearInterval(saveInterval);
+  if (petId) {
+    await supabaseClient.from('pet_states').delete().eq('pet_id', petId);
+    await supabaseClient.from('pets').delete().eq('id', petId);
+    petId = null; eggType = null;
+  }
+  hunger = fun = clean = 100;
+  alive = true;
+  hide('game');
+  show('egg-selection');
+}
+
 function startLiveTick() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
@@ -40,13 +52,13 @@ function startLiveTick() {
     fun    = Math.max(0, fun    - decayRates.fun);
     clean  = Math.max(0, clean  - decayRates.clean);
     updateBars();
-    // Pet scappa?
+
     if (hunger === 0 || fun === 0 || clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');
       clearInterval(tickInterval);
       clearInterval(saveInterval);
-      // Qui puoi chiamare resetPet o chiedere se vuole ricominciare
+      setTimeout(resetPet, 1200);
     }
   }, 1000);
 
@@ -83,35 +95,37 @@ signupBtn.addEventListener('click', async () => {
 
 async function initFlow() {
   hide('login-container');
-  // Recupera pet
   const { data: pet, error: petErr } = await supabaseClient
     .from('pets')
     .select('id, egg_type')
     .eq('user_id', user.id)
     .single();
   if (petErr && petErr.code !== 'PGRST116') return console.error(petErr);
-  if (!pet) { show('egg-selection'); hide('game'); return; }
+
+  if (!pet) { 
+    show('egg-selection'); hide('game'); return; 
+  }
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Stato + degradazione offline UNA VOLTA SOLA
-  const { data: state } = await supabaseClient
+  const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
+  if (stateErr) console.error(stateErr);
+
   if (state) {
     const elapsed = (Date.now() - new Date(state.updated_at).getTime()) / 1000;
     hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
     fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
     clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
-    // Se è morto subito
     if (hunger === 0 || fun === 0 || clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');
-      show('game');
-      updateBars();
+      show('game'); updateBars();
+      setTimeout(resetPet, 1200);
       return;
     }
   } else {
@@ -125,7 +139,6 @@ async function initFlow() {
   startLiveTick();
 }
 
-// Bottoni gioco
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;

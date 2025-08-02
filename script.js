@@ -7,9 +7,8 @@ let hunger = 100, fun = 100, clean = 100;
 let alive = true;
 let tickInterval = null;
 let saveInterval = null;
-const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 };
+const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 }; // ogni secondo
 
-// --- UTILS
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 function updateBars() {
@@ -18,7 +17,6 @@ function updateBars() {
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 }
 
-// --- FAKE TICK: degradazione visiva ogni secondo SOLO in locale
 function startFakeTick() {
   if (tickInterval) clearInterval(tickInterval);
   tickInterval = setInterval(() => {
@@ -37,11 +35,11 @@ function startFakeTick() {
   }, 1000);
 }
 
-// --- SALVATAGGIO SU DB ogni 5s
 function startDbSave() {
   if (saveInterval) clearInterval(saveInterval);
   saveInterval = setInterval(saveState, 5000);
 }
+
 async function saveState() {
   if (!petId) return;
   await supabaseClient.from('pet_states').upsert({
@@ -53,7 +51,6 @@ async function saveState() {
   });
 }
 
-// --- RESET
 async function resetPet() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
@@ -68,7 +65,6 @@ async function resetPet() {
   show('egg-selection');
 }
 
-// --- FLOW PRINCIPALE
 async function initFlow() {
   hide('login-container');
   const { data: pet, error: petErr } = await supabaseClient
@@ -87,14 +83,12 @@ async function initFlow() {
     .select('hunger, fun, clean, updated_at')
     .eq('pet_id', petId)
     .single();
-
   if (state) {
     const now = Date.now();
     const lastUpdate = new Date(state.updated_at).getTime();
     const elapsed = (now - lastUpdate) / 1000;
-
-    // >>> Modifica qui: se l'ultimo salvataggio è recente, NON degradare!
-    if (elapsed < 5) { // o metti 6-7 se vuoi tolleranza
+    // Solo se sono passati >7s dal salvataggio DB applica degradazione offline
+    if (elapsed < 7) {
       hunger = state.hunger;
       fun = state.fun;
       clean = state.clean;
@@ -122,8 +116,6 @@ async function initFlow() {
   startDbSave();
 }
 
-
-// --- EVENTI
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;

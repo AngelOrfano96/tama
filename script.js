@@ -18,7 +18,7 @@ function updateBars() {
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 }
-/*
+
 setInterval(() => {
   if (!alive) return;
   hunger = Math.max(0, hunger - 0.2);
@@ -28,7 +28,7 @@ setInterval(() => {
   if (hunger === 0 || fun === 0 || clean === 0) alive = false;
 }, 1000);
 updateBars();
-*/
+
 
 // --- TICK LOCALE (fittizio per animazione)
 function startFakeTick() {

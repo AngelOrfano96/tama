@@ -6,33 +6,198 @@
   <title>Tamagotchi Browser</title>
   <link rel="stylesheet" href="style.css">
   <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('assets/backgrounds/day.png') no-repeat center center fixed;
+      background-size: cover;
+    }
+    body {
+      min-height: 100vh;
+    }
+
+    .fullscreen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      /* Sfondo overlay leggero per centrare le box */
+      /* background: rgba(255,255,255,0.08); */
+    }
     .hidden { display: none !important; }
-    /* Solo per demo: migliora la posizione del logout */
-    #logout-btn { position:absolute;top:20px;right:20px; }
-    #pet { max-width: 180px; margin: 20px auto 10px auto; display: block; }
-    .bars { margin: 20px 0; }
-    .bar-label { margin-top: 8px; font-weight: 500; }
-    .bar { height: 18px; border-radius: 9px; background: #eee; margin-bottom: 8px; min-width: 120px; }
-    #hunger-bar { background: orange; }
-    #fun-bar { background: #1ec089; }
-    #clean-bar { background: #3b82f6; }
-    .controls { margin-bottom: 15px; }
-    .controls button { margin: 0 8px; }
-    #game-over { margin-top: 18px; color: #b90000; font-size: 1.1em; }
-    .form-box { background: #fff; border-radius: 15px; box-shadow: 0 2px 20px 0 #0001; padding: 32px 36px 24px 36px; }
-    .eggs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 20px; }
-    .egg { width: 60px; cursor: pointer; border-radius: 100%; border: 3px solid transparent; transition: border 0.2s; }
-    .egg.selected { border-color: #ff9900; }
-    .center { display: flex; align-items: center; justify-content: center; }
-    .fullscreen { position: absolute; top:0; left:0; width:100vw; height:100vh; }
-    body { background: #f4f7fa; margin:0; min-height:100vh; }
-    /* Per background scenico puoi usare CSS o <img> di background come preferisci */
+
+    /* Box centrale */
+    .form-box {
+      background: rgba(255,255,255,0.92);
+      border-radius: 18px;
+      box-shadow: 0 6px 24px 0 #0002;
+      padding: 32px 36px 28px 36px;
+      min-width: 300px;
+      max-width: 95vw;
+      text-align: center;
+      z-index: 10;
+    }
+    /* Login/Signup */
+    .form-box input[type="email"],
+    .form-box input[type="password"] {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border: 1px solid #bdc3c7;
+      border-radius: 6px;
+      font-size: 1rem;
+      background: #f8fafb;
+    }
+    .form-box .buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .form-box .buttons button {
+      flex: 1;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #login-btn { background: #3498db; color: #fff; }
+    #login-btn:hover { background: #2980b9; }
+    #signup-btn { background: #2ecc71; color: #fff; }
+    #signup-btn:hover { background: #27ae60; }
+    .error { color: #e74c3c; margin-top: 0.4rem; font-size: 0.92em; }
+
+    /* Griglia uova */
+    .eggs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px 16px;
+      margin: 1.2rem 0 1.5rem 0;
+      justify-items: center;
+    }
+    .egg {
+      width: 65px; height: 65px;
+      cursor: pointer;
+      border-radius: 100%;
+      border: 3px solid transparent;
+      transition: border 0.18s, transform 0.18s;
+      background: #fff8;
+      object-fit: contain;
+    }
+    .egg.selectable:hover { border-color: #3498db; transform: scale(1.07);}
+    .egg.selected { border-color: #e67e22; }
+
+    #confirm-egg-btn {
+      margin-top: 0.5rem;
+      padding: 0.75rem 1.6rem;
+      background: #e67e22;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.16s;
+    }
+    #confirm-egg-btn:disabled { background: #bdc3c7; cursor: not-allowed;}
+    #confirm-egg-btn:not(:disabled):hover { background: #d35400; }
+
+    /* Gioco */
+    #game .form-box {
+      min-width: 340px;
+      padding: 28px 36px 20px 36px;
+    }
+    #pet {
+      width: 140px;
+      max-width: 90vw;
+      margin: 18px auto 10px auto;
+      display: block;
+      border-radius: 12px;
+    }
+    .bars {
+      width: 320px;
+      max-width: 95vw;
+      margin: 20px auto 22px auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      background: #eee;
+      border-radius: 8px;
+      padding: 12px 8px 8px 8px;
+    }
+    .bar-label { margin-top: 2px; font-weight: 500; }
+    .bar {
+      height: 17px;
+      width: 100%;
+      border-radius: 9px;
+      background: #f4f4f4;
+      margin-bottom: 7px;
+      min-width: 110px;
+      transition: width 0.3s;
+    }
+    #hunger-bar { background: #f39c12;}
+    #fun-bar { background: #2ecc71;}
+    #clean-bar { background: #3498db;}
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin: 0.9rem auto 0.5rem auto;
+    }
+    .controls button {
+      padding: 0.55rem 1.2rem;
+      border: none;
+      border-radius: 7px;
+      background: #3498db;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      box-shadow: 0 1px 4px #0001;
+    }
+    .controls button:hover { background: #2980b9; }
+    #game-over {
+      font-size: 1.1rem;
+      color: #b90000;
+      margin-top: 18px;
+    }
+    /* Logout fixato */
+    #logout-btn {
+      position: fixed;
+      top: 24px; right: 32px;
+      z-index: 100;
+      background: #fff;
+      border-radius: 6px;
+      padding: 6px 18px;
+      border: none;
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+      cursor: pointer;
+      opacity: 0.90;
+      transition: opacity 0.2s, background 0.2s;
+    }
+    #logout-btn:hover { opacity: 1; background: #f7f7f7;}
+    /* Responsive */
+    @media (max-width: 600px) {
+      .form-box, #game .form-box { min-width: unset; padding: 1rem;}
+      .bars { width: 96vw; }
+      #pet { width: 96px; }
+      .eggs-grid { grid-template-columns: repeat(2, 1fr);}
+    }
   </style>
 </head>
 <body>
   <div id="app-root">
     <!-- Login / Registrazione -->
-    <div id="login-container" class="fullscreen center">
+    <div id="login-container" class="fullscreen">
       <form id="auth-form" class="form-box">
         <h2>Login / Registrati</h2>
         <input type="email" id="email-input" placeholder="Email" required />
@@ -46,7 +211,7 @@
     </div>
 
     <!-- Selezione Uovo -->
-    <div id="egg-selection" class="fullscreen center hidden">
+    <div id="egg-selection" class="fullscreen hidden">
       <div class="form-box">
         <h2>Scegli un uovo</h2>
         <div class="eggs-grid">
@@ -64,9 +229,9 @@
     </div>
 
     <!-- Gioco -->
-    <div id="game" class="fullscreen center hidden">
-      <button id="logout-btn">Logout</button>
-      <div class="form-box" style="min-width:330px">
+    <div id="game" class="fullscreen hidden">
+      <button id="logout-btn" type="button">Logout</button>
+      <div class="form-box">
         <img id="pet" alt="Il tuo pet" />
         <div class="bars">
           <div class="bar-label">Fame</div>
@@ -77,9 +242,9 @@
           <div id="clean-bar" class="bar"></div>
         </div>
         <div class="controls">
-          <button id="feed-btn">🍖 Feed</button>
-          <button id="play-btn">🎮 Play</button>
-          <button id="clean-btn">🧼 Clean</button>
+          <button id="feed-btn" type="button">🍖 Feed</button>
+          <button id="play-btn" type="button">🎮 Play</button>
+          <button id="clean-btn" type="button">🧼 Clean</button>
         </div>
         <div id="game-over" class="hidden">💔 Il tuo pet è scappato! Scegli un nuovo uovo per ricominciare.</div>
       </div>

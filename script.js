@@ -122,7 +122,7 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     return;
   }
   // Debug: controlla l'ID utente in console
-  console.log("Tento insert pet con user_id:", user.id, "eggType:", eggType);
+  console.log('Provo a inserire pet con user_id:', user.id, 'eggType:', eggType);
 
   const { data, error } = await supabaseClient
     .from('pets')

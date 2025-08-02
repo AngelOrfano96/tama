@@ -163,6 +163,48 @@ signupBtn.addEventListener('click', async () => {
   }
 });
 
+document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
+  if (!eggType || !user || !user.id) {
+    alert("Utente non autenticato!");
+    return;
+  }
+  console.log("Tento insert pet con user_id:", user.id, "eggType:", eggType);
+  
+  // Fai una query per vedere se l'user_id esiste in auth.users!
+  const { data: users, error: userError } = await supabaseClient
+    .from('users')
+    .select('id')
+    .eq('id', user.id);
+
+  if (!users || users.length === 0) {
+    alert("User_id non trovato in auth.users! (NON dovresti mai vedere questo messaggio)");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from('pets')
+    .insert({ user_id: user.id, egg_type: eggType })
+    .select('id')
+    .single();
+
+  if (error) {
+    alert('Errore creazione pet: ' + error.message);
+    return;
+  }
+  petId = data.id;
+  hide('egg-selection');
+  await supabaseClient.from('pet_states').insert({
+    pet_id: petId, hunger: 100, fun: 100, clean: 100, updated_at: new Date()
+  });
+  document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
+  show('game');
+  alive = true;
+  document.getElementById('game-over').classList.add('hidden');
+  updateBars(100, 100, 100);
+  startAutoRefresh();
+});
+
+
 // --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();

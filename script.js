@@ -9,7 +9,7 @@ let tickInterval = null;
 let saveInterval = null;
 const decayRates = { hunger: 0.02, fun: 0.01, clean: 0.01 };
 
-// --- UTILS
+// --- UTILS ---
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 function updateBars() {
@@ -18,11 +18,9 @@ function updateBars() {
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 }
 
-// --- TICK LIVE (solo client)
-function startLiveTick() {
+// --- TICK FALSO SEMPRE ATTIVO (solo locale) ---
+function startFakeTick() {
   if (tickInterval) clearInterval(tickInterval);
-  if (saveInterval) clearInterval(saveInterval);
-
   tickInterval = setInterval(() => {
     if (!alive) return;
     hunger = Math.max(0, hunger - decayRates.hunger);
@@ -38,11 +36,14 @@ function startLiveTick() {
       setTimeout(resetPet, 1200);
     }
   }, 1000);
+}
 
+// --- SALVATAGGIO PERIODICO ---
+function startDbSave() {
+  if (saveInterval) clearInterval(saveInterval);
   saveInterval = setInterval(saveState, 5000);
 }
 
-// --- SALVATAGGIO
 async function saveState() {
   if (!petId) return;
   await supabaseClient.from('pet_states').upsert({
@@ -54,7 +55,7 @@ async function saveState() {
   });
 }
 
-// --- RESET
+// --- RESET PET ---
 async function resetPet() {
   if (tickInterval) clearInterval(tickInterval);
   if (saveInterval) clearInterval(saveInterval);
@@ -69,7 +70,7 @@ async function resetPet() {
   show('egg-selection');
 }
 
-// --- FLOW PRINCIPALE
+// --- FLOW PRINCIPALE ---
 async function initFlow() {
   hide('login-container');
   const { data: pet, error: petErr } = await supabaseClient
@@ -89,7 +90,7 @@ async function initFlow() {
   eggType = pet.egg_type;
   hide('egg-selection');
 
-  // Stato
+  // Stato + degradazione offline al refresh
   const { data: state, error: stateErr } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, updated_at')
@@ -99,27 +100,13 @@ async function initFlow() {
   if (stateErr) console.error('Errore nel recupero stato:', stateErr);
 
   if (state) {
+    // Differenza in secondi dall'ultimo salvataggio
     const now = Date.now();
     const lastUpdate = new Date(state.updated_at).getTime();
     const elapsed = (now - lastUpdate) / 1000;
-
-    // --- Se refresh super recente, usa valore puro, altrimenti degrada
-    if (elapsed < 10) {
-      hunger = state.hunger;
-      fun = state.fun;
-      clean = state.clean;
-    } else {
-      hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
-      fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
-      clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
-    }
-    if (hunger === 0 || fun === 0 || clean === 0) {
-      alive = false;
-      document.getElementById('game-over').classList.remove('hidden');
-      show('game'); updateBars();
-      setTimeout(resetPet, 1200);
-      return;
-    }
+    hunger = Math.max(0, state.hunger - decayRates.hunger * elapsed);
+    fun    = Math.max(0, state.fun    - decayRates.fun * elapsed);
+    clean  = Math.max(0, state.clean  - decayRates.clean * elapsed);
   } else {
     hunger = fun = clean = 100;
   }
@@ -128,10 +115,11 @@ async function initFlow() {
   updateBars();
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
-  startLiveTick();
+  startFakeTick();
+  startDbSave();
 }
 
-// --- EVENTI
+// --- EVENTI ---
 ['feed','play','clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
@@ -151,6 +139,7 @@ document.querySelectorAll('.egg.selectable').forEach(img =>
     document.getElementById('confirm-egg-btn').disabled = false;
   })
 );
+
 document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
   const { data } = await supabaseClient
     .from('pets')
@@ -166,7 +155,8 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
   updateBars();
-  startLiveTick();
+  startFakeTick();
+  startDbSave();
 });
 
 window.addEventListener('DOMContentLoaded', async () => {

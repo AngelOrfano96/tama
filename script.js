@@ -143,6 +143,34 @@ signupBtn.addEventListener('click', async () => {
   }
 });
 
+document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
+  const { data } = await supabaseClient
+    .from('pets')
+    .insert({ user_id: user.id, egg_type: eggType })
+    .select('id')
+    .single();
+  petId = data.id;
+  hide('egg-selection');
+  await supabaseClient.from('pet_states').insert({
+    pet_id: petId, hunger: 100, fun: 100, clean: 100, updated_at: new Date()
+  });
+  document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
+  show('game');
+  alive = true;
+  document.getElementById('game-over').classList.add('hidden');
+  updateBars(100, 100, 100);
+  startAutoRefresh();
+});
+
+document.querySelectorAll('.egg.selectable').forEach(img =>
+  img.addEventListener('click', () => {
+    document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
+    img.classList.add('selected');
+    eggType = Number(img.dataset.egg);
+    document.getElementById('confirm-egg-btn').disabled = false;
+  })
+);
+
 
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();

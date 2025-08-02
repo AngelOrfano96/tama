@@ -115,6 +115,35 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   location.reload();
 });
 
+const authForm = document.getElementById('auth-form');
+const signupBtn = document.getElementById('signup-btn');
+authForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value;
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    user = data.user;
+    await initFlow();
+  } catch (err) {
+    document.getElementById('auth-error').textContent = err.message;
+  }
+});
+signupBtn.addEventListener('click', async () => {
+  const email = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value;
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) throw error;
+    user = data.user;
+    await initFlow();
+  } catch (err) {
+    document.getElementById('auth-error').textContent = err.message;
+  }
+});
+
+
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
   if (currentUser) {

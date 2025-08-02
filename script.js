@@ -190,13 +190,15 @@ signupBtn.addEventListener('click', async () => {
 
 // --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {
-  const { data: sessionData } = await supabaseClient.auth.getUser();
-  user = sessionData.user;
-  if (user) {
+  const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
+  if (currentUser) {
+    user = currentUser;
     await initFlow();
   } else {
+    // QUI ⬇️
     show('login-container');
     hide('egg-selection');
     hide('game');
   }
 });
+

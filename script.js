@@ -43,17 +43,19 @@ function startAutoRefresh() {
 // Flusso principale: login → selezione uovo → gioco
 async function initFlow() {
   hide('login-container');
-  const { data: pet } = await supabaseClient
+  // CERCA IL PET DELL'UTENTE
+  const { data: pets, error } = await supabaseClient
     .from('pets')
     .select('id, egg_type')
     .eq('user_id', user.id)
-    .single();
+    .limit(1); // solo il primo per ora
 
-  if (!pet) {
+  if (!pets || pets.length === 0) {
     show('egg-selection');
     hide('game');
     return;
   }
+  const pet = pets[0];
   petId = pet.id;
   eggType = pet.egg_type;
   hide('egg-selection');
@@ -89,7 +91,6 @@ async function initFlow() {
 });
 
 // --- SELEZIONE UOVO ---
-let lastSelectedEgg = null;
 document.querySelectorAll('.egg.selectable').forEach(img =>
   img.addEventListener('click', () => {
     document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
@@ -161,35 +162,6 @@ signupBtn.addEventListener('click', async () => {
     document.getElementById('auth-error').textContent = err.message;
   }
 });
-
-document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
-  if (!user) {
-    alert("Utente non autenticato!");
-    return;
-  }
-  console.log('Crea pet per user id:', user.id, 'eggType:', eggType);
-  const { data, error } = await supabaseClient
-    .from('pets')
-    .insert({ user_id: user.id, egg_type: eggType })
-    .select('id')
-    .single();
-  if (error) {
-    alert("Errore creazione pet: " + error.message);
-    return;
-  }
-  petId = data.id;
-  hide('egg-selection');
-  await supabaseClient.from('pet_states').insert({
-    pet_id: petId, hunger: 100, fun: 100, clean: 100, updated_at: new Date()
-  });
-  document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
-  show('game');
-  alive = true;
-  document.getElementById('game-over').classList.add('hidden');
-  updateBars(100, 100, 100);
-  startAutoRefresh();
-});
-
 
 // --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {

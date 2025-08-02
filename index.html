@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tamagotchi Browser</title>
-  <!-- Stili CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Container Login / Registrazione -->
+  <!-- Login / Registrazione -->
   <div id="login-container" class="fullscreen center">
     <form id="auth-form" class="form-box">
       <h2>Login / Registrati</h2>
@@ -22,25 +21,25 @@
     </form>
   </div>
 
-  <!-- Container Selezione Uovo -->
+  <!-- Selezione Uovo -->
   <div id="egg-selection" class="fullscreen center hidden">
     <div class="form-box">
       <h2>Scegli un uovo</h2>
       <div class="eggs-grid">
-        <img src="assets/eggs/egg_1.png" class="egg selectable" data-egg="1" alt="Uovo tipo 1" />
-        <img src="assets/eggs/egg_2.png" class="egg selectable" data-egg="2" alt="Uovo tipo 2" />
-        <img src="assets/eggs/egg_3.png" class="egg selectable" data-egg="3" alt="Uovo tipo 3" />
-        <img src="assets/eggs/egg_4.png" class="egg selectable" data-egg="4" alt="Uovo tipo 4" />
-        <img src="assets/eggs/egg_5.png" class="egg selectable" data-egg="5" alt="Uovo tipo 5" />
-        <img src="assets/eggs/egg_6.png" class="egg selectable" data-egg="6" alt="Uovo tipo 6" />
-        <img src="assets/eggs/egg_7.png" class="egg selectable" data-egg="7" alt="Uovo tipo 7" />
-        <img src="assets/eggs/egg_8.png" class="egg selectable" data-egg="8" alt="Uovo tipo 8" />
+        <img src="assets/eggs/egg_1.png" class="egg selectable" data-egg="1" />
+        <img src="assets/eggs/egg_2.png" class="egg selectable" data-egg="2" />
+        <img src="assets/eggs/egg_3.png" class="egg selectable" data-egg="3" />
+        <img src="assets/eggs/egg_4.png" class="egg selectable" data-egg="4" />
+        <img src="assets/eggs/egg_5.png" class="egg selectable" data-egg="5" />
+        <img src="assets/eggs/egg_6.png" class="egg selectable" data-egg="6" />
+        <img src="assets/eggs/egg_7.png" class="egg selectable" data-egg="7" />
+        <img src="assets/eggs/egg_8.png" class="egg selectable" data-egg="8" />
       </div>
       <button id="confirm-egg-btn" disabled>Conferma Uovo</button>
     </div>
   </div>
 
-  <!-- Container Schiusa con Countdown -->
+  <!-- Schiusa (se vuoi tenere l'animazione, puoi lasciarla, oppure toglierla del tutto) -->
   <div id="hatch-container" class="fullscreen center hidden">
     <div class="form-box">
       <h2>Il tuo uovo si schiuderà in <span id="countdown">15</span> secondi</h2>
@@ -48,36 +47,30 @@
     </div>
   </div>
 
-  <!-- Container Gioco -->
+  <!-- Gioco -->
   <div id="game" class="fullscreen center hidden">
-    <!-- Wake button when offline -->
-    <button id="wake-btn" class="form-box">Sveglia il tuo pet</button>
-
-    <!-- Pet image and status bars hidden until wake -->
-    <img id="pet" alt="Il tuo pet" class="hidden" />
-    <div class="bars hidden">
+    <img id="background" src="assets/backgrounds/day.png" alt="Background giorno" />
+    <img id="pet" alt="Il tuo pet" />
+    <div class="bars">
       <div id="hunger-bar" class="bar"></div>
       <div id="fun-bar" class="bar"></div>
       <div id="clean-bar" class="bar"></div>
     </div>
-
-    <div class="controls hidden">
+    <div class="controls">
       <button id="feed-btn">🍖 Feed</button>
       <button id="play-btn">🎮 Play</button>
       <button id="clean-btn">🧼 Clean</button>
     </div>
-
     <div id="game-over" class="hidden">💔 Il tuo pet è scappato! Ricarica la pagina per riprovare.</div>
   </div>
 
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Configurazione chiavi (in produzione usare env vars) -->
+  <!-- Chiavi Supabase (ricorda: in produzione NON lasciarle qui in chiaro!) -->
   <script>
     window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
     window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWNpZnlic2hvYXdod2VjaGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNzM0MDQsImV4cCI6MjA2OTY0OTQwNH0.Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
   </script>
-  <!-- Logica gioco -->
-  <script src="script.js" defer></script>
+  <script src="script.js"></script>
 </body>
 </html>

@@ -379,7 +379,7 @@ body {
 }
 #exp-bar {
   height: 16px;
-  background: linear-gradient(90deg,#e67e22 70%, #ffeb99 100%);
+  background: linear-gradient(90deg,#b503bb 70%, #ff54d4 100%);
   border-radius: 8px;
   transition: width 0.3s;
   width: 0%;

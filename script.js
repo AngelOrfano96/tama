@@ -32,6 +32,9 @@ let mazeWallImg = new Image();
 let mazeBgImg = new Image();
 mazeWallImg.src = "assets/tiles/wall2.png";         // Es: 32x32px, muro
 mazeBgImg.src = "assets/backgrounds/dungeon3.png";  // Es: 320x256px, oppure tile repeat 32x32
+let mazeLevel = 1; // livello corrente
+let mazeGoblins = []; // array per gestire i goblin multipli
+
 
 
 
@@ -72,12 +75,14 @@ function randomEmptyCell() {
 }
 
 function startMazeMinigame() {
-  // Setta immagini attuali
-  mazePetImg.src = document.getElementById('pet').src;
-  // Reset stato
-  mazeMatrix = generateMazeMatrix();
+  mazeLevel = 1;
   mazeScore = 0;
-  mazeTimeLeft = 30;
+  startMazeLevel();
+}
+
+function startMazeLevel() {
+  mazeMatrix = generateMazeMatrix();
+  mazeTimeLeft = 30 + (mazeLevel-1)*3; // bonus tempo livelli alti
   mazePlaying = true;
   mazeCanMove = true;
   mazeCanvas = document.getElementById('maze-canvas');
@@ -87,28 +92,31 @@ function startMazeMinigame() {
   document.getElementById('maze-minigame-score').textContent = mazeScore;
   document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
 
-  // Trova inizio/uscita/chiave/goblin
+  // Inizio/uscita
   mazePet = { x: 1, y: 1 };
   mazeExit = { x: MAZE_WIDTH-2, y: MAZE_HEIGHT-2 };
   mazeKey = randomEmptyCell();
-  mazeGoblin = randomEmptyCell();
+
+  // Goblin: dal secondo livello in poi due goblin, se vuoi aumentare puoi cambiare qui
+  mazeGoblins = [];
+  mazeGoblins.push(randomEmptyCell());
+  if (mazeLevel >= 2) mazeGoblins.push(randomEmptyCell());
 
   drawMaze();
 
   window.addEventListener('keydown', handleMazeMove);
 
-  // Timer countdown
+  if (mazeInterval) clearInterval(mazeInterval);
   mazeInterval = setInterval(() => {
     if (!mazePlaying) return;
     mazeTimeLeft--;
     document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
     if (mazeTimeLeft <= 0) {
-      endMazeMinigame(false); // non vinto
+      endMazeMinigame(false); // perso
     }
     drawMaze();
   }, 1000);
 }
-
 
 
 // Funzione per verificare se esiste un percorso tra (sx,sy) e (dx,dy)
@@ -170,7 +178,12 @@ function drawMaze() {
   // Uscita
   mazeCtx.drawImage(mazeExitImg, mazeExit.x*TILE_SIZE+4, mazeExit.y*TILE_SIZE+4, 24, 24);
   // Goblin
-  if (mazeGoblin) mazeCtx.drawImage(mazeGoblinImg, mazeGoblin.x*TILE_SIZE+3, mazeGoblin.y*TILE_SIZE+3, 26, 26);
+  // Goblins
+for (const goblin of mazeGoblins) {
+  mazeCtx.drawImage(mazeGoblinImg, goblin.x*TILE_SIZE+3, goblin.y*TILE_SIZE+3, 26, 26);
+}
+
+  //if (mazeGoblin) mazeCtx.drawImage(mazeGoblinImg, mazeGoblin.x*TILE_SIZE+3, mazeGoblin.y*TILE_SIZE+3, 26, 26);
   // Pet
   mazeCtx.drawImage(mazePetImg, mazePet.x*TILE_SIZE+3, mazePet.y*TILE_SIZE+3, MAZE_PET_SIZE, MAZE_PET_SIZE);
 
@@ -210,30 +223,87 @@ function handleMazeMove(e) {
     if (mazeKey && nx === mazeKey.x && ny === mazeKey.y) {
       mazeKey = null;
       mazeScore += 20;
-      mazeTimeLeft = Math.min(60, mazeTimeLeft + 5);
-      showMazeBonus("+20pt +5s!", "#27ae60");
+      mazeTimeLeft = Math.min(90, mazeTimeLeft + 7);
+      showMazeBonus("+20pt +7s!", "#27ae60");
     }
-    // Muovi il goblin verso il pet (con alternativa!)
-    if (mazeGoblin) moveGoblinTowardsPet();
-
-    // Collisione goblin
-    if (mazeGoblin && mazePet.x === mazeGoblin.x && mazePet.y === mazeGoblin.y) {
+    // Goblins: controlla se colpito uno qualunque
+    let hitGoblin = mazeGoblins.findIndex(gob => gob.x === nx && gob.y === ny);
+    if (hitGoblin !== -1) {
       mazeTimeLeft = Math.max(1, mazeTimeLeft - 6);
       mazeScore = Math.max(0, mazeScore - 10);
-      mazeGoblin = randomEmptyCell();
+      // Sposta il goblin colpito in cella casuale libera
+      mazeGoblins[hitGoblin] = randomEmptyCell();
       showMazeBonus("-10pt -6s!", "#f1c40f");
     }
-
     // Esci!
     if (nx === mazeExit.x && ny === mazeExit.y) {
-      endMazeMinigame(true);
+      // Non termina il gioco: passa al prossimo livello!
+      mazeLevel++;
+      mazeScore++; // un punto per ogni livello superato
+      document.getElementById('maze-minigame-score').textContent = mazeScore;
+      showMazeBonus(`Livello ${mazeLevel}!`, "#3498db");
+      setTimeout(() => {
+        window.removeEventListener('keydown', handleMazeMove);
+        startMazeLevel();
+      }, 600);
       return;
     }
   }
+function moveGoblinsTowardsPet() {
+  for (let i = 0; i < mazeGoblins.length; i++) {
+    let gob = mazeGoblins[i];
+    // Movimento a* semplificato: preferisce la direzione colta
+    let options = [];
+    if (gob.x < mazePet.x) options.push({dx:1, dy:0});
+    if (gob.x > mazePet.x) options.push({dx:-1, dy:0});
+    if (gob.y < mazePet.y) options.push({dx:0, dy:1});
+    if (gob.y > mazePet.y) options.push({dx:0, dy:-1});
+
+    // Prova le mosse possibili, preferendo la più “vicina”
+    let moved = false;
+    for (let opt of options) {
+      let nx = gob.x + opt.dx, ny = gob.y + opt.dy;
+      if (nx > 0 && ny > 0 && nx < MAZE_WIDTH-1 && ny < MAZE_HEIGHT-1 && mazeMatrix[ny][nx] === 0) {
+        // Non si muove sopra il pet
+        if (!(nx === mazePet.x && ny === mazePet.y)) {
+          gob.x = nx; gob.y = ny;
+          moved = true;
+          break;
+        }
+      }
+    }
+    // Se non ha potuto muoversi verso il pet, prova una direzione libera qualsiasi
+    if (!moved) {
+      let dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+      for (let dir of dirs) {
+        let nx = gob.x + dir.dx, ny = gob.y + dir.dy;
+        if (nx > 0 && ny > 0 && nx < MAZE_WIDTH-1 && ny < MAZE_HEIGHT-1 && mazeMatrix[ny][nx] === 0) {
+          gob.x = nx; gob.y = ny;
+          break;
+        }
+      }
+    }
+  }
+}
+
+  // Dopo mossa, muovi i goblin!
+  moveGoblinsTowardsPet();
+
+  // Se goblin raggiunge il pet
+  let lose = mazeGoblins.some(gob => gob.x === mazePet.x && gob.y === mazePet.y);
+  if (lose) {
+    mazeTimeLeft = Math.max(1, mazeTimeLeft - 9);
+    mazeScore = Math.max(0, mazeScore - 20);
+    showMazeBonus("Il goblin ti ha preso! -20pt -9s", "#d7263d");
+    // Rimanda il pet all’inizio (opzionale)
+    mazePet = {x:1, y:1};
+  }
+
   drawMaze();
   document.getElementById('maze-minigame-score').textContent = mazeScore;
   document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
 }
+
 
 function moveGoblinTowardsPet() {
   // Calcola differenze

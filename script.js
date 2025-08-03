@@ -188,6 +188,7 @@ function endMazeMinigame(vittoria) {
   // Chiudi il modale dopo 1s e assegna punti
   setTimeout(() => {
     document.getElementById('maze-minigame-modal').classList.add('hidden');
+    document.getElementById('maze-touch-controls').style.display = 'none';
     if (vittoria) {
       let fun = 60 + mazeScore;
       let exp = Math.round(mazeScore * 1.25) + 30;
@@ -452,8 +453,27 @@ document.getElementById('btn-minigame-catch').addEventListener('click', () => {
 document.getElementById('btn-minigame-maze').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('maze-minigame-modal').classList.remove('hidden');
+  // Mostra i controlli touch su mobile
+if (window.innerWidth < 800) {
+  document.getElementById('maze-touch-controls').style.display = 'flex';
+}
   startMazeMinigame();
 });
+
+// Gestione tasti touch per il labirinto
+document.querySelectorAll('.maze-arrow-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (!mazePlaying) return;
+    let dir = this.dataset.dir;
+    let e = { key: '' };
+    if (dir === 'up') e.key = "ArrowUp";
+    else if (dir === 'down') e.key = "ArrowDown";
+    else if (dir === 'left') e.key = "ArrowLeft";
+    else if (dir === 'right') e.key = "ArrowRight";
+    handleMazeMove(e);
+  });
+});
+
 
 // Tasto Annulla
 document.getElementById('btn-minigame-cancel').addEventListener('click', () => {

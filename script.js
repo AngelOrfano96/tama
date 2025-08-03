@@ -508,16 +508,15 @@ function showExpGainLabel(exp) {
   }, 1700);
 }
 
-document.getElementById('play-btn').addEventListener('click', async () => {
-  if (!alive) return;
-  // Mostra la modale
+document.getElementById('play-btn').addEventListener('click', () => {
   document.getElementById('minigame-modal').classList.remove('hidden');
-  startMiniGame(); // <-- questa funzione la scrivi tu, vedi sotto
+  startMiniGame();
 });
 document.getElementById('minigame-exit-btn').addEventListener('click', () => {
-  document.getElementById('minigame-modal').classList.add('hidden');
   stopMiniGame();
+  document.getElementById('minigame-modal').classList.add('hidden');
 });
+
 
 
 

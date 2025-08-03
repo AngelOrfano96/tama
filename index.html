@@ -103,18 +103,22 @@
       </div>
     </div>
     
-<div id="minigame-modal" class="hidden">
-  <div class="minigame-box">
-    <div id="minigame-topbar" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px;">
-      <span id="minigame-title" style="font-weight: bold; font-size: 1.2em; color: #222;"></span>
-      <span id="minigame-timer" style="font-size: 1.2em; color: #222;"></span>
+<!-- MODALE MINIGIOCO -->
+<div id="minigame-modal" class="hidden" style="
+    position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.25); display:flex; align-items:center; justify-content:center;">
+  <div class="minigame-box" style="
+      background:#fcf8e3; border-radius:30px; min-width:380px; min-height:340px; box-shadow:0 6px 40px #0002; padding:28px 34px 34px 34px; display:flex; flex-direction:column; align-items:center; position:relative;">
+    <div id="minigame-topbar" style="display: flex; justify-content: space-between; align-items: center; width: 90%; margin-bottom: 14px;">
+      <span id="minigame-title" style="font-weight: bold; font-size: 1.18em; color: #2c3e50;">Acchiappa il tuo pet!</span>
+      <span id="minigame-timer" style="font-size: 1.2em; color: #2c3e50;"></span>
     </div>
-    <canvas id="minigame-canvas" width="350" height="350"></canvas>
-    <div id="minigame-ui">
-      <button id="minigame-exit-btn" type="button">Chiudi</button>
+    <canvas id="minigame-canvas" width="320" height="320" style="background:#1a1a1a;border-radius:12px;"></canvas>
+    <div id="minigame-ui" style="width:100%;margin-top:18px;display:flex;justify-content:flex-end">
+      <button id="minigame-exit-btn" type="button" style="background:#e67e22;color:#fff;font-size:1.06em;padding:8px 18px;border-radius:6px;border:none;cursor:pointer;">Chiudi</button>
     </div>
   </div>
 </div>
+
 
 
   </div>

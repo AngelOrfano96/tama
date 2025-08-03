@@ -194,3 +194,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     showOnly('login-container');
   }
 });
+
+// Dentro il DOMContentLoaded o subito dopo la definizione degli altri event
+document.getElementById('choose-egg-btn').addEventListener('click', () => {
+  // Reset stato e vai alla scelta uovo
+  petId = null;
+  eggType = null;
+  alive = true;
+  showOnly('egg-selection');
+  // Resetta selezione uovo
+  document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
+  document.getElementById('confirm-egg-btn').disabled = true;
+});
+
+document.getElementById('exit-btn').addEventListener('click', async () => {
+  await supabaseClient.auth.signOut();
+  showOnly('login-container');
+});
+

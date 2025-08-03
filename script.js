@@ -7,23 +7,6 @@ let alive = true;
 let autoRefresh = null;
 
 
-// Al click su "Play" si apre la modale di selezione minigiochi
-document.getElementById('play-btn').addEventListener('click', () => {
-  document.getElementById('minigame-selection-modal').classList.remove('hidden');
-});
-
-// Tasto "Prendimi!" (il tuo minigioco attuale)
-document.getElementById('minigame-catchpet-btn').addEventListener('click', () => {
-  document.getElementById('minigame-selection-modal').classList.add('hidden');
-  document.getElementById('minigame-modal').classList.remove('hidden');
-  startMiniGame();
-});
-
-// Tasto chiudi (opzionale)
-document.querySelector('.close-selection-btn').addEventListener('click', () => {
-  document.getElementById('minigame-selection-modal').classList.add('hidden');
-});
-
 // === COSTANTI LABIRINTO ===
 const MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
 const MAZE_PET_SIZE = 26, MAZE_GOBLIN_SIZE = 26;
@@ -474,7 +457,22 @@ function showExpGainLabel(points) {
   setTimeout(() => label.style.display = "none", 2200);
 }
 
+// Al click su "Play" si apre la modale di selezione minigiochi
+document.getElementById('play-btn').addEventListener('click', () => {
+  document.getElementById('minigame-selection-modal').classList.remove('hidden');
+});
 
+// Tasto "Prendimi!" (il tuo minigioco attuale)
+document.getElementById('minigame-catchpet-btn').addEventListener('click', () => {
+  document.getElementById('minigame-selection-modal').classList.add('hidden');
+  document.getElementById('minigame-modal').classList.remove('hidden');
+  startMiniGame();
+});
+
+// Tasto chiudi (opzionale)
+document.querySelector('.close-selection-btn').addEventListener('click', () => {
+  document.getElementById('minigame-selection-modal').classList.add('hidden');
+});
 
 // ========== FUNZIONI PRINCIPALI (NON TOCCARE QUESTE PARTI SE NON NECESSARIO) ==========
 

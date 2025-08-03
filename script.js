@@ -20,11 +20,14 @@ function updateBars(hunger, fun, clean, level, exp) {
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 
+  if (typeof level !== 'undefined' && typeof exp !== 'undefined') {
     document.getElementById('level-label').textContent = "Livello " + level;
-  const expMax = expForNextLevel(level);
-  const perc = Math.min(100, Math.round((exp / expMax) * 100));
-  document.getElementById('exp-bar').style.width = `${perc}%`;
+    const expMax = expForNextLevel(level);
+    const perc = Math.min(100, Math.round((exp / expMax) * 100));
+    document.getElementById('exp-bar').style.width = `${perc}%`;
+  }
 }
+
 
 function expForNextLevel(level) {
   return Math.round(100 * Math.pow(1.2, level - 1));

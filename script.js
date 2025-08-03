@@ -151,13 +151,17 @@ function handleMazeMove(e) {
       mazeTimeLeft = Math.min(60, mazeTimeLeft + 5);
       showMazeBonus("+20pt +5s!", "#27ae60");
     }
-    // Goblin
-    if (mazeGoblin && nx === mazeGoblin.x && ny === mazeGoblin.y) {
+    // Muovi il goblin verso il pet (con alternativa!)
+    if (mazeGoblin) moveGoblinTowardsPet();
+
+    // Collisione goblin
+    if (mazeGoblin && mazePet.x === mazeGoblin.x && mazePet.y === mazeGoblin.y) {
       mazeTimeLeft = Math.max(1, mazeTimeLeft - 6);
       mazeScore = Math.max(0, mazeScore - 10);
-      mazeGoblin = randomEmptyCell(); // si sposta
+      mazeGoblin = randomEmptyCell();
       showMazeBonus("-10pt -6s!", "#f1c40f");
     }
+
     // Esci!
     if (nx === mazeExit.x && ny === mazeExit.y) {
       endMazeMinigame(true);
@@ -168,6 +172,32 @@ function handleMazeMove(e) {
   document.getElementById('maze-minigame-score').textContent = mazeScore;
   document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
 }
+
+function moveGoblinTowardsPet() {
+  // Calcola differenze
+  const dx = mazePet.x - mazeGoblin.x;
+  const dy = mazePet.y - mazeGoblin.y;
+
+  // Crea lista delle possibili mosse (X, Y)
+  let moves = [];
+  if (dx !== 0) moves.push({ x: mazeGoblin.x + Math.sign(dx), y: mazeGoblin.y });
+  if (dy !== 0) moves.push({ x: mazeGoblin.x, y: mazeGoblin.y + Math.sign(dy) });
+
+  // Mescola per scegliere a caso la priorità (X o Y)
+  if (moves.length === 2) moves.sort(() => Math.random() - 0.5);
+
+  // Prova le mosse nell’ordine deciso
+  for (let move of moves) {
+    if (mazeMatrix[move.y][move.x] === 0 &&
+        !(move.x === mazePet.x && move.y === mazePet.y)) {
+      mazeGoblin.x = move.x;
+      mazeGoblin.y = move.y;
+      return;
+    }
+  }
+  // Se non può muoversi, resta fermo
+}
+
 
 function showMazeBonus(msg, color="#e67e22") {
   const lab = document.getElementById('maze-bonus-label');

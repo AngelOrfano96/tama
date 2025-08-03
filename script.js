@@ -12,7 +12,7 @@ const MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
 const MAZE_PET_SIZE = 26, MAZE_GOBLIN_SIZE = 26;
 
 // Immagini
-let mazePetImg = new Image();
+//let mazePetImg = new Image();
 let mazeKeyImg = new Image();
 let mazeExitImg = new Image();
 let mazeGoblinImg = new Image();
@@ -77,6 +77,8 @@ function randomEmptyCell() {
 function startMazeMinigame() {
   mazeLevel = 1;
   mazeScore = 0;
+  mazePetImg = new Image();
+  mazePetImg.src = document.getElementById('pet').src || "assets/pet_default.png";
   startMazeLevel();
 }
 

@@ -366,4 +366,30 @@ body {
   70% { transform: scale(1.1);}
   100% { transform: scale(1); opacity: 1;}
 }
+#exp-bar-bg {
+  background: #faf3e0;
+  border-radius: 8px;
+  margin-top: 0.2em;
+  padding: 2px 8px;
+  min-width: 100px;
+  position: relative;
+}
+#exp-bar {
+  height: 14px;
+  background: linear-gradient(90deg,#e67e22 70%, #ffeb99 100%);
+  border-radius: 8px;
+  transition: width 0.3s;
+}
+.exp-gain-label {
+  pointer-events: none;
+  font-size: 0.96em;
+  font-weight: bold;
+  color: #e67e22;
+  opacity: 0;
+  transition: opacity 0.7s;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  position: absolute;
+}
 

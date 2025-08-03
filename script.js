@@ -138,7 +138,6 @@ function showLevelUpMessage() {
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
-    // Prima prendi lo stato dal DB (inclusi exp e level)
     const { data: state } = await supabaseClient
       .from('pet_states')
       .select('hunger, fun, clean, level, exp')
@@ -150,23 +149,36 @@ function showLevelUpMessage() {
     let expInc = 0;
 
     if (action === 'feed') {
-      hunger = Math.min(100, hunger + 20);
-      expInc = 15;
+      if (hunger < 98) {   // SOLO se la barra non è quasi piena!
+        hunger = Math.min(100, hunger + 20);
+        expInc = 15;
+      } else {
+        hunger = Math.min(100, hunger + 20);
+      }
     }
     if (action === 'play') {
-      fun = Math.min(100, fun + 20);
+      if (fun < 98) {
+        fun = Math.min(100, fun + 20);
+      } else {
+        fun = Math.min(100, fun + 20);
+      }
+      // NIENTE exp per "play"
     }
     if (action === 'clean') {
-      clean = Math.min(100, clean + 20);
-      expInc = 15;
+      if (clean < 98) {
+        clean = Math.min(100, clean + 20);
+        expInc = 15;
+      } else {
+        clean = Math.min(100, clean + 20);
+      }
     }
-
     await supabaseClient.from('pet_states').update({
       hunger, fun, clean, updated_at: new Date()
     }).eq('pet_id', petId);
 
     if (expInc > 0) {
       await addExpAndMaybeLevelUp(state, expInc);
+      showExpGainLabel(expInc); // Mostra label exp!
     } else {
       const { data: updatedState } = await supabaseClient
         .from('pet_states')
@@ -180,6 +192,7 @@ function showLevelUpMessage() {
     }
   });
 });
+
 
 // --- SELEZIONE UOVO ---
 document.querySelectorAll('.egg.selectable').forEach(img =>
@@ -285,3 +298,20 @@ document.getElementById('exit-btn').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
   showOnly('login-container');
 });
+
+function showExpGainLabel(exp) {
+  const gainLabel = document.getElementById('exp-gain-label');
+  gainLabel.textContent = `+${exp} exp`;
+  gainLabel.style.display = 'inline-block';
+  gainLabel.style.color = "#e67e22";
+  gainLabel.style.fontWeight = "bold";
+  gainLabel.style.fontSize = "1em";
+  gainLabel.style.opacity = "1";
+  gainLabel.style.transition = "opacity 0.8s";
+  setTimeout(() => {
+    gainLabel.style.opacity = "0";
+    setTimeout(() => gainLabel.style.display = "none", 800);
+  }, 1700); // circa 1.7s visibile + fade out
+}
+
+

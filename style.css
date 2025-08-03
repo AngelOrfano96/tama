@@ -569,3 +569,15 @@ button, .maze-arrow-btn {
   -webkit-user-select: none;
 }
 
+.minigame-box { position: relative; }
+#maze-bonus-label {
+  z-index: 2;
+  position: absolute;
+  top: 16px; left: 50%; transform: translateX(-50%);
+  color: #fff;
+  font-size: 1.1em;
+  font-weight: 700;
+  pointer-events: none;
+  text-shadow: 0 2px 6px #000b;
+}
+

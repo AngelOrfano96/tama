@@ -293,14 +293,26 @@ function moveGoblinsTowardsPet() {
   moveGoblinsTowardsPet();
 
   // Se goblin raggiunge il pet
+    // Se goblin raggiunge il pet
   let lose = mazeGoblins.some(gob => gob.x === mazePet.x && gob.y === mazePet.y);
   if (lose) {
-    mazeTimeLeft = Math.max(1, mazeTimeLeft - 9);
-    mazeScore = Math.max(0, mazeScore - 20);
-    showMazeBonus("Il goblin ti ha preso! -20pt -9s", "#d7263d");
-    // Rimanda il pet all’inizio (opzionale)
-    mazePet = {x:1, y:1};
+    showMazeBonus("Il goblin ti ha preso! GAME OVER", "#d7263d");
+    mazePlaying = false;
+    window.removeEventListener('keydown', handleMazeMove);
+    if (mazeInterval) clearInterval(mazeInterval);
+
+    setTimeout(() => {
+      document.getElementById('maze-minigame-modal').classList.add('hidden');
+      document.getElementById('maze-touch-controls').style.display = 'none';
+      // Consolazione minima
+      let fun = 15 + Math.round(mazeScore * 0.6);
+      let exp = Math.round(mazeScore * 0.5);
+      updateFunAndExpFromMiniGame(fun, exp);
+      showExpGainLabel(exp);
+    }, 1200);
+    return;
   }
+
 
   drawMaze();
   document.getElementById('maze-minigame-score').textContent = mazeScore;

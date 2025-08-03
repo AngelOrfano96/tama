@@ -69,27 +69,49 @@ function startMazeMinigame() {
 
 // === GENERA LABIRINTO SEMPLICE (muri random + corridoio) ===
 function generateMazeMatrix() {
-  let maze = [];
-  for (let y = 0; y < MAZE_HEIGHT; y++) {
-    let row = [];
-    for (let x = 0; x < MAZE_WIDTH; x++) {
-      if (x === 0 || y === 0 || x === MAZE_WIDTH-1 || y === MAZE_HEIGHT-1) row.push(1); // bordo
-      else row.push(Math.random() < 0.16 ? 1 : 0); // muro random
+  let maze, tries = 0;
+  do {
+    maze = [];
+    for (let y = 0; y < MAZE_HEIGHT; y++) {
+      let row = [];
+      for (let x = 0; x < MAZE_WIDTH; x++) {
+        if (x === 0 || y === 0 || x === MAZE_WIDTH-1 || y === MAZE_HEIGHT-1) row.push(1); // bordo
+        else row.push(Math.random() < 0.16 ? 1 : 0); // muro random
+      }
+      maze.push(row);
     }
-    maze.push(row);
-  }
-  maze[1][1] = 0; // inizio
-  maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0; // uscita
+    maze[1][1] = 0; // inizio
+    maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0; // uscita
+    tries++;
+    // ripeti finché non esiste un percorso
+  } while (!mazeHasPath(maze, 1, 1, MAZE_WIDTH-2, MAZE_HEIGHT-2) && tries < 20);
   return maze;
 }
-function randomEmptyCell() {
-  let x, y;
-  do {
-    x = 1 + Math.floor(Math.random() * (MAZE_WIDTH-2));
-    y = 1 + Math.floor(Math.random() * (MAZE_HEIGHT-2));
-  } while (mazeMatrix[y][x] !== 0 || (x===1 && y===1) || (x===MAZE_WIDTH-2 && y===MAZE_HEIGHT-2));
-  return { x, y };
+
+
+// Funzione per verificare se esiste un percorso tra (sx,sy) e (dx,dy)
+function mazeHasPath(maze, sx, sy, dx, dy) {
+  let visited = Array.from({length: MAZE_HEIGHT}, () => Array(MAZE_WIDTH).fill(false));
+  let queue = [{ x: sx, y: sy }];
+  visited[sy][sx] = true;
+  while (queue.length) {
+    let {x, y} = queue.shift();
+    if (x === dx && y === dy) return true;
+    for (let [nx, ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]) {
+      if (
+        nx >= 0 && nx < MAZE_WIDTH &&
+        ny >= 0 && ny < MAZE_HEIGHT &&
+        maze[ny][nx] === 0 &&
+        !visited[ny][nx]
+      ) {
+        visited[ny][nx] = true;
+        queue.push({x: nx, y: ny});
+      }
+    }
+  }
+  return false;
 }
+
 
 // === DISEGNA ===
 function drawMaze() {

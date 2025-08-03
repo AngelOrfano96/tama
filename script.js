@@ -27,6 +27,8 @@ let mazeTimeLeft = 30;
 let mazePlaying = false;
 let mazeCanvas, mazeCtx;
 let mazeCanMove = true;
+let petMovedLastTurn = false;
+
 
 let mazeWallImg = new Image();
 let mazeBgImg = new Image();
@@ -216,14 +218,19 @@ function handleMazeMove(e) {
   let nx = mazePet.x + dx, ny = mazePet.y + dy;
   if (nx < 0 || ny < 0 || nx >= MAZE_WIDTH || ny >= MAZE_HEIGHT) return;
 
+  // Default: pet non si è mosso
+  petMovedLastTurn = false;
+
   if (mazeMatrix[ny][nx] === 1) {
     // Tocca muro: perdi 3s!
     mazeTimeLeft = Math.max(1, mazeTimeLeft - 3);
     showMazeBonus("-3s!", "#e74c3c");
+    petMovedLastTurn = false; // pet non si muove!
   } else {
     // --- PRIMA di spostare il pet, controlla se la nuova posizione è occupata da un goblin
     let willBeCaught = mazeGoblins.some(gob => gob.x === nx && gob.y === ny);
     mazePet.x = nx; mazePet.y = ny;
+    petMovedLastTurn = true; // pet si muove!
 
     // Prendi chiave
     if (mazeKey && nx === mazeKey.x && ny === mazeKey.y) {
@@ -289,10 +296,35 @@ function handleMazeMove(e) {
     return;
   }
 
+  // --- NOVITÀ: se il pet NON si è mosso e un goblin è ADIACENTE (distanza di 1), sei preso! ---
+  if (!petMovedLastTurn) {
+    let adjacent = mazeGoblins.some(gob => (
+      Math.abs(gob.x - mazePet.x) + Math.abs(gob.y - mazePet.y) === 1
+    ));
+    if (adjacent) {
+      showMazeBonus("Il goblin ti ha preso! GAME OVER", "#d7263d");
+      mazePlaying = false;
+      window.removeEventListener('keydown', handleMazeMove);
+      if (mazeInterval) clearInterval(mazeInterval);
+
+      setTimeout(() => {
+        document.getElementById('maze-minigame-modal').classList.add('hidden');
+        document.getElementById('maze-touch-controls').style.display = 'none';
+        // Consolazione minima
+        let fun = 15 + Math.round(mazeScore * 0.6);
+        let exp = Math.round(mazeScore * 0.5);
+        updateFunAndExpFromMiniGame(fun, exp);
+        showExpGainLabel(exp);
+      }, 1200);
+      return;
+    }
+  }
+
   drawMaze();
   document.getElementById('maze-minigame-score').textContent = mazeScore;
   document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
 }
+
 
 
 function moveGoblinsTowardsPet() {

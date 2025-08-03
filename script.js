@@ -15,16 +15,21 @@ function showOnly(id) {
   });
 }
 
-function updateBars(hunger, fun, clean, level = 1, exp = 0) {
+function updateBars(hunger, fun, clean, level, exp) {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 
-    document.getElementById('level-label').textContent = "Livello " + level;
-  const expMax = expForNextLevel(level);
-  const perc = Math.min(100, Math.round((exp / expMax) * 100));
-  document.getElementById('exp-bar').style.width = `${perc}%`;
+  // -- AGGIORNA la barra EXP (corretta rispetto a livello ed exp necessari!)
+  if (level !== undefined && exp !== undefined) {
+    const expNext = expForNextLevel(level);
+    const percent = Math.round((exp / expNext) * 100);
+    document.getElementById('exp-bar').style.width = percent + '%';
+    document.getElementById('exp-label').textContent = `${exp} / ${expNext}`;
+    document.getElementById('level-num').textContent = level;
+  }
 }
+
 
 function expForNextLevel(level) {
   return Math.round(100 * Math.pow(1.2, level - 1));

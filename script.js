@@ -221,7 +221,10 @@ function handleMazeMove(e) {
     mazeTimeLeft = Math.max(1, mazeTimeLeft - 3);
     showMazeBonus("-3s!", "#e74c3c");
   } else {
+    // --- PRIMA di spostare il pet, controlla se la nuova posizione è occupata da un goblin
+    let willBeCaught = mazeGoblins.some(gob => gob.x === nx && gob.y === ny);
     mazePet.x = nx; mazePet.y = ny;
+
     // Prendi chiave
     if (mazeKey && nx === mazeKey.x && ny === mazeKey.y) {
       mazeKey = null;
@@ -229,12 +232,9 @@ function handleMazeMove(e) {
       mazeTimeLeft = Math.min(90, mazeTimeLeft + 7);
       showMazeBonus("+20pt +7s!", "#27ae60");
     }
-    // Goblins: controlla se colpito uno qualunque
-    let hitGoblin = mazeGoblins.findIndex(gob => gob.x === nx && gob.y === ny);
-    
+
     // Esci!
     if (nx === mazeExit.x && ny === mazeExit.y) {
-      // Non termina il gioco: passa al prossimo livello!
       mazeLevel++;
       mazeScore++; // un punto per ogni livello superato
       document.getElementById('maze-minigame-score').textContent = mazeScore;
@@ -245,36 +245,55 @@ function handleMazeMove(e) {
       }, 600);
       return;
     }
+
+    // *** Se hai mosso sopra un goblin, sei stato catturato ***
+    if (willBeCaught) {
+      showMazeBonus("Il goblin ti ha preso! GAME OVER", "#d7263d");
+      mazePlaying = false;
+      window.removeEventListener('keydown', handleMazeMove);
+      if (mazeInterval) clearInterval(mazeInterval);
+
+      setTimeout(() => {
+        document.getElementById('maze-minigame-modal').classList.add('hidden');
+        document.getElementById('maze-touch-controls').style.display = 'none';
+        // Consolazione minima
+        let fun = 15 + Math.round(mazeScore * 0.6);
+        let exp = Math.round(mazeScore * 0.5);
+        updateFunAndExpFromMiniGame(fun, exp);
+        showExpGainLabel(exp);
+      }, 1200);
+      return;
+    }
   }
-  // Dopo mossa, muovi i goblin!
+
+  // --- DOPO la mossa del pet, muovi i goblin! ---
   moveGoblinsTowardsPet();
 
-  // Se goblin raggiunge il pet
-    // Se goblin raggiunge il pet
-let lose = mazeGoblins.some(gob => gob.x === mazePet.x && gob.y === mazePet.y);
-if (lose) {
-  showMazeBonus("Il goblin ti ha preso! GAME OVER", "#d7263d");
-  mazePlaying = false;
-  window.removeEventListener('keydown', handleMazeMove);
-  if (mazeInterval) clearInterval(mazeInterval);
+  // Se goblin raggiunge il pet dopo la mossa
+  let lose = mazeGoblins.some(gob => gob.x === mazePet.x && gob.y === mazePet.y);
+  if (lose) {
+    showMazeBonus("Il goblin ti ha preso! GAME OVER", "#d7263d");
+    mazePlaying = false;
+    window.removeEventListener('keydown', handleMazeMove);
+    if (mazeInterval) clearInterval(mazeInterval);
 
-  setTimeout(() => {
-    document.getElementById('maze-minigame-modal').classList.add('hidden');
-    document.getElementById('maze-touch-controls').style.display = 'none';
-    // Consolazione minima
-    let fun = 15 + Math.round(mazeScore * 0.6);
-    let exp = Math.round(mazeScore * 0.5);
-    updateFunAndExpFromMiniGame(fun, exp);
-    showExpGainLabel(exp);
-  }, 1200);
-  return;
-}
-
+    setTimeout(() => {
+      document.getElementById('maze-minigame-modal').classList.add('hidden');
+      document.getElementById('maze-touch-controls').style.display = 'none';
+      // Consolazione minima
+      let fun = 15 + Math.round(mazeScore * 0.6);
+      let exp = Math.round(mazeScore * 0.5);
+      updateFunAndExpFromMiniGame(fun, exp);
+      showExpGainLabel(exp);
+    }, 1200);
+    return;
+  }
 
   drawMaze();
   document.getElementById('maze-minigame-score').textContent = mazeScore;
   document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
 }
+
 
 function moveGoblinsTowardsPet() {
   for (let i = 0; i < mazeGoblins.length; i++) {

@@ -40,7 +40,7 @@ function startMiniGame() {
   minigameScore = 0;
   totalTime = 20; // reset
   let countdown = 5;
-  let petX = 150, petY = 150;
+  let petX = 180, petY = 180;
 
   minigamePetImg.src = document.getElementById('pet').src;
   const canvas = document.getElementById('minigame-canvas');
@@ -55,12 +55,12 @@ function startMiniGame() {
 
     // Score & Timer centrati in alto
     ctx.font = "bold 19px Segoe UI";
-    ctx.fillStyle = "#181818";
+    ctx.fillStyle = "#fffc34ff";
     ctx.textAlign = "center";
     ctx.fillText("Punteggio: " + minigameScore, canvas.width / 2, 32);
     if (minigameActive) {
       ctx.font = "bold 17px Segoe UI";
-      ctx.fillStyle = "#28354b";
+      ctx.fillStyle = "#ff7349ff";
       ctx.fillText("Tempo: " + totalTime + "s", canvas.width / 2, 55);
     }
 

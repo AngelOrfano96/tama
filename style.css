@@ -373,12 +373,16 @@ body {
   padding: 2px 8px;
   min-width: 100px;
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 #exp-bar {
-  height: 14px;
+  height: 16px;
   background: linear-gradient(90deg,#e67e22 70%, #ffeb99 100%);
   border-radius: 8px;
   transition: width 0.3s;
+  width: 0%;
 }
 .exp-gain-label {
   pointer-events: none;
@@ -391,5 +395,7 @@ body {
   top: 50%;
   transform: translateY(-50%);
   position: absolute;
+  display: none;
 }
+
 

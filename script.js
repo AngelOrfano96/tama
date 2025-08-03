@@ -303,15 +303,12 @@ function showExpGainLabel(exp) {
   const gainLabel = document.getElementById('exp-gain-label');
   gainLabel.textContent = `+${exp} exp`;
   gainLabel.style.display = 'inline-block';
-  gainLabel.style.color = "#e67e22";
-  gainLabel.style.fontWeight = "bold";
-  gainLabel.style.fontSize = "1em";
   gainLabel.style.opacity = "1";
-  gainLabel.style.transition = "opacity 0.8s";
   setTimeout(() => {
     gainLabel.style.opacity = "0";
     setTimeout(() => gainLabel.style.display = "none", 800);
-  }, 1700); // circa 1.7s visibile + fade out
+  }, 1700);
 }
+
 
 

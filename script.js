@@ -15,38 +15,37 @@ function showOnly(id) {
   });
 }
 
+// Aggiorna le barre
 function updateBars(hunger, fun, clean, level, exp) {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
-
-  if (level == null || exp == null) {
-  level = 1;
-  exp = 0;
-}
+  if (typeof level !== "undefined" && typeof exp !== "undefined") {
     document.getElementById('level-label').textContent = "Livello " + level;
     const expMax = expForNextLevel(level);
     const perc = Math.min(100, Math.round((exp / expMax) * 100));
     document.getElementById('exp-bar').style.width = `${perc}%`;
-  
+  }
 }
 
-
+// Calcolo exp per prossimo livello
 function expForNextLevel(level) {
   return Math.round(100 * Math.pow(1.2, level - 1));
 }
-
 
 // Aggiorna stato dal DB
 async function getStateFromDb() {
   if (!petId) return;
   const { data: state } = await supabaseClient
     .from('pet_states')
-    .select('hunger, fun, clean, COALESCE(level, 1) as level, COALESCE(exp, 0) as exp')
+    .select('hunger, fun, clean, level, exp')
     .eq('pet_id', petId)
     .single();
   if (state) {
-    updateBars(state.hunger, state.fun, state.clean, state.level, state.exp);
+    // fallback se valori null o undefined
+    let level = (typeof state.level === 'number' && !isNaN(state.level)) ? state.level : 1;
+    let exp   = (typeof state.exp === 'number' && !isNaN(state.exp)) ? state.exp : 0;
+    updateBars(state.hunger, state.fun, state.clean, level, exp);
     if (state.hunger === 0 || state.fun === 0 || state.clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');
@@ -70,7 +69,6 @@ async function initFlow() {
     showOnly('login-container');
     return;
   }
-
   // Carica il primo pet non schiuso (modificabile in futuro)
   const { data: pet } = await supabaseClient
     .from('pets')
@@ -94,8 +92,10 @@ async function initFlow() {
   startAutoRefresh();
 }
 
+// Funzione exp + level up
 async function addExpAndMaybeLevelUp(state, inc = 0) {
-  let { level, exp } = state;
+  let level = (typeof state.level === 'number' && !isNaN(state.level)) ? state.level : 1;
+  let exp   = (typeof state.exp === 'number' && !isNaN(state.exp)) ? state.exp : 0;
   let leveledUp = false;
   exp += inc;
   let expNext = expForNextLevel(level);
@@ -107,32 +107,23 @@ async function addExpAndMaybeLevelUp(state, inc = 0) {
     expNext = expForNextLevel(level);
   }
 
-  // Aggiorna DB con i nuovi valori
   await supabaseClient.from('pet_states').update({
     level, exp, updated_at: new Date()
   }).eq('pet_id', petId);
 
-  // Dopo aver aggiornato, rileggi lo stato aggiornato dal DB e aggiorna la barra!
+  // Aggiorna UI con dati reali dal DB dopo update
   const { data: updatedState } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, level, exp')
     .eq('pet_id', petId)
     .single();
 
-  if (leveledUp) {
-    showLevelUpMessage();
-  }
+  let l = (typeof updatedState.level === 'number' && !isNaN(updatedState.level)) ? updatedState.level : 1;
+  let e = (typeof updatedState.exp === 'number' && !isNaN(updatedState.exp)) ? updatedState.exp : 0;
+  updateBars(updatedState.hunger, updatedState.fun, updatedState.clean, l, e);
 
-  // Ora aggiorna la barra SOLO con i valori REALI del database!
-  updateBars(
-    updatedState.hunger,
-    updatedState.fun,
-    updatedState.clean,
-    updatedState.level,
-    updatedState.exp
-  );
+  if (leveledUp) showLevelUpMessage();
 }
-
 
 // Mostra messaggio di level up
 function showLevelUpMessage() {
@@ -143,9 +134,7 @@ function showLevelUpMessage() {
   setTimeout(() => msg.remove(), 3000);
 }
 
-
 // --- BOTTONI GAME ---
-
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
@@ -172,7 +161,6 @@ function showLevelUpMessage() {
       expInc = 15;
     }
 
-    // Aggiorna DB con fame/divertimento/pulizia
     await supabaseClient.from('pet_states').update({
       hunger, fun, clean, updated_at: new Date()
     }).eq('pet_id', petId);
@@ -180,24 +168,18 @@ function showLevelUpMessage() {
     if (expInc > 0) {
       await addExpAndMaybeLevelUp(state, expInc);
     } else {
-      // Dopo aver aggiornato, rileggi lo stato aggiornato dal DB e aggiorna la barra!
       const { data: updatedState } = await supabaseClient
         .from('pet_states')
         .select('hunger, fun, clean, level, exp')
         .eq('pet_id', petId)
         .single();
 
-      updateBars(
-        updatedState.hunger,
-        updatedState.fun,
-        updatedState.clean,
-        updatedState.level,
-        updatedState.exp
-      );
+      let l = (typeof updatedState.level === 'number' && !isNaN(updatedState.level)) ? updatedState.level : 1;
+      let e = (typeof updatedState.exp === 'number' && !isNaN(updatedState.exp)) ? updatedState.exp : 0;
+      updateBars(updatedState.hunger, updatedState.fun, updatedState.clean, l, e);
     }
   });
 });
-
 
 // --- SELEZIONE UOVO ---
 document.querySelectorAll('.egg.selectable').forEach(img =>
@@ -216,8 +198,6 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     alert("Utente non autenticato!");
     return;
   }
-  console.log('Provo a inserire pet con user_id:', user.id, 'eggType:', eggType);
-
   const { data, error } = await supabaseClient
     .from('pets')
     .insert({ user_id: user.id, egg_type: eggType })
@@ -235,7 +215,7 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
-  updateBars(100, 100, 100);
+  await getStateFromDb(); // Sempre aggiorna dopo DB!
   startAutoRefresh();
 });
 
@@ -258,11 +238,10 @@ authForm.addEventListener('submit', async e => {
   try {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    // Prendi l'utente da Auth dopo login
     const { data: sessionData } = await supabaseClient.auth.getUser();
     user = sessionData.user;
-    showOnly('egg-selection'); // <--- mostra la selezione uovo subito dopo il login (oppure puoi chiamare initFlow, vedi sotto)
-    await initFlow(); // meglio far gestire la logica a initFlow
+    showOnly('egg-selection');
+    await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
   }
@@ -275,8 +254,8 @@ signupBtn.addEventListener('click', async () => {
     if (error) throw error;
     const { data: sessionData } = await supabaseClient.auth.getUser();
     user = sessionData.user;
-    showOnly('egg-selection'); // <--- mostra la selezione uovo subito dopo signup (oppure chiama initFlow)
-    await initFlow(); // meglio far gestire la logica a initFlow
+    showOnly('egg-selection');
+    await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;
   }
@@ -293,22 +272,16 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// Dentro il DOMContentLoaded o subito dopo la definizione degli altri event
+// --- SCEGLI NUOVO UOVO / LOGOUT PERSONALIZZATO ---
 document.getElementById('choose-egg-btn').addEventListener('click', () => {
-  // Reset stato e vai alla scelta uovo
   petId = null;
   eggType = null;
   alive = true;
   showOnly('egg-selection');
-  // Resetta selezione uovo
   document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
   document.getElementById('confirm-egg-btn').disabled = true;
 });
-
 document.getElementById('exit-btn').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
   showOnly('login-container');
 });
-
-
-

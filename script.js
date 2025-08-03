@@ -20,22 +20,11 @@ function updateBars(hunger, fun, clean, level, exp) {
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 
-  // Aggiorna barra e numeri EXP/Level SOLO se li hai (proteggi da undefined!)
-  if (
-    typeof level !== "undefined" &&
-    typeof exp !== "undefined" &&
-    document.getElementById('exp-bar') &&
-    document.getElementById('level-num')
-  ) {
-    const expNext = expForNextLevel(level);
-    const percent = Math.round((exp / expNext) * 100);
-    document.getElementById('exp-bar').style.width = percent + '%';
-    document.getElementById('exp-label').textContent = `${exp} / ${expNext}`;
-    document.getElementById('level-num').textContent = level;
-  }
+    document.getElementById('level-label').textContent = "Livello " + level;
+  const expMax = expForNextLevel(level);
+  const perc = Math.min(100, Math.round((exp / expMax) * 100));
+  document.getElementById('exp-bar').style.width = `${perc}%`;
 }
-
-
 
 function expForNextLevel(level) {
   return Math.round(100 * Math.pow(1.2, level - 1));

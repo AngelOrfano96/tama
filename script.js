@@ -39,22 +39,30 @@ function startMiniGame() {
   const titleLabel = document.getElementById('minigame-title');
 
   // --- DISEGNA TUTTO ---
-  function drawAll() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (minigameDungeonImg.complete) ctx.drawImage(minigameDungeonImg, 0, 0, canvas.width, canvas.height);
-    if (isGoblin) {
-      if (minigameGoblinImg.complete) ctx.drawImage(minigameGoblinImg, petX, petY, 56, 56);
-    } else {
-      if (minigamePetImg.complete) ctx.drawImage(minigamePetImg, petX, petY, 62, 62);
-    }
-    // HUD
-    ctx.font = "bold 17px Segoe UI";
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "left";
-    ctx.fillText("Punteggio: " + minigameScore, 14, 32);
-    ctx.textAlign = "right";
-    if (minigameActive) ctx.fillText("Tempo: " + totalTime + "s", canvas.width - 16, 32);
+function drawAll() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (minigameDungeonImg.complete) ctx.drawImage(minigameDungeonImg, 0, 0, canvas.width, canvas.height);
+  // Pet/goblin
+  if (isGoblin) {
+    if (minigameGoblinImg.complete) ctx.drawImage(minigameGoblinImg, petX, petY, 56, 56);
+  } else {
+    if (minigamePetImg.complete) ctx.drawImage(minigamePetImg, petX, petY, 56, 56);
   }
+  // Score & Timer
+  ctx.font = "bold 18px Segoe UI";
+  ctx.fillStyle = "#111";
+  ctx.fillText("Punteggio: " + minigameScore, 15, 32);
+  if (minigameActive) {
+    ctx.fillText("Tempo: " + totalTime + "s", 220, 32);
+  }
+  // Messaggio bonus tempo
+  if (bonusTimeActive) {
+    ctx.font = "bold 22px Segoe UI";
+    ctx.fillStyle = "#e67e22";
+    ctx.fillText("+5s Tempo Bonus!", 75, 70);
+  }
+}
+
 
   // ----- COUNTDOWN -----
   minigameActive = false;
@@ -167,6 +175,7 @@ canvas.onclick = function(e) {
   } else {
     minigameCanClick = true;
   }
+};
 }
 
 // ---- FINE MINIGIOCO ----

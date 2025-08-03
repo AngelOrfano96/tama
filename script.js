@@ -279,38 +279,78 @@ if (lose) {
 function moveGoblinsTowardsPet() {
   for (let i = 0; i < mazeGoblins.length; i++) {
     let gob = mazeGoblins[i];
-    // Movimento a* semplificato: preferisce la direzione colta
-    let options = [];
-    if (gob.x < mazePet.x) options.push({dx:1, dy:0});
-    if (gob.x > mazePet.x) options.push({dx:-1, dy:0});
-    if (gob.y < mazePet.y) options.push({dx:0, dy:1});
-    if (gob.y > mazePet.y) options.push({dx:0, dy:-1});
-
-    // Prova le mosse possibili, preferendo la più “vicina”
-    let moved = false;
-    for (let opt of options) {
-      let nx = gob.x + opt.dx, ny = gob.y + opt.dy;
-      if (nx > 0 && ny > 0 && nx < MAZE_WIDTH-1 && ny < MAZE_HEIGHT-1 && mazeMatrix[ny][nx] === 0) {
-        // Non si muove sopra il pet
-        if (!(nx === mazePet.x && ny === mazePet.y)) {
-          gob.x = nx; gob.y = ny;
-          moved = true;
-          break;
-        }
-      }
-    }
-    // Se non ha potuto muoversi verso il pet, prova una direzione libera qualsiasi
-    if (!moved) {
+    // Trova il percorso più breve verso il pet usando BFS
+    let path = findPath(mazeMatrix, gob, mazePet);
+    if (path && path.length > 1) {
+      // Fai un passo verso il pet (il path include il punto di partenza come primo elemento)
+      gob.x = path[1].x;
+      gob.y = path[1].y;
+    } else {
+      // Fallback: muoviti random se bloccato
       let dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+      dirs = dirs.sort(() => Math.random() - 0.5);
       for (let dir of dirs) {
         let nx = gob.x + dir.dx, ny = gob.y + dir.dy;
-        if (nx > 0 && ny > 0 && nx < MAZE_WIDTH-1 && ny < MAZE_HEIGHT-1 && mazeMatrix[ny][nx] === 0) {
-          gob.x = nx; gob.y = ny;
+        if (
+          nx > 0 && ny > 0 && nx < MAZE_WIDTH-1 && ny < MAZE_HEIGHT-1 &&
+          mazeMatrix[ny][nx] === 0 &&
+          !(nx === mazePet.x && ny === mazePet.y)
+        ) {
+          gob.x = nx;
+          gob.y = ny;
           break;
         }
       }
     }
   }
+}
+
+// Funzione BFS per trovare il percorso più breve dal goblin al pet
+function findPath(matrix, start, end) {
+  let queue = [];
+  let visited = Array.from({length: MAZE_HEIGHT}, () => Array(MAZE_WIDTH).fill(false));
+  let prev = Array.from({length: MAZE_HEIGHT}, () => Array(MAZE_WIDTH).fill(null));
+  queue.push({x: start.x, y: start.y});
+  visited[start.y][start.x] = true;
+  let found = false;
+
+  while (queue.length && !found) {
+    let {x, y} = queue.shift();
+    let dirs = [
+      {dx:1, dy:0},
+      {dx:-1, dy:0},
+      {dx:0, dy:1},
+      {dx:0, dy:-1}
+    ];
+    for (let {dx, dy} of dirs) {
+      let nx = x + dx, ny = y + dy;
+      if (
+        nx >= 0 && nx < MAZE_WIDTH &&
+        ny >= 0 && ny < MAZE_HEIGHT &&
+        matrix[ny][nx] === 0 &&
+        !visited[ny][nx]
+      ) {
+        queue.push({x: nx, y: ny});
+        visited[ny][nx] = true;
+        prev[ny][nx] = {x, y};
+        if (nx === end.x && ny === end.y) {
+          found = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!visited[end.y][end.x]) return null;
+
+  // Ricostruisci il path
+  let path = [];
+  let curr = {x: end.x, y: end.y};
+  while (curr) {
+    path.unshift(curr);
+    curr = prev[curr.y][curr.x];
+  }
+  return path;
 }
 
 function moveGoblinTowardsPet() {

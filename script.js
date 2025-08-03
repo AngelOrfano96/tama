@@ -9,76 +9,172 @@ let autoRefresh = null;
 let minigameActive = false;
 let minigameScore = 0;
 let minigameTimer = null;
+let minigameCountdown = null;
 let minigamePetImg = new Image();
+let minigameGoblinImg = new Image();
+let minigameDungeonImg = new Image();
+let isGoblin = false; // true se sta mostrando un goblin
+let goblinTimeout = null;
+
+minigameGoblinImg.src = "assets/enemies/goblin.png"; // aggiorna se usi un path diverso
+minigameDungeonImg.src = "assets/backgrounds/dungeon.png"; // aggiorna se usi un path diverso
 
 function startMiniGame() {
-  minigameActive = true;
+  minigameActive = false;
   minigameScore = 0;
+  let totalTime = 20; // secondi
+  let countdown = 5;
+  let petX = 150, petY = 150;
 
-  // Carica l'immagine del pet scelto
+  // Carica il pet scelto
   minigamePetImg.src = document.getElementById('pet').src;
 
+  // Elementi UI
   const canvas = document.getElementById('minigame-canvas');
   const ctx = canvas.getContext('2d');
-  let petX = 150, petY = 150;
-  let timer = 20; // secondi
+  const timerLabel = document.getElementById('minigame-timer');
+  const titleLabel = document.getElementById('minigame-title');
+  titleLabel.textContent = "";
+  timerLabel.textContent = "";
 
-  // Ridisegna il pet ogni volta che viene cliccato
-  function drawPet() {
+  // Disegna lo sfondo, pet/goblin, punteggio
+  function drawAll() {
+    // Sfondo dungeon
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(minigamePetImg, petX, petY, 50, 50);
+    if (minigameDungeonImg.complete) ctx.drawImage(minigameDungeonImg, 0, 0, canvas.width, canvas.height);
+
+    // Pet/goblin
+    if (isGoblin) {
+      if (minigameGoblinImg.complete) ctx.drawImage(minigameGoblinImg, petX, petY, 50, 50);
+    } else {
+      if (minigamePetImg.complete) ctx.drawImage(minigamePetImg, petX, petY, 50, 50);
+    }
+    // Scritte sopra
+    ctx.font = "bold 18px Segoe UI";
+    ctx.fillStyle = "#111";
+    ctx.fillText("Punteggio: " + minigameScore, 15, 32);
+    if (minigameActive) {
+      ctx.fillText("Tempo: " + totalTime + "s", 220, 32);
+    }
   }
 
-  minigamePetImg.onload = drawPet;
+  // 5 secondi di countdown all’inizio
+  minigameActive = false;
+  isGoblin = false;
+  drawAll();
+  titleLabel.textContent = "Acchiappa il tuo pet!";
+  timerLabel.textContent = "";
+  ctx.font = "bold 44px Segoe UI";
+  ctx.fillStyle = "#e67e22";
+  ctx.fillText("5", 160, 180);
 
+  let currCount = 5;
+  minigameCountdown = setInterval(() => {
+    currCount--;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (minigameDungeonImg.complete) ctx.drawImage(minigameDungeonImg, 0, 0, canvas.width, canvas.height);
+    ctx.font = "bold 44px Segoe UI";
+    ctx.fillStyle = "#e67e22";
+    ctx.fillText(currCount > 0 ? currCount : "VIA!", 135, 180);
+    titleLabel.textContent = "Acchiappa il tuo pet!";
+    timerLabel.textContent = "";
+    if (currCount === 0) {
+      clearInterval(minigameCountdown);
+      setTimeout(runMainMinigame, 700);
+    }
+  }, 1000);
+
+  function runMainMinigame() {
+    minigameActive = true;
+    totalTime = 20;
+    minigameScore = 0;
+    timerLabel.textContent = "Tempo: 20s";
+    titleLabel.textContent = "Acchiappa il tuo pet!";
+    drawAll();
+
+    // Timer countdown
+    minigameTimer = setInterval(() => {
+      if (!minigameActive) return;
+      totalTime--;
+      timerLabel.textContent = "Tempo: " + totalTime + "s";
+      drawAll();
+      if (totalTime <= 0) {
+        clearInterval(minigameTimer);
+        minigameActive = false;
+        titleLabel.textContent = "";
+        timerLabel.textContent = "";
+        endMiniGame();
+      }
+    }, 1000);
+
+    // Prima appari il pet
+    nextPetOrGoblin();
+  }
+
+  // Goblin logic random
+  function nextPetOrGoblin() {
+    // Dopo ogni click (o tempo scaduto per il goblin) decidi chi appare
+    isGoblin = Math.random() < 0.33; // 33% chance di goblin
+
+    // Nuova posizione random
+    petX = Math.random() * (canvas.width - 50);
+    petY = Math.random() * (canvas.height - 50);
+
+    drawAll();
+
+    // Se goblin: sparisce da solo dopo 2 secondi
+    if (isGoblin) {
+      goblinTimeout = setTimeout(() => {
+        if (isGoblin && minigameActive) {
+          isGoblin = false;
+          petX = Math.random() * (canvas.width - 50);
+          petY = Math.random() * (canvas.height - 50);
+          drawAll();
+        }
+      }, 2000);
+    } else {
+      if (goblinTimeout) clearTimeout(goblinTimeout);
+    }
+  }
+
+  // Gestisci click
   canvas.onclick = function(e) {
     if (!minigameActive) return;
-    // Calcola posizione click
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
     if (
       clickX >= petX && clickX <= petX + 50 &&
       clickY >= petY && clickY <= petY + 50
     ) {
-      minigameScore += 1;
-      // Muovi il pet in una posizione casuale
-      petX = Math.random() * (canvas.width - 50);
-      petY = Math.random() * (canvas.height - 50);
-      drawPet();
+      if (isGoblin) {
+        minigameScore = Math.max(0, minigameScore - 3); // Perdi punti se tocchi goblin
+        isGoblin = false;
+      } else {
+        minigameScore++;
+      }
+      nextPetOrGoblin();
+      drawAll();
     }
   };
 
-  drawPet();
-
-  // Timer countdown
-  minigameTimer = setInterval(() => {
-    timer--;
-    if (timer <= 0) {
-      clearInterval(minigameTimer);
-      minigameActive = false;
-      endMiniGame();
-    }
-  }, 1000);
 }
-
 function stopMiniGame() {
   minigameActive = false;
-  clearInterval(minigameTimer);
+  if (minigameTimer) clearInterval(minigameTimer);
+  if (minigameCountdown) clearInterval(minigameCountdown);
+  if (goblinTimeout) clearTimeout(goblinTimeout);
 }
 
 function endMiniGame() {
   document.getElementById('minigame-modal').classList.add('hidden');
-  // Calcola divertimento ed exp in base al punteggio!
-  let funPoints = Math.min(100, minigameScore * 5); // esempio: 5 punti divertimento per click
-  let expPoints = Math.floor(minigameScore * 2.5);  // esempio: 2.5 punti exp per click
-
-  // Aggiorna DB (puoi migliorare con la tua logica)
+  let funPoints = Math.min(100, minigameScore * 5); // 5 punti divertimento per click
+  let expPoints = Math.max(0, Math.floor(minigameScore * 2.5));  // exp per click (non negativa)
   updateFunAndExpFromMiniGame(funPoints, expPoints);
   stopMiniGame();
 }
 
 async function updateFunAndExpFromMiniGame(funPoints, expPoints) {
-  // Prendi lo stato attuale
+  // Prendi stato attuale
   const { data: state } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, level, exp')
@@ -95,9 +191,16 @@ async function updateFunAndExpFromMiniGame(funPoints, expPoints) {
 
   await addExpAndMaybeLevelUp(state, expPoints);
 
-  // Mostra label con il risultato
   showExpGainLabel(expPoints);
-  // Se vuoi, puoi mostrare anche una label simile per il divertimento!
+}
+
+// Mostra exp a destra della barra (già fatto nelle tue migliorie)
+function showExpGainLabel(points) {
+  const label = document.getElementById('exp-gain-label');
+  if (!label) return;
+  label.textContent = points > 0 ? `+${points} exp` : '';
+  label.style.display = points > 0 ? "inline-block" : "none";
+  setTimeout(() => label.style.display = "none", 2500);
 }
 
 

@@ -20,12 +20,15 @@ function updateBars(hunger, fun, clean, level, exp) {
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
 
-  if (typeof level !== 'undefined' && typeof exp !== 'undefined') {
+  if (level == null || exp == null) {
+  level = 1;
+  exp = 0;
+}
     document.getElementById('level-label').textContent = "Livello " + level;
     const expMax = expForNextLevel(level);
     const perc = Math.min(100, Math.round((exp / expMax) * 100));
     document.getElementById('exp-bar').style.width = `${perc}%`;
-  }
+  
 }
 
 
@@ -39,7 +42,7 @@ async function getStateFromDb() {
   if (!petId) return;
   const { data: state } = await supabaseClient
     .from('pet_states')
-    .select('hunger, fun, clean, level, exp')
+    .select('hunger, fun, clean, COALESCE(level, 1) as level, COALESCE(exp, 0) as exp')
     .eq('pet_id', petId)
     .single();
   if (state) {
@@ -142,28 +145,6 @@ function showLevelUpMessage() {
 
 
 // --- BOTTONI GAME ---
-/*
-['feed', 'play', 'clean'].forEach(action => {
-  document.getElementById(`${action}-btn`).addEventListener('click', async () => {
-    if (!alive) return;
-    const { data: state } = await supabaseClient
-      .from('pet_states')
-      .select('hunger, fun, clean, level, exp')
-      .eq('pet_id', petId)
-      .single();
-    if (!state) return;
-    let hunger = state.hunger, fun = state.fun, clean = state.clean;
-    if (action === 'feed') hunger = Math.min(100, hunger + 20);
-    if (action === 'play') fun = Math.min(100, fun + 20);
-    if (action === 'clean') clean = Math.min(100, clean + 20);
-
-    await supabaseClient.from('pet_states').update({
-      hunger, fun, clean, updated_at: new Date()
-    }).eq('pet_id', petId);
-
-    updateBars(hunger, fun, clean);
-  });
-}); */
 
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
@@ -249,7 +230,7 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   petId = data.id;
   showOnly('game');
   await supabaseClient.from('pet_states').insert({
-    pet_id: petId, hunger: 100, fun: 100, clean: 100, updated_at: new Date()
+    pet_id: petId, hunger: 100, fun: 100, clean: 100, level: 1, exp: 0, updated_at: new Date()
   });
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   alive = true;

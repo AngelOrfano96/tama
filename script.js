@@ -15,18 +15,28 @@ function showOnly(id) {
   });
 }
 
-function updateBars(hunger, fun, clean) {
+function updateBars(hunger, fun, clean, level = 1, exp = 0) {
   document.getElementById('hunger-bar').style.width = `${Math.round(hunger)}%`;
   document.getElementById('fun-bar').style.width = `${Math.round(fun)}%`;
   document.getElementById('clean-bar').style.width = `${Math.round(clean)}%`;
+
+    document.getElementById('level-label').textContent = "Livello " + level;
+  const expMax = expForNextLevel(level);
+  const perc = Math.min(100, Math.round((exp / expMax) * 100));
+  document.getElementById('exp-bar').style.width = `${perc}%`;
 }
+
+function expForNextLevel(level) {
+  return Math.round(100 * Math.pow(1.2, level - 1));
+}
+
 
 // Aggiorna stato dal DB
 async function getStateFromDb() {
   if (!petId) return;
   const { data: state } = await supabaseClient
     .from('pet_states')
-    .select('hunger, fun, clean')
+    .select('hunger, fun, clean, level, exp')
     .eq('pet_id', petId)
     .single();
   if (state) {
@@ -78,13 +88,48 @@ async function initFlow() {
   startAutoRefresh();
 }
 
+async function addExpAndMaybeLevelUp(state, inc = 0) {
+  let { level, exp } = state;
+  let leveledUp = false;
+  exp += inc;
+  let expNext = expForNextLevel(level);
+
+  // Loop per gestire più salti di livello se exp > necessario
+  while (exp >= expNext) {
+    exp -= expNext;
+    level++;
+    leveledUp = true;
+    expNext = expForNextLevel(level);
+  }
+
+  await supabaseClient.from('pet_states').update({
+    level, exp, updated_at: new Date()
+  }).eq('pet_id', petId);
+
+  if (leveledUp) {
+    showLevelUpMessage();
+  }
+  updateBars(state.hunger, state.fun, state.clean, level, exp);
+}
+
+// Mostra messaggio di level up
+function showLevelUpMessage() {
+  const msg = document.createElement('div');
+  msg.className = "levelup-msg";
+  msg.innerHTML = "🎉 <b>Complimenti!</b> Il tuo pet è salito di livello!";
+  document.querySelector(".form-box").appendChild(msg);
+  setTimeout(() => msg.remove(), 3000);
+}
+
+
 // --- BOTTONI GAME ---
+/*
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
     const { data: state } = await supabaseClient
       .from('pet_states')
-      .select('hunger, fun, clean')
+      .select('hunger, fun, clean, level, exp')
       .eq('pet_id', petId)
       .single();
     if (!state) return;
@@ -99,7 +144,46 @@ async function initFlow() {
 
     updateBars(hunger, fun, clean);
   });
+}); */
+
+['feed', 'play', 'clean'].forEach(action => {
+  document.getElementById(`${action}-btn`).addEventListener('click', async () => {
+    if (!alive) return;
+    const { data: state } = await supabaseClient
+      .from('pet_states')
+      .select('hunger, fun, clean, level, exp')
+      .eq('pet_id', petId)
+      .single();
+    if (!state) return;
+    let hunger = state.hunger, fun = state.fun, clean = state.clean;
+
+    let expInc = 0;
+    if (action === 'feed') {
+      hunger = Math.min(100, hunger + 20);
+      expInc = 15;
+    }
+    if (action === 'play') {
+      fun = Math.min(100, fun + 20);
+      // NIENTE exp!
+    }
+    if (action === 'clean') {
+      clean = Math.min(100, clean + 20);
+      expInc = 15;
+    }
+
+    await supabaseClient.from('pet_states').update({
+      hunger, fun, clean, updated_at: new Date()
+    }).eq('pet_id', petId);
+
+    // Aggiorna exp/level solo se feed o clean
+    if (expInc > 0) {
+      await addExpAndMaybeLevelUp(state, expInc);
+    } else {
+      updateBars(hunger, fun, clean, state.level, state.exp);
+    }
+  });
 });
+
 
 // --- SELEZIONE UOVO ---
 document.querySelectorAll('.egg.selectable').forEach(img =>
@@ -211,4 +295,6 @@ document.getElementById('exit-btn').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
   showOnly('login-container');
 });
+
+
 

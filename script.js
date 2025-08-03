@@ -11,13 +11,8 @@ let minigameScore = 0;
 let minigameTimer = null;
 let minigameCountdown = null;
 let minigamePetImg = new Image();
-let minigameGoblinImg = new Image();
-let minigameDungeonImg = new Image();
 let isGoblin = false; // true se sta mostrando un goblin
 let goblinTimeout = null;
-
-minigameGoblinImg.src = "assets/enemies/goblin.png"; // aggiorna se usi un path diverso
-minigameDungeonImg.src = "assets/backgrounds/dungeon.png"; // aggiorna se usi un path diverso
 
 // IMMAGINI minigioco
 const minigameDungeonImg = new Image();

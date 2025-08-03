@@ -209,26 +209,6 @@ document.getElementById('maze-exit-btn').addEventListener('click', () => {
   document.getElementById('maze-minigame-modal').classList.add('hidden');
 });
 
-document.getElementById('play-btn').addEventListener('click', () => {
-  document.getElementById('minigame-select-modal').classList.remove('hidden');
-});
-
-document.getElementById('btn-minigame-catch').addEventListener('click', () => {
-  document.getElementById('minigame-select-modal').classList.add('hidden');
-  document.getElementById('minigame-modal').classList.remove('hidden');
-  startMiniGame();
-});
-
-document.getElementById('btn-minigame-maze').addEventListener('click', () => {
-  document.getElementById('minigame-select-modal').classList.add('hidden');
-  document.getElementById('maze-minigame-modal').classList.remove('hidden');
-  startMazeMinigame();
-});
-
-document.getElementById('btn-minigame-cancel').addEventListener('click', () => {
-  document.getElementById('minigame-select-modal').classList.add('hidden');
-});
-
 
 
 // ----- MINI GIOCO PRENDIMI-----
@@ -468,10 +448,18 @@ document.getElementById('btn-minigame-catch').addEventListener('click', () => {
   startMiniGame();
 });
 
-// Tasto chiudi (opzionale)
-document.querySelector('.btn-minigame-cancel').addEventListener('click', () => {
+// Tasto "Fuga dal Dungeon"
+document.getElementById('btn-minigame-maze').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
+  document.getElementById('maze-minigame-modal').classList.remove('hidden');
+  startMazeMinigame();
+});
+
+// Tasto Annulla
+document.getElementById('btn-minigame-cancel').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
 });
+
 
 // ========== FUNZIONI PRINCIPALI (NON TOCCARE QUESTE PARTI SE NON NECESSARIO) ==========
 

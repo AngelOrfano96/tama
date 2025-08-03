@@ -281,12 +281,16 @@ function moveGoblinsTowardsPet() {
     let gob = mazeGoblins[i];
     // Trova il percorso più breve verso il pet usando BFS
     let path = findPath(mazeMatrix, gob, mazePet);
-    if (path && path.length > 1) {
-      // Fai un passo verso il pet (il path include il punto di partenza come primo elemento)
+
+    // Decidi: segui il path ottimale oppure sbaglia con una certa probabilità
+    let randomFail = Math.random() < 0.20; // 25% di probabilità di sbagliare strada
+
+    if (path && path.length > 1 && !randomFail) {
+      // Mossa ottimale: segui il path
       gob.x = path[1].x;
       gob.y = path[1].y;
     } else {
-      // Fallback: muoviti random se bloccato
+      // Mossa casuale valida
       let dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
       dirs = dirs.sort(() => Math.random() - 0.5);
       for (let dir of dirs) {
@@ -304,6 +308,7 @@ function moveGoblinsTowardsPet() {
     }
   }
 }
+
 
 // Funzione BFS per trovare il percorso più breve dal goblin al pet
 function findPath(matrix, start, end) {

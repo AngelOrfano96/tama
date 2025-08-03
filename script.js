@@ -24,6 +24,229 @@ document.querySelector('.close-selection-btn').addEventListener('click', () => {
   document.getElementById('minigame-selection-modal').classList.add('hidden');
 });
 
+// === COSTANTI LABIRINTO ===
+const MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
+const MAZE_PET_SIZE = 26, MAZE_GOBLIN_SIZE = 26;
+
+// Immagini
+let mazePetImg = new Image();
+let mazeKeyImg = new Image();
+let mazeExitImg = new Image();
+let mazeGoblinImg = new Image();
+mazePetImg.src = document.getElementById('pet').src; // aggiorneremo in start
+mazeKeyImg.src = "assets/icons/key.png"; // cambia path se necessario
+mazeExitImg.src = "assets/icons/door.png";
+mazeGoblinImg.src = "assets/enemies/goblin.png";
+
+// Stato
+let mazeMatrix, mazePet, mazeKey, mazeExit, mazeGoblin, mazeScore, mazeTimer, mazeInterval, mazeBonusTimer;
+let mazeTimeLeft = 30;
+let mazePlaying = false;
+let mazeCanvas, mazeCtx;
+let mazeCanMove = true;
+
+// === AVVIO MINIGIOCO ===
+function startMazeMinigame() {
+  // Setta immagini attuali
+  mazePetImg.src = document.getElementById('pet').src;
+  // Reset stato
+  mazeMatrix = generateMazeMatrix();
+  mazeScore = 0;
+  mazeTimeLeft = 30;
+  mazePlaying = true;
+  mazeCanMove = true;
+  mazeCanvas = document.getElementById('maze-canvas');
+  mazeCtx = mazeCanvas.getContext('2d');
+  document.getElementById('maze-minigame-modal').classList.remove('hidden');
+  document.getElementById('maze-bonus-label').style.display = "none";
+  document.getElementById('maze-minigame-score').textContent = mazeScore;
+  document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
+
+  // Trova inizio/uscita/chiave/goblin
+  mazePet = { x: 1, y: 1 };
+  mazeExit = { x: MAZE_WIDTH-2, y: MAZE_HEIGHT-2 };
+  mazeKey = randomEmptyCell();
+  mazeGoblin = randomEmptyCell();
+
+  drawMaze();
+
+  window.addEventListener('keydown', handleMazeMove);
+
+  // Timer countdown
+  mazeInterval = setInterval(() => {
+    if (!mazePlaying) return;
+    mazeTimeLeft--;
+    document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
+    if (mazeTimeLeft <= 0) {
+      endMazeMinigame(false); // non vinto
+    }
+    drawMaze();
+  }, 1000);
+}
+
+// === GENERA LABIRINTO SEMPLICE (muri random + corridoio) ===
+function generateMazeMatrix() {
+  let maze = [];
+  for (let y = 0; y < MAZE_HEIGHT; y++) {
+    let row = [];
+    for (let x = 0; x < MAZE_WIDTH; x++) {
+      if (x === 0 || y === 0 || x === MAZE_WIDTH-1 || y === MAZE_HEIGHT-1) row.push(1); // bordo
+      else row.push(Math.random() < 0.16 ? 1 : 0); // muro random
+    }
+    maze.push(row);
+  }
+  maze[1][1] = 0; // inizio
+  maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0; // uscita
+  return maze;
+}
+function randomEmptyCell() {
+  let x, y;
+  do {
+    x = 1 + Math.floor(Math.random() * (MAZE_WIDTH-2));
+    y = 1 + Math.floor(Math.random() * (MAZE_HEIGHT-2));
+  } while (mazeMatrix[y][x] !== 0 || (x===1 && y===1) || (x===MAZE_WIDTH-2 && y===MAZE_HEIGHT-2));
+  return { x, y };
+}
+
+// === DISEGNA ===
+function drawMaze() {
+  mazeCtx.clearRect(0,0,MAZE_WIDTH*TILE_SIZE,MAZE_HEIGHT*TILE_SIZE);
+  // Sfondo
+  mazeCtx.fillStyle = "#17181a";
+  mazeCtx.fillRect(0,0,MAZE_WIDTH*TILE_SIZE,MAZE_HEIGHT*TILE_SIZE);
+  // Celle
+  for (let y = 0; y < MAZE_HEIGHT; y++) {
+    for (let x = 0; x < MAZE_WIDTH; x++) {
+      if (mazeMatrix[y][x] === 1) {
+        mazeCtx.fillStyle = "#444";
+        mazeCtx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
+    }
+  }
+  // Chiave
+  mazeCtx.globalAlpha = 1;
+  if (mazeKey) mazeCtx.drawImage(mazeKeyImg, mazeKey.x*TILE_SIZE+4, mazeKey.y*TILE_SIZE+4, 24, 24);
+  // Uscita
+  mazeCtx.drawImage(mazeExitImg, mazeExit.x*TILE_SIZE+4, mazeExit.y*TILE_SIZE+4, 24, 24);
+  // Goblin
+  if (mazeGoblin) mazeCtx.drawImage(mazeGoblinImg, mazeGoblin.x*TILE_SIZE+3, mazeGoblin.y*TILE_SIZE+3, 26, 26);
+  // Pet
+  mazeCtx.drawImage(mazePetImg, mazePet.x*TILE_SIZE+3, mazePet.y*TILE_SIZE+3, MAZE_PET_SIZE, MAZE_PET_SIZE);
+  // Bonus anim
+  if (!mazePlaying) {
+    mazeCtx.font = "bold 22px Segoe UI";
+    mazeCtx.fillStyle = "#e67e22";
+    mazeCtx.textAlign = "center";
+    mazeCtx.fillText("Premi ESC o 'Esci' per tornare", (MAZE_WIDTH*TILE_SIZE)/2, (MAZE_HEIGHT*TILE_SIZE)/2 + 20);
+  }
+}
+
+// === GESTIONE TASTI ===
+function handleMazeMove(e) {
+  if (!mazePlaying || !mazeCanMove) return;
+  let dx=0, dy=0;
+  if (e.key === "ArrowUp" || e.key==="w") dy=-1;
+  else if (e.key === "ArrowDown" || e.key==="s") dy=1;
+  else if (e.key === "ArrowLeft" || e.key==="a") dx=-1;
+  else if (e.key === "ArrowRight" || e.key==="d") dx=1;
+  else if (e.key === "Escape") { endMazeMinigame(false); return; }
+  else return;
+
+  let nx = mazePet.x + dx, ny = mazePet.y + dy;
+  if (nx < 0 || ny < 0 || nx >= MAZE_WIDTH || ny >= MAZE_HEIGHT) return;
+
+  if (mazeMatrix[ny][nx] === 1) {
+    // Tocca muro: perdi 3s!
+    mazeTimeLeft = Math.max(1, mazeTimeLeft - 3);
+    showMazeBonus("-3s!", "#e74c3c");
+  } else {
+    mazePet.x = nx; mazePet.y = ny;
+    // Prendi chiave
+    if (mazeKey && nx === mazeKey.x && ny === mazeKey.y) {
+      mazeKey = null;
+      mazeScore += 20;
+      mazeTimeLeft = Math.min(60, mazeTimeLeft + 5);
+      showMazeBonus("+20pt +5s!", "#27ae60");
+    }
+    // Goblin
+    if (mazeGoblin && nx === mazeGoblin.x && ny === mazeGoblin.y) {
+      mazeTimeLeft = Math.max(1, mazeTimeLeft - 6);
+      mazeScore = Math.max(0, mazeScore - 10);
+      mazeGoblin = randomEmptyCell(); // si sposta
+      showMazeBonus("-10pt -6s!", "#f1c40f");
+    }
+    // Esci!
+    if (nx === mazeExit.x && ny === mazeExit.y) {
+      endMazeMinigame(true);
+      return;
+    }
+  }
+  drawMaze();
+  document.getElementById('maze-minigame-score').textContent = mazeScore;
+  document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
+}
+
+function showMazeBonus(msg, color="#e67e22") {
+  const lab = document.getElementById('maze-bonus-label');
+  lab.textContent = msg;
+  lab.style.display = "block";
+  lab.style.color = color;
+  lab.style.opacity = "1";
+  setTimeout(()=>lab.style.opacity="0", 1600);
+  setTimeout(()=>lab.style.display="none", 2100);
+}
+
+// === FINE MINIGIOCO ===
+function endMazeMinigame(vittoria) {
+  mazePlaying = false;
+  window.removeEventListener('keydown', handleMazeMove);
+  if (mazeInterval) clearInterval(mazeInterval);
+
+  // Chiudi il modale dopo 1s e assegna punti
+  setTimeout(() => {
+    document.getElementById('maze-minigame-modal').classList.add('hidden');
+    if (vittoria) {
+      let fun = 60 + mazeScore;
+      let exp = Math.round(mazeScore * 1.25) + 30;
+      updateFunAndExpFromMiniGame(fun, exp);
+      showExpGainLabel(exp);
+    } else {
+      // Consolazione minima
+      let fun = 15 + Math.round(mazeScore * 0.6);
+      let exp = Math.round(mazeScore * 0.5);
+      updateFunAndExpFromMiniGame(fun, exp);
+      showExpGainLabel(exp);
+    }
+  }, 1000);
+}
+
+// === ESCI BUTTON ===
+document.getElementById('maze-exit-btn').addEventListener('click', () => {
+  endMazeMinigame(false);
+  document.getElementById('maze-minigame-modal').classList.add('hidden');
+});
+
+document.getElementById('play-btn').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.remove('hidden');
+});
+
+document.getElementById('btn-minigame-catch').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
+  document.getElementById('minigame-modal').classList.remove('hidden');
+  startMiniGame();
+});
+
+document.getElementById('btn-minigame-maze').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
+  document.getElementById('maze-minigame-modal').classList.remove('hidden');
+  startMazeMinigame();
+});
+
+document.getElementById('btn-minigame-cancel').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
+});
+
+
 
 // ----- MINI GIOCO -----
 let minigameActive = false;

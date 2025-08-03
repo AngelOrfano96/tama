@@ -103,7 +103,7 @@
       </div>
     </div>
     
-<!-- MODALE MINIGIOCO -->
+<!-- MODALE MINIGIOCO PRENDIMI-->
 <div id="minigame-modal" class="hidden" style="
     position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.25); display:flex; align-items:center; justify-content:center;">
   <div class="minigame-box" style="
@@ -119,12 +119,28 @@
   </div>
 </div>
 
+<!-- Minigioco: Fuga dal Dungeon -->
+<div id="maze-minigame-modal" class="modal hidden">
+  <div class="minigame-box">
+    <div class="minigame-header">
+      <span id="maze-minigame-timer">30</span> s
+      <span style="margin-left:20px;">Punteggio: <span id="maze-minigame-score">0</span></span>
+    </div>
+    <canvas id="maze-canvas" width="320" height="256" style="background:#222;display:block;margin:auto;border-radius:10px"></canvas>
+    <div style="text-align:center;margin-top:1em;">
+      <button id="maze-exit-btn">Esci</button>
+    </div>
+    <div id="maze-bonus-label" class="exp-gain-label" style="display:none;position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:1.1em;font-weight:700;"></div>
+  </div>
+</div>
+
 
 <!-- MODALE SELEZIONE MINIGIOCO -->
 <div id="minigame-selection-modal" class="modal hidden">
   <div class="modal-content" style="text-align:center;">
     <h2>Scegli un mini gioco</h2>
     <button class="minigame-select-btn" id="minigame-catchpet-btn">Prendimi!</button>
+    <button id="btn-minigame-maze" class="minigame-btn">Fuga dal Dungeon</button>
     <!-- Qui in futuro puoi aggiungere altri bottoni/mini giochi -->
     <br>
     <button class="close-selection-btn" style="margin-top:18px;">Chiudi</button>

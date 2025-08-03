@@ -16,6 +16,10 @@ let minigameGoblinImg = new Image();
 let minigameDungeonImg = new Image();
 let isGoblin = false;
 let goblinTimeout = null;
+let minigameCanClick = true;
+
+let bonusTimeActive = false;
+let bonusTimeTextTimer = null;
 
 minigameGoblinImg.src = "assets/enemies/goblin.png";
 minigameDungeonImg.src = "assets/backgrounds/dungeon.png";
@@ -110,44 +114,59 @@ function startMiniGame() {
 
   // ---- PET o GOBLIN LOGICA ----
   function minigameMove() {
-    isGoblin = Math.random() < 0.22; // 22% chance goblin
-    // Nuova posizione random
-    petX = 32 + Math.random() * (canvas.width - 84);
-    petY = 58 + Math.random() * (canvas.height - 110);
+  minigameCanClick = true;
+  isGoblin = Math.random() < 0.22;
+  petX = 32 + Math.random() * (canvas.width - 84);
+  petY = 58 + Math.random() * (canvas.height - 110);
+  drawAll();
 
-    drawAll();
-
-    if (isGoblin) {
-      goblinTimeout = setTimeout(() => {
-        if (isGoblin && minigameActive) {
-          isGoblin = false;
-          minigameMove();
-        }
-      }, 1800);
-    } else {
-      if (goblinTimeout) clearTimeout(goblinTimeout);
-    }
-  }
-
-  // ---- CLICK SU CANVAS ----
-  canvas.onclick = function(e) {
-    if (!minigameActive) return;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
-    if (
-      clickX >= petX && clickX <= petX + 56 &&
-      clickY >= petY && clickY <= petY + 56
-    ) {
-      if (isGoblin) {
-        minigameScore = Math.max(0, minigameScore - 2); // Penalità goblin
+  if (isGoblin) {
+    goblinTimeout = setTimeout(() => {
+      if (isGoblin && minigameActive) {
         isGoblin = false;
-      } else {
-        minigameScore++;
+        minigameCanClick = false; // blocca click mentre sparisce
+        setTimeout(() => {
+          minigameMove();
+        }, 250); // breve attesa per evitare doppio flicker
       }
-      minigameMove();
-      drawAll();
+    }, 1800);
+  } else {
+    if (goblinTimeout) clearTimeout(goblinTimeout);
+  }
+}
+
+canvas.onclick = function(e) {
+  if (!minigameActive || !minigameCanClick) return;
+  minigameCanClick = false;
+  const rect = canvas.getBoundingClientRect();
+  const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
+  if (
+    clickX >= petX && clickX <= petX + 56 &&
+    clickY >= petY && clickY <= petY + 56
+  ) {
+    if (isGoblin) {
+      minigameScore = Math.max(0, minigameScore - 2);
+      isGoblin = false;
+    } else {
+      minigameScore++;
+
+      // BONUS TIME: 20% chance
+      if (Math.random() < 0.2) {
+        totalTime += 5;
+        bonusTimeActive = true;
+        if (bonusTimeTextTimer) clearTimeout(bonusTimeTextTimer);
+        bonusTimeTextTimer = setTimeout(() => {
+          bonusTimeActive = false;
+          drawAll();
+        }, 1000);
+      }
     }
-  };
+    setTimeout(() => {
+      minigameMove();
+    }, 400);
+  } else {
+    minigameCanClick = true;
+  }
 }
 
 // ---- FINE MINIGIOCO ----

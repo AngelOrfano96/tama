@@ -94,7 +94,6 @@ async function addExpAndMaybeLevelUp(state, inc = 0) {
   exp += inc;
   let expNext = expForNextLevel(level);
 
-  // Loop per gestire più salti di livello se exp > necessario
   while (exp >= expNext) {
     exp -= expNext;
     level++;
@@ -102,15 +101,32 @@ async function addExpAndMaybeLevelUp(state, inc = 0) {
     expNext = expForNextLevel(level);
   }
 
+  // Aggiorna DB con i nuovi valori
   await supabaseClient.from('pet_states').update({
     level, exp, updated_at: new Date()
   }).eq('pet_id', petId);
 
+  // Dopo aver aggiornato, rileggi lo stato aggiornato dal DB e aggiorna la barra!
+  const { data: updatedState } = await supabaseClient
+    .from('pet_states')
+    .select('hunger, fun, clean, level, exp')
+    .eq('pet_id', petId)
+    .single();
+
   if (leveledUp) {
     showLevelUpMessage();
   }
-  updateBars(state.hunger, state.fun, state.clean, level, exp);
+
+  // Ora aggiorna la barra SOLO con i valori REALI del database!
+  updateBars(
+    updatedState.hunger,
+    updatedState.fun,
+    updatedState.clean,
+    updatedState.level,
+    updatedState.exp
+  );
 }
+
 
 // Mostra messaggio di level up
 function showLevelUpMessage() {
@@ -149,37 +165,51 @@ function showLevelUpMessage() {
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
+    // Prima prendi lo stato dal DB (inclusi exp e level)
     const { data: state } = await supabaseClient
       .from('pet_states')
       .select('hunger, fun, clean, level, exp')
       .eq('pet_id', petId)
       .single();
     if (!state) return;
-    let hunger = state.hunger, fun = state.fun, clean = state.clean;
 
+    let hunger = state.hunger, fun = state.fun, clean = state.clean;
     let expInc = 0;
+
     if (action === 'feed') {
       hunger = Math.min(100, hunger + 20);
       expInc = 15;
     }
     if (action === 'play') {
       fun = Math.min(100, fun + 20);
-      // NIENTE exp!
     }
     if (action === 'clean') {
       clean = Math.min(100, clean + 20);
       expInc = 15;
     }
 
+    // Aggiorna DB con fame/divertimento/pulizia
     await supabaseClient.from('pet_states').update({
       hunger, fun, clean, updated_at: new Date()
     }).eq('pet_id', petId);
 
-    // Aggiorna exp/level solo se feed o clean
     if (expInc > 0) {
       await addExpAndMaybeLevelUp(state, expInc);
     } else {
-      updateBars(hunger, fun, clean, state.level, state.exp);
+      // Dopo aver aggiornato, rileggi lo stato aggiornato dal DB e aggiorna la barra!
+      const { data: updatedState } = await supabaseClient
+        .from('pet_states')
+        .select('hunger, fun, clean, level, exp')
+        .eq('pet_id', petId)
+        .single();
+
+      updateBars(
+        updatedState.hunger,
+        updatedState.fun,
+        updatedState.clean,
+        updatedState.level,
+        updatedState.exp
+      );
     }
   });
 });

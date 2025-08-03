@@ -553,4 +553,19 @@ body {
   }
 }
 
+.maze-arrow-btn {
+  touch-action: manipulation;   /* previene double-tap zoom */
+}
+
+.maze-arrow-btn {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button, .maze-arrow-btn {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
 

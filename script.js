@@ -16,7 +16,7 @@ const MAZE_PET_SIZE = 26, MAZE_GOBLIN_SIZE = 26;
 let mazeKeyImg = new Image();
 let mazeExitImg = new Image();
 let mazeGoblinImg = new Image();
-mazePetImg.src = document.getElementById('pet').src; // aggiorneremo in start
+//mazePetImg.src = document.getElementById('pet').src; // aggiorneremo in start
 mazeKeyImg.src = "assets/icons/key.png"; // cambia path se necessario
 mazeExitImg.src = "assets/icons/door.png";
 mazeGoblinImg.src = "assets/enemies/goblin.png";
@@ -78,7 +78,8 @@ function startMazeMinigame() {
   mazeLevel = 1;
   mazeScore = 0;
   mazePetImg = new Image();
-  mazePetImg.src = document.getElementById('pet').src || "assets/pet_default.png";
+  mazePetImg.src = document.getElementById('pet').src; 
+  //mazePetImg.src = document.getElementById('pet').src || "assets/pet_default.png";
   startMazeLevel();
 }
 

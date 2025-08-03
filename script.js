@@ -43,7 +43,7 @@ async function getStateFromDb() {
     .eq('pet_id', petId)
     .single();
   if (state) {
-    updateBars(state.hunger, state.fun, state.clean);
+    updateBars(state.hunger, state.fun, state.clean, state.level, state.exp);
     if (state.hunger === 0 || state.fun === 0 || state.clean === 0) {
       alive = false;
       document.getElementById('game-over').classList.remove('hidden');

@@ -6,6 +6,7 @@ let eggType = null;
 let alive = true;
 let autoRefresh = null;
 
+// ----- MINI GIOCO -----
 let minigameActive = false;
 let minigameScore = 0;
 let minigameTimer = null;
@@ -13,77 +14,73 @@ let minigameCountdown = null;
 let minigamePetImg = new Image();
 let minigameGoblinImg = new Image();
 let minigameDungeonImg = new Image();
-let isGoblin = false; // true se sta mostrando un goblin
+let isGoblin = false;
 let goblinTimeout = null;
 
-minigameGoblinImg.src = "assets/enemies/goblin.png"; // aggiorna se usi un path diverso
-minigameDungeonImg.src = "assets/backgrounds/dungeon.png"; // aggiorna se usi un path diverso
+minigameGoblinImg.src = "assets/enemies/goblin.png";
+minigameDungeonImg.src = "assets/backgrounds/dungeon.png";
 
+// ========== MINI GAME ==========
 function startMiniGame() {
   minigameActive = false;
   minigameScore = 0;
-  let totalTime = 20; // secondi
+  let totalTime = 20; // durata partita
   let countdown = 5;
   let petX = 150, petY = 150;
 
-  // Carica il pet scelto
   minigamePetImg.src = document.getElementById('pet').src;
-
-  // Elementi UI
   const canvas = document.getElementById('minigame-canvas');
   const ctx = canvas.getContext('2d');
   const timerLabel = document.getElementById('minigame-timer');
   const titleLabel = document.getElementById('minigame-title');
-  titleLabel.textContent = "";
-  timerLabel.textContent = "";
 
-  // Disegna lo sfondo, pet/goblin, punteggio
+  // --- DISEGNA TUTTO ---
   function drawAll() {
-    // Sfondo dungeon
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (minigameDungeonImg.complete) ctx.drawImage(minigameDungeonImg, 0, 0, canvas.width, canvas.height);
-
-    // Pet/goblin
     if (isGoblin) {
-      if (minigameGoblinImg.complete) ctx.drawImage(minigameGoblinImg, petX, petY, 50, 50);
+      if (minigameGoblinImg.complete) ctx.drawImage(minigameGoblinImg, petX, petY, 56, 56);
     } else {
-      if (minigamePetImg.complete) ctx.drawImage(minigamePetImg, petX, petY, 50, 50);
+      if (minigamePetImg.complete) ctx.drawImage(minigamePetImg, petX, petY, 62, 62);
     }
-    // Scritte sopra
-    ctx.font = "bold 18px Segoe UI";
-    ctx.fillStyle = "#111";
-    ctx.fillText("Punteggio: " + minigameScore, 15, 32);
-    if (minigameActive) {
-      ctx.fillText("Tempo: " + totalTime + "s", 220, 32);
-    }
+    // HUD
+    ctx.font = "bold 17px Segoe UI";
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "left";
+    ctx.fillText("Punteggio: " + minigameScore, 14, 32);
+    ctx.textAlign = "right";
+    if (minigameActive) ctx.fillText("Tempo: " + totalTime + "s", canvas.width - 16, 32);
   }
 
-  // 5 secondi di countdown all’inizio
+  // ----- COUNTDOWN -----
   minigameActive = false;
   isGoblin = false;
   drawAll();
   titleLabel.textContent = "Acchiappa il tuo pet!";
   timerLabel.textContent = "";
-  ctx.font = "bold 44px Segoe UI";
+  ctx.font = "bold 46px Segoe UI";
   ctx.fillStyle = "#e67e22";
-  ctx.fillText("5", 160, 180);
+  ctx.textAlign = "center";
+  ctx.fillText("5", canvas.width/2, canvas.height/2);
 
   let currCount = 5;
   minigameCountdown = setInterval(() => {
     currCount--;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (minigameDungeonImg.complete) ctx.drawImage(minigameDungeonImg, 0, 0, canvas.width, canvas.height);
-    ctx.font = "bold 44px Segoe UI";
+    ctx.font = "bold 46px Segoe UI";
     ctx.fillStyle = "#e67e22";
-    ctx.fillText(currCount > 0 ? currCount : "VIA!", 135, 180);
+    ctx.textAlign = "center";
+    ctx.fillText(currCount > 0 ? currCount : "VIA!", canvas.width/2, canvas.height/2);
     titleLabel.textContent = "Acchiappa il tuo pet!";
     timerLabel.textContent = "";
     if (currCount === 0) {
       clearInterval(minigameCountdown);
-      setTimeout(runMainMinigame, 700);
+      setTimeout(runMainMinigame, 750);
     }
   }, 1000);
 
+  // ---- PARTE LA PARTITA ----
   function runMainMinigame() {
     minigameActive = true;
     totalTime = 20;
@@ -91,8 +88,8 @@ function startMiniGame() {
     timerLabel.textContent = "Tempo: 20s";
     titleLabel.textContent = "Acchiappa il tuo pet!";
     drawAll();
+    minigameMove();
 
-    // Timer countdown
     minigameTimer = setInterval(() => {
       if (!minigameActive) return;
       totalTime--;
@@ -104,60 +101,56 @@ function startMiniGame() {
         titleLabel.textContent = "";
         timerLabel.textContent = "";
         endMiniGame();
+      } else {
+        if (isGoblin) return; // il goblin non si muove
+        minigameMove();
       }
     }, 1000);
-
-    // Prima appari il pet
-    nextPetOrGoblin();
   }
 
-  // Goblin logic random
-  function nextPetOrGoblin() {
-    // Dopo ogni click (o tempo scaduto per il goblin) decidi chi appare
-    isGoblin = Math.random() < 0.33; // 33% chance di goblin
-
+  // ---- PET o GOBLIN LOGICA ----
+  function minigameMove() {
+    isGoblin = Math.random() < 0.22; // 22% chance goblin
     // Nuova posizione random
-    petX = Math.random() * (canvas.width - 50);
-    petY = Math.random() * (canvas.height - 50);
+    petX = 32 + Math.random() * (canvas.width - 84);
+    petY = 58 + Math.random() * (canvas.height - 110);
 
     drawAll();
 
-    // Se goblin: sparisce da solo dopo 2 secondi
     if (isGoblin) {
       goblinTimeout = setTimeout(() => {
         if (isGoblin && minigameActive) {
           isGoblin = false;
-          petX = Math.random() * (canvas.width - 50);
-          petY = Math.random() * (canvas.height - 50);
-          drawAll();
+          minigameMove();
         }
-      }, 2000);
+      }, 1800);
     } else {
       if (goblinTimeout) clearTimeout(goblinTimeout);
     }
   }
 
-  // Gestisci click
+  // ---- CLICK SU CANVAS ----
   canvas.onclick = function(e) {
     if (!minigameActive) return;
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
     if (
-      clickX >= petX && clickX <= petX + 50 &&
-      clickY >= petY && clickY <= petY + 50
+      clickX >= petX && clickX <= petX + 56 &&
+      clickY >= petY && clickY <= petY + 56
     ) {
       if (isGoblin) {
-        minigameScore = Math.max(0, minigameScore - 3); // Perdi punti se tocchi goblin
+        minigameScore = Math.max(0, minigameScore - 2); // Penalità goblin
         isGoblin = false;
       } else {
         minigameScore++;
       }
-      nextPetOrGoblin();
+      minigameMove();
       drawAll();
     }
   };
-
 }
+
+// ---- FINE MINIGIOCO ----
 function stopMiniGame() {
   minigameActive = false;
   if (minigameTimer) clearInterval(minigameTimer);
@@ -167,8 +160,8 @@ function stopMiniGame() {
 
 function endMiniGame() {
   document.getElementById('minigame-modal').classList.add('hidden');
-  let funPoints = Math.min(100, minigameScore * 5); // 5 punti divertimento per click
-  let expPoints = Math.max(0, Math.floor(minigameScore * 2.5));  // exp per click (non negativa)
+  let funPoints = Math.min(100, minigameScore * 6); // ogni click = 6% fun
+  let expPoints = Math.max(0, Math.round(minigameScore * 2.6));
   updateFunAndExpFromMiniGame(funPoints, expPoints);
   stopMiniGame();
 }
@@ -182,8 +175,7 @@ async function updateFunAndExpFromMiniGame(funPoints, expPoints) {
     .single();
   if (!state) return;
 
-  // Aggiorna divertimento e exp
-  const newFun = Math.min(100, state.fun + funPoints);
+  let newFun = Math.min(100, state.fun + funPoints);
   await supabaseClient.from('pet_states').update({
     fun: newFun,
     updated_at: new Date()
@@ -194,17 +186,21 @@ async function updateFunAndExpFromMiniGame(funPoints, expPoints) {
   showExpGainLabel(expPoints);
 }
 
-// Mostra exp a destra della barra (già fatto nelle tue migliorie)
+// ---- ANIM LABEL EXP
 function showExpGainLabel(points) {
   const label = document.getElementById('exp-gain-label');
   if (!label) return;
   label.textContent = points > 0 ? `+${points} exp` : '';
   label.style.display = points > 0 ? "inline-block" : "none";
-  setTimeout(() => label.style.display = "none", 2500);
+  label.style.opacity = "1";
+  setTimeout(() => label.style.opacity = "0", 1800);
+  setTimeout(() => label.style.display = "none", 2200);
 }
 
 
-// Utility
+// ========== FUNZIONI PRINCIPALI (NON TOCCARE QUESTE PARTI SE NON NECESSARIO) ==========
+
+// Mostra/hide
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 function showOnly(id) {
@@ -226,12 +222,10 @@ function updateBars(hunger, fun, clean, level, exp) {
   }
 }
 
-// Calcolo exp per prossimo livello
 function expForNextLevel(level) {
   return Math.round(100 * Math.pow(1.2, level - 1));
 }
 
-// Aggiorna stato dal DB
 async function getStateFromDb() {
   if (!petId) return;
   const { data: state } = await supabaseClient
@@ -240,7 +234,6 @@ async function getStateFromDb() {
     .eq('pet_id', petId)
     .single();
   if (state) {
-    // fallback se valori null o undefined
     let level = (typeof state.level === 'number' && !isNaN(state.level)) ? state.level : 1;
     let exp   = (typeof state.exp === 'number' && !isNaN(state.exp)) ? state.exp : 0;
     updateBars(state.hunger, state.fun, state.clean, level, exp);
@@ -252,22 +245,18 @@ async function getStateFromDb() {
   }
 }
 
-// Aggiorna le barre ogni 2s leggendo il DB
 function startAutoRefresh() {
   if (autoRefresh) clearInterval(autoRefresh);
   autoRefresh = setInterval(getStateFromDb, 2000);
 }
 
-// Flusso principale: login → selezione uovo → gioco
 async function initFlow() {
-  // Prendi l'utente aggiornato
   const { data: sessionData } = await supabaseClient.auth.getUser();
   user = sessionData.user;
   if (!user) {
     showOnly('login-container');
     return;
   }
-  // Carica il primo pet non schiuso (modificabile in futuro)
   const { data: pet } = await supabaseClient
     .from('pets')
     .select('id, egg_type')
@@ -290,7 +279,7 @@ async function initFlow() {
   startAutoRefresh();
 }
 
-// Funzione exp + level up
+// ---- EXP + LEVELUP
 async function addExpAndMaybeLevelUp(state, inc = 0) {
   let level = (typeof state.level === 'number' && !isNaN(state.level)) ? state.level : 1;
   let exp   = (typeof state.exp === 'number' && !isNaN(state.exp)) ? state.exp : 0;
@@ -304,18 +293,16 @@ async function addExpAndMaybeLevelUp(state, inc = 0) {
     leveledUp = true;
     expNext = expForNextLevel(level);
   }
-
   await supabaseClient.from('pet_states').update({
     level, exp, updated_at: new Date()
   }).eq('pet_id', petId);
 
-  // Aggiorna UI con dati reali dal DB dopo update
+  // Aggiorna UI
   const { data: updatedState } = await supabaseClient
     .from('pet_states')
     .select('hunger, fun, clean, level, exp')
     .eq('pet_id', petId)
     .single();
-
   let l = (typeof updatedState.level === 'number' && !isNaN(updatedState.level)) ? updatedState.level : 1;
   let e = (typeof updatedState.exp === 'number' && !isNaN(updatedState.exp)) ? updatedState.exp : 0;
   updateBars(updatedState.hunger, updatedState.fun, updatedState.clean, l, e);
@@ -323,7 +310,7 @@ async function addExpAndMaybeLevelUp(state, inc = 0) {
   if (leveledUp) showLevelUpMessage();
 }
 
-// Mostra messaggio di level up
+// ---- MESSAGGIO LEVEL UP
 function showLevelUpMessage() {
   const msg = document.createElement('div');
   msg.className = "levelup-msg";
@@ -332,7 +319,7 @@ function showLevelUpMessage() {
   setTimeout(() => msg.remove(), 3000);
 }
 
-// --- BOTTONI GAME ---
+// ---- BOTTONI GAME ----
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
@@ -347,7 +334,7 @@ function showLevelUpMessage() {
     let expInc = 0;
 
     if (action === 'feed') {
-      if (hunger < 98) {   // SOLO se la barra non è quasi piena!
+      if (hunger < 98) {
         hunger = Math.min(100, hunger + 20);
         expInc = 15;
       } else {
@@ -360,7 +347,7 @@ function showLevelUpMessage() {
       } else {
         fun = Math.min(100, fun + 20);
       }
-      // NIENTE exp per "play"
+      // niente exp per play (escluso minigioco)
     }
     if (action === 'clean') {
       if (clean < 98) {
@@ -376,21 +363,19 @@ function showLevelUpMessage() {
 
     if (expInc > 0) {
       await addExpAndMaybeLevelUp(state, expInc);
-      showExpGainLabel(expInc); // Mostra label exp!
+      showExpGainLabel(expInc);
     } else {
       const { data: updatedState } = await supabaseClient
         .from('pet_states')
         .select('hunger, fun, clean, level, exp')
         .eq('pet_id', petId)
         .single();
-
       let l = (typeof updatedState.level === 'number' && !isNaN(updatedState.level)) ? updatedState.level : 1;
       let e = (typeof updatedState.exp === 'number' && !isNaN(updatedState.exp)) ? updatedState.exp : 0;
       updateBars(updatedState.hunger, updatedState.fun, updatedState.clean, l, e);
     }
   });
 });
-
 
 // --- SELEZIONE UOVO ---
 document.querySelectorAll('.egg.selectable').forEach(img =>
@@ -426,7 +411,7 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
-  await getStateFromDb(); // Sempre aggiorna dopo DB!
+  await getStateFromDb();
   startAutoRefresh();
 });
 
@@ -497,17 +482,7 @@ document.getElementById('exit-btn').addEventListener('click', async () => {
   showOnly('login-container');
 });
 
-function showExpGainLabel(exp) {
-  const gainLabel = document.getElementById('exp-gain-label');
-  gainLabel.textContent = `+${exp} exp`;
-  gainLabel.style.display = 'inline-block';
-  gainLabel.style.opacity = "1";
-  setTimeout(() => {
-    gainLabel.style.opacity = "0";
-    setTimeout(() => gainLabel.style.display = "none", 800);
-  }, 1700);
-}
-
+// ---- APERTURA MINIGAME ----
 document.getElementById('play-btn').addEventListener('click', () => {
   document.getElementById('minigame-modal').classList.remove('hidden');
   startMiniGame();
@@ -516,8 +491,3 @@ document.getElementById('minigame-exit-btn').addEventListener('click', () => {
   stopMiniGame();
   document.getElementById('minigame-modal').classList.add('hidden');
 });
-
-
-
-
-

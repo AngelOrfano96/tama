@@ -28,6 +28,13 @@ let mazePlaying = false;
 let mazeCanvas, mazeCtx;
 let mazeCanMove = true;
 
+let mazeWallImg = new Image();
+let mazeBgImg = new Image();
+mazeWallImg.src = "assets/tiles/wall.png";         // Es: 32x32px, muro
+mazeBgImg.src = "assets/backgrounds/dungeon2.png";  // Es: 320x256px, oppure tile repeat 32x32
+
+
+
 // === AVVIO MINIGIOCO ===
 
 // === GENERA LABIRINTO SEMPLICE (muri random + corridoio) ===
@@ -130,16 +137,30 @@ function mazeHasPath(maze, sx, sy, dx, dy) {
 
 // === DISEGNA ===
 function drawMaze() {
-  mazeCtx.clearRect(0,0,MAZE_WIDTH*TILE_SIZE,MAZE_HEIGHT*TILE_SIZE);
-  // Sfondo
-  mazeCtx.fillStyle = "#17181a";
-  mazeCtx.fillRect(0,0,MAZE_WIDTH*TILE_SIZE,MAZE_HEIGHT*TILE_SIZE);
-  // Celle
+  // Sfondo (se hai una tile 32x32, riempi a ripetizione, se hai 1 sola immagine la usi come bg grande)
+  if (mazeBgImg.complete) {
+    // Tile lo sfondo con l'immagine se è piccola, oppure una sola draw se l'immagine è grande
+    for (let y = 0; y < MAZE_HEIGHT; y++) {
+      for (let x = 0; x < MAZE_WIDTH; x++) {
+        mazeCtx.drawImage(mazeBgImg, x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
+    }
+  } else {
+    mazeCtx.fillStyle = "#17181a";
+    mazeCtx.fillRect(0,0,MAZE_WIDTH*TILE_SIZE,MAZE_HEIGHT*TILE_SIZE);
+  }
+
+  // Celle (muri)
   for (let y = 0; y < MAZE_HEIGHT; y++) {
     for (let x = 0; x < MAZE_WIDTH; x++) {
       if (mazeMatrix[y][x] === 1) {
-        mazeCtx.fillStyle = "#444";
-        mazeCtx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        // Usa la texture muro
+        if (mazeWallImg.complete) {
+          mazeCtx.drawImage(mazeWallImg, x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        } else {
+          mazeCtx.fillStyle = "#444";
+          mazeCtx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
       }
     }
   }
@@ -152,6 +173,7 @@ function drawMaze() {
   if (mazeGoblin) mazeCtx.drawImage(mazeGoblinImg, mazeGoblin.x*TILE_SIZE+3, mazeGoblin.y*TILE_SIZE+3, 26, 26);
   // Pet
   mazeCtx.drawImage(mazePetImg, mazePet.x*TILE_SIZE+3, mazePet.y*TILE_SIZE+3, MAZE_PET_SIZE, MAZE_PET_SIZE);
+
   // Bonus anim
   if (!mazePlaying) {
     mazeCtx.font = "bold 22px Segoe UI";
@@ -160,6 +182,7 @@ function drawMaze() {
     mazeCtx.fillText("Premi ESC o 'Esci' per tornare", (MAZE_WIDTH*TILE_SIZE)/2, (MAZE_HEIGHT*TILE_SIZE)/2 + 20);
   }
 }
+
 
 
 

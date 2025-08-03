@@ -231,7 +231,7 @@ document.getElementById('btn-minigame-cancel').addEventListener('click', () => {
 
 
 
-// ----- MINI GIOCO -----
+// ----- MINI GIOCO PRENDIMI-----
 let minigameActive = false;
 let minigameScore = 0;
 let minigameTimer = null;
@@ -249,7 +249,6 @@ let totalTime = 20; // globale per accedere in drawAll
 minigameGoblinImg.src = "assets/enemies/goblin.png";
 minigameDungeonImg.src = "assets/backgrounds/dungeon.png";
 
-// ========== MINI GAME ==========
 function startMiniGame() {
   minigameActive = false;
   minigameScore = 0;
@@ -459,19 +458,19 @@ function showExpGainLabel(points) {
 
 // Al click su "Play" si apre la modale di selezione minigiochi
 document.getElementById('play-btn').addEventListener('click', () => {
-  document.getElementById('minigame-selection-modal').classList.remove('hidden');
+  document.getElementById('minigame-select-modal').classList.remove('hidden');
 });
 
 // Tasto "Prendimi!" (il tuo minigioco attuale)
-document.getElementById('minigame-catchpet-btn').addEventListener('click', () => {
-  document.getElementById('minigame-selection-modal').classList.add('hidden');
+document.getElementById('btn-minigame-catch').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('minigame-modal').classList.remove('hidden');
   startMiniGame();
 });
 
 // Tasto chiudi (opzionale)
-document.querySelector('.close-selection-btn').addEventListener('click', () => {
-  document.getElementById('minigame-selection-modal').classList.add('hidden');
+document.querySelector('.btn-minigame-cancel').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
 });
 
 // ========== FUNZIONI PRINCIPALI (NON TOCCARE QUESTE PARTI SE NON NECESSARIO) ==========

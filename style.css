@@ -426,3 +426,43 @@ body {
 #minigame-exit-btn:hover { background: #d35400; }
 
 
+.modal {
+  position: fixed; left: 0; top: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.25);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.modal-content {
+  background: #fff8ee;
+  padding: 2.2em 1.6em 1.2em 1.6em;
+  border-radius: 14px;
+  min-width: 260px;
+  max-width: 90vw;
+  box-shadow: 0 6px 40px rgba(0,0,0,0.12);
+}
+.minigame-select-btn {
+  font-size: 1.15em;
+  margin: 1em 0;
+  background: #e67e22;
+  border: none;
+  border-radius: 9px;
+  padding: 0.75em 2.1em;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.16s;
+}
+.minigame-select-btn:hover {
+  background: #d35400;
+}
+.close-selection-btn {
+  background: #eee;
+  color: #333;
+  border: none;
+  border-radius: 7px;
+  padding: 0.5em 1.4em;
+  cursor: pointer;
+}
+
+

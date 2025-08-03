@@ -6,15 +6,24 @@ let eggType = null;
 let alive = true;
 let autoRefresh = null;
 
-// ---- APERTURA MINIGAME ----
+
+// Al click su "Play" si apre la modale di selezione minigiochi
 document.getElementById('play-btn').addEventListener('click', () => {
+  document.getElementById('minigame-selection-modal').classList.remove('hidden');
+});
+
+// Tasto "Prendimi!" (il tuo minigioco attuale)
+document.getElementById('minigame-catchpet-btn').addEventListener('click', () => {
+  document.getElementById('minigame-selection-modal').classList.add('hidden');
   document.getElementById('minigame-modal').classList.remove('hidden');
   startMiniGame();
 });
-document.getElementById('minigame-exit-btn').addEventListener('click', () => {
-  stopMiniGame();
-  document.getElementById('minigame-modal').classList.add('hidden');
+
+// Tasto chiudi (opzionale)
+document.querySelector('.close-selection-btn').addEventListener('click', () => {
+  document.getElementById('minigame-selection-modal').classList.add('hidden');
 });
+
 
 // ----- MINI GIOCO -----
 let minigameActive = false;

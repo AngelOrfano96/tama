@@ -6,6 +6,101 @@ let eggType = null;
 let alive = true;
 let autoRefresh = null;
 
+let minigameActive = false;
+let minigameScore = 0;
+let minigameTimer = null;
+let minigamePetImg = new Image();
+
+function startMiniGame() {
+  minigameActive = true;
+  minigameScore = 0;
+
+  // Carica l'immagine del pet scelto
+  minigamePetImg.src = document.getElementById('pet').src;
+
+  const canvas = document.getElementById('minigame-canvas');
+  const ctx = canvas.getContext('2d');
+  let petX = 150, petY = 150;
+  let timer = 20; // secondi
+
+  // Ridisegna il pet ogni volta che viene cliccato
+  function drawPet() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(minigamePetImg, petX, petY, 50, 50);
+  }
+
+  minigamePetImg.onload = drawPet;
+
+  canvas.onclick = function(e) {
+    if (!minigameActive) return;
+    // Calcola posizione click
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
+    if (
+      clickX >= petX && clickX <= petX + 50 &&
+      clickY >= petY && clickY <= petY + 50
+    ) {
+      minigameScore += 1;
+      // Muovi il pet in una posizione casuale
+      petX = Math.random() * (canvas.width - 50);
+      petY = Math.random() * (canvas.height - 50);
+      drawPet();
+    }
+  };
+
+  drawPet();
+
+  // Timer countdown
+  minigameTimer = setInterval(() => {
+    timer--;
+    if (timer <= 0) {
+      clearInterval(minigameTimer);
+      minigameActive = false;
+      endMiniGame();
+    }
+  }, 1000);
+}
+
+function stopMiniGame() {
+  minigameActive = false;
+  clearInterval(minigameTimer);
+}
+
+function endMiniGame() {
+  document.getElementById('minigame-modal').classList.add('hidden');
+  // Calcola divertimento ed exp in base al punteggio!
+  let funPoints = Math.min(100, minigameScore * 5); // esempio: 5 punti divertimento per click
+  let expPoints = Math.floor(minigameScore * 2.5);  // esempio: 2.5 punti exp per click
+
+  // Aggiorna DB (puoi migliorare con la tua logica)
+  updateFunAndExpFromMiniGame(funPoints, expPoints);
+  stopMiniGame();
+}
+
+async function updateFunAndExpFromMiniGame(funPoints, expPoints) {
+  // Prendi lo stato attuale
+  const { data: state } = await supabaseClient
+    .from('pet_states')
+    .select('hunger, fun, clean, level, exp')
+    .eq('pet_id', petId)
+    .single();
+  if (!state) return;
+
+  // Aggiorna divertimento e exp
+  const newFun = Math.min(100, state.fun + funPoints);
+  await supabaseClient.from('pet_states').update({
+    fun: newFun,
+    updated_at: new Date()
+  }).eq('pet_id', petId);
+
+  await addExpAndMaybeLevelUp(state, expPoints);
+
+  // Mostra label con il risultato
+  showExpGainLabel(expPoints);
+  // Se vuoi, puoi mostrare anche una label simile per il divertimento!
+}
+
+
 // Utility
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
@@ -309,6 +404,18 @@ function showExpGainLabel(exp) {
     setTimeout(() => gainLabel.style.display = "none", 800);
   }, 1700);
 }
+
+document.getElementById('play-btn').addEventListener('click', async () => {
+  if (!alive) return;
+  // Mostra la modale
+  document.getElementById('minigame-modal').classList.remove('hidden');
+  startMiniGame(); // <-- questa funzione la scrivi tu, vedi sotto
+});
+document.getElementById('minigame-exit-btn').addEventListener('click', () => {
+  document.getElementById('minigame-modal').classList.add('hidden');
+  stopMiniGame();
+});
+
 
 
 

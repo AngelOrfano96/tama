@@ -30,8 +30,8 @@ let mazeCanMove = true;
 
 let mazeWallImg = new Image();
 let mazeBgImg = new Image();
-mazeWallImg.src = "assets/tiles/wall.png";         // Es: 32x32px, muro
-mazeBgImg.src = "assets/backgrounds/dungeon2.png";  // Es: 320x256px, oppure tile repeat 32x32
+mazeWallImg.src = "assets/tiles/wall2.png";         // Es: 32x32px, muro
+mazeBgImg.src = "assets/backgrounds/dungeon3.png";  // Es: 320x256px, oppure tile repeat 32x32
 
 
 

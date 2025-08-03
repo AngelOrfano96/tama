@@ -29,6 +29,41 @@ let mazeCanvas, mazeCtx;
 let mazeCanMove = true;
 
 // === AVVIO MINIGIOCO ===
+
+// === GENERA LABIRINTO SEMPLICE (muri random + corridoio) ===
+function generateMazeMatrix() {
+  let maze, tries = 0;
+  do {
+    maze = [];
+    for (let y = 0; y < MAZE_HEIGHT; y++) {
+      let row = [];
+      for (let x = 0; x < MAZE_WIDTH; x++) {
+        if (x === 0 || y === 0 || x === MAZE_WIDTH-1 || y === MAZE_HEIGHT-1) row.push(1); // bordo
+        else row.push(Math.random() < 0.16 ? 1 : 0); // muro random
+      }
+      maze.push(row);
+    }
+    maze[1][1] = 0; // inizio
+    maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0; // uscita
+    tries++;
+    // ripeti finché non esiste un percorso
+  } while (!mazeHasPath(maze, 1, 1, MAZE_WIDTH-2, MAZE_HEIGHT-2) && tries < 20);
+  return maze;
+}
+
+function randomEmptyCell() {
+  let x, y;
+  do {
+    x = 1 + Math.floor(Math.random() * (MAZE_WIDTH-2));
+    y = 1 + Math.floor(Math.random() * (MAZE_HEIGHT-2));
+  } while (
+    mazeMatrix[y][x] !== 0 ||
+    (x === 1 && y === 1) ||
+    (x === MAZE_WIDTH-2 && y === MAZE_HEIGHT-2)
+  );
+  return { x, y };
+}
+
 function startMazeMinigame() {
   // Setta immagini attuali
   mazePetImg.src = document.getElementById('pet').src;
@@ -67,26 +102,6 @@ function startMazeMinigame() {
   }, 1000);
 }
 
-// === GENERA LABIRINTO SEMPLICE (muri random + corridoio) ===
-function generateMazeMatrix() {
-  let maze, tries = 0;
-  do {
-    maze = [];
-    for (let y = 0; y < MAZE_HEIGHT; y++) {
-      let row = [];
-      for (let x = 0; x < MAZE_WIDTH; x++) {
-        if (x === 0 || y === 0 || x === MAZE_WIDTH-1 || y === MAZE_HEIGHT-1) row.push(1); // bordo
-        else row.push(Math.random() < 0.16 ? 1 : 0); // muro random
-      }
-      maze.push(row);
-    }
-    maze[1][1] = 0; // inizio
-    maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0; // uscita
-    tries++;
-    // ripeti finché non esiste un percorso
-  } while (!mazeHasPath(maze, 1, 1, MAZE_WIDTH-2, MAZE_HEIGHT-2) && tries < 20);
-  return maze;
-}
 
 
 // Funzione per verificare se esiste un percorso tra (sx,sy) e (dx,dy)
@@ -145,6 +160,8 @@ function drawMaze() {
     mazeCtx.fillText("Premi ESC o 'Esci' per tornare", (MAZE_WIDTH*TILE_SIZE)/2, (MAZE_HEIGHT*TILE_SIZE)/2 + 20);
   }
 }
+
+
 
 // === GESTIONE TASTI ===
 function handleMazeMove(e) {

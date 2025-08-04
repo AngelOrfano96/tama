@@ -9,7 +9,7 @@ let autoRefresh = null;
 
 
 // === COSTANTI LABIRINTO ===
-const MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
+let MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
 const MAZE_PET_SIZE = 26, MAZE_GOBLIN_SIZE = 26;
 
 // Immagini

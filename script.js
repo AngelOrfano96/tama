@@ -15,6 +15,7 @@ let jumperTimeLeft = 20;
 let jumperPetImg = new Image();
 let jumperObstacleImg = new Image();
 let jumperBgImg = new Image();
+let jumperSkyImg = new Image(); // <-- nuovo per lo sfondo cielo
 let jumperBonusTimer = null;
 let jumperCanvas, jumperCtx;
 let jumperPetY, jumperPetVy, jumperIsJumping = false;
@@ -36,8 +37,9 @@ function getJumperDimensions() {
 
 // Texture custom: metti i tuoi path!
 jumperPetImg.src = document.getElementById('pet').src;
-jumperObstacleImg.src = "assets/tiles/obstacle.png"; // Cambia con il tuo asset!
-jumperBgImg.src = "assets/backgrounds/ground.png";   // Cambia con il tuo asset!
+jumperObstacleImg.src = "assets/tiles/obstacle.png";
+jumperBgImg.src = "assets/backgrounds/ground.png";
+jumperSkyImg.src = "assets/backgrounds/sky.png"; // <-- metti un tuo asset, va bene anche un cielo semplice
 
 function startJumperMinigame() {
   jumperActive = true;
@@ -50,22 +52,22 @@ function startJumperMinigame() {
   jumperCtx = jumperCanvas.getContext('2d');
   jumperCanvas.width = jumperDims.width;
   jumperCanvas.height = jumperDims.height;
-  jumperGroundY = jumperDims.ground;
+  // groundY è la Y di base del terreno (dal basso verso l'alto)
+  jumperGroundY = jumperDims.height - 36; // ground alto 36px
 
-  // Pet physics
-  jumperPetY = jumperGroundY;
+  // Pet physics: la y rappresenta il bordo inferiore del pet (poggia sul ground)
+  jumperPetY = jumperGroundY - jumperDims.pet;
   jumperPetVy = 0;
   jumperIsJumping = false;
 
   jumperObstacles = [];
-  jumperSpeed = 5; // velocità di base
+  jumperSpeed = 5;
 
   document.getElementById('jumper-minigame-score').textContent = jumperScore;
   document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;
   document.getElementById('jumper-bonus-label').style.display = "none";
   document.getElementById('jumper-minigame-modal').classList.remove('hidden');
 
-  // Avvio timer
   if (jumperInterval) clearInterval(jumperInterval);
   jumperInterval = setInterval(jumperTick, 1000 / 60); // 60 fps
   if (jumperTimer) clearInterval(jumperTimer);
@@ -76,7 +78,6 @@ function startJumperMinigame() {
     if (jumperTimeLeft <= 0) jumperEndGame();
   }, 1000);
 
-  // Listener salto
   window.addEventListener('keydown', jumperKeyDown);
   jumperCanvas.addEventListener('touchstart', jumperJump);
   jumperCanvas.addEventListener('mousedown', jumperJump);
@@ -89,7 +90,7 @@ function jumperKeyDown(e) {
 }
 function jumperJump() {
   if (!jumperActive || jumperGameOver) return;
-  if (!jumperIsJumping && jumperPetY === jumperGroundY) {
+  if (!jumperIsJumping && jumperPetY + jumperDims.pet >= jumperGroundY) {
     jumperPetVy = -10 * (jumperDims.pet / 48); // Salto adattivo
     jumperIsJumping = true;
   }
@@ -97,22 +98,31 @@ function jumperJump() {
 
 function jumperTick() {
   if (!jumperActive) return;
-  jumperCtx.clearRect(0, 0, jumperDims.width, jumperDims.height);
 
-  // Sfondo
-  if (jumperBgImg.complete) {
-    for (let x = 0; x < jumperDims.width; x += 48)
-      jumperCtx.drawImage(jumperBgImg, x, jumperGroundY + 12, 48, jumperDims.height - jumperGroundY - 12);
+  // --- SFONDO CIELO ---
+  if (jumperSkyImg.complete && jumperSkyImg.naturalWidth > 0) {
+    jumperCtx.drawImage(jumperSkyImg, 0, 0, jumperDims.width, jumperDims.height);
   } else {
-    jumperCtx.fillStyle = "#2c3e50";
-    jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, jumperDims.height - jumperGroundY);
+    jumperCtx.fillStyle = "#b3e0ff";
+    jumperCtx.fillRect(0, 0, jumperDims.width, jumperDims.height);
   }
 
-  // Ostacoli
+  // --- GROUND ---
+  if (jumperBgImg.complete && jumperBgImg.naturalWidth > 0) {
+    // Ripeti la texture del terreno orizzontalmente
+    for (let x = 0; x < jumperDims.width; x += 48)
+      jumperCtx.drawImage(jumperBgImg, x, jumperGroundY, 48, 36);
+  } else {
+    jumperCtx.fillStyle = "#2c3e50";
+    jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, 36);
+  }
+
+  // --- OSTACOLI ---
+  // Spawn nuovi ostacoli
   if (Math.random() < Math.min(0.02 + jumperScore/250, 0.14)) {
     jumperObstacles.push({
       x: jumperDims.width + Math.random()*50,
-      y: jumperGroundY,
+      y: jumperGroundY - jumperDims.obstacle, // allinea la base al ground
       w: jumperDims.obstacle,
       h: jumperDims.obstacle,
       passed: false
@@ -120,23 +130,25 @@ function jumperTick() {
   }
   for (let i = 0; i < jumperObstacles.length; i++) {
     let obs = jumperObstacles[i];
-    obs.x -= jumperSpeed + Math.floor(jumperScore/10); // cresce la difficoltà!
+    obs.x -= jumperSpeed + Math.floor(jumperScore/10); // velocità crescente!
     if (jumperObstacleImg.complete) {
       jumperCtx.drawImage(jumperObstacleImg, obs.x, obs.y, obs.w, obs.h);
     } else {
       jumperCtx.fillStyle = "#a33";
       jumperCtx.fillRect(obs.x, obs.y, obs.w, obs.h);
     }
-    // Collisione
-    if (!jumperGameOver && obs.x < 64 && obs.x + obs.w > 16 &&
-      jumperPetY + jumperDims.pet > jumperGroundY &&
-      jumperPetY < jumperGroundY + obs.h) {
+    // Collisione: pet a sinistra a X=16
+    if (!jumperGameOver &&
+      obs.x < 16 + jumperDims.pet &&
+      obs.x + obs.w > 16 &&
+      jumperPetY + jumperDims.pet > obs.y // la base del pet è sotto il bordo superiore dell'ostacolo
+    ) {
       jumperGameOver = true;
       showJumperBonus("Game Over!", "#e74c3c");
       jumperEndGame();
     }
-    // Score
-    if (!obs.passed && obs.x + obs.w < 24) {
+    // Score: ostacolo superato
+    if (!obs.passed && obs.x + obs.w < 16) {
       jumperScore++;
       obs.passed = true;
       document.getElementById('jumper-minigame-score').textContent = jumperScore;
@@ -145,7 +157,7 @@ function jumperTick() {
   }
   jumperObstacles = jumperObstacles.filter(obs => obs.x + obs.w > 0);
 
-  // Pet
+  // --- PET ---
   if (jumperPetImg.complete) {
     jumperCtx.drawImage(jumperPetImg, 16, jumperPetY, jumperDims.pet, jumperDims.pet);
   } else {
@@ -153,11 +165,22 @@ function jumperTick() {
     jumperCtx.fillRect(16, jumperPetY, jumperDims.pet, jumperDims.pet);
   }
 
-  // Pet physics
+  // --- PUNTEGGIO E TIMER ---
+  jumperCtx.font = "bold 21px Segoe UI";
+  jumperCtx.fillStyle = "#fffc34";
+  jumperCtx.textAlign = "left";
+  jumperCtx.fillText("Punti: " + jumperScore, 16, 36);
+
+  jumperCtx.font = "bold 17px Segoe UI";
+  jumperCtx.fillStyle = "#ff7349";
+  jumperCtx.fillText("Tempo: " + jumperTimeLeft + "s", 16, 62);
+
+  // --- Pet physics ---
   jumperPetY += jumperPetVy;
   jumperPetVy += 0.7 * (jumperDims.pet / 48); // gravità adattiva
-  if (jumperPetY >= jumperGroundY) {
-    jumperPetY = jumperGroundY;
+  // Atterra (base del pet allineata al ground)
+  if (jumperPetY + jumperDims.pet >= jumperGroundY) {
+    jumperPetY = jumperGroundY - jumperDims.pet;
     jumperPetVy = 0;
     jumperIsJumping = false;
   }
@@ -180,7 +203,6 @@ function jumperEndGame() {
   if (jumperInterval) clearInterval(jumperInterval);
   if (jumperTimer) clearInterval(jumperTimer);
 
-  // Gestione punteggi e animazioni
   setTimeout(() => {
     document.getElementById('jumper-minigame-modal').classList.add('hidden');
     let fun = Math.min(100, jumperScore * 5);
@@ -211,10 +233,10 @@ document.getElementById('jumper-exit-btn').addEventListener('click', () => {
 document.getElementById('btn-minigame-jumper').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('jumper-minigame-modal').classList.remove('hidden');
-  // Texture aggiornata pet
   jumperPetImg.src = document.getElementById('pet').src;
   startJumperMinigame();
 });
+
 
 
 

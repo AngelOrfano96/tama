@@ -119,7 +119,7 @@ function jumperTick() {
   }
 
   // --- GROUND "SCORREVOLE" ---
-  let groundTileW = 48; // larghezza tile ground
+  let groundTileW = 48;
   groundOffset += (jumperSpeed + Math.floor(jumperScore/10));
   if (groundOffset >= groundTileW) groundOffset -= groundTileW;
 
@@ -136,7 +136,7 @@ function jumperTick() {
   if (Math.random() < Math.min(0.02 + jumperScore/250, 0.14)) {
     jumperObstacles.push({
       x: jumperDims.width + Math.random()*50,
-      y: jumperGroundY - jumperDims.obstacle, // base allineata al ground
+      y: jumperGroundY - jumperDims.obstacle,
       w: jumperDims.obstacle,
       h: jumperDims.obstacle,
       passed: false
@@ -155,14 +155,13 @@ function jumperTick() {
     if (!jumperGameOver &&
       obs.x < 16 + jumperDims.pet &&
       obs.x + obs.w > 16 &&
-      jumperPetY === (jumperGroundY) && // solo se sei sul suolo
-      (jumperPetY - jumperDims.pet) < (obs.y + obs.h) // piedi del pet sopra ostacolo
+      jumperPetY === (jumperGroundY) &&
+      (jumperPetY - jumperDims.pet) < (obs.y + obs.h)
     ) {
       jumperGameOver = true;
       showJumperBonus("Game Over!", "#e74c3c");
       jumperEndGame();
     }
-    // Score: ostacolo superato
     if (!obs.passed && obs.x + obs.w < 16) {
       jumperScore++;
       obs.passed = true;
@@ -174,15 +173,12 @@ function jumperTick() {
 
   // --- PIATTAFORME RANDOM ---
   if (Math.random() < 0.03 && jumperPlatforms.length < 3) {
-    // Altezza random, solo livelli raggiungibili
     let minY = jumperGroundY - jumperDims.pet * 2.5;
     let maxY = jumperGroundY - jumperDims.pet * 1.3;
     let platY = Math.floor(minY + Math.random() * (maxY - minY));
     let platW = 72 * (jumperDims.width / 320);
     let platH = 18 * (jumperDims.height / 192);
     let platX = jumperDims.width + Math.random()*60;
-
-    // Controllo: mai troppo vicino ad altra piattaforma o ostacolo
     let tooClose = jumperPlatforms.some(p => Math.abs(p.x - platX) < 96 && Math.abs(p.y - platY) < 42);
     let obstacleTooClose = jumperObstacles.some(obs => Math.abs(obs.x - platX) < 60);
 
@@ -195,12 +191,9 @@ function jumperTick() {
       });
     }
   }
-
-  // --- MUOVI & DISEGNA PIATTAFORME ---
   for (let i = 0; i < jumperPlatforms.length; i++) {
     let plat = jumperPlatforms[i];
     plat.x -= jumperSpeed + Math.floor(jumperScore/10);
-
     if (jumperPlatformImg.complete) {
       jumperCtx.drawImage(jumperPlatformImg, plat.x, plat.y, plat.w, plat.h);
     } else {
@@ -214,22 +207,31 @@ function jumperTick() {
   jumperPetY += jumperPetVy;
   jumperPetVy += 0.7 * (jumperDims.pet / 48);
 
+  let wasOnGroundOrPlatform =
+    jumperPetY === jumperGroundY ||
+    jumperPlatforms.some(plat =>
+      jumperPetY === plat.y
+      && 16 + jumperDims.pet > plat.x && 16 < plat.x + plat.w
+    );
+
   let landedOnPlatform = false;
+
   for (let plat of jumperPlatforms) {
+    // Solo se stai cadendo (vy > 0), i piedi del pet scendono dall'alto,
+    // e solo se PRIMA eri sopra la piattaforma
     if (
       jumperPetVy >= 0 &&
-      (jumperPetY - jumperDims.pet) < plat.y + plat.h &&
-      jumperPetY > plat.y &&
+      (jumperPetY - jumperDims.pet) < plat.y &&            // La testa è sopra la piattaforma
+      (jumperPetY - jumperDims.pet + jumperPetVy) >= plat.y && // Cadrai oltre la piattaforma nel prossimo frame
       16 + jumperDims.pet > plat.x && 16 < plat.x + plat.w
     ) {
-      jumperPetY = plat.y;
+      jumperPetY = plat.y + jumperDims.pet; // Appoggia i piedi esattamente sulla piattaforma
       jumperPetVy = 0;
       jumperIsJumping = false;
       landedOnPlatform = true;
       break;
     }
   }
-  // Se non sei su piattaforma, controlla il suolo
   if (!landedOnPlatform && jumperPetY >= jumperGroundY) {
     jumperPetY = jumperGroundY;
     jumperPetVy = 0;
@@ -238,7 +240,13 @@ function jumperTick() {
 
   // --- DISEGNA PET ---
   if (jumperPetImg.complete) {
-    jumperCtx.drawImage(jumperPetImg, 16, jumperPetY - jumperDims.pet, jumperDims.pet, jumperDims.pet);
+    jumperCtx.drawImage(
+      jumperPetImg,
+      16,
+      jumperPetY - jumperDims.pet, // petY è la base (i piedi)
+      jumperDims.pet,
+      jumperDims.pet
+    );
   } else {
     jumperCtx.fillStyle = "#fff";
     jumperCtx.fillRect(16, jumperPetY - jumperDims.pet, jumperDims.pet, jumperDims.pet);
@@ -254,7 +262,26 @@ function jumperTick() {
   jumperCtx.fillStyle = "#ff7349";
   jumperCtx.fillText("Tempo: " + jumperTimeLeft + "s", 16, 62);
 
+  // === CONSENTI SALTO ANCHE SULLE PIATTAFORME ===
+  jumperCanJump = (jumperPetY === jumperGroundY) ||
+    jumperPlatforms.some(plat =>
+      jumperPetY === plat.y + jumperDims.pet && // Appoggiato con i piedi
+      16 + jumperDims.pet > plat.x && 16 < plat.x + plat.w
+    );
 }
+
+// --- AGGIUNGI QUESTO GLOBALE ---
+let jumperCanJump = false;
+
+// --- E MODIFICA jumperJump IN QUESTO MODO ---
+function jumperJump() {
+  if (!jumperActive || jumperGameOver) return;
+  if (jumperCanJump) {
+    jumperPetVy = -10 * (jumperDims.pet / 48);
+    jumperIsJumping = true;
+  }
+}
+
 
 // BONUS LABEL
 function showJumperBonus(msg, color="#e67e22") {

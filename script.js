@@ -143,7 +143,7 @@ function jumperTick() {
     jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, 36);
   }
 
-  // --- OSTACOLI GENERAZIONE (controllata) ---
+  // --- OSTACOLI E PIATTAFORME ---
   const now = Date.now();
   if (typeof jumperLastObstacle === 'undefined') jumperLastObstacle = 0;
   if (typeof jumperLastPlatform === 'undefined') jumperLastPlatform = 0;
@@ -194,58 +194,93 @@ function jumperTick() {
     }
   }
 
-  // --- GENERA BONUS CASUALI ---
-if (Math.random() < 0.012 && jumperBonuses.length < 1) {
-  // Dove può apparire: a terra o sopra una piattaforma attiva
-  let spawnOnPlatform = Math.random() < 0.45 && jumperPlatforms.length > 0;
-  let bonusY, bonusX = jumperDims.width + Math.random()*60;
-  if (spawnOnPlatform) {
-    // Scegli una piattaforma esistente a caso
-    let p = jumperPlatforms[Math.floor(Math.random()*jumperPlatforms.length)];
-    bonusY = p.y - 32; // sopra la piattaforma
-    if (bonusY < 30) bonusY = 30; // non troppo in alto
-  } else {
-    // a terra
-    bonusY = jumperGroundY - 32;
+  // === GENERA BONUS SOLO IN POSIZIONE VALIDA ===
+  if (Math.random() < 0.012 && jumperBonuses.length < 1) {
+    let bonusW = 32 * (jumperDims.width/320);
+    let bonusH = 32 * (jumperDims.height/192);
+    let bonusX = jumperDims.width + Math.random() * 60;
+    let placed = false;
+
+    // Prova a spawnare sopra una piattaforma, solo se c’è almeno una piattaforma “sufficientemente libera”
+    if (Math.random() < 0.45 && jumperPlatforms.length > 0) {
+      let possiblePlats = jumperPlatforms.filter(p =>
+        p.w > bonusW + 8 &&
+        // NESSUN OSTACOLO sopra la piattaforma in quel range
+        !jumperObstacles.some(obs =>
+          obs.x < p.x + p.w && obs.x + obs.w > p.x &&
+          Math.abs(obs.y - p.y) < jumperDims.pet
+        )
+      );
+      if (possiblePlats.length > 0) {
+        let plat = possiblePlats[Math.floor(Math.random() * possiblePlats.length)];
+        bonusX = plat.x + plat.w/2 - bonusW/2;
+        let bonusY = plat.y - bonusH;
+        if (bonusY < 24) bonusY = 24; // non troppo in alto
+        // Controlla che NESSUN bonus sia già troppo vicino
+        if (!jumperBonuses.some(b => Math.abs(b.x - bonusX) < bonusW + 10)) {
+          jumperBonuses.push({
+            x: bonusX,
+            y: bonusY,
+            w: bonusW,
+            h: bonusH,
+            taken: false
+          });
+          placed = true;
+        }
+      }
+    }
+    // Se non messo sopra piattaforma, prova a terra
+    if (!placed) {
+      let bonusY = jumperGroundY - bonusH;
+      // NON vicino ad ostacoli
+      let tooCloseToObstacle = jumperObstacles.some(obs =>
+        Math.abs((obs.x + obs.w/2) - (bonusX + bonusW/2)) < bonusW + 8 &&
+        Math.abs((obs.y + obs.h) - (jumperGroundY)) < 3
+      );
+      // NON sopra una piattaforma
+      let tooCloseToPlatform = jumperPlatforms.some(p =>
+        bonusX + bonusW > p.x && bonusX < p.x + p.w &&
+        Math.abs(bonusY + bonusH - p.y) < 4
+      );
+      if (!tooCloseToObstacle && !tooCloseToPlatform) {
+        jumperBonuses.push({
+          x: bonusX,
+          y: bonusY,
+          w: bonusW,
+          h: bonusH,
+          taken: false
+        });
+      }
+    }
   }
-  jumperBonuses.push({
-    x: bonusX,
-    y: bonusY,
-    w: 32 * (jumperDims.width/320),
-    h: 32 * (jumperDims.height/192),
-    taken: false
-  });
-}
 
-for (let i = 0; i < jumperBonuses.length; i++) {
-  let bon = jumperBonuses[i];
-  bon.x -= jumperSpeed + Math.floor(jumperScore/10);
+  // --- MUOVI E DISEGNA BONUS ---
+  for (let i = 0; i < jumperBonuses.length; i++) {
+    let bon = jumperBonuses[i];
+    bon.x -= jumperSpeed + Math.floor(jumperScore/10);
 
-  // Disegna bonus
-  if (jumperBonusImg.complete) {
-    jumperCtx.drawImage(jumperBonusImg, bon.x, bon.y, bon.w, bon.h);
-  } else {
-    jumperCtx.fillStyle = "#48e"; // fallback
-    jumperCtx.fillRect(bon.x, bon.y, bon.w, bon.h);
+    // Disegna bonus
+    if (jumperBonusImg.complete) {
+      jumperCtx.drawImage(jumperBonusImg, bon.x, bon.y, bon.w, bon.h);
+    } else {
+      jumperCtx.fillStyle = "#48e";
+      jumperCtx.fillRect(bon.x, bon.y, bon.w, bon.h);
+    }
+
+    // Raccogli bonus: hitbox generosa
+    if (!bon.taken &&
+        16 + jumperDims.pet > bon.x &&
+        16 < bon.x + bon.w &&
+        jumperPetY - jumperDims.pet/2 < bon.y + bon.h &&
+        jumperPetY > bon.y
+    ) {
+      bon.taken = true;
+      jumperTimeLeft = Math.min(jumperTimeLeft + 7, 99);
+      document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;
+      showJumperBonus("+7s!", "#27ae60");
+    }
   }
-
-  // Raccogli bonus: hitbox generosa
-  if (!bon.taken &&
-      16 + jumperDims.pet > bon.x &&
-      16 < bon.x + bon.w &&
-      jumperPetY - jumperDims.pet/2 < bon.y + bon.h &&
-      jumperPetY > bon.y
-  ) {
-    bon.taken = true;
-    jumperTimeLeft = Math.min(jumperTimeLeft + 7, 99);
-    document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;
-    showJumperBonus("+7s!", "#27ae60");
-  }
-}
-// Elimina bonus usciti dallo schermo o già presi
-jumperBonuses = jumperBonuses.filter(bon => bon.x + bon.w > 0 && !bon.taken);
-
-
+  jumperBonuses = jumperBonuses.filter(bon => bon.x + bon.w > 0 && !bon.taken);
 
   // --- MUOVI E DISEGNA OSTACOLI ---
   for (let i = 0; i < jumperObstacles.length; i++) {
@@ -258,42 +293,41 @@ jumperBonuses = jumperBonuses.filter(bon => bon.x + bon.w > 0 && !bon.taken);
       jumperCtx.fillRect(obs.x, obs.y, obs.w, obs.h);
     }
     // --- COLLISIONE CON OSTACOLO: Hitbox "amichevole" ---
-const PET_X = 16;
-const PET_W = jumperDims.pet;
-const PET_Y_TOP = jumperPetY - jumperDims.pet;
-const PET_Y_BOT = jumperPetY;
+    const PET_X = 16;
+    const PET_W = jumperDims.pet;
+    const PET_Y_TOP = jumperPetY - jumperDims.pet;
+    const PET_Y_BOT = jumperPetY;
 
-// Margini (puoi regolarli! Es: 18% di tolleranza)
-const petPaddingX = PET_W * 0.18;
-const petPaddingY = jumperDims.pet * 0.18;
-const obstaclePaddingX = obs.w * 0.18;
-const obstaclePaddingY = obs.h * 0.10;
+    // Margini (tolleranza)
+    const petPaddingX = PET_W * 0.18;
+    const petPaddingY = jumperDims.pet * 0.18;
+    const obstaclePaddingX = obs.w * 0.18;
+    const obstaclePaddingY = obs.h * 0.10;
 
-// Rettangoli "più piccoli"
-let petHit = {
-  left: PET_X + petPaddingX,
-  right: PET_X + PET_W - petPaddingX,
-  top: PET_Y_TOP + petPaddingY,
-  bottom: PET_Y_BOT - petPaddingY
-};
-let obsHit = {
-  left: obs.x + obstaclePaddingX,
-  right: obs.x + obs.w - obstaclePaddingX,
-  top: obs.y + obstaclePaddingY,
-  bottom: obs.y + obs.h - obstaclePaddingY
-};
+    let petHit = {
+      left: PET_X + petPaddingX,
+      right: PET_X + PET_W - petPaddingX,
+      top: PET_Y_TOP + petPaddingY,
+      bottom: PET_Y_BOT - petPaddingY
+    };
+    let obsHit = {
+      left: obs.x + obstaclePaddingX,
+      right: obs.x + obs.w - obstaclePaddingX,
+      top: obs.y + obstaclePaddingY,
+      bottom: obs.y + obs.h - obstaclePaddingY
+    };
 
     if (
-  !jumperGameOver &&
-  petHit.right > obsHit.left &&
-  petHit.left < obsHit.right &&
-  petHit.bottom > obsHit.top &&
-  petHit.top < obsHit.bottom
-) {
-  jumperGameOver = true;
-  showJumperBonus("Game Over!", "#e74c3c");
-  jumperEndGame();
-}
+      !jumperGameOver &&
+      petHit.right > obsHit.left &&
+      petHit.left < obsHit.right &&
+      petHit.bottom > obsHit.top &&
+      petHit.top < obsHit.bottom
+    ) {
+      jumperGameOver = true;
+      showJumperBonus("Game Over!", "#e74c3c");
+      jumperEndGame();
+    }
     if (!obs.passed && obs.x + obs.w < 16) {
       jumperScore++;
       obs.passed = true;
@@ -326,8 +360,8 @@ let obsHit = {
     let prevFeet = jumperPetY - jumperPetVy; // posizione dei piedi nel frame precedente
     if (
       jumperPetVy >= 0 && // solo se cade
-      prevFeet <= plat.y && // piedi erano sopra la piattaforma
-      jumperPetY >= plat.y && // piedi ora sulla piattaforma
+      prevFeet <= plat.y &&
+      jumperPetY >= plat.y &&
       16 + jumperDims.pet > plat.x &&
       16 < plat.x + plat.w
     ) {
@@ -350,7 +384,7 @@ let obsHit = {
     jumperCtx.drawImage(
       jumperPetImg,
       16,
-      jumperPetY - jumperDims.pet, // PetY sono i piedi, quindi y = piedi - altezza
+      jumperPetY - jumperDims.pet,
       jumperDims.pet,
       jumperDims.pet
     );

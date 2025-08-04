@@ -200,19 +200,43 @@ function jumperTick() {
       jumperCtx.fillStyle = "#a33";
       jumperCtx.fillRect(obs.x, obs.y, obs.w, obs.h);
     }
-    // Collisione con pet (pet a x=16)
-    // Pet "feet" sono jumperPetY, la testa jumperPetY - jumperDims.pet
+    // --- COLLISIONE CON OSTACOLO: Hitbox "amichevole" ---
+const PET_X = 16;
+const PET_W = jumperDims.pet;
+const PET_Y_TOP = jumperPetY - jumperDims.pet;
+const PET_Y_BOT = jumperPetY;
+
+// Margini (puoi regolarli! Es: 18% di tolleranza)
+const petPaddingX = PET_W * 0.18;
+const petPaddingY = jumperDims.pet * 0.18;
+const obstaclePaddingX = obs.w * 0.18;
+const obstaclePaddingY = obs.h * 0.10;
+
+// Rettangoli "più piccoli"
+let petHit = {
+  left: PET_X + petPaddingX,
+  right: PET_X + PET_W - petPaddingX,
+  top: PET_Y_TOP + petPaddingY,
+  bottom: PET_Y_BOT - petPaddingY
+};
+let obsHit = {
+  left: obs.x + obstaclePaddingX,
+  right: obs.x + obs.w - obstaclePaddingX,
+  top: obs.y + obstaclePaddingY,
+  bottom: obs.y + obs.h - obstaclePaddingY
+};
+
     if (
-      !jumperGameOver &&
-      obs.x < 16 + jumperDims.pet &&
-      obs.x + obs.w > 16 &&
-      jumperPetY > obs.y &&
-      (jumperPetY - jumperDims.pet) < (obs.y + obs.h)
-    ) {
-      jumperGameOver = true;
-      showJumperBonus("Game Over!", "#e74c3c");
-      jumperEndGame();
-    }
+  !jumperGameOver &&
+  petHit.right > obsHit.left &&
+  petHit.left < obsHit.right &&
+  petHit.bottom > obsHit.top &&
+  petHit.top < obsHit.bottom
+) {
+  jumperGameOver = true;
+  showJumperBonus("Game Over!", "#e74c3c");
+  jumperEndGame();
+}
     if (!obs.passed && obs.x + obs.w < 16) {
       jumperScore++;
       obs.passed = true;

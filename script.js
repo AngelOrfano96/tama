@@ -113,8 +113,8 @@ function startMazeLevel() {
   mazeTimeLeft = 30 + (mazeLevel-1)*3; // bonus tempo livelli alti
   mazePlaying = true;
   mazeCanMove = true;
-  mazeCanvas = document.getElementById('maze-canvas');
-  mazeCtx = mazeCanvas.getContext('2d');
+  //mazeCanvas = document.getElementById('maze-canvas');
+  //mazeCtx = mazeCanvas.getContext('2d');
   document.getElementById('maze-minigame-modal').classList.remove('hidden');
   document.getElementById('maze-bonus-label').style.display = "none";
   document.getElementById('maze-minigame-score').textContent = mazeScore;

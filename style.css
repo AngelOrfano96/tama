@@ -581,3 +581,16 @@ button, .maze-arrow-btn {
   text-shadow: 0 2px 6px #000b;
 }
 
+@media (min-width: 700px) {
+  .minigame-box {
+    min-width: 520px !important;
+    min-height: 440px !important;
+    /* puoi aumentare padding/margini qui */
+  }
+  #maze-canvas,
+  #minigame-canvas {
+    width: 480px !important;
+    height: 384px !important;
+    image-rendering: pixelated;
+  }
+}

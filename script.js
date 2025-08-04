@@ -7,6 +7,7 @@ let alive = true;
 let autoRefresh = null;
 
 
+
 // === COSTANTI LABIRINTO ===
 const MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
 const MAZE_PET_SIZE = 26, MAZE_GOBLIN_SIZE = 26;
@@ -38,6 +39,17 @@ let mazeLevel = 1; // livello corrente
 let mazeGoblins = []; // array per gestire i goblin multipli
 
 
+function isMobile() {
+  return window.innerWidth < 600;
+}
+
+function getMazeDimensions() {
+  if (isMobile()) {
+    return { width: 320, height: 256, tile: 32 };
+  } else {
+    return { width: 480, height: 384, tile: 48 }; // oppure 640/512 ecc.
+  }
+}
 
 
 // === AVVIO MINIGIOCO ===
@@ -86,6 +98,17 @@ function startMazeMinigame() {
 }
 
 function startMazeLevel() {
+
+  const dims = getMazeDimensions();
+  MAZE_WIDTH = Math.floor(dims.width / dims.tile);
+  MAZE_HEIGHT = Math.floor(dims.height / dims.tile);
+  TILE_SIZE = dims.tile;
+
+  mazeCanvas = document.getElementById('maze-canvas');
+  mazeCanvas.width = dims.width;
+  mazeCanvas.height = dims.height;
+  mazeCtx = mazeCanvas.getContext('2d');
+
   mazeMatrix = generateMazeMatrix();
   mazeTimeLeft = 30 + (mazeLevel-1)*3; // bonus tempo livelli alti
   mazePlaying = true;

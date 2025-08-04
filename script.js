@@ -30,7 +30,7 @@ let groundOffset = 0; // AGGIUNGI QUESTA in cima al gioco
 
 let jumperPlatforms = [];
 let jumperPlatformImg = new Image();
-jumperPlatformImg.src = "assets/tiles/platform.png"; // Usa il tuo asset!
+jumperPlatformImg.src = "assets/tiles/platforms.png"; // Usa il tuo asset!
 
 
 // Adattivo: dimensioni canvas e tile

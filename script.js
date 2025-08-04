@@ -63,7 +63,7 @@ function startJumperMinigame() {
   jumperIsJumping = false;
 
   jumperObstacles = [];
-  jumperSpeed = 5;
+  jumperSpeed = 7;
 
   document.getElementById('jumper-minigame-score').textContent = jumperScore;
   document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;

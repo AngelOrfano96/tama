@@ -5,6 +5,8 @@ let petId = null;
 let eggType = null;
 let alive = true;
 let autoRefresh = null;
+let petX = 0, petY = 0;
+
 
 // === COSTANTI LABIRINTO ===
 let MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
@@ -548,6 +550,7 @@ function startMiniGame() {
     let margin = 32;
 petX = margin + Math.random() * (canvas.width - 56 - margin*2);
 petY = margin + Math.random() * (canvas.height - 56 - margin*2);
+
 
     drawAll();
 

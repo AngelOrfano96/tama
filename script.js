@@ -33,7 +33,7 @@ function getJumperDimensions() {
   if (window.innerWidth < 600) {
     return { width: 320, height: 192, ground: 144, pet: 48, obstacle: 36 };
   } else {
-    return { width: 480, height: 288, ground: 216, pet: 72, obstacle: 54 };
+    return { width: 480, height: 288, ground: 216, pet: 72, obstacle: 16 }; //obstacle54
   }
 }
 

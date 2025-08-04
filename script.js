@@ -139,19 +139,18 @@ function jumperTick() {
     jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, 36);
   }
 
-  // --- GENERAZIONE OSTACOLI/PPIATTAFORME (controllata) ---
+  // --- OSTACOLI GENERAZIONE (controllata) ---
   const now = Date.now();
   if (typeof jumperLastObstacle === 'undefined') jumperLastObstacle = 0;
   if (typeof jumperLastPlatform === 'undefined') jumperLastPlatform = 0;
   const obstacleInterval = 850;
   const platformInterval = 1200;
 
-  // OSTACOLI
+  // Ostacoli (regolati)
   if (
     now - jumperLastObstacle > obstacleInterval &&
     (jumperObstacles.length === 0 || jumperObstacles[jumperObstacles.length-1].x < jumperDims.width - 90)
   ) {
-    // Non generare ostacolo se piattaforma in arrivo troppo vicina al suolo
     let safeToSpawn = !jumperPlatforms.some(plat =>
       plat.x > jumperDims.width - 120 && plat.y > jumperGroundY - jumperDims.pet*1.3
     );
@@ -167,7 +166,7 @@ function jumperTick() {
     }
   }
 
-  // PIATTAFORME
+  // Piattaforme (regolate)
   if (
     now - jumperLastPlatform > platformInterval &&
     jumperPlatforms.length < 3
@@ -178,7 +177,6 @@ function jumperTick() {
     let platW = 72 * (jumperDims.width / 320);
     let platH = 18 * (jumperDims.height / 192);
     let platX = jumperDims.width + Math.random()*60;
-    // Controllo: mai troppo vicino ad altra piattaforma/ostacolo
     let tooClose = jumperPlatforms.some(p => Math.abs(p.x - platX) < 100);
     let obstacleTooClose = jumperObstacles.some(obs => Math.abs(obs.x - platX) < 80);
     if (!tooClose && !obstacleTooClose) {
@@ -202,12 +200,13 @@ function jumperTick() {
       jumperCtx.fillStyle = "#a33";
       jumperCtx.fillRect(obs.x, obs.y, obs.w, obs.h);
     }
-    // Collisione con pet (solo se il pet è sul terreno o su una piattaforma, non in salto sopra)
+    // Collisione con pet (pet a x=16)
+    // Pet "feet" sono jumperPetY, la testa jumperPetY - jumperDims.pet
     if (
       !jumperGameOver &&
       obs.x < 16 + jumperDims.pet &&
       obs.x + obs.w > 16 &&
-      jumperPetY === jumperGroundY &&
+      jumperPetY > obs.y &&
       (jumperPetY - jumperDims.pet) < (obs.y + obs.h)
     ) {
       jumperGameOver = true;
@@ -240,38 +239,37 @@ function jumperTick() {
   jumperPetY += jumperPetVy;
   jumperPetVy += 0.7 * (jumperDims.pet / 48);
 
-  // ATTERAGGIO SU PIATTAFORMA (solo se si sta cadendo dall'alto!)
+  // COLLISIONE CON PIATTAFORMA: solo atterraggio dall'alto!
   let landedOnPlatform = false;
   for (let plat of jumperPlatforms) {
-    let feetNow = jumperPetY - jumperDims.pet; // in aria (testa) - petHeight = base pet
-    let feetNext = jumperPetY - jumperDims.pet + jumperPetVy;
+    let prevFeet = jumperPetY - jumperPetVy; // posizione dei piedi nel frame precedente
     if (
       jumperPetVy >= 0 && // solo se cade
-      feetNow <= plat.y && // i piedi ora sono sopra la piattaforma
-      feetNext >= plat.y && // i piedi stanno per toccare la piattaforma
+      prevFeet <= plat.y && // piedi erano sopra la piattaforma
+      jumperPetY >= plat.y && // piedi ora sulla piattaforma
       16 + jumperDims.pet > plat.x &&
       16 < plat.x + plat.w
     ) {
-      jumperPetY = plat.y + jumperDims.pet; // allinea i piedi al top della piattaforma
+      jumperPetY = plat.y;
       jumperPetVy = 0;
       jumperIsJumping = false;
       landedOnPlatform = true;
       break;
     }
   }
-  // SE NON SU UNA PIATTAFORMA, controlla il terreno
-  if (!landedOnPlatform && jumperPetY >= jumperGroundY + jumperDims.pet) {
-    jumperPetY = jumperGroundY + jumperDims.pet;
+  // Se non atterra su una piattaforma, controlla il terreno
+  if (!landedOnPlatform && jumperPetY >= jumperGroundY) {
+    jumperPetY = jumperGroundY;
     jumperPetVy = 0;
     jumperIsJumping = false;
   }
 
-  // --- DISEGNA PET (PET BASE SUL BORDO GROUND O PIATTAFORMA) ---
+  // --- DISEGNA PET (allinea i piedi) ---
   if (jumperPetImg.complete) {
     jumperCtx.drawImage(
       jumperPetImg,
       16,
-      jumperPetY - jumperDims.pet, // PetY è la base: disegna a Y-base - altezza
+      jumperPetY - jumperDims.pet, // PetY sono i piedi, quindi y = piedi - altezza
       jumperDims.pet,
       jumperDims.pet
     );
@@ -290,15 +288,16 @@ function jumperTick() {
   jumperCtx.fillStyle = "#ff7349";
   jumperCtx.fillText("Tempo: " + jumperTimeLeft + "s", 16, 62);
 
-  // --- CONSENTI SALTO ANCHE SULLE PIATTAFORME ---
+  // --- SALTO CONSENTITO SOLO SE I PIEDI SONO SUL GROUND O SU UNA PIATTAFORMA ---
   jumperCanJump = (
-    jumperPetY === jumperGroundY + jumperDims.pet ||
+    jumperPetY === jumperGroundY ||
     jumperPlatforms.some(plat =>
-      jumperPetY === plat.y + jumperDims.pet &&
+      jumperPetY === plat.y &&
       16 + jumperDims.pet > plat.x && 16 < plat.x + plat.w
     )
   );
 }
+
 
 
 // --- AGGIUNGI QUESTO GLOBALE ---

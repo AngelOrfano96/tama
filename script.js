@@ -6,23 +6,20 @@ let eggType = null;
 let alive = true;
 let autoRefresh = null;
 
-
-
 // === COSTANTI LABIRINTO ===
 let MAZE_WIDTH = 10, MAZE_HEIGHT = 8, TILE_SIZE = 32;
 const MAZE_PET_SIZE = 26, MAZE_GOBLIN_SIZE = 26;
 
-// Immagini
-//let mazePetImg = new Image();
+// Immagini Labirinto
+let mazePetImg = null; // creato in startMazeMinigame
 let mazeKeyImg = new Image();
 let mazeExitImg = new Image();
 let mazeGoblinImg = new Image();
-//mazePetImg.src = document.getElementById('pet').src; // aggiorneremo in start
-mazeKeyImg.src = "assets/icons/key.png"; // cambia path se necessario
+mazeKeyImg.src = "assets/icons/key.png";
 mazeExitImg.src = "assets/icons/door.png";
 mazeGoblinImg.src = "assets/enemies/goblin.png";
 
-// Stato
+// Stato Labirinto
 let mazeMatrix, mazePet, mazeKey, mazeExit, mazeGoblin, mazeScore, mazeTimer, mazeInterval, mazeBonusTimer;
 let mazeTimeLeft = 30;
 let mazePlaying = false;
@@ -30,14 +27,12 @@ let mazeCanvas, mazeCtx;
 let mazeCanMove = true;
 let petMovedLastTurn = false;
 
-
 let mazeWallImg = new Image();
 let mazeBgImg = new Image();
-mazeWallImg.src = "assets/tiles/wall2.png";         // Es: 32x32px, muro
-mazeBgImg.src = "assets/backgrounds/dungeon3.png";  // Es: 320x256px, oppure tile repeat 32x32
-let mazeLevel = 1; // livello corrente
-let mazeGoblins = []; // array per gestire i goblin multipli
-
+mazeWallImg.src = "assets/tiles/wall2.png";
+mazeBgImg.src = "assets/backgrounds/dungeon3.png";
+let mazeLevel = 1;
+let mazeGoblins = [];
 
 function isMobile() {
   return window.innerWidth < 600;
@@ -47,12 +42,9 @@ function getMazeDimensions() {
   if (isMobile()) {
     return { width: 320, height: 256, tile: 32 };
   } else {
-    return { width: 480, height: 384, tile: 48 }; // oppure 640/512 ecc.
+    return { width: 480, height: 384, tile: 48 };
   }
 }
-
-
-// === AVVIO MINIGIOCO ===
 
 // === GENERA LABIRINTO SEMPLICE (muri random + corridoio) ===
 function generateMazeMatrix() {
@@ -62,15 +54,14 @@ function generateMazeMatrix() {
     for (let y = 0; y < MAZE_HEIGHT; y++) {
       let row = [];
       for (let x = 0; x < MAZE_WIDTH; x++) {
-        if (x === 0 || y === 0 || x === MAZE_WIDTH-1 || y === MAZE_HEIGHT-1) row.push(1); // bordo
-        else row.push(Math.random() < 0.16 ? 1 : 0); // muro random
+        if (x === 0 || y === 0 || x === MAZE_WIDTH-1 || y === MAZE_HEIGHT-1) row.push(1);
+        else row.push(Math.random() < 0.16 ? 1 : 0);
       }
       maze.push(row);
     }
-    maze[1][1] = 0; // inizio
-    maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0; // uscita
+    maze[1][1] = 0;
+    maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0;
     tries++;
-    // ripeti finché non esiste un percorso
   } while (!mazeHasPath(maze, 1, 1, MAZE_WIDTH-2, MAZE_HEIGHT-2) && tries < 20);
   return maze;
 }
@@ -92,13 +83,11 @@ function startMazeMinigame() {
   mazeLevel = 1;
   mazeScore = 0;
   mazePetImg = new Image();
-  mazePetImg.src = document.getElementById('pet').src; 
-  //mazePetImg.src = document.getElementById('pet').src || "assets/pet_default.png";
+  mazePetImg.src = document.getElementById('pet').src;
   startMazeLevel();
 }
 
 function startMazeLevel() {
-
   const dims = getMazeDimensions();
   MAZE_WIDTH = Math.floor(dims.width / dims.tile);
   MAZE_HEIGHT = Math.floor(dims.height / dims.tile);
@@ -110,22 +99,18 @@ function startMazeLevel() {
   mazeCtx = mazeCanvas.getContext('2d');
 
   mazeMatrix = generateMazeMatrix();
-  mazeTimeLeft = 30 + (mazeLevel-1)*3; // bonus tempo livelli alti
+  mazeTimeLeft = 30 + (mazeLevel-1)*3;
   mazePlaying = true;
   mazeCanMove = true;
-  //mazeCanvas = document.getElementById('maze-canvas');
-  //mazeCtx = mazeCanvas.getContext('2d');
   document.getElementById('maze-minigame-modal').classList.remove('hidden');
   document.getElementById('maze-bonus-label').style.display = "none";
   document.getElementById('maze-minigame-score').textContent = mazeScore;
   document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
 
-  // Inizio/uscita
   mazePet = { x: 1, y: 1 };
   mazeExit = { x: MAZE_WIDTH-2, y: MAZE_HEIGHT-2 };
   mazeKey = randomEmptyCell();
 
-  // Goblin: dal secondo livello in poi due goblin, se vuoi aumentare puoi cambiare qui
   mazeGoblins = [];
   mazeGoblins.push(randomEmptyCell());
   if (mazeLevel >= 2) mazeGoblins.push(randomEmptyCell());
@@ -140,14 +125,12 @@ function startMazeLevel() {
     mazeTimeLeft--;
     document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
     if (mazeTimeLeft <= 0) {
-      endMazeMinigame(false); // perso
+      endMazeMinigame(false);
     }
     drawMaze();
   }, 1000);
 }
 
-
-// Funzione per verificare se esiste un percorso tra (sx,sy) e (dx,dy)
 function mazeHasPath(maze, sx, sy, dx, dy) {
   let visited = Array.from({length: MAZE_HEIGHT}, () => Array(MAZE_WIDTH).fill(false));
   let queue = [{ x: sx, y: sy }];
@@ -170,12 +153,8 @@ function mazeHasPath(maze, sx, sy, dx, dy) {
   return false;
 }
 
-
-// === DISEGNA ===
 function drawMaze() {
-  // Sfondo (se hai una tile 32x32, riempi a ripetizione, se hai 1 sola immagine la usi come bg grande)
   if (mazeBgImg.complete) {
-    // Tile lo sfondo con l'immagine se è piccola, oppure una sola draw se l'immagine è grande
     for (let y = 0; y < MAZE_HEIGHT; y++) {
       for (let x = 0; x < MAZE_WIDTH; x++) {
         mazeCtx.drawImage(mazeBgImg, x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -186,11 +165,9 @@ function drawMaze() {
     mazeCtx.fillRect(0,0,MAZE_WIDTH*TILE_SIZE,MAZE_HEIGHT*TILE_SIZE);
   }
 
-  // Celle (muri)
   for (let y = 0; y < MAZE_HEIGHT; y++) {
     for (let x = 0; x < MAZE_WIDTH; x++) {
       if (mazeMatrix[y][x] === 1) {
-        // Usa la texture muro
         if (mazeWallImg.complete) {
           mazeCtx.drawImage(mazeWallImg, x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
         } else {
@@ -200,22 +177,14 @@ function drawMaze() {
       }
     }
   }
-  // Chiave
   mazeCtx.globalAlpha = 1;
   if (mazeKey) mazeCtx.drawImage(mazeKeyImg, mazeKey.x*TILE_SIZE+4, mazeKey.y*TILE_SIZE+4, 24, 24);
-  // Uscita
   mazeCtx.drawImage(mazeExitImg, mazeExit.x*TILE_SIZE+4, mazeExit.y*TILE_SIZE+4, 24, 24);
-  // Goblin
-  // Goblins
-for (const goblin of mazeGoblins) {
-  mazeCtx.drawImage(mazeGoblinImg, goblin.x*TILE_SIZE+3, goblin.y*TILE_SIZE+3, 26, 26);
-}
-
-  //if (mazeGoblin) mazeCtx.drawImage(mazeGoblinImg, mazeGoblin.x*TILE_SIZE+3, mazeGoblin.y*TILE_SIZE+3, 26, 26);
-  // Pet
+  for (const goblin of mazeGoblins) {
+    mazeCtx.drawImage(mazeGoblinImg, goblin.x*TILE_SIZE+3, goblin.y*TILE_SIZE+3, 26, 26);
+  }
   mazeCtx.drawImage(mazePetImg, mazePet.x*TILE_SIZE+3, mazePet.y*TILE_SIZE+3, MAZE_PET_SIZE, MAZE_PET_SIZE);
 
-  // Bonus anim
   if (!mazePlaying) {
     mazeCtx.font = "bold 22px Segoe UI";
     mazeCtx.fillStyle = "#e67e22";
@@ -224,10 +193,6 @@ for (const goblin of mazeGoblins) {
   }
 }
 
-
-
-
-// === GESTIONE TASTI ===
 function handleMazeMove(e) {
   if (!mazePlaying || !mazeCanMove) return;
   let dx=0, dy=0;
@@ -240,33 +205,26 @@ function handleMazeMove(e) {
 
   let nx = mazePet.x + dx, ny = mazePet.y + dy;
   if (nx < 0 || ny < 0 || nx >= MAZE_WIDTH || ny >= MAZE_HEIGHT) return;
-
-  // Default: pet non si è mosso
   petMovedLastTurn = false;
 
   if (mazeMatrix[ny][nx] === 1) {
-    // Tocca muro: perdi 3s!
     mazeTimeLeft = Math.max(1, mazeTimeLeft - 3);
     showMazeBonus("-3s!", "#e74c3c");
-    petMovedLastTurn = false; // pet non si muove!
+    petMovedLastTurn = false;
   } else {
-    // --- PRIMA di spostare il pet, controlla se la nuova posizione è occupata da un goblin
     let willBeCaught = mazeGoblins.some(gob => gob.x === nx && gob.y === ny);
     mazePet.x = nx; mazePet.y = ny;
-    petMovedLastTurn = true; // pet si muove!
+    petMovedLastTurn = true;
 
-    // Prendi chiave
     if (mazeKey && nx === mazeKey.x && ny === mazeKey.y) {
       mazeKey = null;
       mazeScore += 20;
       mazeTimeLeft = Math.min(90, mazeTimeLeft + 7);
       showMazeBonus("+20pt +7s!", "#27ae60");
     }
-
-    // Esci!
     if (nx === mazeExit.x && ny === mazeExit.y) {
       mazeLevel++;
-      mazeScore++; // un punto per ogni livello superato
+      mazeScore++;
       document.getElementById('maze-minigame-score').textContent = mazeScore;
       showMazeBonus(`Livello ${mazeLevel}!`, "#3498db");
       setTimeout(() => {
@@ -275,18 +233,14 @@ function handleMazeMove(e) {
       }, 600);
       return;
     }
-
-    // *** Se hai mosso sopra un goblin, sei stato catturato ***
     if (willBeCaught) {
       showMazeBonus("Il goblin ti ha preso! GAME OVER", "#d7263d");
       mazePlaying = false;
       window.removeEventListener('keydown', handleMazeMove);
       if (mazeInterval) clearInterval(mazeInterval);
-
       setTimeout(() => {
         document.getElementById('maze-minigame-modal').classList.add('hidden');
         document.getElementById('maze-touch-controls').style.display = 'none';
-        // Consolazione minima
         let fun = 15 + Math.round(mazeScore * 0.6);
         let exp = Math.round(mazeScore * 0.5);
         updateFunAndExpFromMiniGame(fun, exp);
@@ -295,22 +249,17 @@ function handleMazeMove(e) {
       return;
     }
   }
-
-  // --- DOPO la mossa del pet, muovi i goblin! ---
   moveGoblinsTowardsPet();
 
-  // Se goblin raggiunge il pet dopo la mossa
   let lose = mazeGoblins.some(gob => gob.x === mazePet.x && gob.y === mazePet.y);
   if (lose) {
     showMazeBonus("Il goblin ti ha preso! GAME OVER", "#d7263d");
     mazePlaying = false;
     window.removeEventListener('keydown', handleMazeMove);
     if (mazeInterval) clearInterval(mazeInterval);
-
     setTimeout(() => {
       document.getElementById('maze-minigame-modal').classList.add('hidden');
       document.getElementById('maze-touch-controls').style.display = 'none';
-      // Consolazione minima
       let fun = 15 + Math.round(mazeScore * 0.6);
       let exp = Math.round(mazeScore * 0.5);
       updateFunAndExpFromMiniGame(fun, exp);
@@ -319,7 +268,6 @@ function handleMazeMove(e) {
     return;
   }
 
-  // --- NOVITÀ: se il pet NON si è mosso e un goblin è ADIACENTE (distanza di 1), sei preso! ---
   if (!petMovedLastTurn) {
     let adjacent = mazeGoblins.some(gob => (
       Math.abs(gob.x - mazePet.x) + Math.abs(gob.y - mazePet.y) === 1
@@ -329,11 +277,9 @@ function handleMazeMove(e) {
       mazePlaying = false;
       window.removeEventListener('keydown', handleMazeMove);
       if (mazeInterval) clearInterval(mazeInterval);
-
       setTimeout(() => {
         document.getElementById('maze-minigame-modal').classList.add('hidden');
         document.getElementById('maze-touch-controls').style.display = 'none';
-        // Consolazione minima
         let fun = 15 + Math.round(mazeScore * 0.6);
         let exp = Math.round(mazeScore * 0.5);
         updateFunAndExpFromMiniGame(fun, exp);
@@ -342,35 +288,23 @@ function handleMazeMove(e) {
       return;
     }
   }
-
   drawMaze();
   document.getElementById('maze-minigame-score').textContent = mazeScore;
   document.getElementById('maze-minigame-timer').textContent = mazeTimeLeft;
 }
 
-
-
 function moveGoblinsTowardsPet() {
   for (let i = 0; i < mazeGoblins.length; i++) {
     let gob = mazeGoblins[i];
-
-    // Se il goblin è adiacente al pet (N, S, E, O), resta fermo (niente scambio)
     if (Math.abs(gob.x - mazePet.x) + Math.abs(gob.y - mazePet.y) === 1) {
       continue;
     }
-
-    // Trova il percorso più breve verso il pet usando BFS
     let path = findPath(mazeMatrix, gob, mazePet);
-
-    // Decidi: segui il path ottimale oppure sbaglia con una certa probabilità
-    let randomFail = Math.random() < 0.20; // 20% di probabilità di sbagliare strada
-
+    let randomFail = Math.random() < 0.20;
     if (path && path.length > 1 && !randomFail) {
-      // Mossa ottimale: segui il path
       gob.x = path[1].x;
       gob.y = path[1].y;
     } else {
-      // Mossa casuale valida
       let dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
       dirs = dirs.sort(() => Math.random() - 0.5);
       for (let dir of dirs) {
@@ -389,7 +323,6 @@ function moveGoblinsTowardsPet() {
   }
 }
 
-
 // Funzione BFS per trovare il percorso più breve dal goblin al pet
 function findPath(matrix, start, end) {
   let queue = [];
@@ -398,7 +331,6 @@ function findPath(matrix, start, end) {
   queue.push({x: start.x, y: start.y});
   visited[start.y][start.x] = true;
   let found = false;
-
   while (queue.length && !found) {
     let {x, y} = queue.shift();
     let dirs = [
@@ -425,10 +357,7 @@ function findPath(matrix, start, end) {
       }
     }
   }
-
   if (!visited[end.y][end.x]) return null;
-
-  // Ricostruisci il path
   let path = [];
   let curr = {x: end.x, y: end.y};
   while (curr) {
@@ -437,32 +366,6 @@ function findPath(matrix, start, end) {
   }
   return path;
 }
-
-function moveGoblinTowardsPet() {
-  // Calcola differenze
-  const dx = mazePet.x - mazeGoblin.x;
-  const dy = mazePet.y - mazeGoblin.y;
-
-  // Crea lista delle possibili mosse (X, Y)
-  let moves = [];
-  if (dx !== 0) moves.push({ x: mazeGoblin.x + Math.sign(dx), y: mazeGoblin.y });
-  if (dy !== 0) moves.push({ x: mazeGoblin.x, y: mazeGoblin.y + Math.sign(dy) });
-
-  // Mescola per scegliere a caso la priorità (X o Y)
-  if (moves.length === 2) moves.sort(() => Math.random() - 0.5);
-
-  // Prova le mosse nell’ordine deciso
-  for (let move of moves) {
-    if (mazeMatrix[move.y][move.x] === 0 &&
-        !(move.x === mazePet.x && move.y === mazePet.y)) {
-      mazeGoblin.x = move.x;
-      mazeGoblin.y = move.y;
-      return;
-    }
-  }
-  // Se non può muoversi, resta fermo
-}
-
 
 function showMazeBonus(msg, color="#e67e22") {
   const lab = document.getElementById('maze-bonus-label');
@@ -474,13 +377,10 @@ function showMazeBonus(msg, color="#e67e22") {
   setTimeout(()=>lab.style.display="none", 2100);
 }
 
-// === FINE MINIGIOCO ===
 function endMazeMinigame(vittoria) {
   mazePlaying = false;
   window.removeEventListener('keydown', handleMazeMove);
   if (mazeInterval) clearInterval(mazeInterval);
-
-  // Chiudi il modale dopo 1s e assegna punti
   setTimeout(() => {
     document.getElementById('maze-minigame-modal').classList.add('hidden');
     document.getElementById('maze-touch-controls').style.display = 'none';
@@ -490,7 +390,6 @@ function endMazeMinigame(vittoria) {
       updateFunAndExpFromMiniGame(fun, exp);
       showExpGainLabel(exp);
     } else {
-      // Consolazione minima
       let fun = 15 + Math.round(mazeScore * 0.6);
       let exp = Math.round(mazeScore * 0.5);
       updateFunAndExpFromMiniGame(fun, exp);
@@ -499,15 +398,12 @@ function endMazeMinigame(vittoria) {
   }, 1000);
 }
 
-// === ESCI BUTTON ===
 document.getElementById('maze-exit-btn').addEventListener('click', () => {
   endMazeMinigame(false);
   document.getElementById('maze-minigame-modal').classList.add('hidden');
 });
 
-
-
-// ----- MINI GIOCO PRENDIMI-----
+// ----- MINI GIOCO PRENDIMI -----
 let minigameActive = false;
 let minigameScore = 0;
 let minigameTimer = null;
@@ -520,7 +416,7 @@ let goblinTimeout = null;
 let minigameCanClick = true;
 let bonusTimeActive = false;
 let bonusTimeTextTimer = null;
-let totalTime = 20; // globale per accedere in drawAll
+let totalTime = 20;
 
 minigameGoblinImg.src = "assets/enemies/goblin.png";
 minigameDungeonImg.src = "assets/backgrounds/dungeon.png";
@@ -528,7 +424,7 @@ minigameDungeonImg.src = "assets/backgrounds/dungeon.png";
 function startMiniGame() {
   minigameActive = false;
   minigameScore = 0;
-  totalTime = 20; // reset
+  totalTime = 20;
   let countdown = 5;
   let petX = 180, petY = 180;
 
@@ -538,12 +434,10 @@ function startMiniGame() {
   const timerLabel = document.getElementById('minigame-timer');
   const titleLabel = document.getElementById('minigame-title');
 
-  // --- DISEGNA TUTTO ---
   function drawAll() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (minigameDungeonImg.complete) ctx.drawImage(minigameDungeonImg, 0, 0, canvas.width, canvas.height);
 
-    // Score & Timer centrati in alto
     ctx.font = "bold 19px Segoe UI";
     ctx.fillStyle = "#fffc34ff";
     ctx.textAlign = "center";
@@ -553,16 +447,12 @@ function startMiniGame() {
       ctx.fillStyle = "#ff7349ff";
       ctx.fillText("Tempo: " + totalTime + "s", canvas.width / 2, 55);
     }
-
-    // Messaggio bonus tempo centrato sopra
     if (bonusTimeActive) {
       ctx.font = "bold 24px Segoe UI";
       ctx.fillStyle = "#e67e22";
       ctx.textAlign = "center";
       ctx.fillText("+5s Tempo Bonus!", canvas.width / 2, 85);
     }
-
-    // Pet/goblin
     ctx.textAlign = "left";
     if (isGoblin) {
       if (minigameGoblinImg.complete) ctx.drawImage(minigameGoblinImg, petX, petY, 56, 56);
@@ -571,7 +461,6 @@ function startMiniGame() {
     }
   }
 
-  // ----- COUNTDOWN -----
   minigameActive = false;
   isGoblin = false;
   drawAll();
@@ -599,7 +488,6 @@ function startMiniGame() {
     }
   }, 1000);
 
-  // ---- PARTE LA PARTITA ----
   function runMainMinigame() {
     minigameActive = true;
     totalTime = 20;
@@ -622,13 +510,12 @@ function startMiniGame() {
         timerLabel.textContent = "";
         endMiniGame();
       } else {
-        if (isGoblin) return; // il goblin non si muove
+        if (isGoblin) return;
         minigameMove();
       }
     }, 1000);
   }
 
-  // ---- PET o GOBLIN LOGICA ----
   function minigameMove() {
     minigameCanClick = true;
     isGoblin = Math.random() < 0.22;
@@ -643,7 +530,7 @@ function startMiniGame() {
           minigameCanClick = false;
           setTimeout(() => {
             minigameMove();
-          }, 300); // leggera attesa per evitare flicker rapido
+          }, 300);
         }
       }, 1800);
     } else {
@@ -665,12 +552,11 @@ function startMiniGame() {
         isGoblin = false;
       } else {
         minigameScore++;
-        // BONUS TIME: 20% chance
         if (Math.random() < 0.2) {
           totalTime += 5;
           bonusTimeActive = true;
           if (bonusTimeTextTimer) clearTimeout(bonusTimeTextTimer);
-          drawAll(); // aggiorna subito!
+          drawAll();
           bonusTimeTextTimer = setTimeout(() => {
             bonusTimeActive = false;
             drawAll();
@@ -686,7 +572,6 @@ function startMiniGame() {
   };
 }
 
-// ---- FINE MINIGIOCO ----
 function stopMiniGame() {
   minigameActive = false;
   if (minigameTimer) clearInterval(minigameTimer);
@@ -709,19 +594,15 @@ async function updateFunAndExpFromMiniGame(funPoints, expPoints) {
     .eq('pet_id', petId)
     .single();
   if (!state) return;
-
   let newFun = Math.min(100, state.fun + funPoints);
   await supabaseClient.from('pet_states').update({
     fun: newFun,
     updated_at: new Date()
   }).eq('pet_id', petId);
-
   await addExpAndMaybeLevelUp(state, expPoints);
-
   showExpGainLabel(expPoints);
 }
 
-// ---- ANIM LABEL EXP
 function showExpGainLabel(points) {
   const label = document.getElementById('exp-gain-label');
   if (!label) return;
@@ -737,25 +618,21 @@ document.getElementById('play-btn').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.remove('hidden');
 });
 
-// Tasto "Prendimi!" (il tuo minigioco attuale)
 document.getElementById('btn-minigame-catch').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('minigame-modal').classList.remove('hidden');
   startMiniGame();
 });
 
-// Tasto "Fuga dal Dungeon"
 document.getElementById('btn-minigame-maze').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('maze-minigame-modal').classList.remove('hidden');
-  // Mostra i controlli touch su mobile
-if (window.innerWidth < 800) {
-  document.getElementById('maze-touch-controls').style.display = 'flex';
-}
+  if (window.innerWidth < 800) {
+    document.getElementById('maze-touch-controls').style.display = 'flex';
+  }
   startMazeMinigame();
 });
 
-// Gestione tasti touch per il labirinto
 document.querySelectorAll('.maze-arrow-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     if (!mazePlaying) return;
@@ -769,11 +646,10 @@ document.querySelectorAll('.maze-arrow-btn').forEach(btn => {
   });
 });
 
-
-// Tasto Annulla
 document.getElementById('btn-minigame-cancel').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
 });
+
 
 
 // ========== FUNZIONI PRINCIPALI (NON TOCCARE QUESTE PARTI SE NON NECESSARIO) ==========

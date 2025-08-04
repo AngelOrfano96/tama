@@ -32,6 +32,10 @@ const minObstacleDist = 90; // distanza minima px tra ostacoli
 const platformSpawnInterval = 1200; // ms
 const obstacleSpawnInterval = 900; // ms
 
+let jumperBonuses = []; // array dei bonus attivi
+let jumperBonusImg = new Image();
+jumperBonusImg.src = "assets/bonus/clock.png"; // metti il tuo asset!
+
 
 let groundOffset = 0; // AGGIUNGI QUESTA in cima al gioco
 
@@ -189,6 +193,59 @@ function jumperTick() {
       jumperLastPlatform = now;
     }
   }
+
+  // --- GENERA BONUS CASUALI ---
+if (Math.random() < 0.012 && jumperBonuses.length < 1) {
+  // Dove può apparire: a terra o sopra una piattaforma attiva
+  let spawnOnPlatform = Math.random() < 0.45 && jumperPlatforms.length > 0;
+  let bonusY, bonusX = jumperDims.width + Math.random()*60;
+  if (spawnOnPlatform) {
+    // Scegli una piattaforma esistente a caso
+    let p = jumperPlatforms[Math.floor(Math.random()*jumperPlatforms.length)];
+    bonusY = p.y - 32; // sopra la piattaforma
+    if (bonusY < 30) bonusY = 30; // non troppo in alto
+  } else {
+    // a terra
+    bonusY = jumperGroundY - 32;
+  }
+  jumperBonuses.push({
+    x: bonusX,
+    y: bonusY,
+    w: 32 * (jumperDims.width/320),
+    h: 32 * (jumperDims.height/192),
+    taken: false
+  });
+}
+
+for (let i = 0; i < jumperBonuses.length; i++) {
+  let bon = jumperBonuses[i];
+  bon.x -= jumperSpeed + Math.floor(jumperScore/10);
+
+  // Disegna bonus
+  if (jumperBonusImg.complete) {
+    jumperCtx.drawImage(jumperBonusImg, bon.x, bon.y, bon.w, bon.h);
+  } else {
+    jumperCtx.fillStyle = "#48e"; // fallback
+    jumperCtx.fillRect(bon.x, bon.y, bon.w, bon.h);
+  }
+
+  // Raccogli bonus: hitbox generosa
+  if (!bon.taken &&
+      16 + jumperDims.pet > bon.x &&
+      16 < bon.x + bon.w &&
+      jumperPetY - jumperDims.pet/2 < bon.y + bon.h &&
+      jumperPetY > bon.y
+  ) {
+    bon.taken = true;
+    jumperTimeLeft = Math.min(jumperTimeLeft + 7, 99);
+    document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;
+    showJumperBonus("+7s!", "#27ae60");
+  }
+}
+// Elimina bonus usciti dallo schermo o già presi
+jumperBonuses = jumperBonuses.filter(bon => bon.x + bon.w > 0 && !bon.taken);
+
+
 
   // --- MUOVI E DISEGNA OSTACOLI ---
   for (let i = 0; i < jumperObstacles.length; i++) {

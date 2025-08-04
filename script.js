@@ -5,7 +5,7 @@ let petId = null;
 let eggType = null;
 let alive = true;
 let autoRefresh = null;
-let petX = 0, petY = 0;
+//let petX = 0, petY = 0;
 
 
 // === COSTANTI LABIRINTO ===
@@ -412,7 +412,7 @@ document.getElementById('maze-exit-btn').addEventListener('click', () => {
   document.getElementById('maze-minigame-modal').classList.add('hidden');
 });
 
-// ----- MINI GIOCO PRENDIMI -----
+// ----- MINI GIOCO PRENDIMI ----- 
 let minigameActive = false;
 let minigameScore = 0;
 let minigameTimer = null;
@@ -426,22 +426,13 @@ let minigameCanClick = true;
 let bonusTimeActive = false;
 let bonusTimeTextTimer = null;
 let totalTime = 20;
+// QUI: posizioni globali!
+let petX = 0, petY = 0;
 
 minigameGoblinImg.src = "assets/enemies/goblin.png";
 minigameDungeonImg.src = "assets/backgrounds/dungeon.png";
 
 function startMiniGame() {
-  /*minigameActive = false;
-  minigameScore = 0;
-  totalTime = 20;
-  let countdown = 5;
-  let petX = 180, petY = 180;
-
-  minigamePetImg.src = document.getElementById('pet').src;
-  const canvas = document.getElementById('minigame-canvas');
-  const ctx = canvas.getContext('2d');
-  const timerLabel = document.getElementById('minigame-timer');
-  const titleLabel = document.getElementById('minigame-title'); */
   minigameActive = false;
   minigameScore = 0;
   totalTime = 20;
@@ -455,12 +446,12 @@ function startMiniGame() {
   canvas.width = dims.width;
   canvas.height = dims.height;
 
-  let petX = dims.width/2 - 28, petY = dims.height/2 - 28; // centro iniziale
+  // *** USO GLOBALI, non dichiaro let ***
+  petX = dims.width/2 - 28;
+  petY = dims.height/2 - 28;
 
   const timerLabel = document.getElementById('minigame-timer');
   const titleLabel = document.getElementById('minigame-title');
-
-
 
   function drawAll() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -548,9 +539,9 @@ function startMiniGame() {
     minigameCanClick = true;
     isGoblin = Math.random() < 0.22;
     let margin = 32;
-petX = margin + Math.random() * (canvas.width - 56 - margin*2);
-petY = margin + Math.random() * (canvas.height - 56 - margin*2);
-
+    // *** USO GLOBALI, non dichiaro let ***
+    petX = margin + Math.random() * (canvas.width - 56 - margin*2);
+    petY = margin + Math.random() * (canvas.height - 56 - margin*2);
 
     drawAll();
 
@@ -602,6 +593,8 @@ petY = margin + Math.random() * (canvas.height - 56 - margin*2);
     }
   };
 }
+
+
 
 function stopMiniGame() {
   minigameActive = false;

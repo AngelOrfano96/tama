@@ -26,6 +26,8 @@ let jumperInterval;
 let jumperDims = null;
 let jumperGameOver = false;
 
+let groundOffset = 0; // AGGIUNGI QUESTA in cima al gioco
+
 // Adattivo: dimensioni canvas e tile
 function getJumperDimensions() {
   if (window.innerWidth < 600) {
@@ -96,6 +98,9 @@ function jumperJump() {
   }
 }
 
+
+
+
 function jumperTick() {
   if (!jumperActive) return;
 
@@ -107,15 +112,22 @@ function jumperTick() {
     jumperCtx.fillRect(0, 0, jumperDims.width, jumperDims.height);
   }
 
-  // --- GROUND ---
+  // --- GROUND "SCORREVOLE" ---
+  let groundTileW = 48; // oppure jumperBgImg.width se la texture ha dimensione fissa
+  groundOffset += (jumperSpeed + Math.floor(jumperScore/10));
+  if (groundOffset >= groundTileW) groundOffset -= groundTileW;
+
   if (jumperBgImg.complete && jumperBgImg.naturalWidth > 0) {
-    // Ripeti la texture del terreno orizzontalmente
-    for (let x = 0; x < jumperDims.width; x += 48)
-      jumperCtx.drawImage(jumperBgImg, x, jumperGroundY, 48, 36);
+    for (let x = -groundOffset; x < jumperDims.width; x += groundTileW) {
+      jumperCtx.drawImage(jumperBgImg, x, jumperGroundY, groundTileW, 36);
+    }
   } else {
     jumperCtx.fillStyle = "#2c3e50";
     jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, 36);
   }
+
+  // ... (il resto di jumperTick resta invariato)
+
 
   // --- OSTACOLI ---
   // Spawn nuovi ostacoli

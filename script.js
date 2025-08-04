@@ -119,7 +119,7 @@ function jumperTick() {
   }
 
   // --- GROUND "SCORREVOLE" ---
-  let groundTileW = 48; // oppure jumperBgImg.width se la texture ha dimensione fissa
+  let groundTileW = 48; // larghezza tile ground
   groundOffset += (jumperSpeed + Math.floor(jumperScore/10));
   if (groundOffset >= groundTileW) groundOffset -= groundTileW;
 
@@ -132,14 +132,11 @@ function jumperTick() {
     jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, 36);
   }
 
-
-
   // --- OSTACOLI ---
-  // Spawn nuovi ostacoli
   if (Math.random() < Math.min(0.02 + jumperScore/250, 0.14)) {
     jumperObstacles.push({
       x: jumperDims.width + Math.random()*50,
-      y: jumperGroundY - jumperDims.obstacle, // allinea la base al ground
+      y: jumperGroundY - jumperDims.obstacle, // base allineata al ground
       w: jumperDims.obstacle,
       h: jumperDims.obstacle,
       passed: false
@@ -147,18 +144,19 @@ function jumperTick() {
   }
   for (let i = 0; i < jumperObstacles.length; i++) {
     let obs = jumperObstacles[i];
-    obs.x -= jumperSpeed + Math.floor(jumperScore/10); // velocità crescente!
+    obs.x -= jumperSpeed + Math.floor(jumperScore/10);
     if (jumperObstacleImg.complete) {
       jumperCtx.drawImage(jumperObstacleImg, obs.x, obs.y, obs.w, obs.h);
     } else {
       jumperCtx.fillStyle = "#a33";
       jumperCtx.fillRect(obs.x, obs.y, obs.w, obs.h);
     }
-    // Collisione: pet a sinistra a X=16
+    // Collisione con pet (pet a x=16)
     if (!jumperGameOver &&
       obs.x < 16 + jumperDims.pet &&
       obs.x + obs.w > 16 &&
-      jumperPetY + jumperDims.pet > obs.y // la base del pet è sotto il bordo superiore dell'ostacolo
+      jumperPetY === (jumperGroundY) && // solo se sei sul suolo
+      (jumperPetY - jumperDims.pet) < (obs.y + obs.h) // piedi del pet sopra ostacolo
     ) {
       jumperGameOver = true;
       showJumperBonus("Game Over!", "#e74c3c");
@@ -174,74 +172,54 @@ function jumperTick() {
   }
   jumperObstacles = jumperObstacles.filter(obs => obs.x + obs.w > 0);
 
-  // ---- GENERA PIATTAFORME RANDOM ----
-if (Math.random() < 0.03 && jumperPlatforms.length < 3) {
-  // Altezza random, solo livelli raggiungibili
-  let minY = jumperGroundY - jumperDims.pet * 2.5;
-  let maxY = jumperGroundY - jumperDims.pet * 1.3;
-  let platY = Math.floor(minY + Math.random() * (maxY - minY));
-  let platW = 72 * (jumperDims.width / 320); // piattaforme adattive
-  let platH = 18 * (jumperDims.height / 192);
-  let platX = jumperDims.width + Math.random()*60;
+  // --- PIATTAFORME RANDOM ---
+  if (Math.random() < 0.03 && jumperPlatforms.length < 3) {
+    // Altezza random, solo livelli raggiungibili
+    let minY = jumperGroundY - jumperDims.pet * 2.5;
+    let maxY = jumperGroundY - jumperDims.pet * 1.3;
+    let platY = Math.floor(minY + Math.random() * (maxY - minY));
+    let platW = 72 * (jumperDims.width / 320);
+    let platH = 18 * (jumperDims.height / 192);
+    let platX = jumperDims.width + Math.random()*60;
 
-  // Controllo: mai troppo vicino ad altra piattaforma (orizzontale e verticale)
-  let tooClose = jumperPlatforms.some(p => Math.abs(p.x - platX) < 96 && Math.abs(p.y - platY) < 42);
-  // Controllo: mai troppo vicino a un ostacolo appena generato (±60px)
-  let obstacleTooClose = jumperObstacles.some(obs => Math.abs(obs.x - platX) < 60);
+    // Controllo: mai troppo vicino ad altra piattaforma o ostacolo
+    let tooClose = jumperPlatforms.some(p => Math.abs(p.x - platX) < 96 && Math.abs(p.y - platY) < 42);
+    let obstacleTooClose = jumperObstacles.some(obs => Math.abs(obs.x - platX) < 60);
 
-  if (!tooClose && !obstacleTooClose) {
-    jumperPlatforms.push({
-      x: platX,
-      y: platY,
-      w: platW,
-      h: platH
-    });
-  }
-}
-
-// --- MUOVI & DISEGNA PIATTAFORME ---
-for (let i = 0; i < jumperPlatforms.length; i++) {
-  let plat = jumperPlatforms[i];
-  plat.x -= jumperSpeed + Math.floor(jumperScore/10);
-
-  // Disegna piattaforma
-  if (jumperPlatformImg.complete) {
-    jumperCtx.drawImage(jumperPlatformImg, plat.x, plat.y, plat.w, plat.h);
-  } else {
-    jumperCtx.fillStyle = "#8ED6FF";
-    jumperCtx.fillRect(plat.x, plat.y, plat.w, plat.h);
-  }
-}
-jumperPlatforms = jumperPlatforms.filter(plat => plat.x + plat.w > 0);
-
-
-  // --- PET ---
-  if (jumperPetImg.complete) {
-    jumperCtx.drawImage(jumperPetImg, 16, jumperPetY - jumperDims.pet, jumperDims.pet, jumperDims.pet);
-  } else {
-    jumperCtx.fillStyle = "#fff";
-    jumperCtx.fillRect(16, jumperPetY, jumperDims.pet, jumperDims.pet);
+    if (!tooClose && !obstacleTooClose) {
+      jumperPlatforms.push({
+        x: platX,
+        y: platY,
+        w: platW,
+        h: platH
+      });
+    }
   }
 
-  // --- PUNTEGGIO E TIMER ---
-  jumperCtx.font = "bold 21px Segoe UI";
-  jumperCtx.fillStyle = "#fffc34";
-  jumperCtx.textAlign = "left";
-  jumperCtx.fillText("Punti: " + jumperScore, 16, 36);
+  // --- MUOVI & DISEGNA PIATTAFORME ---
+  for (let i = 0; i < jumperPlatforms.length; i++) {
+    let plat = jumperPlatforms[i];
+    plat.x -= jumperSpeed + Math.floor(jumperScore/10);
 
-  jumperCtx.font = "bold 17px Segoe UI";
-  jumperCtx.fillStyle = "#ff7349";
-  jumperCtx.fillText("Tempo: " + jumperTimeLeft + "s", 16, 62);
+    if (jumperPlatformImg.complete) {
+      jumperCtx.drawImage(jumperPlatformImg, plat.x, plat.y, plat.w, plat.h);
+    } else {
+      jumperCtx.fillStyle = "#8ED6FF";
+      jumperCtx.fillRect(plat.x, plat.y, plat.w, plat.h);
+    }
+  }
+  jumperPlatforms = jumperPlatforms.filter(plat => plat.x + plat.w > 0);
 
-jumperPetY += jumperPetVy;
+  // --- PET PHYSICS ---
+  jumperPetY += jumperPetVy;
   jumperPetVy += 0.7 * (jumperDims.pet / 48);
 
   let landedOnPlatform = false;
   for (let plat of jumperPlatforms) {
     if (
       jumperPetVy >= 0 &&
-      jumperPetY <= plat.y &&
-      jumperPetY + jumperPetVy >= plat.y &&
+      (jumperPetY - jumperDims.pet) < plat.y + plat.h &&
+      jumperPetY > plat.y &&
       16 + jumperDims.pet > plat.x && 16 < plat.x + plat.w
     ) {
       jumperPetY = plat.y;
@@ -251,6 +229,7 @@ jumperPetY += jumperPetVy;
       break;
     }
   }
+  // Se non sei su piattaforma, controlla il suolo
   if (!landedOnPlatform && jumperPetY >= jumperGroundY) {
     jumperPetY = jumperGroundY;
     jumperPetVy = 0;
@@ -264,6 +243,16 @@ jumperPetY += jumperPetVy;
     jumperCtx.fillStyle = "#fff";
     jumperCtx.fillRect(16, jumperPetY - jumperDims.pet, jumperDims.pet, jumperDims.pet);
   }
+
+  // --- PUNTEGGIO E TIMER ---
+  jumperCtx.font = "bold 21px Segoe UI";
+  jumperCtx.fillStyle = "#fffc34";
+  jumperCtx.textAlign = "left";
+  jumperCtx.fillText("Punti: " + jumperScore, 16, 36);
+
+  jumperCtx.font = "bold 17px Segoe UI";
+  jumperCtx.fillStyle = "#ff7349";
+  jumperCtx.fillText("Tempo: " + jumperTimeLeft + "s", 16, 62);
 
 }
 

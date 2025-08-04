@@ -45,6 +45,13 @@ function getMazeDimensions() {
     return { width: 480, height: 384, tile: 48 };
   }
 }
+function getMinigameDimensions() {
+  if (window.innerWidth < 600) {
+    return { width: 320, height: 320 };
+  } else {
+    return { width: 480, height: 480 }; // Puoi mettere anche 640x640 se vuoi ancora più grande
+  }
+}
 
 // === GENERA LABIRINTO SEMPLICE (muri random + corridoio) ===
 function generateMazeMatrix() {
@@ -422,7 +429,7 @@ minigameGoblinImg.src = "assets/enemies/goblin.png";
 minigameDungeonImg.src = "assets/backgrounds/dungeon.png";
 
 function startMiniGame() {
-  minigameActive = false;
+  /*minigameActive = false;
   minigameScore = 0;
   totalTime = 20;
   let countdown = 5;
@@ -432,7 +439,26 @@ function startMiniGame() {
   const canvas = document.getElementById('minigame-canvas');
   const ctx = canvas.getContext('2d');
   const timerLabel = document.getElementById('minigame-timer');
+  const titleLabel = document.getElementById('minigame-title'); */
+  minigameActive = false;
+  minigameScore = 0;
+  totalTime = 20;
+  let countdown = 5;
+  minigamePetImg.src = document.getElementById('pet').src;
+
+  // --- ADATTIVO ---
+  const dims = getMinigameDimensions();
+  const canvas = document.getElementById('minigame-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = dims.width;
+  canvas.height = dims.height;
+
+  let petX = dims.width/2 - 28, petY = dims.height/2 - 28; // centro iniziale
+
+  const timerLabel = document.getElementById('minigame-timer');
   const titleLabel = document.getElementById('minigame-title');
+
+
 
   function drawAll() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -519,8 +545,10 @@ function startMiniGame() {
   function minigameMove() {
     minigameCanClick = true;
     isGoblin = Math.random() < 0.22;
-    petX = 32 + Math.random() * (canvas.width - 84);
-    petY = 58 + Math.random() * (canvas.height - 110);
+    let margin = 32;
+petX = margin + Math.random() * (canvas.width - 56 - margin*2);
+petY = margin + Math.random() * (canvas.height - 56 - margin*2);
+
     drawAll();
 
     if (isGoblin) {

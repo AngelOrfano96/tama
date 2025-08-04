@@ -594,3 +594,10 @@ button, .maze-arrow-btn {
     image-rendering: pixelated;
   }
 }
+
+@media (min-width: 600px) {
+  .minigame-box {
+    min-width: 480px !important;
+    min-height: 480px !important;
+  }
+}

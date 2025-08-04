@@ -31,9 +31,9 @@ let groundOffset = 0; // AGGIUNGI QUESTA in cima al gioco
 // Adattivo: dimensioni canvas e tile
 function getJumperDimensions() {
   if (window.innerWidth < 600) {
-    return { width: 320, height: 192, ground: 144, pet: 48, obstacle: 36 };
+    return { width: 320, height: 192, ground: 144, pet: 48, obstacle: 22 };
   } else {
-    return { width: 480, height: 288, ground: 216, pet: 72, obstacle: 16 }; //obstacle54
+    return { width: 480, height: 288, ground: 216, pet: 72, obstacle: 36 }; //obstacle54
   }
 }
 
@@ -63,7 +63,7 @@ function startJumperMinigame() {
   jumperIsJumping = false;
 
   jumperObstacles = [];
-  jumperSpeed = 7;
+  jumperSpeed = 5;
 
   document.getElementById('jumper-minigame-score').textContent = jumperScore;
   document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;

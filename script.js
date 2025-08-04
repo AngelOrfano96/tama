@@ -217,7 +217,7 @@ jumperPlatforms = jumperPlatforms.filter(plat => plat.x + plat.w > 0);
 
   // --- PET ---
   if (jumperPetImg.complete) {
-    jumperCtx.drawImage(jumperPetImg, 16, jumperPetY, jumperDims.pet, jumperDims.pet);
+    jumperCtx.drawImage(jumperPetImg, 16, jumperPetY - jumperDims.pet, jumperDims.pet, jumperDims.pet);
   } else {
     jumperCtx.fillStyle = "#fff";
     jumperCtx.fillRect(16, jumperPetY, jumperDims.pet, jumperDims.pet);
@@ -233,31 +233,37 @@ jumperPlatforms = jumperPlatforms.filter(plat => plat.x + plat.w > 0);
   jumperCtx.fillStyle = "#ff7349";
   jumperCtx.fillText("Tempo: " + jumperTimeLeft + "s", 16, 62);
 
-  // --- Pet physics ---
-  jumperPetY += jumperPetVy;
-  jumperPetVy += 0.7 * (jumperDims.pet / 48); // gravità adattiva
-  // Atterra (base del pet allineata al ground)
+jumperPetY += jumperPetVy;
+  jumperPetVy += 0.7 * (jumperDims.pet / 48);
+
   let landedOnPlatform = false;
-for (let plat of jumperPlatforms) {
-  // Verifica atterraggio SOLO se stai cadendo (velocità > 0)
-  if (
-    jumperPetVy >= 0 &&
-    jumperPetY + jumperDims.pet <= plat.y + 10 && // Non attraversare dal basso
-    jumperPetY + jumperDims.pet >= plat.y &&     // In contatto col top
-    16 + jumperDims.pet > plat.x && 16 < plat.x + plat.w // orizzontalmente sopra la piattaforma
-  ) {
-    jumperPetY = plat.y - jumperDims.pet;
+  for (let plat of jumperPlatforms) {
+    if (
+      jumperPetVy >= 0 &&
+      jumperPetY <= plat.y &&
+      jumperPetY + jumperPetVy >= plat.y &&
+      16 + jumperDims.pet > plat.x && 16 < plat.x + plat.w
+    ) {
+      jumperPetY = plat.y;
+      jumperPetVy = 0;
+      jumperIsJumping = false;
+      landedOnPlatform = true;
+      break;
+    }
+  }
+  if (!landedOnPlatform && jumperPetY >= jumperGroundY) {
+    jumperPetY = jumperGroundY;
     jumperPetVy = 0;
     jumperIsJumping = false;
-    landedOnPlatform = true;
-    break;
   }
-}
-if (!landedOnPlatform && jumperPetY >= jumperGroundY) {
-  jumperPetY = jumperGroundY;
-  jumperPetVy = 0;
-  jumperIsJumping = false;
-}
+
+  // --- DISEGNA PET ---
+  if (jumperPetImg.complete) {
+    jumperCtx.drawImage(jumperPetImg, 16, jumperPetY - jumperDims.pet, jumperDims.pet, jumperDims.pet);
+  } else {
+    jumperCtx.fillStyle = "#fff";
+    jumperCtx.fillRect(16, jumperPetY - jumperDims.pet, jumperDims.pet, jumperDims.pet);
+  }
 
 }
 

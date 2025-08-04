@@ -5,7 +5,218 @@ let petId = null;
 let eggType = null;
 let alive = true;
 let autoRefresh = null;
-//let petX = 0, petY = 0;
+
+// === MINI GIOCO "SALTA GLI OSTACOLI" (DINO STYLE) ===
+
+let jumperActive = false;
+let jumperScore = 0;
+let jumperTimer = null;
+let jumperTimeLeft = 20;
+let jumperPetImg = new Image();
+let jumperObstacleImg = new Image();
+let jumperBgImg = new Image();
+let jumperBonusTimer = null;
+let jumperCanvas, jumperCtx;
+let jumperPetY, jumperPetVy, jumperIsJumping = false;
+let jumperObstacles = [];
+let jumperGroundY;
+let jumperSpeed;
+let jumperInterval;
+let jumperDims = null;
+let jumperGameOver = false;
+
+// Adattivo: dimensioni canvas e tile
+function getJumperDimensions() {
+  if (window.innerWidth < 600) {
+    return { width: 320, height: 192, ground: 144, pet: 48, obstacle: 36 };
+  } else {
+    return { width: 480, height: 288, ground: 216, pet: 72, obstacle: 54 };
+  }
+}
+
+// Texture custom: metti i tuoi path!
+jumperPetImg.src = document.getElementById('pet').src;
+jumperObstacleImg.src = "assets/tiles/obstacle.png"; // Cambia con il tuo asset!
+jumperBgImg.src = "assets/backgrounds/ground.png";   // Cambia con il tuo asset!
+
+function startJumperMinigame() {
+  jumperActive = true;
+  jumperScore = 0;
+  jumperTimeLeft = 20;
+  jumperGameOver = false;
+  jumperDims = getJumperDimensions();
+
+  jumperCanvas = document.getElementById('jumper-canvas');
+  jumperCtx = jumperCanvas.getContext('2d');
+  jumperCanvas.width = jumperDims.width;
+  jumperCanvas.height = jumperDims.height;
+  jumperGroundY = jumperDims.ground;
+
+  // Pet physics
+  jumperPetY = jumperGroundY;
+  jumperPetVy = 0;
+  jumperIsJumping = false;
+
+  jumperObstacles = [];
+  jumperSpeed = 5; // velocità di base
+
+  document.getElementById('jumper-minigame-score').textContent = jumperScore;
+  document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;
+  document.getElementById('jumper-bonus-label').style.display = "none";
+  document.getElementById('jumper-minigame-modal').classList.remove('hidden');
+
+  // Avvio timer
+  if (jumperInterval) clearInterval(jumperInterval);
+  jumperInterval = setInterval(jumperTick, 1000 / 60); // 60 fps
+  if (jumperTimer) clearInterval(jumperTimer);
+  jumperTimer = setInterval(() => {
+    if (!jumperActive) return;
+    jumperTimeLeft--;
+    document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;
+    if (jumperTimeLeft <= 0) jumperEndGame();
+  }, 1000);
+
+  // Listener salto
+  window.addEventListener('keydown', jumperKeyDown);
+  jumperCanvas.addEventListener('touchstart', jumperJump);
+  jumperCanvas.addEventListener('mousedown', jumperJump);
+}
+
+function jumperKeyDown(e) {
+  if (e.code === "Space" || e.key === " ") {
+    jumperJump();
+  }
+}
+function jumperJump() {
+  if (!jumperActive || jumperGameOver) return;
+  if (!jumperIsJumping && jumperPetY === jumperGroundY) {
+    jumperPetVy = -10 * (jumperDims.pet / 48); // Salto adattivo
+    jumperIsJumping = true;
+  }
+}
+
+function jumperTick() {
+  if (!jumperActive) return;
+  jumperCtx.clearRect(0, 0, jumperDims.width, jumperDims.height);
+
+  // Sfondo
+  if (jumperBgImg.complete) {
+    for (let x = 0; x < jumperDims.width; x += 48)
+      jumperCtx.drawImage(jumperBgImg, x, jumperGroundY + 12, 48, jumperDims.height - jumperGroundY - 12);
+  } else {
+    jumperCtx.fillStyle = "#2c3e50";
+    jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, jumperDims.height - jumperGroundY);
+  }
+
+  // Ostacoli
+  if (Math.random() < Math.min(0.02 + jumperScore/250, 0.14)) {
+    jumperObstacles.push({
+      x: jumperDims.width + Math.random()*50,
+      y: jumperGroundY,
+      w: jumperDims.obstacle,
+      h: jumperDims.obstacle,
+      passed: false
+    });
+  }
+  for (let i = 0; i < jumperObstacles.length; i++) {
+    let obs = jumperObstacles[i];
+    obs.x -= jumperSpeed + Math.floor(jumperScore/10); // cresce la difficoltà!
+    if (jumperObstacleImg.complete) {
+      jumperCtx.drawImage(jumperObstacleImg, obs.x, obs.y, obs.w, obs.h);
+    } else {
+      jumperCtx.fillStyle = "#a33";
+      jumperCtx.fillRect(obs.x, obs.y, obs.w, obs.h);
+    }
+    // Collisione
+    if (!jumperGameOver && obs.x < 64 && obs.x + obs.w > 16 &&
+      jumperPetY + jumperDims.pet > jumperGroundY &&
+      jumperPetY < jumperGroundY + obs.h) {
+      jumperGameOver = true;
+      showJumperBonus("Game Over!", "#e74c3c");
+      jumperEndGame();
+    }
+    // Score
+    if (!obs.passed && obs.x + obs.w < 24) {
+      jumperScore++;
+      obs.passed = true;
+      document.getElementById('jumper-minigame-score').textContent = jumperScore;
+      showJumperBonus("+1!", "#f1c40f");
+    }
+  }
+  jumperObstacles = jumperObstacles.filter(obs => obs.x + obs.w > 0);
+
+  // Pet
+  if (jumperPetImg.complete) {
+    jumperCtx.drawImage(jumperPetImg, 16, jumperPetY, jumperDims.pet, jumperDims.pet);
+  } else {
+    jumperCtx.fillStyle = "#fff";
+    jumperCtx.fillRect(16, jumperPetY, jumperDims.pet, jumperDims.pet);
+  }
+
+  // Pet physics
+  jumperPetY += jumperPetVy;
+  jumperPetVy += 0.7 * (jumperDims.pet / 48); // gravità adattiva
+  if (jumperPetY >= jumperGroundY) {
+    jumperPetY = jumperGroundY;
+    jumperPetVy = 0;
+    jumperIsJumping = false;
+  }
+}
+
+// BONUS LABEL
+function showJumperBonus(msg, color="#e67e22") {
+  const lab = document.getElementById('jumper-bonus-label');
+  lab.textContent = msg;
+  lab.style.display = "block";
+  lab.style.color = color;
+  lab.style.opacity = "1";
+  if (jumperBonusTimer) clearTimeout(jumperBonusTimer);
+  jumperBonusTimer = setTimeout(()=>{lab.style.opacity="0";}, 1400);
+  setTimeout(()=>{lab.style.display="none";}, 1900);
+}
+
+function jumperEndGame() {
+  jumperActive = false;
+  if (jumperInterval) clearInterval(jumperInterval);
+  if (jumperTimer) clearInterval(jumperTimer);
+
+  // Gestione punteggi e animazioni
+  setTimeout(() => {
+    document.getElementById('jumper-minigame-modal').classList.add('hidden');
+    let fun = Math.min(100, jumperScore * 5);
+    let exp = Math.max(0, Math.round(jumperScore * 2.4));
+    updateFunAndExpFromMiniGame(fun, exp);
+    showExpGainLabel(exp);
+    window.removeEventListener('keydown', jumperKeyDown);
+    jumperCanvas.removeEventListener('touchstart', jumperJump);
+    jumperCanvas.removeEventListener('mousedown', jumperJump);
+  }, 1100);
+}
+
+// Esci
+document.getElementById('jumper-exit-btn').addEventListener('click', () => {
+  jumperActive = false;
+  jumperGameOver = true;
+  if (jumperInterval) clearInterval(jumperInterval);
+  if (jumperTimer) clearInterval(jumperTimer);
+  document.getElementById('jumper-minigame-modal').classList.add('hidden');
+  window.removeEventListener('keydown', jumperKeyDown);
+  if (jumperCanvas) {
+    jumperCanvas.removeEventListener('touchstart', jumperJump);
+    jumperCanvas.removeEventListener('mousedown', jumperJump);
+  }
+});
+
+// Bottone nella modale di selezione
+document.getElementById('btn-minigame-jumper').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
+  document.getElementById('jumper-minigame-modal').classList.remove('hidden');
+  // Texture aggiornata pet
+  jumperPetImg.src = document.getElementById('pet').src;
+  startJumperMinigame();
+});
+
+
 
 
 // === COSTANTI LABIRINTO ===

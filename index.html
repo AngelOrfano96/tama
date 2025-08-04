@@ -143,12 +143,30 @@
       </div>
     </div>
 
+    <!-- MODALE MINI GIOCO SALTA OSTACOLI -->
+<div id="jumper-minigame-modal" class="modal hidden">
+  <div class="minigame-box" style="position:relative;">
+    <div class="minigame-header" style="display:flex;justify-content:space-between;">
+      <span id="jumper-minigame-title" style="font-weight: bold; font-size: 1.18em; color: #2c3e50;">Salta gli ostacoli!</span>
+      <span id="jumper-minigame-timer">20</span> s
+      <span style="margin-left:20px;">Punteggio: <span id="jumper-minigame-score">0</span></span>
+    </div>
+    <canvas id="jumper-canvas" width="320" height="192" style="background:#222;display:block;margin:auto;border-radius:10px"></canvas>
+    <div id="jumper-bonus-label" class="exp-gain-label" style="display:none;position:absolute;top:24px;left:50%;transform:translateX(-50%);color:#fff;font-size:1.15em;font-weight:700;"></div>
+    <div style="text-align:center;margin-top:1em;">
+      <button id="jumper-exit-btn">Esci</button>
+    </div>
+  </div>
+</div>
+
+
     <!-- MODALE SELEZIONE MINIGIOCO -->
     <div id="minigame-select-modal" class="modal hidden">
       <div class="modal-content" style="text-align:center;">
         <h2>Scegli un mini gioco</h2>
         <button id="btn-minigame-catch">Prendimi!</button>
         <button id="btn-minigame-maze" class="minigame-btn">Fuga dal Dungeon</button>
+        <button id="btn-minigame-jumper" class="minigame-btn">Salta gli ostacoli</button>
         <!-- Qui in futuro puoi aggiungere altri bottoni/mini giochi -->
         <br>
         <button id="btn-minigame-cancel" class="btn-minigame-cancel" style="margin-top:18px;">Chiudi</button>

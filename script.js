@@ -561,37 +561,44 @@ function startMiniGame() {
   }
 
   canvas.onclick = function(e) {
-    if (!minigameActive || !minigameCanClick) return;
-    minigameCanClick = false;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
-    if (
-      clickX >= petX && clickX <= petX + 56 &&
-      clickY >= petY && clickY <= petY + 56
-    ) {
-      if (isGoblin) {
-        minigameScore = Math.max(0, minigameScore - 2);
-        isGoblin = false;
-      } else {
-        minigameScore++;
-        if (Math.random() < 0.2) {
-          totalTime += 5;
-          bonusTimeActive = true;
-          if (bonusTimeTextTimer) clearTimeout(bonusTimeTextTimer);
-          drawAll();
-          bonusTimeTextTimer = setTimeout(() => {
-            bonusTimeActive = false;
-            drawAll();
-          }, 1000);
-        }
-      }
-      setTimeout(() => {
-        minigameMove();
-      }, 390);
+  if (!minigameActive || !minigameCanClick) return;
+  minigameCanClick = false;
+  const rect = canvas.getBoundingClientRect();
+
+  // SCALING!
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const clickX = (e.clientX - rect.left) * scaleX;
+  const clickY = (e.clientY - rect.top) * scaleY;
+
+  if (
+    clickX >= petX && clickX <= petX + 56 &&
+    clickY >= petY && clickY <= petY + 56
+  ) {
+    if (isGoblin) {
+      minigameScore = Math.max(0, minigameScore - 2);
+      isGoblin = false;
     } else {
-      minigameCanClick = true;
+      minigameScore++;
+      if (Math.random() < 0.2) {
+        totalTime += 5;
+        bonusTimeActive = true;
+        if (bonusTimeTextTimer) clearTimeout(bonusTimeTextTimer);
+        drawAll();
+        bonusTimeTextTimer = setTimeout(() => {
+          bonusTimeActive = false;
+          drawAll();
+        }, 1000);
+      }
     }
-  };
+    setTimeout(() => {
+      minigameMove();
+    }, 390);
+  } else {
+    minigameCanClick = true;
+  }
+};
+
 }
 
 

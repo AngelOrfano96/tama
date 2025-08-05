@@ -59,18 +59,12 @@ function startTreasureMinigame() {
 
   dungeonPetRoom = { x: Math.floor(DUNGEON_GRID_W/2), y: Math.floor(DUNGEON_GRID_H/2) };
   treasurePet = { x: 1, y: 1, speed: 1, powered: false };
+  treasurePet.drawX = treasurePet.x;
+  treasurePet.drawY = treasurePet.y;
+
 
   startTreasureLevel();
 }
-
-treasurePet = {
-  x: 1, // cella logica X
-  y: 1, // cella logica Y
-  drawX: 1, // posizione disegnata X (in tile)
-  drawY: 1, // posizione disegnata Y (in tile)
-  speed: 1,
-  powered: false
-};
 
 function moveEnemyTo(enemy, targetX, targetY, duration = 120) {
   const startX = enemy.drawX;

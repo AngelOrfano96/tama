@@ -346,19 +346,20 @@ function handleTreasureMove(e) {
   return;
 }
 
-  // Nemici: perdita
-  let enemies = roomEnemies[key];
-  if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {
-    treasurePlaying = false;
-    showTreasureBonus("Game Over!", "#e74c3c");
-    window.removeEventListener('keydown', handleTreasureMove);
-    if (treasureInterval) clearInterval(treasureInterval);
-    setTimeout(()=>{ document.getElementById('treasure-minigame-modal').classList.add('hidden'); }, 1500);
-    return;
-  }
-  drawTreasure();
-  document.getElementById('treasure-minigame-score').textContent = treasureScore;
+ // Nemici: perdita
+let enemies = roomEnemies[key];
+if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {
+  treasurePlaying = false;
+  showTreasureBonus("Game Over!", "#e74c3c");
+  window.removeEventListener('keydown', handleTreasureMove);
+  if (treasureInterval) clearInterval(treasureInterval);
+  setTimeout(() => {
+    document.getElementById('treasure-minigame-modal').classList.add('hidden');
+    endTreasureMinigame(false);  // <--- AGGIUNGI QUESTO!
+  }, 1500);
+  return;
 }
+
 
 // Movimento goblin
 function moveTreasureEnemies() {
@@ -388,6 +389,8 @@ function moveTreasureEnemies() {
     }
   }
 }
+}
+
 
 function showTreasureBonus(msg, color="#e67e22") {
   const lab = document.getElementById('treasure-bonus-label');

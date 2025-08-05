@@ -92,6 +92,9 @@ function startJumperMinigame() {
   jumperPlatforms = [];
   jumperSpeed = 5;
 
+  updateJumpBtnVisibility();
+  mobileJumpBtn.onclick = jumperJump;
+
   document.getElementById('jumper-minigame-score').textContent = jumperScore;
   document.getElementById('jumper-minigame-timer').textContent = jumperTimeLeft;
   document.getElementById('jumper-bonus-label').style.display = "none";
@@ -450,7 +453,7 @@ function jumperEndGame() {
   jumperActive = false;
   if (jumperInterval) clearInterval(jumperInterval);
   if (jumperTimer) clearInterval(jumperTimer);
-
+  mobileJumpBtn.style.display = 'none';
   setTimeout(() => {
     document.getElementById('jumper-minigame-modal').classList.add('hidden');
     let fun = Math.min(100, jumperScore * 5);

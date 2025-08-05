@@ -236,7 +236,7 @@ function handleTreasureMove(e) {
   let py = treasurePet.y + dy;
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
 
-  movePetTo(treasurePet.x, treasurePet.y);
+  
 
 
   // Passaggio stanza
@@ -254,6 +254,8 @@ function handleTreasureMove(e) {
   } else {
     return;
   }
+
+  movePetTo(treasurePet.x, treasurePet.y);
   // Dopo cambio stanza: rigenera posizione goblin!
   /*
   let newKey = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;

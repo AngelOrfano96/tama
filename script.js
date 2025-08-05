@@ -1116,10 +1116,15 @@ function startMiniGame() {
   function minigameMove() {
     minigameCanClick = true;
     isGoblin = Math.random() < 0.22;
-    let margin = 32;
-    // *** USO GLOBALI, non dichiaro let ***
-    petX = margin + Math.random() * (canvas.width - 56 - margin*2);
-    petY = margin + Math.random() * (canvas.height - 56 - margin*2);
+  let marginX = 32;
+let marginTop = Math.floor(canvas.height * 0.52); // inizio parte centrale
+let marginBottom = 24; // più basso: distanza dal bordo inferiore
+let minY = marginTop;
+let maxY = canvas.height - 56 - marginBottom;
+
+petX = marginX + Math.random() * (canvas.width - 56 - marginX*2);
+petY = minY + Math.random() * (maxY - minY);
+
 
     drawAll();
 

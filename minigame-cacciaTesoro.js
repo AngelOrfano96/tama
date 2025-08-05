@@ -63,7 +63,25 @@ function startTreasureMinigame() {
 
   startTreasureLevel();
 }
-
+function showTreasureFeedbackLabel(amount, color = "#ffe44c") {
+  const label = document.getElementById('treasure-feedback-label');
+  if (!label) return;
+  label.textContent = (amount > 0 ? "+" : "") + amount;
+  label.style.color = color;
+  label.style.opacity = "1";
+  label.style.display = "block";
+  // reset possible previous animation
+  label.style.transform = "translateX(-50%) scale(1)";
+  setTimeout(() => {
+    label.style.transform = "translateX(-50%) scale(1.4)";
+    label.style.opacity = "0";
+  }, 100);
+  setTimeout(() => {
+    label.style.display = "none";
+    label.style.opacity = "1";
+    label.style.transform = "translateX(-50%) scale(1)";
+  }, 1000);
+}
 function moveEnemyTo(enemy, targetX, targetY, duration = 120) {
   const startX = enemy.drawX;
   const startY = enemy.drawY;
@@ -289,12 +307,13 @@ function handleTreasureMove(e) {
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o=>o.type==='coin' && o.x===treasurePet.x && o.y===treasurePet.y && !o.taken);
-  if (coin) { coin.taken = true; treasureScore += 10; }
+  if (coin) { coin.taken = true; treasureScore += 1; }
   // Powerup
   let powers = roomPowerups[key];
   let pow = powers && powers.find(p=>p.x===treasurePet.x && p.y===treasurePet.y && !p.taken);
   if (pow) {
     pow.taken = true;
+    treasureScore += 12; 
     if (pow.type==='speed') { treasurePet.speed = 2; treasureActivePowerup = 'speed'; }
     else {
       let enemies = roomEnemies[key];

@@ -682,3 +682,6 @@ html, body {
     display: none !important;
   }
 }
+#treasure-minigame-modal {
+  position: relative;
+}

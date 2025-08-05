@@ -193,6 +193,24 @@ function generateDungeon() {
   } while (exitRoom.x === Math.floor(DUNGEON_GRID_W/2) && exitRoom.y === Math.floor(DUNGEON_GRID_H/2));
   exitTile.x = ROOM_W-2; exitTile.y = ROOM_H-2;
 
+  // PRIMA di generare i nemici
+let doorPositions = [];
+if (rx > 0) doorPositions.push({x: 0, y: Math.floor(ROOM_H/2)});
+if (rx < DUNGEON_GRID_W-1) doorPositions.push({x: ROOM_W-1, y: Math.floor(ROOM_H/2)});
+if (ry > 0) doorPositions.push({x: Math.floor(ROOM_W/2), y: 0});
+if (ry < DUNGEON_GRID_H-1) doorPositions.push({x: Math.floor(ROOM_W/2), y: ROOM_H-1});
+
+for (let i = 0; i < nEnemies; i++) {
+  let ex, ey, isDoor;
+  do {
+    ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
+    ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
+    isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
+  } while (isDoor);
+  enemies.push({ x: ex, y: ey, drawX: ex, drawY: ey, slow: false });
+}
+
+
   // Oggetti e nemici
   for (let ry = 0; ry < DUNGEON_GRID_H; ry++) {
     for (let rx = 0; rx < DUNGEON_GRID_W; rx++) {
@@ -280,24 +298,8 @@ function handleTreasureMove(e) {
   }
 
   movePetTo(treasurePet.x, treasurePet.y);
-  // Dopo cambio stanza: rigenera posizione goblin!
-  /*
-  let newKey = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
-  if (roomEnemies[newKey]) {
-    for (let e of roomEnemies[newKey]) {
-      let ex, ey, tentativi = 0, isNearDoor;
-      do {
-        ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
-        ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
-        isNearDoor = false;
-        if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
-        if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
-        tentativi++;
-        if (!isNearDoor) break;
-      } while (tentativi < 10);
-      e.x = ex; e.y = ey;
-    }
-  } !*/
+
+  
 
   // --- OGGETTI ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;

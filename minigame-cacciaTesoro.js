@@ -311,18 +311,22 @@ function handleTreasureMove(e) {
   }
   // Uscita
   if (
-    dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
-    treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
-    Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0
-  ) {
-    treasureLevel++;
-    document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    setTimeout(() => {
-      window.removeEventListener('keydown', handleTreasureMove);
-      startTreasureLevel();
-    }, 550);
-    return;
-  }
+  dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
+  treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
+  Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0
+) {
+  treasureLevel++;
+  document.getElementById('treasure-minigame-score').textContent = treasureScore;
+  setTimeout(() => {
+    window.removeEventListener('keydown', handleTreasureMove);
+    // AGGIUNGI QUESTO:
+    generateDungeon();
+    // Poi parti col nuovo livello
+    startTreasureLevel();
+  }, 550);
+  return;
+}
+
   // Nemici: perdita
   let enemies = roomEnemies[key];
   if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {

@@ -1129,18 +1129,27 @@ petY = minY + Math.random() * (maxY - minY);
     drawAll();
 
     if (isGoblin) {
-      goblinTimeout = setTimeout(() => {
-        if (isGoblin && minigameActive) {
-          isGoblin = false;
-          minigameCanClick = false;
-          setTimeout(() => {
-            minigameMove();
-          }, 300);
-        }
-      }, 1800);
-    } else {
-      if (goblinTimeout) clearTimeout(goblinTimeout);
+  goblinTimeout = setTimeout(() => {
+    if (isGoblin && minigameActive) {
+      isGoblin = false;
+      minigameCanClick = false;
+      setTimeout(() => {
+        minigameMove();
+      }, 300);
     }
+  }, 1800);
+} else {
+  if (petTimeout) clearTimeout(petTimeout);
+  petTimeout = setTimeout(() => {
+    if (!isGoblin && minigameActive) {
+      minigameCanClick = false;
+      setTimeout(() => {
+        minigameMove();
+      }, 300);
+    }
+  }, 500); // <-- pet resta per 1.4s
+}
+
   }
 
   canvas.onclick = function(e) {

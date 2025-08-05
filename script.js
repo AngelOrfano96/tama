@@ -686,8 +686,21 @@ function startMazeLevel() {
   mazeKey = randomEmptyCell();
 
   mazeGoblins = [];
+if (mazeLevel === 1) {
   mazeGoblins.push(randomEmptyCell());
-  if (mazeLevel >= 2) mazeGoblins.push(randomEmptyCell());
+} else {
+  // Dal livello 2 in poi: 65% due goblin, 35% uno
+  let numGoblins = (Math.random() < 0.65) ? 2 : 1;
+  for (let i = 0; i < numGoblins; i++) {
+    let cell;
+    // Assicura che non spawnino sulla stessa casella
+    do {
+      cell = randomEmptyCell();
+    } while (mazeGoblins.some(gob => gob.x === cell.x && gob.y === cell.y));
+    mazeGoblins.push(cell);
+  }
+}
+
 
   drawMaze();
 

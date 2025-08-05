@@ -63,6 +63,39 @@ function startTreasureMinigame() {
   startTreasureLevel();
 }
 
+treasurePet = {
+  x: 1, // cella logica X
+  y: 1, // cella logica Y
+  drawX: 1, // posizione disegnata X (in tile)
+  drawY: 1, // posizione disegnata Y (in tile)
+  speed: 1,
+  powered: false
+};
+
+function movePetTo(targetX, targetY, duration = 120) {
+  const startX = treasurePet.drawX;
+  const startY = treasurePet.drawY;
+  const endX = targetX;
+  const endY = targetY;
+  const startTime = performance.now();
+
+  function animate(now) {
+    let t = Math.min(1, (now - startTime) / duration);
+    treasurePet.drawX = startX + (endX - startX) * t;
+    treasurePet.drawY = startY + (endY - startY) * t;
+    drawTreasure();
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      treasurePet.drawX = endX;
+      treasurePet.drawY = endY;
+      drawTreasure();
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+
 
 // Inizia un livello (ma NON ricreare dungeon)
 function startTreasureLevel() {
@@ -203,6 +236,9 @@ function handleTreasureMove(e) {
   let py = treasurePet.y + dy;
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
 
+  movePetTo(treasurePet.x, treasurePet.y);
+
+
   // Passaggio stanza
   if (px < 0 && dungeonPetRoom.x > 0 && room[treasurePet.y][0] === 0) {
     dungeonPetRoom.x -= 1; treasurePet.x = ROOM_W - 2;
@@ -219,6 +255,7 @@ function handleTreasureMove(e) {
     return;
   }
   // Dopo cambio stanza: rigenera posizione goblin!
+  /*
   let newKey = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   if (roomEnemies[newKey]) {
     for (let e of roomEnemies[newKey]) {
@@ -234,7 +271,7 @@ function handleTreasureMove(e) {
       } while (tentativi < 10);
       e.x = ex; e.y = ey;
     }
-  }
+  } !*/
 
   // --- OGGETTI ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
@@ -452,12 +489,25 @@ function drawTreasure() {
   }
 
   // PET
-  if (treasurePetImg.complete) {
-    treasureCtx.drawImage(treasurePetImg, treasurePet.x*tile+6, treasurePet.y*tile+6, tile-12, tile-12);
-  } else {
-    treasureCtx.fillStyle = "#FFD700";
-    treasureCtx.fillRect(treasurePet.x*tile+8, treasurePet.y*tile+8, tile-16, tile-16);
-  }
+  // PET
+if (treasurePetImg.complete) {
+  treasureCtx.drawImage(
+    treasurePetImg,
+    treasurePet.drawX * tile + 6,
+    treasurePet.drawY * tile + 6,
+    tile - 12,
+    tile - 12
+  );
+} else {
+  treasureCtx.fillStyle = "#FFD700";
+  treasureCtx.fillRect(
+    treasurePet.drawX * tile + 8,
+    treasurePet.drawY * tile + 8,
+    tile - 16,
+    tile - 16
+  );
+}
+
 
   // Nemici
   if (roomEnemies[key]) {

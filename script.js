@@ -64,6 +64,8 @@ function startTreasureLevel() {
   treasureCanvas = document.getElementById('treasure-canvas');
   treasureCanvas.width = ROOM_W * tile;
   treasureCanvas.height = ROOM_H * tile;
+  treasureCanvas.style.width = `${ROOM_W * tile}px`;   // per evitare deformazioni
+  treasureCanvas.style.height = `${ROOM_H * tile}px`;
   treasureCtx = treasureCanvas.getContext('2d');
 
   // --- DUNGEON ROOMS ---

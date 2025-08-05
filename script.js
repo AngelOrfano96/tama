@@ -8,79 +8,62 @@ let autoRefresh = null;
 
 // === MINI GIOCO CACCIA AL TESORO MULTI-STANZA ===
 
-// Struttura dungeon (griglia di stanze, ognuna una matrice di tile)
-const DUNGEON_GRID_W = 3; // stanze orizzontali
-const DUNGEON_GRID_H = 3; // stanze verticali
-const ROOM_W = 8;         // larghezza stanza in tile
-const ROOM_H = 7;         // altezza stanza in tile
+const DUNGEON_GRID_W = 3;
+const DUNGEON_GRID_H = 3;
+const ROOM_W = 8;
+const ROOM_H = 7;
 
-let dungeonRooms = [];       // Matrice delle stanze [y][x]
-let dungeonPetRoom = {x: 0, y: 0}; // stanza attuale del pet
-let roomObjects = {};        // oggetti per stanza: {"2,0": [ {x:3,y:4,type:"coin"} ]}
-let roomEnemies = {};        // nemici per stanza
-let roomPowerups = {};       // powerups per stanza
-let exitRoom = {x: 0, y: 0}; // stanza uscita
-let exitTile = {x: 0, y: 0}; // posizione locale uscita nella stanza
+let dungeonRooms = [];
+let dungeonPetRoom = {x: 0, y: 0};
+let roomObjects = {};
+let roomEnemies = {};
+let roomPowerups = {};
+let exitRoom = {x: 0, y: 0};
+let exitTile = {x: 0, y: 0};
 
-// Stato di gioco
 let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft, treasureInterval, treasureCanMove;
-let treasurePetImg, treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;
 let treasureCanvas, treasureCtx, treasureActivePowerup, treasurePowerupTimer;
 let treasureNeeded;
 
+// Responsive tile size!
 function getTreasureDimensions() {
   if (window.innerWidth < 600) return { width: 320, height: 256, tile: 32 };
   if (window.innerWidth < 900) return { width: 416, height: 320, tile: 40 };
   return { width: 576, height: 432, tile: 48 };
 }
 
+// Avvia il minigioco (Vera partita nuova: rigenera dungeon)
 function startTreasureMinigame() {
+  // Dungeon setup SOLO all'avvio partita!
+  generateDungeon();
+
   treasureLevel = 1;
   treasureScore = 0;
   treasurePlaying = true;
-  treasurePetImg = new Image();
-  treasureCoinImg = new Image();
-  treasureEnemyImg = new Image();
-  treasureExitImg = new Image();
-  treasureWallImg = new Image();
-  treasureBgImg = new Image();
-  treasurePowerupImg = new Image();
+  treasureActivePowerup = null;
 
-  // Inserisci i tuoi asset qui!
-  treasurePetImg.src = document.getElementById('pet').src;
-  treasureCoinImg.src = "assets/collectibles/coin.png";
-  treasureEnemyImg.src = "assets/enemies/goblin.png";
-  treasureExitImg.src = "assets/icons/door.png";
-  treasureWallImg.src = "assets/tiles/wall2.png";
-  treasureBgImg.src = "assets/backgrounds/dungeon3.png";
-  treasurePowerupImg.src = "assets/bonus/powerup.png";
+  // Posiziona pet nella stanza centrale!
+  dungeonPetRoom = { x: Math.floor(DUNGEON_GRID_W/2), y: Math.floor(DUNGEON_GRID_H/2) };
+  treasurePet = { x: 1, y: 1, speed: 1, powered: false };
 
   startTreasureLevel();
 }
 
+// Inizia un livello (ma NON ricreare dungeon)
 function startTreasureLevel() {
-  // --- DIMENSIONI E CANVAS ---
   const tile = getTreasureDimensions().tile;
   treasureCanvas = document.getElementById('treasure-canvas');
   treasureCanvas.width = ROOM_W * tile;
   treasureCanvas.height = ROOM_H * tile;
-  treasureCanvas.style.width = `${ROOM_W * tile}px`;   // per evitare deformazioni
+  treasureCanvas.style.width = `${ROOM_W * tile}px`;
   treasureCanvas.style.height = `${ROOM_H * tile}px`;
   treasureCtx = treasureCanvas.getContext('2d');
 
-  // --- DUNGEON ROOMS ---
-  generateDungeon(); // <--- nuova funzione!
-
-  // Pet nella stanza centrale
-  dungeonPetRoom = { x: Math.floor(DUNGEON_GRID_W/2), y: Math.floor(DUNGEON_GRID_H/2) };
-  treasurePet = { x: 1, y: 1, speed: 1, powered: false };
-
-  treasureScore = treasureScore || 0;
   treasureTimeLeft = 28 + treasureLevel * 3;
   treasurePlaying = true;
   treasureCanMove = true;
   treasureActivePowerup = null;
-  treasureNeeded = 4 + treasureLevel; // Monete da raccogliere
+  treasureNeeded = 4 + treasureLevel;
 
   drawTreasure();
   document.getElementById('treasure-minigame-modal').classList.remove('hidden');
@@ -97,14 +80,13 @@ function startTreasureLevel() {
   }, 700);
 }
 
+// Genera dungeon SOLO una volta!
 function generateDungeon() {
-  // Reset
   dungeonRooms = [];
   roomObjects = {};
   roomEnemies = {};
   roomPowerups = {};
 
-  // 1. Genera stanze
   for (let y = 0; y < DUNGEON_GRID_H; y++) {
     let row = [];
     for (let x = 0; x < DUNGEON_GRID_W; x++) {
@@ -112,7 +94,6 @@ function generateDungeon() {
       for (let ty = 0; ty < ROOM_H; ty++) {
         let rrow = [];
         for (let tx = 0; tx < ROOM_W; tx++) {
-          // Muri ai bordi, aperture per porte
           let isWall = (tx === 0 || ty === 0 || tx === ROOM_W-1 || ty === ROOM_H-1);
           rrow.push(isWall ? 1 : 0);
         }
@@ -123,16 +104,14 @@ function generateDungeon() {
     dungeonRooms.push(row);
   }
 
-  // 2. Genera aperture tra le stanze (porte)
+  // Porte tra le stanze
   for (let y = 0; y < DUNGEON_GRID_H; y++) {
     for (let x = 0; x < DUNGEON_GRID_W; x++) {
-      // Destra
       if (x < DUNGEON_GRID_W-1) {
         let mid = Math.floor(ROOM_H/2);
         dungeonRooms[y][x][mid][ROOM_W-1] = 0;
         dungeonRooms[y][x+1][mid][0] = 0;
       }
-      // Sotto
       if (y < DUNGEON_GRID_H-1) {
         let mid = Math.floor(ROOM_W/2);
         dungeonRooms[y][x][ROOM_H-1][mid] = 0;
@@ -141,22 +120,21 @@ function generateDungeon() {
     }
   }
 
-  // 3. Scegli stanza uscita
+  // Stanza uscita NON centrale
   do {
     exitRoom.x = Math.floor(Math.random() * DUNGEON_GRID_W);
     exitRoom.y = Math.floor(Math.random() * DUNGEON_GRID_H);
   } while (exitRoom.x === Math.floor(DUNGEON_GRID_W/2) && exitRoom.y === Math.floor(DUNGEON_GRID_H/2));
   exitTile.x = ROOM_W-2; exitTile.y = ROOM_H-2;
 
-  // 4. Oggetti/monete e nemici in tutte le stanze (tranne inizio e uscita)
+  // Oggetti e nemici
   for (let ry = 0; ry < DUNGEON_GRID_H; ry++) {
     for (let rx = 0; rx < DUNGEON_GRID_W; rx++) {
       let key = `${rx},${ry}`;
       let objects = [];
       let enemies = [];
       let powerups = [];
-
-      // MONETE
+      // Monete
       let nCoins = (rx === exitRoom.x && ry === exitRoom.y) ? 1 : (2 + Math.floor(Math.random()*2));
       for (let i = 0; i < nCoins; i++) {
         let px, py;
@@ -166,25 +144,20 @@ function generateDungeon() {
         } while ((rx === exitRoom.x && ry === exitRoom.y && px === exitTile.x && py === exitTile.y));
         objects.push({ x: px, y: py, type: 'coin', taken: false });
       }
-
-      // NEMICI
-      // NEMICI
-let nEnemies = Math.floor(Math.random()*2); // 0 o 1 per stanza
-for (let i = 0; i < nEnemies; i++) {
-  let ex, ey;
-  do {
-    ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
-    ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
-    // NON su porte centrali
-    let isNearDoor = false;
-    if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
-    if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
-  } while (isNearDoor);
-  enemies.push({ x: ex, y: ey, slow: false });
-}
-
-
-      // POWERUP (random)
+      // Nemici NON vicino alle porte
+      let nEnemies = Math.floor(Math.random()*2);
+      for (let i = 0; i < nEnemies; i++) {
+        let ex, ey, isNearDoor;
+        do {
+          ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
+          ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
+          isNearDoor = false;
+          if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
+          if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
+        } while (isNearDoor);
+        enemies.push({ x: ex, y: ey, slow: false });
+      }
+      // Powerup (random)
       if (Math.random() < 0.35) {
         let ptx, pty;
         do {
@@ -193,7 +166,6 @@ for (let i = 0; i < nEnemies; i++) {
         } while (objects.some(o => o.x===ptx && o.y===pty));
         powerups.push({ x: ptx, y: pty, type: (Math.random()<0.5 ? 'speed' : 'slow'), taken: false });
       }
-
       roomObjects[key] = objects;
       roomEnemies[key] = enemies;
       roomPowerups[key] = powerups;
@@ -201,6 +173,7 @@ for (let i = 0; i < nEnemies; i++) {
   }
 }
 
+// Spostamento del pet
 function handleTreasureMove(e) {
   if (!treasurePlaying || !treasureCanMove) return;
   let dx=0, dy=0;
@@ -215,63 +188,51 @@ function handleTreasureMove(e) {
   let py = treasurePet.y + dy;
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
 
-  // Spostamento tra stanze (aperture ai bordi)
+  // Passaggio stanza
   if (px < 0 && dungeonPetRoom.x > 0 && room[treasurePet.y][0] === 0) {
-    dungeonPetRoom.x -= 1;
-    treasurePet.x = ROOM_W - 2;
+    dungeonPetRoom.x -= 1; treasurePet.x = ROOM_W - 2;
   } else if (px >= ROOM_W && dungeonPetRoom.x < DUNGEON_GRID_W-1 && room[treasurePet.y][ROOM_W-1] === 0) {
-    dungeonPetRoom.x += 1;
-    treasurePet.x = 1;
+    dungeonPetRoom.x += 1; treasurePet.x = 1;
   } else if (py < 0 && dungeonPetRoom.y > 0 && room[0][treasurePet.x] === 0) {
-    dungeonPetRoom.y -= 1;
-    treasurePet.y = ROOM_H - 2;
+    dungeonPetRoom.y -= 1; treasurePet.y = ROOM_H - 2;
   } else if (py >= ROOM_H && dungeonPetRoom.y < DUNGEON_GRID_H-1 && room[ROOM_H-1][treasurePet.x] === 0) {
-    dungeonPetRoom.y += 1;
-    treasurePet.y = 1;
+    dungeonPetRoom.y += 1; treasurePet.y = 1;
   } else if (px >= 0 && py >= 0 && px < ROOM_W && py < ROOM_H && room[py][px] === 0) {
     treasurePet.x = px;
     treasurePet.y = py;
   } else {
     return;
   }
-  // Dopo aver cambiato stanza:
-let newKey = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
-if (roomEnemies[newKey]) {
-  for (let e of roomEnemies[newKey]) {
-    let ex, ey;
-    let tentativi = 0;
-    do {
-      ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
-      ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
-      let isNearDoor = false;
-      if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
-      if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
-      tentativi++;
-      if (!isNearDoor) break;
-    } while (tentativi < 10);
-    e.x = ex;
-    e.y = ey;
+  // Dopo cambio stanza: rigenera posizione goblin!
+  let newKey = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
+  if (roomEnemies[newKey]) {
+    for (let e of roomEnemies[newKey]) {
+      let ex, ey, tentativi = 0, isNearDoor;
+      do {
+        ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
+        ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
+        isNearDoor = false;
+        if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
+        if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
+        tentativi++;
+        if (!isNearDoor) break;
+      } while (tentativi < 10);
+      e.x = ex; e.y = ey;
+    }
   }
-}
-
 
   // --- OGGETTI ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o=>o.type==='coin' && o.x===treasurePet.x && o.y===treasurePet.y && !o.taken);
-  if (coin) {
-    coin.taken = true;
-    treasureScore += 10;
-  }
+  if (coin) { coin.taken = true; treasureScore += 10; }
   // Powerup
   let powers = roomPowerups[key];
   let pow = powers && powers.find(p=>p.x===treasurePet.x && p.y===treasurePet.y && !p.taken);
   if (pow) {
     pow.taken = true;
-    if (pow.type==='speed') {
-      treasurePet.speed = 2;
-      treasureActivePowerup = 'speed';
-    } else {
+    if (pow.type==='speed') { treasurePet.speed = 2; treasureActivePowerup = 'speed'; }
+    else {
       let enemies = roomEnemies[key];
       for (const e of enemies) e.slow = true;
       treasureActivePowerup = 'slow';
@@ -284,10 +245,12 @@ if (roomEnemies[newKey]) {
       treasureActivePowerup = null;
     }, 3000);
   }
-  // Uscita?
-  if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
-      treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
-      Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0) {
+  // Uscita
+  if (
+    dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
+    treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
+    Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0
+  ) {
     treasureLevel++;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
     setTimeout(() => {
@@ -296,7 +259,7 @@ if (roomEnemies[newKey]) {
     }, 550);
     return;
   }
-  // Nemici
+  // Nemici: perdita
   let enemies = roomEnemies[key];
   if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {
     treasurePlaying = false;
@@ -310,6 +273,7 @@ if (roomEnemies[newKey]) {
   document.getElementById('treasure-minigame-score').textContent = treasureScore;
 }
 
+// Movimento goblin
 function moveTreasureEnemies() {
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let enemies = roomEnemies[key];
@@ -320,8 +284,7 @@ function moveTreasureEnemies() {
     if (path && path.length > 1) {
       let step = e.slow ? 1 : treasurePet.speed;
       let next = path[Math.min(1, path.length-1)];
-      e.x = next.x;
-      e.y = next.y;
+      e.x = next.x; e.y = next.y;
     }
     // Se goblin raggiunge il pet
     if (e.x === treasurePet.x && e.y === treasurePet.y) {
@@ -335,7 +298,6 @@ function moveTreasureEnemies() {
   }
 }
 
-
 function showTreasureBonus(msg, color="#e67e22") {
   const lab = document.getElementById('treasure-bonus-label');
   lab.textContent = msg;
@@ -346,7 +308,7 @@ function showTreasureBonus(msg, color="#e67e22") {
   setTimeout(()=>lab.style.display="none", 2100);
 }
 
-// --- Utility BFS da riciclare ---
+// --- Utility BFS
 function findPath(matrix, start, end) {
   let W = matrix[0].length, H = matrix.length;
   let queue = [];
@@ -358,36 +320,24 @@ function findPath(matrix, start, end) {
   while (queue.length && !found) {
     let {x, y} = queue.shift();
     let dirs = [
-      {dx:1, dy:0},
-      {dx:-1, dy:0},
-      {dx:0, dy:1},
-      {dx:0, dy:-1}
+      {dx:1, dy:0},{dx:-1, dy:0},{dx:0, dy:1},{dx:0, dy:-1}
     ];
     for (let {dx, dy} of dirs) {
       let nx = x + dx, ny = y + dy;
       if (
-        nx >= 0 && nx < W &&
-        ny >= 0 && ny < H &&
-        matrix[ny][nx] === 0 &&
-        !visited[ny][nx]
+        nx >= 0 && nx < W && ny >= 0 && ny < H &&
+        matrix[ny][nx] === 0 && !visited[ny][nx]
       ) {
         queue.push({x: nx, y: ny});
         visited[ny][nx] = true;
         prev[ny][nx] = {x, y};
-        if (nx === end.x && ny === end.y) {
-          found = true;
-          break;
-        }
+        if (nx === end.x && ny === end.y) { found = true; break; }
       }
     }
   }
   if (!visited[end.y][end.x]) return null;
-  let path = [];
-  let curr = {x: end.x, y: end.y};
-  while (curr) {
-    path.unshift(curr);
-    curr = prev[curr.y][curr.x];
-  }
+  let path = [], curr = {x: end.x, y: end.y};
+  while (curr) { path.unshift(curr); curr = prev[curr.y][curr.x]; }
   return path;
 }
 
@@ -470,7 +420,7 @@ function drawTreasure() {
     }
   }
 
-  // Uscita: verde, solo nella stanza giusta
+  // Uscita: verde
   if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
     treasureCtx.fillStyle = "#43e673";
     treasureCtx.fillRect(exitTile.x*tile+10, exitTile.y*tile+10, tile-20, tile-20);
@@ -485,15 +435,17 @@ function drawTreasure() {
   treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
 }
 
-
-
-
+// Avvio dal bottone minigioco
 document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('treasure-minigame-modal').classList.remove('hidden');
   startTreasureMinigame();
 });
 
+// Bottone Esci dal minigioco
+document.getElementById('treasure-exit-btn').addEventListener('click', () => {
+  endTreasureMinigame(false);
+});
 
 
 

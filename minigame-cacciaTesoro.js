@@ -558,6 +558,25 @@ if (treasurePetImg.complete) {
   treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
 }
 
+function endTreasureMinigame() {
+  treasurePlaying = false;
+  window.removeEventListener('keydown', handleTreasureMove);
+  if (treasureInterval) clearInterval(treasureInterval);
+
+  setTimeout(() => {
+    document.getElementById('treasure-minigame-modal').classList.add('hidden');
+    // Ricompensa exp e fun SOLO se il gioco è finito (sconfitta)
+    if (typeof updateFunAndExpFromMiniGame === "function") {
+      let fun, exp;
+      // Puoi considerare sempre vittoria = false perché non c'è "vittoria vera"
+      fun = 15 + Math.round(treasureScore * 0.6);
+      exp = Math.round(treasureScore * 0.5);
+      updateFunAndExpFromMiniGame(fun, exp);
+      showExpGainLabel(exp);
+    }
+  }, 1000);
+}
+
 // Avvio dal bottone minigioco
 document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');

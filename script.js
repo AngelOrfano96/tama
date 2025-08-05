@@ -430,7 +430,7 @@ function treasureTouchMove(dir) {
 setupTreasureTouchControls();
 
 function drawTreasure() {
-  // Solo la stanza corrente
+  // Solo la stanza corrente!
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
   const tile = getTreasureDimensions().tile;
 
@@ -448,26 +448,29 @@ function drawTreasure() {
     if (room[y][x] === 1)
       treasureCtx.drawImage(treasureWallImg, x*tile, y*tile, tile, tile);
 
-  // Oggetti
+  // Oggetti (monete)
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
-  for (const obj of roomObjects[key]) {
-    if (obj.type === 'coin' && !obj.taken)
-      treasureCtx.drawImage(treasureCoinImg, obj.x*tile+4, obj.y*tile+4, tile-8, tile-8);
+  if (roomObjects[key]) {
+    for (const obj of roomObjects[key]) {
+      if (obj.type === 'coin' && !obj.taken)
+        treasureCtx.drawImage(treasureCoinImg, obj.x*tile+4, obj.y*tile+4, tile-8, tile-8);
+    }
   }
   // Powerup
-  if (roomPowerups[key]) for (const p of roomPowerups[key])
+  if (treasurePowerups[key]) for (const p of treasurePowerups[key])
     if (!p.taken)
       treasureCtx.drawImage(treasurePowerupImg, p.x*tile+5, p.y*tile+5, tile-10, tile-10);
 
   // Porta (solo stanza uscita)
   if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
-    treasureCtx.globalAlpha = (Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0) ? 1 : 0.6;
+    let moneteRimaste = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
+    treasureCtx.globalAlpha = (moneteRimaste === 0) ? 1 : 0.6;
     treasureCtx.drawImage(treasureExitImg, exitTile.x*tile+6, exitTile.y*tile+6, tile-12, tile-12);
     treasureCtx.globalAlpha = 1;
   }
 
   // Nemici
-  for (const e of roomEnemies[key])
+  if (roomEnemies[key]) for (const e of roomEnemies[key])
     treasureCtx.drawImage(treasureEnemyImg, e.x*tile+3, e.y*tile+3, tile-6, tile-6);
 
   // Pet
@@ -476,12 +479,14 @@ function drawTreasure() {
   // Score/UI
   treasureCtx.font = "bold 18px Segoe UI";
   treasureCtx.fillStyle = "#fffc34";
-  treasureCtx.fillText(`Monete rimaste: ${Object.values(roomObjects).flat().filter(o=>o.type==="coin" && !o.taken).length}`, 18, 22);
+  let moneteRimaste = Object.values(roomObjects).flat().filter(o=>o.type==="coin" && !o.taken).length;
+  treasureCtx.fillText(`Monete rimaste: ${moneteRimaste}`, 18, 22);
   treasureCtx.fillStyle = "#ff7349";
   treasureCtx.fillText(`Tempo: ${treasureTimeLeft}s`, 180, 22);
   treasureCtx.fillStyle = "#29e";
   treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
 }
+
 
 
 document.getElementById('btn-minigame-treasure').addEventListener('click', () => {

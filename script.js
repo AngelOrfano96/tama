@@ -60,11 +60,39 @@ jumperBgImg.src = "assets/backgrounds/ground.png";
 jumperSkyImg.src = "assets/backgrounds/sky.png"; // <-- metti un tuo asset, va bene anche un cielo semplice
 
 const mobileJumpBtn = document.getElementById('jumper-mobile-jump-btn');
+
+
+function triggerJumpOnce(e) {
+  jumperJump();
+  // Disabilita il tasto fino al prossimo rilascio per evitare multi-jump
+  mobileJumpBtn.disabled = true;
+}
+
+function enableJumpBtn() {
+  mobileJumpBtn.disabled = false;
+}
+
+function setupMobileJumpBtn() {
+  // Eventi reattivi: salta subito su pressione!
+  mobileJumpBtn.addEventListener('touchstart', triggerJumpOnce);
+  mobileJumpBtn.addEventListener('mousedown', triggerJumpOnce);
+
+  // Riabilita il tasto al rilascio (necessario per permettere un nuovo salto)
+  mobileJumpBtn.addEventListener('touchend', enableJumpBtn);
+  mobileJumpBtn.addEventListener('mouseup', enableJumpBtn);
+  mobileJumpBtn.addEventListener('mouseleave', enableJumpBtn); // extra sicurezza
+}
+
+// Chiamala una sola volta all’inizio della pagina/script!
+setupMobileJumpBtn();
+
 function updateJumpBtnVisibility() {
   if (window.innerWidth < 600 && jumperActive) {
     mobileJumpBtn.style.display = 'block';
+    mobileJumpBtn.disabled = false;
   } else {
     mobileJumpBtn.style.display = 'none';
+    mobileJumpBtn.disabled = true;
   }
 }
 window.addEventListener('resize', updateJumpBtnVisibility);

@@ -571,14 +571,14 @@ if (treasurePetImg.complete) {
       treasureCtx.fillRect(exitTile.x*tile+10, exitTile.y*tile+10, tile-20, tile-20);
     }
   }
-
+   /*
   // Testo UI (in alto a sinistra)
   treasureCtx.font = "bold 18px Segoe UI";
   treasureCtx.fillStyle = "#fff";
   let moneteRimaste = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
   treasureCtx.fillText(`Monete rimaste: ${moneteRimaste}`, 18, 22);
   treasureCtx.fillText(`Tempo: ${treasureTimeLeft}s`, 180, 22);
-  treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
+  treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22); */
 }
 
 function endTreasureMinigame() {

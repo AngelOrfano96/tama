@@ -169,14 +169,15 @@
 <div id="treasure-minigame-modal" class="minigame-modal hidden" style="z-index:1001;">
   <div class="minigame-header" style="margin-bottom: 12px;">
     <span id="treasure-bonus-label" style="display:none; font-weight:bold; font-size:1.15em;"></span>
-    <div style="display:flex;justify-content:space-between;">
-      <span>Punteggio: <span id="treasure-minigame-score">0</span></span>
-      <span>Monete rimaste: <span id="treasure-minigame-coins">0</span></span>
-      <span>Tempo: <span id="treasure-timer">--</span></span>
-      <span id="treasure-level">Livello: 1</span>
-    </div>
   </div>
   <div style="display:flex;justify-content:center;align-items:center;position:relative;">
+    <div class="treasure-info-bar">
+  <span><img src="assets/collectibles/coin.png" class="info-icon"> <span id="treasure-minigame-coins">0</span></span>
+  <span><img src="assets/icons/timer.png" class="info-icon"> <span id="treasure-timer">--</span>s</span>
+  <span><img src="assets/icons/timer.png" class="info-icon"> <span id="treasure-level">1</span></span>
+  <span><img src="assets/icons/timer.png" class="info-icon"> <span id="treasure-minigame-score">0</span></span>
+</div>
+<canvas id="treasure-canvas"></canvas>
     <canvas id="treasure-canvas"
       style="background:#181b1e;display:block;border-radius:14px;box-shadow:0 2px 12px #0007;margin:0 auto;"></canvas>
     <div id="treasure-feedback-label"

@@ -21,9 +21,14 @@ let treasureNeeded;
 function getTreasureDimensions() {
   if (window.innerWidth < 600) return { width: 320, height: 256, tile: 32 };
   if (window.innerWidth < 900) return { width: 416, height: 320, tile: 40 };
-  //return { width: 576, height: 432, tile: 48 };
-  return { width: 1280, height: 720, tile: 48 };
+  // Desktop: canvas 1280x720 esatti
+  return {
+    width: 1280,
+    height: 720,
+    tile: Math.floor(Math.min(1280 / ROOM_W, 720 / ROOM_H))
+  };
 }
+
 
 // Avvia il minigioco (Vera partita nuova: rigenera dungeon)
 function startTreasureMinigame() {

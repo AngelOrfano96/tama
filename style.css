@@ -677,3 +677,8 @@ html, body {
   background: #c33;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .treasure-arrows-container {
+    display: none !important;
+  }
+}

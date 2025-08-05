@@ -577,6 +577,19 @@ function endTreasureMinigame() {
   }, 1000);
 }
 
+function showTreasureArrowsIfMobile() {
+  const arrows = document.querySelector('.treasure-arrows-container');
+  // Mostra SOLO se touch screen
+  if (window.matchMedia("(hover: none) and (pointer: coarse)").matches) {
+    arrows.style.display = "";
+  } else {
+    arrows.style.display = "none";
+  }
+}
+showTreasureArrowsIfMobile();
+window.addEventListener('resize', showTreasureArrowsIfMobile);
+
+
 // Avvio dal bottone minigioco
 document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');

@@ -72,6 +72,38 @@ treasurePet = {
   powered: false
 };
 
+enemies.push({ 
+  x: ex, 
+  y: ey, 
+  drawX: ex,   // aggiungi
+  drawY: ey,   // aggiungi
+  slow: false 
+});
+
+function moveEnemyTo(enemy, targetX, targetY, duration = 120) {
+  const startX = enemy.drawX;
+  const startY = enemy.drawY;
+  const endX = targetX;
+  const endY = targetY;
+  const startTime = performance.now();
+
+  function animate(now) {
+    let t = Math.min(1, (now - startTime) / duration);
+    enemy.drawX = startX + (endX - startX) * t;
+    enemy.drawY = startY + (endY - startY) * t;
+    drawTreasure();
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      enemy.drawX = endX;
+      enemy.drawY = endY;
+      drawTreasure();
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+
 function movePetTo(targetX, targetY, duration = 120) {
   const startX = treasurePet.drawX;
   const startY = treasurePet.drawY;
@@ -107,7 +139,7 @@ function startTreasureLevel() {
   treasureCanvas.style.height = `${ROOM_H * tile}px`;
   treasureCtx = treasureCanvas.getContext('2d');
 
-  treasureTimeLeft = 28 + treasureLevel * 3;
+  treasureTimeLeft = 58 + treasureLevel * 3;
   treasurePlaying = true;
   treasureCanMove = true;
   treasureActivePowerup = null;
@@ -336,10 +368,14 @@ function moveTreasureEnemies() {
     let matrix = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
     let path = findPath(matrix, e, treasurePet);
     if (path && path.length > 1) {
-      let step = e.slow ? 1 : treasurePet.speed;
-      let next = path[Math.min(1, path.length-1)];
-      e.x = next.x; e.y = next.y;
-    }
+  let step = e.slow ? 1 : treasurePet.speed;
+  let next = path[Math.min(1, path.length-1)];
+  // PRIMA: e.x = next.x; e.y = next.y;
+  moveEnemyTo(e, next.x, next.y);    // <--- FLUIDO
+  e.x = next.x;
+  e.y = next.y;
+}
+
     // Se goblin raggiunge il pet
     if (e.x === treasurePet.x && e.y === treasurePet.y) {
       treasurePlaying = false;
@@ -514,14 +550,14 @@ if (treasurePetImg.complete) {
   // Nemici
   if (roomEnemies[key]) {
     for (const e of roomEnemies[key]) {
-      if (treasureEnemyImg.complete) {
-        treasureCtx.drawImage(treasureEnemyImg, e.x*tile+6, e.y*tile+6, tile-12, tile-12);
-      } else {
-        treasureCtx.fillStyle = "#e74c3c";
-        treasureCtx.fillRect(e.x*tile+8, e.y*tile+8, tile-16, tile-16);
-      }
-    }
+  if (treasureEnemyImg.complete) {
+    treasureCtx.drawImage(treasureEnemyImg, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
+  } else {
+    treasureCtx.fillStyle = "#e74c3c";
+    treasureCtx.fillRect(e.drawX*tile+8, e.drawY*tile+8, tile-16, tile-16);
   }
+  }
+}
 
   // USCITA
   if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {

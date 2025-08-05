@@ -360,6 +360,13 @@ function treasureTouchMove(dir) {
 }
 setupTreasureTouchControls();
 
+document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
+  document.getElementById('treasure-minigame-modal').classList.remove('hidden');
+  startTreasureMinigame();
+});
+
+
 
 
 // === MINI GIOCO "SALTA GLI OSTACOLI" (DINO STYLE) ===

@@ -1479,4 +1479,11 @@ document.getElementById('exit-btn').addEventListener('click', async () => {
   showOnly('login-container');
 });
 
+document.addEventListener('gesturestart', function (e) {
+  e.preventDefault();
+});
+document.addEventListener('dblclick', function (e) {
+  e.preventDefault();
+});
+
 

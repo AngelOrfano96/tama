@@ -601,3 +601,13 @@ button, .maze-arrow-btn {
     min-height: 480px !important;
   }
 }
+body, canvas, button, #jumper-mobile-jump-btn {
+  user-select: none;          /* Disabilita selezione testo */
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;  /* Disabilita highlight azzurro sui tap */
+  touch-action: manipulation; /* Disabilita gesture extra tipo double-tap zoom */
+}
+html, body {
+  overscroll-behavior: contain; /* Niente scroll elastico */
+  touch-action: manipulation;   /* Blocca zoom e pan via touch */
+}

@@ -60,10 +60,10 @@ function startTreasureMinigame() {
 
 function startTreasureLevel() {
   // --- DIMENSIONI E CANVAS ---
-  const dims = getTreasureDimensions();
+  const tile = getTreasureDimensions().tile;
   treasureCanvas = document.getElementById('treasure-canvas');
-  treasureCanvas.width = dims.width;
-  treasureCanvas.height = dims.height;
+  treasureCanvas.width = ROOM_W * tile;
+  treasureCanvas.height = ROOM_H * tile;
   treasureCtx = treasureCanvas.getContext('2d');
 
   // --- DUNGEON ROOMS ---
@@ -166,15 +166,21 @@ function generateDungeon() {
       }
 
       // NEMICI
-      let nEnemies = Math.floor(Math.random()*2); // 0 o 1 per stanza
-      for (let i = 0; i < nEnemies; i++) {
-        let ex, ey;
-        do {
-          ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
-          ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
-        } while ((rx === exitRoom.x && ry === exitRoom.y && ex === exitTile.x && ey === exitTile.y));
-        enemies.push({ x: ex, y: ey, slow: false });
-      }
+      // NEMICI
+let nEnemies = Math.floor(Math.random()*2); // 0 o 1 per stanza
+for (let i = 0; i < nEnemies; i++) {
+  let ex, ey;
+  do {
+    ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
+    ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
+    // NON su porte centrali
+    let isNearDoor = false;
+    if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
+    if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
+  } while (isNearDoor);
+  enemies.push({ x: ex, y: ey, slow: false });
+}
+
 
       // POWERUP (random)
       if (Math.random() < 0.35) {
@@ -226,6 +232,26 @@ function handleTreasureMove(e) {
   } else {
     return;
   }
+  // Dopo aver cambiato stanza:
+let newKey = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
+if (roomEnemies[newKey]) {
+  for (let e of roomEnemies[newKey]) {
+    let ex, ey;
+    let tentativi = 0;
+    do {
+      ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
+      ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
+      let isNearDoor = false;
+      if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
+      if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
+      tentativi++;
+      if (!isNearDoor) break;
+    } while (tentativi < 10);
+    e.x = ex;
+    e.y = ey;
+  }
+}
+
 
   // --- OGGETTI ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
@@ -290,12 +316,23 @@ function moveTreasureEnemies() {
     let matrix = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
     let path = findPath(matrix, e, treasurePet);
     if (path && path.length > 1) {
+      let step = e.slow ? 1 : treasurePet.speed;
       let next = path[Math.min(1, path.length-1)];
       e.x = next.x;
       e.y = next.y;
     }
+    // Se goblin raggiunge il pet
+    if (e.x === treasurePet.x && e.y === treasurePet.y) {
+      treasurePlaying = false;
+      showTreasureBonus("Game Over!", "#e74c3c");
+      window.removeEventListener('keydown', handleTreasureMove);
+      if (treasureInterval) clearInterval(treasureInterval);
+      setTimeout(()=>{ document.getElementById('treasure-minigame-modal').classList.add('hidden'); }, 1500);
+      return;
+    }
   }
 }
+
 
 function showTreasureBonus(msg, color="#e67e22") {
   const lab = document.getElementById('treasure-bonus-label');

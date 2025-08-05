@@ -231,8 +231,7 @@ for (let i = 0; i < nEnemies; i++) {
   } while (isDoor && tentativi < 30); // Massimo 30 tentativi, poi accetta dov'è
   enemies.push({ x: ex, y: ey, drawX: ex, drawY: ey, slow: false });
 }
-
-      }
+      
       // Powerup (random)
       if (Math.random() < 0.35) {
         let ptx, pty;
@@ -246,6 +245,7 @@ for (let i = 0; i < nEnemies; i++) {
       roomEnemies[key] = enemies;
       roomPowerups[key] = powerups;
     }
+   }
   }
 
 

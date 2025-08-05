@@ -362,7 +362,7 @@ if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {
   }, 1500);
   return;
 }
-
+}
 
 // Movimento goblin
 function moveTreasureEnemies() {
@@ -392,7 +392,7 @@ function moveTreasureEnemies() {
     }
   }
 }
-}
+
 
 
 function showTreasureBonus(msg, color="#e67e22") {

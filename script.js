@@ -548,14 +548,12 @@ if (treasurePetImg.complete) {
 
 
   // Nemici
-  if (roomEnemies[key]) {
-    for (const e of roomEnemies[key]) {
+  for (const e of roomEnemies[key]) {
   if (treasureEnemyImg.complete) {
     treasureCtx.drawImage(treasureEnemyImg, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
   } else {
     treasureCtx.fillStyle = "#e74c3c";
     treasureCtx.fillRect(e.drawX*tile+8, e.drawY*tile+8, tile-16, tile-16);
-  }
   }
 }
 

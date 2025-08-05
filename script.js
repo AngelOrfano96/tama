@@ -247,7 +247,7 @@ for (let i = 0; i < nEnemies; i++) {
       roomPowerups[key] = powerups;
     }
   }
-}
+
 
 // Spostamento del pet
 function handleTreasureMove(e) {

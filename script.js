@@ -125,7 +125,7 @@ function startTreasureLevel() {
   treasureCanvas.style.height = `${ROOM_H * tile}px`;
   treasureCtx = treasureCanvas.getContext('2d');
 
-  treasureTimeLeft = 58 + treasureLevel * 3;
+  treasureTimeLeft = 90 + treasureLevel * 3;
   treasurePlaying = true;
   treasureCanMove = true;
   treasureActivePowerup = null;

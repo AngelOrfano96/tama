@@ -184,30 +184,83 @@ function jumperTick() {
     jumperCtx.fillRect(0, jumperGroundY, jumperDims.width, 36);
   }
 
-  // --- OSTACOLI E PIATTAFORME ---
+    // --- OSTACOLI & PIATTAFORME (ALGORITMO AVANZATO) ---
   const now = Date.now();
   if (typeof jumperLastObstacle === 'undefined') jumperLastObstacle = 0;
   if (typeof jumperLastPlatform === 'undefined') jumperLastPlatform = 0;
   const obstacleInterval = 850;
   const platformInterval = 1200;
 
-  // Ostacoli (regolati)
+  // === OSTACOLI: pattern e variazione ===
   if (
     now - jumperLastObstacle > obstacleInterval &&
-    (jumperObstacles.length === 0 || jumperObstacles[jumperObstacles.length-1].x < jumperDims.width - 90)
+    (jumperObstacles.length === 0 || jumperObstacles[jumperObstacles.length - 1].x < jumperDims.width - 90)
   ) {
-    let safeToSpawn = !jumperPlatforms.some(plat =>
-      plat.x > jumperDims.width - 120 && plat.y > jumperGroundY - jumperDims.pet*1.3
-    );
-    if (safeToSpawn && Math.random() < 0.93) {
+    // Difficoltà in base ai punti
+    let diff = Math.min(1, jumperScore / 60); // 0 → 1
+
+    // Random tipologia ostacolo
+    let pattern = Math.random();
+    let spawnX = jumperDims.width + Math.random() * 40;
+
+    // SINGOLO, DOPPIO, o PICCOLO+GRANDE, o salto ostacolo
+    if (pattern < 0.65 - diff * 0.3) {
+      // Ostacolo singolo, dimensione random
+      let sizeRand = Math.random();
+      let obsW = jumperDims.obstacle * (sizeRand > 0.7 ? 1.6 : sizeRand > 0.35 ? 1.15 : 0.95);
+      let obsH = obsW;
       jumperObstacles.push({
-        x: jumperDims.width + Math.random()*30,
-        y: jumperGroundY - jumperDims.obstacle,
-        w: jumperDims.obstacle,
-        h: jumperDims.obstacle,
+        x: spawnX,
+        y: jumperGroundY - obsH,
+        w: obsW,
+        h: obsH,
         passed: false
       });
       jumperLastObstacle = now;
+    } else if (pattern < 0.92) {
+      // Ostacolo doppio (due piccoli ravvicinati, solo se c’è spazio)
+      let obsW = jumperDims.obstacle * 0.9;
+      let obsH = obsW;
+      jumperObstacles.push({
+        x: spawnX,
+        y: jumperGroundY - obsH,
+        w: obsW,
+        h: obsH,
+        passed: false
+      });
+      jumperObstacles.push({
+        x: spawnX + obsW + 12 + Math.random() * 10,
+        y: jumperGroundY - obsH,
+        w: obsW,
+        h: obsH,
+        passed: false
+      });
+      jumperLastObstacle = now + 150; // delay per non farli spawnare subito dopo
+    } else {
+      // Speciale: ostacolo + piattaforma (solo se score alto)
+      if (jumperScore > 10 && jumperPlatforms.length < 3) {
+        let platW = 72 * (jumperDims.width / 320);
+        let platH = 18 * (jumperDims.height / 192);
+        let platY = jumperGroundY - jumperDims.pet * (1.5 + Math.random() * 0.5);
+        let platX = spawnX + jumperDims.obstacle * 1.5 + 8;
+        jumperPlatforms.push({
+          x: platX,
+          y: platY,
+          w: platW,
+          h: platH
+        });
+      }
+      // Ostacolo singolo "medio"
+      let obsW = jumperDims.obstacle * 1.15;
+      let obsH = obsW;
+      jumperObstacles.push({
+        x: spawnX,
+        y: jumperGroundY - obsH,
+        w: obsW,
+        h: obsH,
+        passed: false
+      });
+      jumperLastObstacle = now + 200;
     }
   }
 

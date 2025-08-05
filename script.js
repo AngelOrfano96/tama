@@ -47,9 +47,9 @@ jumperPlatformImg.src = "assets/tiles/platforms.png"; // Usa il tuo asset!
 // Adattivo: dimensioni canvas e tile
 function getJumperDimensions() {
   if (window.innerWidth < 600) {
-    return { width: 320, height: 192, ground: 144, pet: 48, obstacle: 22 };
+    return { width: 370, height: 230, ground: 178, pet: 54, obstacle: 22 };
   } else {
-    return { width: 480, height: 288, ground: 216, pet: 72, obstacle: 25 }; //obstacle54
+    return { width: 480, height: 288, ground: 216, pet: 72, obstacle: 25 };
   }
 }
 
@@ -58,6 +58,16 @@ jumperPetImg.src = document.getElementById('pet').src;
 jumperObstacleImg.src = "assets/tiles/obstacle.png";
 jumperBgImg.src = "assets/backgrounds/ground.png";
 jumperSkyImg.src = "assets/backgrounds/sky.png"; // <-- metti un tuo asset, va bene anche un cielo semplice
+
+const mobileJumpBtn = document.getElementById('jumper-mobile-jump-btn');
+function updateJumpBtnVisibility() {
+  if (window.innerWidth < 600 && jumperActive) {
+    mobileJumpBtn.style.display = 'block';
+  } else {
+    mobileJumpBtn.style.display = 'none';
+  }
+}
+window.addEventListener('resize', updateJumpBtnVisibility);
 
 function startJumperMinigame() {
   jumperActive = true;
@@ -195,17 +205,16 @@ function jumperTick() {
   }
 
   // === GENERA BONUS SOLO IN POSIZIONE VALIDA ===
-  if (Math.random() < 0.012 && jumperBonuses.length < 1) {
+  if (Math.random() < 0.007 && jumperBonuses.length < 1) {
     let bonusW = 32 * (jumperDims.width/320);
     let bonusH = 32 * (jumperDims.height/192);
-    let bonusX = jumperDims.width + Math.random() * 60;
+    let bonusX = jumperDims.width + 16 + Math.random()*60; // sempre subito fuori a destra!
     let placed = false;
 
-    // Prova a spawnare sopra una piattaforma, solo se c’è almeno una piattaforma “sufficientemente libera”
+    // Prova piattaforma libera (come prima)
     if (Math.random() < 0.45 && jumperPlatforms.length > 0) {
       let possiblePlats = jumperPlatforms.filter(p =>
         p.w > bonusW + 8 &&
-        // NESSUN OSTACOLO sopra la piattaforma in quel range
         !jumperObstacles.some(obs =>
           obs.x < p.x + p.w && obs.x + obs.w > p.x &&
           Math.abs(obs.y - p.y) < jumperDims.pet
@@ -213,10 +222,9 @@ function jumperTick() {
       );
       if (possiblePlats.length > 0) {
         let plat = possiblePlats[Math.floor(Math.random() * possiblePlats.length)];
-        bonusX = plat.x + plat.w/2 - bonusW/2;
+        bonusX = Math.max(plat.x + plat.w/2 - bonusW/2, jumperDims.width); // MAI a sinistra!
         let bonusY = plat.y - bonusH;
-        if (bonusY < 24) bonusY = 24; // non troppo in alto
-        // Controlla che NESSUN bonus sia già troppo vicino
+        if (bonusY < 24) bonusY = 24;
         if (!jumperBonuses.some(b => Math.abs(b.x - bonusX) < bonusW + 10)) {
           jumperBonuses.push({
             x: bonusX,
@@ -229,15 +237,13 @@ function jumperTick() {
         }
       }
     }
-    // Se non messo sopra piattaforma, prova a terra
+    // Se non su piattaforma, prova solo a terra (sempre da destra)
     if (!placed) {
       let bonusY = jumperGroundY - bonusH;
-      // NON vicino ad ostacoli
       let tooCloseToObstacle = jumperObstacles.some(obs =>
         Math.abs((obs.x + obs.w/2) - (bonusX + bonusW/2)) < bonusW + 8 &&
         Math.abs((obs.y + obs.h) - (jumperGroundY)) < 3
       );
-      // NON sopra una piattaforma
       let tooCloseToPlatform = jumperPlatforms.some(p =>
         bonusX + bonusW > p.x && bonusX < p.x + p.w &&
         Math.abs(bonusY + bonusH - p.y) < 4

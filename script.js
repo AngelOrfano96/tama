@@ -1137,7 +1137,7 @@ petY = minY + Math.random() * (maxY - minY);
         minigameMove();
       }, 300);
     }
-  }, 1800);
+  }, 900);
 } else {
   if (petTimeout) clearTimeout(petTimeout);
   petTimeout = setTimeout(() => {
@@ -1145,9 +1145,9 @@ petY = minY + Math.random() * (maxY - minY);
       minigameCanClick = false;
       setTimeout(() => {
         minigameMove();
-      }, 300);
+      }, 400);
     }
-  }, 500); // <-- pet resta per 1.4s
+  }, 400); // <-- pet resta per 0.5s
 }
 
   }

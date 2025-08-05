@@ -430,62 +430,59 @@ function treasureTouchMove(dir) {
 setupTreasureTouchControls();
 
 function drawTreasure() {
-  // Solo la stanza corrente!
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
   const tile = getTreasureDimensions().tile;
 
-  // Sfondo
-  if (treasureBgImg.complete) {
-    for (let y = 0; y < ROOM_H; y++)
-      for (let x = 0; x < ROOM_W; x++)
-        treasureCtx.drawImage(treasureBgImg, x*tile, y*tile, tile, tile);
-  } else {
-    treasureCtx.fillStyle = "#222";
-    treasureCtx.fillRect(0,0,ROOM_W*tile,ROOM_H*tile);
-  }
-  // Muri
-  for (let y = 0; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++)
-    if (room[y][x] === 1)
-      treasureCtx.drawImage(treasureWallImg, x*tile, y*tile, tile, tile);
+  // SFONDO: viola per debug
+  treasureCtx.fillStyle = "#663399";
+  treasureCtx.fillRect(0,0,ROOM_W*tile,ROOM_H*tile);
 
-  // Oggetti (monete)
+  // MURI: grigio
+  for (let y = 0; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++)
+    if (room[y][x] === 1) {
+      treasureCtx.fillStyle = "#888";
+      treasureCtx.fillRect(x*tile, y*tile, tile, tile);
+    }
+
+  // Pet: giallo
+  treasureCtx.fillStyle = "#FFD700";
+  treasureCtx.fillRect(treasurePet.x*tile+8, treasurePet.y*tile+8, tile-16, tile-16);
+
+  // Monete: arancione
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   if (roomObjects[key]) {
     for (const obj of roomObjects[key]) {
-      if (obj.type === 'coin' && !obj.taken)
-        treasureCtx.drawImage(treasureCoinImg, obj.x*tile+4, obj.y*tile+4, tile-8, tile-8);
+      if (obj.type === 'coin' && !obj.taken) {
+        treasureCtx.fillStyle = "#FFA500";
+        treasureCtx.beginPath();
+        treasureCtx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2);
+        treasureCtx.fill();
+      }
     }
   }
-  // Powerup
-  if (treasurePowerups[key]) for (const p of treasurePowerups[key])
-    if (!p.taken)
-      treasureCtx.drawImage(treasurePowerupImg, p.x*tile+5, p.y*tile+5, tile-10, tile-10);
-
-  // Porta (solo stanza uscita)
-  if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
-    let moneteRimaste = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
-    treasureCtx.globalAlpha = (moneteRimaste === 0) ? 1 : 0.6;
-    treasureCtx.drawImage(treasureExitImg, exitTile.x*tile+6, exitTile.y*tile+6, tile-12, tile-12);
-    treasureCtx.globalAlpha = 1;
+  // Nemici: rosso
+  if (roomEnemies[key]) {
+    for (const e of roomEnemies[key]) {
+      treasureCtx.fillStyle = "#e74c3c";
+      treasureCtx.fillRect(e.x*tile+8, e.y*tile+8, tile-16, tile-16);
+    }
   }
 
-  // Nemici
-  if (roomEnemies[key]) for (const e of roomEnemies[key])
-    treasureCtx.drawImage(treasureEnemyImg, e.x*tile+3, e.y*tile+3, tile-6, tile-6);
+  // Uscita: verde, solo nella stanza giusta
+  if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
+    treasureCtx.fillStyle = "#43e673";
+    treasureCtx.fillRect(exitTile.x*tile+10, exitTile.y*tile+10, tile-20, tile-20);
+  }
 
-  // Pet
-  treasureCtx.drawImage(treasurePetImg, treasurePet.x*tile+3, treasurePet.y*tile+3, tile-6, tile-6);
-
-  // Score/UI
+  // Testo UI (in alto a sinistra)
   treasureCtx.font = "bold 18px Segoe UI";
-  treasureCtx.fillStyle = "#fffc34";
-  let moneteRimaste = Object.values(roomObjects).flat().filter(o=>o.type==="coin" && !o.taken).length;
+  treasureCtx.fillStyle = "#fff";
+  let moneteRimaste = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
   treasureCtx.fillText(`Monete rimaste: ${moneteRimaste}`, 18, 22);
-  treasureCtx.fillStyle = "#ff7349";
   treasureCtx.fillText(`Tempo: ${treasureTimeLeft}s`, 180, 22);
-  treasureCtx.fillStyle = "#29e";
   treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
 }
+
 
 
 

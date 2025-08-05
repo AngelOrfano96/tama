@@ -18,15 +18,15 @@ let dungeonRooms = [];       // Matrice delle stanze [y][x]
 let dungeonPetRoom = {x: 0, y: 0}; // stanza attuale del pet
 let roomObjects = {};        // oggetti per stanza: {"2,0": [ {x:3,y:4,type:"coin"} ]}
 let roomEnemies = {};        // nemici per stanza
+let roomPowerups = {};       // powerups per stanza
 let exitRoom = {x: 0, y: 0}; // stanza uscita
 let exitTile = {x: 0, y: 0}; // posizione locale uscita nella stanza
 
 // Stato di gioco
 let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft, treasureInterval, treasureCanMove;
 let treasurePetImg, treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;
-let treasureCanvas, treasureCtx, treasurePowerups, treasureActivePowerup, treasurePowerupTimer;
+let treasureCanvas, treasureCtx, treasureActivePowerup, treasurePowerupTimer;
 let treasureNeeded;
-
 
 function getTreasureDimensions() {
   if (window.innerWidth < 600) return { width: 320, height: 256, tile: 32 };
@@ -67,13 +67,12 @@ function startTreasureLevel() {
   treasureCtx = treasureCanvas.getContext('2d');
 
   // --- DUNGEON ROOMS ---
-  generateDungeon(); // <--- nuova funzione! (vedi sotto)
+  generateDungeon(); // <--- nuova funzione!
 
   // Pet nella stanza centrale
   dungeonPetRoom = { x: Math.floor(DUNGEON_GRID_W/2), y: Math.floor(DUNGEON_GRID_H/2) };
   treasurePet = { x: 1, y: 1, speed: 1, powered: false };
 
-  treasureLevel = treasureLevel || 1;
   treasureScore = treasureScore || 0;
   treasureTimeLeft = 28 + treasureLevel * 3;
   treasurePlaying = true;
@@ -101,7 +100,7 @@ function generateDungeon() {
   dungeonRooms = [];
   roomObjects = {};
   roomEnemies = {};
-  treasurePowerups = {};
+  roomPowerups = {};
 
   // 1. Genera stanze
   for (let y = 0; y < DUNGEON_GRID_H; y++) {
@@ -189,7 +188,7 @@ function generateDungeon() {
 
       roomObjects[key] = objects;
       roomEnemies[key] = enemies;
-      treasurePowerups[key] = powerups;
+      roomPowerups[key] = powerups;
     }
   }
 }
@@ -237,7 +236,7 @@ function handleTreasureMove(e) {
     treasureScore += 10;
   }
   // Powerup
-  let powers = treasurePowerups[key];
+  let powers = roomPowerups[key];
   let pow = powers && powers.find(p=>p.x===treasurePet.x && p.y===treasurePet.y && !p.taken);
   if (pow) {
     pow.taken = true;
@@ -283,161 +282,6 @@ function handleTreasureMove(e) {
   document.getElementById('treasure-minigame-score').textContent = treasureScore;
 }
 
-
-function generateTreasureMatrix() {
-  // Dungeon random con corridoi (come labirinto!)
-  let matrix, tries = 0;
-  do {
-    matrix = [];
-    for (let y = 0; y < TREASURE_H; y++) {
-      let row = [];
-      for (let x = 0; x < TREASURE_W; x++) {
-        if (x === 0 || y === 0 || x === TREASURE_W-1 || y === TREASURE_H-1) row.push(1);
-        else row.push(Math.random() < 0.18 ? 1 : 0);
-      }
-      matrix.push(row);
-    }
-    matrix[1][1] = 0;
-    matrix[TREASURE_H-2][TREASURE_W-2] = 0;
-    tries++;
-  } while (!mazeHasPath(matrix, 1, 1, TREASURE_W-2, TREASURE_H-2) && tries < 12);
-  return matrix;
-}
-
-function randomEmptyCellTreasure() {
-  let x, y;
-  do {
-    x = 1 + Math.floor(Math.random() * (TREASURE_W-2));
-    y = 1 + Math.floor(Math.random() * (TREASURE_H-2));
-  } while (
-    treasureMatrix[y][x] !== 0 ||
-    (x === 1 && y === 1) || (x === TREASURE_W-2 && y === TREASURE_H-2) ||
-    treasureCoins.some(c => c.x === x && c.y === y) ||
-    treasureEnemies.some(e => e.x === x && e.y === y) ||
-    treasurePowerups.some(p => p.x === x && p.y === y)
-  );
-  return { x, y };
-}
-
-function drawTreasure() {
-  // Solo la stanza corrente
-  let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
-  const tile = getTreasureDimensions().tile;
-
-  // Sfondo
-  if (treasureBgImg.complete) {
-    for (let y = 0; y < ROOM_H; y++)
-      for (let x = 0; x < ROOM_W; x++)
-        treasureCtx.drawImage(treasureBgImg, x*tile, y*tile, tile, tile);
-  } else {
-    treasureCtx.fillStyle = "#222";
-    treasureCtx.fillRect(0,0,ROOM_W*tile,ROOM_H*tile);
-  }
-  // Muri
-  for (let y = 0; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++)
-    if (room[y][x] === 1)
-      treasureCtx.drawImage(treasureWallImg, x*tile, y*tile, tile, tile);
-
-  // Oggetti
-  let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
-  for (const obj of roomObjects[key]) {
-    if (obj.type === 'coin' && !obj.taken)
-      treasureCtx.drawImage(treasureCoinImg, obj.x*tile+4, obj.y*tile+4, tile-8, tile-8);
-  }
-  // Powerup
-  if (treasurePowerups[key]) for (const p of treasurePowerups[key])
-    if (!p.taken)
-      treasureCtx.drawImage(treasurePowerupImg, p.x*tile+5, p.y*tile+5, tile-10, tile-10);
-
-  // Porta (solo stanza uscita)
-  if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
-    treasureCtx.globalAlpha = (Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0) ? 1 : 0.6;
-    treasureCtx.drawImage(treasureExitImg, exitTile.x*tile+6, exitTile.y*tile+6, tile-12, tile-12);
-    treasureCtx.globalAlpha = 1;
-  }
-
-  // Nemici
-  for (const e of roomEnemies[key])
-    treasureCtx.drawImage(treasureEnemyImg, e.x*tile+3, e.y*tile+3, tile-6, tile-6);
-
-  // Pet
-  treasureCtx.drawImage(treasurePetImg, treasurePet.x*tile+3, treasurePet.y*tile+3, tile-6, tile-6);
-
-  // Score/UI
-  treasureCtx.font = "bold 18px Segoe UI";
-  treasureCtx.fillStyle = "#fffc34";
-  treasureCtx.fillText(`Monete rimaste: ${Object.values(roomObjects).flat().filter(o=>o.type==="coin" && !o.taken).length}`, 18, 22);
-  treasureCtx.fillStyle = "#ff7349";
-  treasureCtx.fillText(`Tempo: ${treasureTimeLeft}s`, 180, 22);
-  treasureCtx.fillStyle = "#29e";
-  treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
-}
-
-
-function handleTreasureMove(e) {
-  if (!treasurePlaying || !treasureCanMove) return;
-  let dx=0, dy=0;
-  if (e.key === "ArrowUp" || e.key==="w") dy=-1;
-  else if (e.key === "ArrowDown" || e.key==="s") dy=1;
-  else if (e.key === "ArrowLeft" || e.key==="a") dx=-1;
-  else if (e.key === "ArrowRight" || e.key==="d") dx=1;
-  else if (e.key === "Escape") { endTreasureMinigame(false); return; }
-  else return;
-  let nx = treasurePet.x + dx, ny = treasurePet.y + dy;
-  if (nx < 0 || ny < 0 || nx >= TREASURE_W || ny >= TREASURE_H) return;
-  if (treasureMatrix[ny][nx] === 1) return;
-
-  treasurePet.x = nx; treasurePet.y = ny;
-
-  // Coin?
-  let coin = treasureCoins.find(c=>c.x===nx && c.y===ny && !c.taken);
-  if (coin) {
-    coin.taken = true;
-    treasureScore += 10;
-  }
-  // Powerup?
-  let pow = treasurePowerups.find(p=>p.x===nx && p.y===ny && !p.taken);
-  if (pow) {
-    pow.taken = true;
-    if (pow.type==='speed') {
-      treasurePet.speed = 2;
-      treasureActivePowerup = 'speed';
-    } else {
-      for (const e of treasureEnemies) e.slow = true;
-      treasureActivePowerup = 'slow';
-    }
-    if (treasurePowerupTimer) clearTimeout(treasurePowerupTimer);
-    treasurePowerupTimer = setTimeout(() => {
-      treasurePet.speed = 1;
-      for (const e of treasureEnemies) e.slow = false;
-      treasureActivePowerup = null;
-    }, 3000);
-  }
-  // Porta?
-  if (treasureCoins.filter(c=>c.taken).length >= treasureNeeded)
-    treasureExit.open = true;
-  if (treasureExit.open && nx === treasureExit.x && ny === treasureExit.y) {
-    treasureLevel++;
-    document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    setTimeout(() => {
-      window.removeEventListener('keydown', handleTreasureMove);
-      startTreasureLevel();
-    }, 550);
-    return;
-  }
-  // Nemici?
-  if (treasureEnemies.some(e=>e.x===nx && e.y===ny)) {
-    treasurePlaying = false;
-    showTreasureBonus("Game Over!", "#e74c3c");
-    window.removeEventListener('keydown', handleTreasureMove);
-    if (treasureInterval) clearInterval(treasureInterval);
-    setTimeout(()=>{ document.getElementById('treasure-minigame-modal').classList.add('hidden'); }, 1500);
-    return;
-  }
-  drawTreasure();
-  document.getElementById('treasure-minigame-score').textContent = treasureScore;
-}
-
 function moveTreasureEnemies() {
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let enemies = roomEnemies[key];
@@ -446,7 +290,6 @@ function moveTreasureEnemies() {
     let matrix = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
     let path = findPath(matrix, e, treasurePet);
     if (path && path.length > 1) {
-      let step = e.slow ? 1 : treasurePet.speed;
       let next = path[Math.min(1, path.length-1)];
       e.x = next.x;
       e.y = next.y;
@@ -454,8 +297,6 @@ function moveTreasureEnemies() {
   }
 }
 
-
-// Bonus label
 function showTreasureBonus(msg, color="#e67e22") {
   const lab = document.getElementById('treasure-bonus-label');
   lab.textContent = msg;
@@ -550,6 +391,61 @@ function treasureTouchMove(dir) {
   handleTreasureMove(e);
 }
 setupTreasureTouchControls();
+
+function drawTreasure() {
+  // Solo la stanza corrente
+  let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
+  const tile = getTreasureDimensions().tile;
+
+  // Sfondo
+  if (treasureBgImg.complete) {
+    for (let y = 0; y < ROOM_H; y++)
+      for (let x = 0; x < ROOM_W; x++)
+        treasureCtx.drawImage(treasureBgImg, x*tile, y*tile, tile, tile);
+  } else {
+    treasureCtx.fillStyle = "#222";
+    treasureCtx.fillRect(0,0,ROOM_W*tile,ROOM_H*tile);
+  }
+  // Muri
+  for (let y = 0; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++)
+    if (room[y][x] === 1)
+      treasureCtx.drawImage(treasureWallImg, x*tile, y*tile, tile, tile);
+
+  // Oggetti
+  let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
+  for (const obj of roomObjects[key]) {
+    if (obj.type === 'coin' && !obj.taken)
+      treasureCtx.drawImage(treasureCoinImg, obj.x*tile+4, obj.y*tile+4, tile-8, tile-8);
+  }
+  // Powerup
+  if (roomPowerups[key]) for (const p of roomPowerups[key])
+    if (!p.taken)
+      treasureCtx.drawImage(treasurePowerupImg, p.x*tile+5, p.y*tile+5, tile-10, tile-10);
+
+  // Porta (solo stanza uscita)
+  if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
+    treasureCtx.globalAlpha = (Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0) ? 1 : 0.6;
+    treasureCtx.drawImage(treasureExitImg, exitTile.x*tile+6, exitTile.y*tile+6, tile-12, tile-12);
+    treasureCtx.globalAlpha = 1;
+  }
+
+  // Nemici
+  for (const e of roomEnemies[key])
+    treasureCtx.drawImage(treasureEnemyImg, e.x*tile+3, e.y*tile+3, tile-6, tile-6);
+
+  // Pet
+  treasureCtx.drawImage(treasurePetImg, treasurePet.x*tile+3, treasurePet.y*tile+3, tile-6, tile-6);
+
+  // Score/UI
+  treasureCtx.font = "bold 18px Segoe UI";
+  treasureCtx.fillStyle = "#fffc34";
+  treasureCtx.fillText(`Monete rimaste: ${Object.values(roomObjects).flat().filter(o=>o.type==="coin" && !o.taken).length}`, 18, 22);
+  treasureCtx.fillStyle = "#ff7349";
+  treasureCtx.fillText(`Tempo: ${treasureTimeLeft}s`, 180, 22);
+  treasureCtx.fillStyle = "#29e";
+  treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
+}
+
 
 document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');

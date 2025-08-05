@@ -329,6 +329,8 @@ function handleTreasureMove(e) {
       treasureActivePowerup = null;
     }, 3000);
   }
+  let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
+document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
   // Uscita
   if (
   dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&

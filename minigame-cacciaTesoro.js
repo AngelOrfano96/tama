@@ -280,9 +280,6 @@ function handleTreasureMove(e) {
   let py = treasurePet.y + dy;
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
 
-  
-
-
   // Passaggio stanza
   if (px < 0 && dungeonPetRoom.x > 0 && room[treasurePet.y][0] === 0) {
     dungeonPetRoom.x -= 1; treasurePet.x = ROOM_W - 2;
@@ -301,8 +298,6 @@ function handleTreasureMove(e) {
 
   movePetTo(treasurePet.x, treasurePet.y);
 
-  
-
   // --- OGGETTI ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
@@ -314,7 +309,7 @@ function handleTreasureMove(e) {
   if (pow) {
     pow.taken = true;
     treasureScore += 12;
-    document.getElementById('treasure-minigame-score').textContent = treasureScore; 
+    document.getElementById('treasure-minigame-score').textContent = treasureScore;
     if (pow.type==='speed') { treasurePet.speed = 2; treasureActivePowerup = 'speed'; }
     else {
       let enemies = roomEnemies[key];
@@ -330,39 +325,39 @@ function handleTreasureMove(e) {
     }, 3000);
   }
   let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
-document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
+  document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
+
   // Uscita
   if (
-  dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
-  treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
-  Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0
-) {
-  treasureLevel++;
-  document.getElementById('treasure-minigame-score').textContent = treasureScore;
-  setTimeout(() => {
+    dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
+    treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
+    Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0
+  ) {
+    treasureLevel++;
+    document.getElementById('treasure-minigame-score').textContent = treasureScore;
+    setTimeout(() => {
+      window.removeEventListener('keydown', handleTreasureMove);
+      generateDungeon();
+      startTreasureLevel();
+    }, 550);
+    return;
+  }
+
+  // Nemici: perdita
+  let enemies = roomEnemies[key];
+  if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {
+    treasurePlaying = false;
+    showTreasureBonus("Game Over!", "#e74c3c");
     window.removeEventListener('keydown', handleTreasureMove);
-    // AGGIUNGI QUESTO:
-    generateDungeon();
-    // Poi parti col nuovo livello
-    startTreasureLevel();
-  }, 550);
-  return;
+    if (treasureInterval) clearInterval(treasureInterval);
+    setTimeout(() => {
+      document.getElementById('treasure-minigame-modal').classList.add('hidden');
+      endTreasureMinigame(false); // <<<< ECCO L’EXP!
+    }, 1500);
+    return;
+  }
 }
 
- // Nemici: perdita
-let enemies = roomEnemies[key];
-if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {
-  treasurePlaying = false;
-  showTreasureBonus("Game Over!", "#e74c3c");
-  window.removeEventListener('keydown', handleTreasureMove);
-  if (treasureInterval) clearInterval(treasureInterval);
-  setTimeout(() => {
-    document.getElementById('treasure-minigame-modal').classList.add('hidden');
-    endTreasureMinigame(false);  // <--- AGGIUNGI QUESTO!
-  }, 1500);
-  return;
-}
-}
 
 // Movimento goblin
 function moveTreasureEnemies() {
@@ -373,13 +368,12 @@ function moveTreasureEnemies() {
     let matrix = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
     let path = findPath(matrix, e, treasurePet);
     if (path && path.length > 1) {
-  let step = e.slow ? 1 : treasurePet.speed;
-  let next = path[Math.min(1, path.length-1)];
-  // PRIMA: e.x = next.x; e.y = next.y;
-  moveEnemyTo(e, next.x, next.y);    // <--- FLUIDO
-  e.x = next.x;
-  e.y = next.y;
-}
+      let step = e.slow ? 1 : treasurePet.speed;
+      let next = path[Math.min(1, path.length-1)];
+      moveEnemyTo(e, next.x, next.y);
+      e.x = next.x;
+      e.y = next.y;
+    }
 
     // Se goblin raggiunge il pet
     if (e.x === treasurePet.x && e.y === treasurePet.y) {
@@ -387,11 +381,15 @@ function moveTreasureEnemies() {
       showTreasureBonus("Game Over!", "#e74c3c");
       window.removeEventListener('keydown', handleTreasureMove);
       if (treasureInterval) clearInterval(treasureInterval);
-      setTimeout(()=>{ document.getElementById('treasure-minigame-modal').classList.add('hidden'); }, 1500);
+      setTimeout(() => {
+        document.getElementById('treasure-minigame-modal').classList.add('hidden');
+        endTreasureMinigame(false); // <--- ASSEGNA L'EXP E CHIUDE
+      }, 1500);
       return;
     }
   }
 }
+
 
 
 

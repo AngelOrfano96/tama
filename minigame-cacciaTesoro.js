@@ -307,13 +307,14 @@ function handleTreasureMove(e) {
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o=>o.type==='coin' && o.x===treasurePet.x && o.y===treasurePet.y && !o.taken);
-  if (coin) { coin.taken = true; treasureScore += 1; }
+  if (coin) { coin.taken = true; treasureScore += 1; document.getElementById('treasure-minigame-score').textContent = treasureScore;}
   // Powerup
   let powers = roomPowerups[key];
   let pow = powers && powers.find(p=>p.x===treasurePet.x && p.y===treasurePet.y && !p.taken);
   if (pow) {
     pow.taken = true;
-    treasureScore += 12; 
+    treasureScore += 12;
+    document.getElementById('treasure-minigame-score').textContent = treasureScore; 
     if (pow.type==='speed') { treasurePet.speed = 2; treasureActivePowerup = 'speed'; }
     else {
       let enemies = roomEnemies[key];

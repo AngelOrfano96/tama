@@ -167,47 +167,40 @@
 
  <!-- ===== MODALE MINIGIOCO CACCIA AL TESORO ===== -->
 <div id="treasure-minigame-modal" class="minigame-modal hidden" style="z-index:1001;">
-  <div class="minigame-header">
+  <div class="minigame-header" style="margin-bottom: 12px;">
     <span id="treasure-bonus-label" style="display:none; font-weight:bold; font-size:1.15em;"></span>
     <div style="display:flex;justify-content:space-between;">
-      <span>Monete: <span id="treasure-minigame-score">0</span></span>
-      <span id="treasure-timer">--</span>
+      <span>Punteggio: <span id="treasure-minigame-score">0</span></span>
+      <span>Monete rimaste: <span id="treasure-minigame-coins">0</span></span>
+      <span>Tempo: <span id="treasure-timer">--</span></span>
       <span id="treasure-level">Livello: 1</span>
     </div>
   </div>
-  <div style="display:flex;justify-content:center;align-items:center;">
-    <div id="treasure-feedback-label"
-  style="display:none;position:absolute;left:50%;top:110px;z-index:10;font-size:2em;
-    font-weight:bold;color:#ffe44c;text-shadow:2px 3px 10px #000a,0 1px 0 #fff;
-    pointer-events:none;transform:translateX(-50%);transition:opacity .2s;">
-</div>
-<div class="minigame-header">
-  <span id="treasure-bonus-label" style="display:none; font-weight:bold; font-size:1.15em;"></span>
-  <div style="display:flex;justify-content:space-between;">
-    <span>Monete: <span id="treasure-minigame-score">0</span></span>
-    <span id="treasure-timer">--</span>
-    <span id="treasure-level">Livello: 1</span>
-  </div>
-</div>
+  <div style="display:flex;justify-content:center;align-items:center;position:relative;">
     <canvas id="treasure-canvas"
-    style="background:#181b1e;display:block;border-radius:14px;box-shadow:0 2px 12px #0007;margin:0 auto;"></canvas>
+      style="background:#181b1e;display:block;border-radius:14px;box-shadow:0 2px 12px #0007;margin:0 auto;"></canvas>
+    <div id="treasure-feedback-label"
+      style="display:none;position:absolute;left:50%;top:110px;z-index:10;font-size:2em;
+      font-weight:bold;color:#ffe44c;text-shadow:2px 3px 10px #000a,0 1px 0 #fff;
+      pointer-events:none;transform:translateX(-50%);transition:opacity .2s;">
+    </div>
   </div>
   <!-- CONTROLLI TOUCH (visibili solo su mobile) -->
   <div class="treasure-arrows-container">
-  <div class="treasure-arrows-row">
-    <button class="treasure-arrow-btn" data-dir="up">⬆️</button>
+    <div class="treasure-arrows-row">
+      <button class="treasure-arrow-btn" data-dir="up">⬆️</button>
+    </div>
+    <div class="treasure-arrows-row">
+      <button class="treasure-arrow-btn" data-dir="left">⬅️</button>
+      <button class="treasure-arrow-btn" data-dir="down">⬇️</button>
+      <button class="treasure-arrow-btn" data-dir="right">➡️</button>
+    </div>
   </div>
-  <div class="treasure-arrows-row">
-    <button class="treasure-arrow-btn" data-dir="left">⬅️</button>
-    <button class="treasure-arrow-btn" data-dir="down">⬇️</button>
-    <button class="treasure-arrow-btn" data-dir="right">➡️</button>
-  </div>
-</div>
-
   <div style="margin-top:10px;text-align:center;">
     <button id="treasure-exit-btn">Esci</button>
   </div>
 </div>
+
 
 
 

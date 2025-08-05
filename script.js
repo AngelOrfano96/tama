@@ -72,14 +72,6 @@ treasurePet = {
   powered: false
 };
 
-enemies.push({ 
-  x: ex, 
-  y: ey, 
-  drawX: ex,   // aggiungi
-  drawY: ey,   // aggiungi
-  slow: false 
-});
-
 function moveEnemyTo(enemy, targetX, targetY, duration = 120) {
   const startX = enemy.drawX;
   const startY = enemy.drawY;
@@ -235,7 +227,13 @@ function generateDungeon() {
           if (ex === Math.floor(ROOM_W/2) && (ey === 0 || ey === ROOM_H-1)) isNearDoor = true;
           if (ey === Math.floor(ROOM_H/2) && (ex === 0 || ex === ROOM_W-1)) isNearDoor = true;
         } while (isNearDoor);
-        enemies.push({ x: ex, y: ey, slow: false });
+        enemies.push({ 
+    x: ex, 
+    y: ey, 
+    drawX: ex, 
+    drawY: ey, 
+    slow: false 
+  });
       }
       // Powerup (random)
       if (Math.random() < 0.35) {

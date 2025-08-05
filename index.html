@@ -165,6 +165,36 @@
   </div>
 </div>
 
+ <!-- ===== MODALE MINIGIOCO CACCIA AL TESORO ===== -->
+<div id="treasure-minigame-modal" class="minigame-modal hidden" style="z-index:1001;">
+  <div class="minigame-header">
+    <span id="treasure-bonus-label" style="display:none; font-weight:bold; font-size:1.15em;"></span>
+    <div style="display:flex;justify-content:space-between;">
+      <span>Monete: <span id="treasure-minigame-score">0</span></span>
+      <span id="treasure-timer">--</span>
+      <span id="treasure-level">Livello: 1</span>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:center;align-items:center;">
+    <canvas id="treasure-canvas" style="background:#181b1e;display:block;border-radius:14px;box-shadow:0 2px 12px #0007;margin:0 auto;max-width:98vw;max-height:74vw;"></canvas>
+  </div>
+  <!-- CONTROLLI TOUCH (visibili solo su mobile) -->
+  <div id="treasure-touch-controls" style="display:none;margin-top:12px;text-align:center;">
+    <div style="display:flex;justify-content:center;gap:30px;">
+      <button class="treasure-arrow-btn" data-dir="up"   style="width:48px;height:48px;">⬆️</button>
+    </div>
+    <div style="display:flex;justify-content:center;gap:20px;margin-top:3px;">
+      <button class="treasure-arrow-btn" data-dir="left" style="width:48px;height:48px;">⬅️</button>
+      <button class="treasure-arrow-btn" data-dir="down" style="width:48px;height:48px;">⬇️</button>
+      <button class="treasure-arrow-btn" data-dir="right" style="width:48px;height:48px;">➡️</button>
+    </div>
+  </div>
+  <div style="margin-top:10px;text-align:center;">
+    <button id="treasure-exit-btn" style="padding:8px 20px;border-radius:8px;background:#c92d39;color:#fff;font-weight:bold;margin-top:6px;">Esci</button>
+  </div>
+</div>
+
+
 
     <!-- MODALE SELEZIONE MINIGIOCO -->
     <div id="minigame-select-modal" class="modal hidden">
@@ -173,6 +203,8 @@
         <button id="btn-minigame-catch">Prendimi!</button>
         <button id="btn-minigame-maze" class="minigame-btn">Fuga dal Dungeon</button>
         <button id="btn-minigame-jumper" class="minigame-btn">Salta gli ostacoli</button>
+        <button onclick="startTreasureMinigame()">Gioca a Caccia al Tesoro</button>
+
         <!-- Qui in futuro puoi aggiungere altri bottoni/mini giochi -->
         <br>
         <button id="btn-minigame-cancel" class="btn-minigame-cancel" style="margin-top:18px;">Chiudi</button>

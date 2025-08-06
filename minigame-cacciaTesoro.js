@@ -19,7 +19,11 @@ let treasureNeeded;
 
 // Responsive tile size!
 function getTreasureDimensions() {
-  if (window.innerWidth < 600) return { width: 320, height: 256, tile: 32 };
+  if (window.innerWidth < 700) {
+  treasureCanvas.width = window.innerWidth * 0.97;
+  treasureCanvas.height = treasureCanvas.width * 0.6;
+}
+
   if (window.innerWidth < 900) return { width: 416, height: 320, tile: 40 };
   // Desktop: canvas 1280x720 esatti
   return {

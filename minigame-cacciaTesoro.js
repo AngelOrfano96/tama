@@ -19,20 +19,20 @@ let treasureNeeded;
 
 // Responsive tile size!
 function getTreasureDimensions() {
-  /*
   if (window.innerWidth < 700) {
-  treasureCanvas.width = window.innerWidth * 0.97;
-  treasureCanvas.height = treasureCanvas.width * 0.6;
-}*/
-
-  if (window.innerWidth < 900) return { width: 416, height: 320, tile: 40 };
-  // Desktop: canvas 1280x720 esatti
-  return {
-    width: 1280,
-    height: 720,
-    tile: Math.floor(Math.min(1280 / ROOM_W, 720 / ROOM_H))
-  };
+    // Mobile: canvas rettangolare, tile più piccolo e canvas più basso
+    let width = Math.floor(window.innerWidth * 0.97);
+    let tile = Math.floor(width / ROOM_W);
+    let height = tile * ROOM_H * 0.8; // Ad esempio, abbassa un po' il canvas rispetto alla griglia classica
+    return { width, height, tile };
+  }
+  // Desktop
+  let width = 1280;
+  let tile = Math.floor(Math.min(1280 / ROOM_W, 720 / ROOM_H));
+  let height = tile * ROOM_H;
+  return { width, height, tile };
 }
+
 
 
 // Avvia il minigioco (Vera partita nuova: rigenera dungeon)

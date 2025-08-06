@@ -845,3 +845,44 @@ html, body {
   .treasure-info-bar { font-size: 1.13em; }
   #treasure-canvas { max-width: 430px; max-height: 300px; }
 }
+
+/* ... il tuo CSS sopra ... */
+
+.treasure-dungeon-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#treasure-canvas {
+  display: block;
+  background: #181b1e;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px #0007;
+  margin: 0 auto 8px auto;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 4;
+  max-width: 410px;
+  max-height: 340px;
+  transition: width 0.3s, height 0.3s;
+}
+
+/* MOBILE: canvas molto più alto, info bar sticky sopra */
+@media (max-width: 600px) {
+  .treasure-mobile-layout {
+    max-width: 100vw;
+    padding: 0 0 2vw 0;
+  }
+  .treasure-dungeon-area {
+    padding: 0 0 2vw 0;
+  }
+  #treasure-canvas {
+    width: 98vw;
+    max-width: 99vw;
+    aspect-ratio: 5/4;    /* Cambia qui per rendere più verticale, es: 3/4 */
+    max-height: 80vw;     /* Più spazio verticale su mobile! */
+  }
+}

@@ -19,19 +19,21 @@ let treasureNeeded;
 
 // Responsive tile size!
 function getTreasureDimensions() {
-  if (window.innerWidth < 700) {
-    // Mobile: canvas rettangolare, tile più piccolo e canvas più basso
-    let width = Math.floor(window.innerWidth * 0.97);
-    let tile = Math.floor(width / ROOM_W);
-    let height = tile * ROOM_H * 0.8; // Ad esempio, abbassa un po' il canvas rispetto alla griglia classica
-    return { width, height, tile };
+  if (window.innerWidth < 600) {
+    // MOBILE: canvas quasi tutto schermo, rettangolare verticale
+    const w = Math.floor(window.innerWidth * 0.98);
+    const h = Math.floor(w * 1.1); // es: rapporto 5:5.5 più alto
+    const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
+    return { width: w, height: h, tile };
+  } else {
+    // DESKTOP: più ampio, rapporto classico
+    const w = Math.min(430, window.innerWidth * 0.6);
+    const h = Math.floor(w * 0.85); // es: 5:4
+    const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
+    return { width: w, height: h, tile };
   }
-  // Desktop
-  let width = 1280;
-  let tile = Math.floor(Math.min(1280 / ROOM_W, 720 / ROOM_H));
-  let height = tile * ROOM_H;
-  return { width, height, tile };
 }
+
 
 
 
@@ -138,12 +140,12 @@ function movePetTo(targetX, targetY, duration = 120) {
 
 // Inizia un livello (ma NON ricreare dungeon)
 function startTreasureLevel() {
-  const tile = getTreasureDimensions().tile;
+  const {width, height, tile} = getTreasureDimensions();
   treasureCanvas = document.getElementById('treasure-canvas');
   treasureCanvas.width = ROOM_W * tile;
   treasureCanvas.height = ROOM_H * tile;
-  treasureCanvas.style.width = `${ROOM_W * tile}px`;
-  treasureCanvas.style.height = `${ROOM_H * tile}px`;
+  treasureCanvas.style.width = width + "px";
+  treasureCanvas.style.height = height + "px";
   treasureCtx = treasureCanvas.getContext('2d');
 
   treasureTimeLeft = 90 + treasureLevel * 3;

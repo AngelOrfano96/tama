@@ -140,13 +140,24 @@ function movePetTo(targetX, targetY, duration = 120) {
 
 // Inizia un livello (ma NON ricreare dungeon)
 function startTreasureLevel() {
+  /*
   const {width, height, tile} = getTreasureDimensions();
   treasureCanvas = document.getElementById('treasure-canvas');
   treasureCanvas.width = ROOM_W * tile;
   treasureCanvas.height = ROOM_H * tile;
   treasureCanvas.style.width = width + "px";
   treasureCanvas.style.height = height + "px";
-  treasureCtx = treasureCanvas.getContext('2d');
+  treasureCtx = treasureCanvas.getContext('2d'); */
+  const canvas = document.getElementById('treasure-canvas');
+  // Leggi le dimensioni dal CSS per la larghezza visiva
+  const rect = canvas.getBoundingClientRect();
+  // Calcola il tile dinamico per riempire tutto lo spazio disponibile
+  const tile = Math.floor(Math.min(rect.width / ROOM_W, rect.height / ROOM_H));
+  // Setta la risoluzione interna del canvas
+  canvas.width = ROOM_W * tile;
+  canvas.height = ROOM_H * tile;
+  treasureCtx = canvas.getContext('2d');
+
 
   treasureTimeLeft = 90 + treasureLevel * 3;
   treasurePlaying = true;

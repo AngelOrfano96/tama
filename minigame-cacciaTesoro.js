@@ -465,15 +465,7 @@ function findPath(matrix, start, end) {
   return path;
 }
 
-function endTreasureMinigame(vittoria) {
-  treasurePlaying = false;
-  window.removeEventListener('keydown', handleTreasureMove);
-  if (treasureInterval) clearInterval(treasureInterval);
-  setTimeout(() => {
-    document.getElementById('treasure-minigame-modal').classList.add('hidden');
-    // Qui puoi aggiungere updateFunAndExpFromMiniGame() come negli altri
-  }, 1000);
-}
+
 
 // --- UI Responsive ---
 window.addEventListener('resize', () => {

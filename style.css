@@ -682,11 +682,7 @@ html, body {
   align-items: flex-end;
   padding-left: 9px;
 }
-/*.treasure-arrows-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}*/
+
 .treasure-arrows-row {
   display: flex;
   justify-content: center;
@@ -905,7 +901,7 @@ body {
 }
 
 .treasure-arrows-container {
-  background: rgba(24,24,24,0.86);  /* più scuro e meno trasparente */
+  background: rgb(24, 24, 24);  /* più scuro e meno trasparente */
   border-radius: 24px;
   padding: 10px 16px;
   display: flex;

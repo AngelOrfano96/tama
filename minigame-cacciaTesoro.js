@@ -416,18 +416,6 @@ function moveTreasureEnemies() {
 }
 
 
-
-/*
-function showTreasureBonus(msg, color="#e67e22") {
-  const lab = document.getElementById('treasure-bonus-label');
-  lab.textContent = msg;
-  lab.style.display = "block";
-  lab.style.color = color;
-  lab.style.opacity = "1";
-  setTimeout(()=>lab.style.opacity="0", 1600);
-  setTimeout(()=>lab.style.display="none", 2100);
-} */
-
 // --- Utility BFS
 function findPath(matrix, start, end) {
   let W = matrix[0].length, H = matrix.length;

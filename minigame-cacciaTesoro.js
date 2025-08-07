@@ -380,7 +380,6 @@ function handleTreasureMove(e) {
     window.removeEventListener('keydown', handleTreasureMove);
     if (treasureInterval) clearInterval(treasureInterval);
     setTimeout(() => {
-      document.getElementById('treasure-minigame-modal').classList.add('hidden');
       endTreasureMinigame(); // <<<< ECCO L’EXP!
     }, 1500);
     return;
@@ -411,7 +410,6 @@ function moveTreasureEnemies() {
       window.removeEventListener('keydown', handleTreasureMove);
       if (treasureInterval) clearInterval(treasureInterval);
       setTimeout(() => {
-        document.getElementById('treasure-minigame-modal').classList.add('hidden');
         endTreasureMinigame(); // <--- ASSEGNA L'EXP E CHIUDE
       }, 1500);
       return;
@@ -609,7 +607,6 @@ function endTreasureMinigame() {
   if (treasureInterval) clearInterval(treasureInterval);
 
   setTimeout(() => {
-    document.getElementById('treasure-minigame-modal').classList.add('hidden');
     // Ricompensa exp e fun SOLO se il gioco è finito (sconfitta)
     if (typeof updateFunAndExpFromMiniGame === "function") {
       let fun, exp;

@@ -37,22 +37,23 @@ function getTreasureDimensions() {
 
 function resizeTreasureCanvas() {
   const canvas = document.getElementById('treasure-canvas');
-  const parent = canvas.parentElement;
-  const parentRect = parent.getBoundingClientRect();
+  // Occupa tutto lo schermo
+  let w = window.innerWidth;
+  let h = window.innerHeight;
 
-  let maxW = Math.min(parentRect.width * 0.97, 1100); // Aumentato per desktop grandi
-  let maxH = Math.min(parentRect.height * 0.95, 800);
-  const tile = Math.floor(Math.min(maxW / ROOM_W, maxH / ROOM_H));
+  // Scegli il massimo tile che riempie tutto SENZA deformare la griglia
+  const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
 
-  // Imposta la dimensione fisica del canvas
+  // Imposta la dimensione reale del canvas (pixel)
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
-  // Lascia stile responsivo
-  canvas.style.width = "100%";
-  canvas.style.height = "auto";
-  
-  // Memorizza tile size globale per il rendering
-  window.treasureTile = tile; // lo usiamo anche in drawTreasure
+
+  // Fai in modo che il canvas riempia tutto lo spazio visuale disponibile
+  canvas.style.width = "100vw";
+  canvas.style.height = "100vh";
+
+  // Salva il tile per il disegno
+  window.treasureTile = tile;
 }
 
 

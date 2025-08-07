@@ -665,7 +665,7 @@ html, body {
 }
 
 
-.treasure-bottom-row {
+/*.treasure-bottom-row {
   width: 100%;
   margin-top: 10px;
   display: flex;
@@ -673,7 +673,7 @@ html, body {
   align-items: flex-end;
   gap: 0;
   min-height: 74px;
-}
+}*/
 
 .treasure-controls-area {
   flex: 1.3;

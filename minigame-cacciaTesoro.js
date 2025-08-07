@@ -183,7 +183,7 @@ function startTreasureLevel() {
     if (!treasurePlaying) return;
     treasureTimeLeft--;
     document.getElementById('treasure-timer').textContent = treasureTimeLeft;
-    if (treasureTimeLeft <= 0) return endTreasureMinigame(false);
+    if (treasureTimeLeft <= 0) return endTreasureMinigame();
     moveTreasureEnemies();
     drawTreasure();
   }, 700);
@@ -302,7 +302,7 @@ function handleTreasureMove(e) {
   else if (e.key === "ArrowDown" || e.key==="s") dy=1;
   else if (e.key === "ArrowLeft" || e.key==="a") dx=-1;
   else if (e.key === "ArrowRight" || e.key==="d") dx=1;
-  else if (e.key === "Escape") { endTreasureMinigame(false); return; }
+  else if (e.key === "Escape") { endTreasureMinigame(); return; }
   else return;
 
   let px = treasurePet.x + dx;
@@ -381,7 +381,7 @@ function handleTreasureMove(e) {
     if (treasureInterval) clearInterval(treasureInterval);
     setTimeout(() => {
       document.getElementById('treasure-minigame-modal').classList.add('hidden');
-      endTreasureMinigame(false); // <<<< ECCO L’EXP!
+      endTreasureMinigame(); // <<<< ECCO L’EXP!
     }, 1500);
     return;
   }
@@ -412,7 +412,7 @@ function moveTreasureEnemies() {
       if (treasureInterval) clearInterval(treasureInterval);
       setTimeout(() => {
         document.getElementById('treasure-minigame-modal').classList.add('hidden');
-        endTreasureMinigame(false); // <--- ASSEGNA L'EXP E CHIUDE
+        endTreasureMinigame(); // <--- ASSEGNA L'EXP E CHIUDE
       }, 1500);
       return;
     }
@@ -652,5 +652,5 @@ document.getElementById('btn-minigame-treasure').addEventListener('click', () =>
 
 // Bottone Esci dal minigioco
 document.getElementById('treasure-exit-btn').addEventListener('click', () => {
-  endTreasureMinigame(false);
+  endTreasureMinigame();
 });

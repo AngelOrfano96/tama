@@ -4,6 +4,13 @@ const DUNGEON_GRID_W = 3;
 const DUNGEON_GRID_H = 3;
 const ROOM_W = 8;
 const ROOM_H = 7;
+let petSprites = null;  // sarà popolata ogni volta che parte il minigioco
+let petDirection = "down";     // "right", "left", "up", "down"
+let petStepFrame = 0;          // 0 o 1, alterna a ogni passo
+let petIsMoving = false;       // Serve per animazione fluida
+let petLastMoveTime = 0;       // Per controllo animazione idle
+
+
 
 let dungeonRooms = [];
 let dungeonPetRoom = {x: 0, y: 0};
@@ -64,8 +71,30 @@ function startTreasureMinigame() {
   treasureActivePowerup = null;
 
   // CARICA GLI ASSET
-  treasurePetImg = new Image();
-  treasurePetImg.src = document.getElementById('pet').src;
+  // Ottieni il numero/id del pet attuale (tipo 4, 5, ecc)
+let petSrc = document.getElementById('pet').src; // tipo 'assets/pets/pet_4.png'
+let match = petSrc.match(/pet_(\d+)/); // estrae il numero
+let petNum = match ? match[1] : "1"; // fallback su 1
+
+// Crea e carica tutti gli sprite per questo pet
+petSprites = {
+  idle: new Image(),
+  right: [new Image(), new Image()],
+  left: [new Image(), new Image()],
+  up: [new Image(), new Image()],
+  down: [new Image(), new Image()]
+};
+
+petSprites.idle.src = `assets/pets/pet_${petNum}.png`;
+petSprites.right[0].src = `assets/pets/pet_${petNum}_right1.png`;
+petSprites.right[1].src = `assets/pets/pet_${petNum}_right2.png`;
+petSprites.left[0].src = `assets/pets/pet_${petNum}_left1.png`;
+petSprites.left[1].src = `assets/pets/pet_${petNum}_left2.png`;
+petSprites.down[0].src = `assets/pets/pet_${petNum}_down1.png`;
+petSprites.down[1].src = `assets/pets/pet_${petNum}_down2.png`;
+petSprites.up[0].src = `assets/pets/pet_${petNum}_up1.png`;
+petSprites.up[1].src = `assets/pets/pet_${petNum}_up2.png`;
+
   treasureCoinImg = new Image();
   treasureCoinImg.src = "assets/collectibles/coin.png";
   treasureEnemyImg = new Image();
@@ -295,13 +324,29 @@ for (let i = 0; i < nEnemies; i++) {
 // Spostamento del pet
 function handleTreasureMove(e) {
   if (!treasurePlaying || !treasureCanMove) return;
-  let dx=0, dy=0;
-  if (e.key === "ArrowUp" || e.key==="w") dy=-1;
-  else if (e.key === "ArrowDown" || e.key==="s") dy=1;
-  else if (e.key === "ArrowLeft" || e.key==="a") dx=-1;
-  else if (e.key === "ArrowRight" || e.key==="d") dx=1;
+  let dx = 0, dy = 0;
+
+  // DIREZIONE dal tasto
+  if (e.key === "ArrowUp" || e.key === "w") dy = -1;
+  else if (e.key === "ArrowDown" || e.key === "s") dy = 1;
+  else if (e.key === "ArrowLeft" || e.key === "a") dx = -1;
+  else if (e.key === "ArrowRight" || e.key === "d") dx = 1;
   else if (e.key === "Escape") { endTreasureMinigame(); return; }
   else return;
+
+  // --- AGGIORNA DIREZIONE E ANIMAZIONE ---
+  if (dx === 1) petDirection = "right";
+  else if (dx === -1) petDirection = "left";
+  else if (dy === 1) petDirection = "down";
+  else if (dy === -1) petDirection = "up";
+
+  if (dx !== 0 || dy !== 0) {
+    petStepFrame = 1 - petStepFrame; // alterna tra 0 e 1
+    petIsMoving = true;
+    petLastMoveTime = performance.now();
+  } else {
+    petIsMoving = false;
+  }
 
   let px = treasurePet.x + dx;
   let py = treasurePet.y + dy;
@@ -310,11 +355,11 @@ function handleTreasureMove(e) {
   // Passaggio stanza
   if (px < 0 && dungeonPetRoom.x > 0 && room[treasurePet.y][0] === 0) {
     dungeonPetRoom.x -= 1; treasurePet.x = ROOM_W - 2;
-  } else if (px >= ROOM_W && dungeonPetRoom.x < DUNGEON_GRID_W-1 && room[treasurePet.y][ROOM_W-1] === 0) {
+  } else if (px >= ROOM_W && dungeonPetRoom.x < DUNGEON_GRID_W - 1 && room[treasurePet.y][ROOM_W - 1] === 0) {
     dungeonPetRoom.x += 1; treasurePet.x = 1;
   } else if (py < 0 && dungeonPetRoom.y > 0 && room[0][treasurePet.x] === 0) {
     dungeonPetRoom.y -= 1; treasurePet.y = ROOM_H - 2;
-  } else if (py >= ROOM_H && dungeonPetRoom.y < DUNGEON_GRID_H-1 && room[ROOM_H-1][treasurePet.x] === 0) {
+  } else if (py >= ROOM_H && dungeonPetRoom.y < DUNGEON_GRID_H - 1 && room[ROOM_H - 1][treasurePet.x] === 0) {
     dungeonPetRoom.y += 1; treasurePet.y = 1;
   } else if (px >= 0 && py >= 0 && px < ROOM_W && py < ROOM_H && room[py][px] === 0) {
     treasurePet.x = px;
@@ -328,16 +373,20 @@ function handleTreasureMove(e) {
   // --- OGGETTI ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
-  let coin = objects.find(o=>o.type==='coin' && o.x===treasurePet.x && o.y===treasurePet.y && !o.taken);
-  if (coin) { coin.taken = true; treasureScore += 1; document.getElementById('treasure-minigame-score').textContent = treasureScore;}
+  let coin = objects.find(o => o.type === 'coin' && o.x === treasurePet.x && o.y === treasurePet.y && !o.taken);
+  if (coin) {
+    coin.taken = true;
+    treasureScore += 1;
+    document.getElementById('treasure-minigame-score').textContent = treasureScore;
+  }
   // Powerup
   let powers = roomPowerups[key];
-  let pow = powers && powers.find(p=>p.x===treasurePet.x && p.y===treasurePet.y && !p.taken);
+  let pow = powers && powers.find(p => p.x === treasurePet.x && p.y === treasurePet.y && !p.taken);
   if (pow) {
     pow.taken = true;
     treasureScore += 12;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    if (pow.type==='speed') { treasurePet.speed = 2; treasureActivePowerup = 'speed'; }
+    if (pow.type === 'speed') { treasurePet.speed = 2; treasureActivePowerup = 'speed'; }
     else {
       let enemies = roomEnemies[key];
       for (const e of enemies) e.slow = true;
@@ -351,14 +400,14 @@ function handleTreasureMove(e) {
       treasureActivePowerup = null;
     }, 3000);
   }
-  let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
+  let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type === "coin" && !o.taken).length;
   document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
 
   // Uscita
   if (
     dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
     treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
-    Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length === 0
+    Object.values(roomObjects).flat().filter(o => o.type === "coin" && !o.taken).length === 0
   ) {
     treasureLevel++;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
@@ -372,7 +421,7 @@ function handleTreasureMove(e) {
 
   // Nemici: perdita
   let enemies = roomEnemies[key];
-  if (enemies && enemies.some(e=>e.x===treasurePet.x && e.y===treasurePet.y)) {
+  if (enemies && enemies.some(e => e.x === treasurePet.x && e.y === treasurePet.y)) {
     treasurePlaying = false;
     showTreasureBonus("Game Over!", "#e74c3c");
     window.removeEventListener('keydown', handleTreasureMove);
@@ -383,6 +432,7 @@ function handleTreasureMove(e) {
     return;
   }
 }
+
 
 
 // Movimento goblin
@@ -537,11 +587,19 @@ function drawTreasure() {
     }
   }
 
-  // PET
-  // PET
-if (treasurePetImg.complete) {
+// --- PET ANIMATO ---
+let petImgToDraw;
+if (petIsMoving && petSprites && petSprites[petDirection]) {
+  petImgToDraw = petSprites[petDirection][petStepFrame];
+} else if (petSprites) {
+  petImgToDraw = petSprites.idle;
+} else {
+  petImgToDraw = treasurePetImg; // fallback vecchio
+}
+
+if (petImgToDraw && petImgToDraw.complete) {
   treasureCtx.drawImage(
-    treasurePetImg,
+    petImgToDraw,
     treasurePet.drawX * tile + 6,
     treasurePet.drawY * tile + 6,
     tile - 12,
@@ -556,6 +614,13 @@ if (treasurePetImg.complete) {
     tile - 16
   );
 }
+
+// Dopo circa 180ms senza nuovi movimenti: torna a idle
+if (petIsMoving && performance.now() - petLastMoveTime > 180) {
+  petIsMoving = false;
+  petStepFrame = 0;
+}
+
 
 
   // Nemici

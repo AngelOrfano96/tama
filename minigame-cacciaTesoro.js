@@ -37,23 +37,26 @@ function getTreasureDimensions() {
 
 function resizeTreasureCanvas() {
   const canvas = document.getElementById('treasure-canvas');
-  // 1. Larghezza e altezza finestra
   let w = window.innerWidth;
-  // 2. Altezza meno la barra info
+
+  // Prendi altezza delle info e della barra inferiore (se c'è)
   let barra = document.querySelector('.treasure-info-bar');
   let barraH = barra ? barra.offsetHeight : 0;
-  let h = window.innerHeight - barraH;
+  let bottom = document.querySelector('.treasure-bottom-row');
+  let bottomH = bottom ? bottom.offsetHeight : 0;
 
-  // 3. Calcola tile massimo che riempie tutto
+  let h = window.innerHeight - barraH - bottomH;
+
+  // Calcola il tile massimo
   const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
 
-  // 4. Applica dimensioni
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
   canvas.style.width = `${ROOM_W * tile}px`;
   canvas.style.height = `${ROOM_H * tile}px`;
   window.treasureTile = tile;
 }
+
 
 
 
@@ -662,8 +665,10 @@ function showTreasureBonus(msg, color="#e67e22") {
 document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('treasure-minigame-modal').classList.remove('hidden');
+  resizeTreasureCanvas(); // <- qui!
   startTreasureMinigame();
 });
+
 
 // Bottone Esci dal minigioco
 document.getElementById('treasure-exit-btn').addEventListener('click', () => {

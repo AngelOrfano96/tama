@@ -819,8 +819,9 @@ html, body {
   background: #181c24; /* oppure transparent, come preferisci */
   box-sizing: border-box !important;
   display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  flex-direction: column !important;
+  align-items: stretch !important; /* <--- Cambiato */
+  justify-content: flex-start !important; /* <--- Cambiato */
 }
 .treasure-mobile-layout {
   width: 100vw !important;

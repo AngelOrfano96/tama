@@ -901,13 +901,13 @@ body {
 }
 
 .treasure-arrows-container {
-  background: rgb(24, 24, 24);  /* più scuro e meno trasparente */
+  background: rgba(24, 24, 24, 0.767);  /* più scuro e meno trasparente */
   border-radius: 24px;
   padding: 10px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  
+  box-shadow: 0 2px 16px rgba(7, 7, 7, 0.589);
   pointer-events: auto;
   backdrop-filter: blur(6px);  /* effetto vetro! */
 }

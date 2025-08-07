@@ -169,33 +169,35 @@
 <div id="treasure-minigame-modal" class="treasure-minigame-modal hidden">
   <div class="treasure-mobile-layout">
     <!-- Barra info -->
-  <div class="treasure-info-bar">
-  <span><img src="assets/collectibles/coin.png" class="info-icon" style="width:18px;vertical-align:middle;">
-    <span id="treasure-minigame-coins">0</span>
-  </span>
-  <span><img src="assets/bonus/clock.png" class="info-icon" style="width:18px;vertical-align:middle;">
-    <span id="treasure-timer">--</span>s
-  </span>
-  <span><img src="assets/icons/door.png" class="info-icon" style="width:18px;vertical-align:middle;">
-    <span id="treasure-level">1</span>
-  </span>
-  <span><img src="assets/bonus/clock.png" class="info-icon" style="width:18px;vertical-align:middle;">
-    <span id="treasure-minigame-score">0</span>
-  </span>
-        <div class="treasure-exit-area">
-            <button id="treasure-exit-btn" class="treasure-exit-btn">Esci</button>
+    <div class="treasure-info-bar">
+      <span>
+        <img src="assets/collectibles/coin.png" class="info-icon" style="width:18px;vertical-align:middle;">
+        <span id="treasure-minigame-coins">0</span>
+      </span>
+      <span>
+        <img src="assets/bonus/clock.png" class="info-icon" style="width:18px;vertical-align:middle;">
+        <span id="treasure-timer">--</span>s
+      </span>
+      <span>
+        <img src="assets/icons/door.png" class="info-icon" style="width:18px;vertical-align:middle;">
+        <span id="treasure-level">1</span>
+      </span>
+      <span>
+        <img src="assets/bonus/clock.png" class="info-icon" style="width:18px;vertical-align:middle;">
+        <span id="treasure-minigame-score">0</span>
+      </span>
+      <div class="treasure-exit-area" style="float:right; margin-left:24px;">
+        <button id="treasure-exit-btn" class="treasure-exit-btn">Esci</button>
       </div>
-</div>
-    <!-- Dungeon (canvas) -->
-    <div class="treasure-dungeon-area">
-      <canvas id="treasure-canvas"></canvas>
-      <span id="treasure-bonus-label" style="display:none; position:absolute; left:50%; top:24px; transform:translateX(-50%); font-size:2.2em; color:#ffe44c; font-family:'Luckiest Guy',cursive; text-shadow:2px 2px 6px #000,0 0 24px #fff"></span>
-
-      <div id="treasure-feedback-label"></div>
     </div>
-    <!-- Comandi + Exit -->
-    <div class="treasure-bottom-row">
-      <div class="treasure-controls-area">
+    <!-- Dungeon (canvas) -->
+    <div class="treasure-dungeon-area" style="position:relative;">
+      <canvas id="treasure-canvas"></canvas>
+      <span id="treasure-bonus-label"
+        style="display:none; position:absolute; left:50%; top:24px; transform:translateX(-50%); font-size:2.2em; color:#ffe44c; font-family:'Luckiest Guy',cursive; text-shadow:2px 2px 6px #000,0 0 24px #fff"></span>
+      <div id="treasure-feedback-label"></div>
+      <!-- Overlay frecce touch -->
+      <div class="treasure-arrows-overlay">
         <div class="treasure-arrows-container">
           <div class="treasure-arrows-row">
             <button class="treasure-arrow-btn" data-dir="up">⬆️</button>
@@ -210,6 +212,7 @@
     </div>
   </div>
 </div>
+
 
 
 

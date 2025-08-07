@@ -76,13 +76,6 @@ body {
   align-items: center;
   justify-content: center;
 }
-@media (max-width: 600px) {
-  .form-box {
-    padding: 1rem 0.5rem;
-    max-width: 98vw;
-    min-width: unset;
-  }
-}
 
 .form-box h2 {
   margin-bottom: 1rem;
@@ -744,12 +737,14 @@ html, body {
 
 @media (max-width: 700px) {
   #treasure-canvas {
-    height: 52vh;
-    max-height: 52vh;
+    height: 42vh;       /* Ridotto ancora di più! */
+    max-height: 42vh;
     width: 98vw;
     max-width: 99vw;
+    margin-bottom: 10vw; /* Spazio in più sotto per i tasti */
   }
   .treasure-bottom-row {
-    min-height: 80px;
+    min-height: 110px;  /* Alza il minimo spazio, così i tasti ci stanno sempre! */
   }
 }
+

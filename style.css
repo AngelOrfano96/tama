@@ -830,7 +830,7 @@ html, body {
   background: none !important;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;  /* <-- NON center */
   align-items: center;
 }
 .treasure-dungeon-area {

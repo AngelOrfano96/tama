@@ -76,18 +76,13 @@ body {
   align-items: center;
   justify-content: center;
 }
-@media (max-width: 700px) {
-  #treasure-canvas {
-    height: 52vh;
-    max-height: 52vh;
-    width: 98vw;
-    max-width: 99vw;
-  }
-  .treasure-bottom-row {
-    min-height: 80px;
+@media (max-width: 600px) {
+  .form-box {
+    padding: 1rem 0.5rem;
+    max-width: 98vw;
+    min-width: unset;
   }
 }
-
 
 .form-box h2 {
   margin-bottom: 1rem;
@@ -746,3 +741,15 @@ html, body {
   margin-bottom: 8px;
 }
 #treasure-exit-btn:active { background: #d95757; }
+
+@media (max-width: 700px) {
+  #treasure-canvas {
+    height: 52vh;
+    max-height: 52vh;
+    width: 98vw;
+    max-width: 99vw;
+  }
+  .treasure-bottom-row {
+    min-height: 80px;
+  }
+}

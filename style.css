@@ -861,7 +861,7 @@ body {
   left: 0;
   width: 100vw;    /* oppure 100% */
   z-index: 10;
-  background: rgba(24,28,36,0.88); /* oppure trasparente */
+  background: rgb(255, 196, 0); /* oppure trasparente */
   padding: 8px 0 5px 0;
   display: flex;
   gap: 28px;
@@ -869,14 +869,28 @@ body {
   align-items: center;
   font-size: 1.15em;
   /* qualsiasi stile vuoi */
-  pointer-events: none; /* così i click passano sotto */
 }
 
 .treasure-info-bar span {
   pointer-events: auto; /* per selezionare testo o icone, se vuoi */
 }
 
-
+.treasure-exit-btn {
+  margin-left: 22px;
+  background: #ff8383;
+  color: #fff;
+  border: none;
+  border-radius: 11px;
+  font-size: 1em;
+  padding: 7px 18px 6px 18px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.13s;
+  box-shadow: 0 2px 8px #0004;
+}
+.treasure-exit-btn:hover {
+  background: #ff4444;
+}
 
 
 

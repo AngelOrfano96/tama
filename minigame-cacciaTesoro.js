@@ -35,6 +35,25 @@ function getTreasureDimensions() {
 }
 
 
+function resizeTreasureCanvas() {
+  const canvas = document.getElementById('treasure-canvas');
+  const parent = canvas.parentElement;
+  const parentRect = parent.getBoundingClientRect();
+
+  let maxW = Math.min(parentRect.width * 0.97, 1100); // Aumentato per desktop grandi
+  let maxH = Math.min(parentRect.height * 0.95, 800);
+  const tile = Math.floor(Math.min(maxW / ROOM_W, maxH / ROOM_H));
+
+  // Imposta la dimensione fisica del canvas
+  canvas.width = ROOM_W * tile;
+  canvas.height = ROOM_H * tile;
+  // Lascia stile responsivo
+  canvas.style.width = "100%";
+  canvas.style.height = "auto";
+  
+  // Memorizza tile size globale per il rendering
+  window.treasureTile = tile; // lo usiamo anche in drawTreasure
+}
 
 
 // Avvia il minigioco (Vera partita nuova: rigenera dungeon)
@@ -145,24 +164,8 @@ function startTreasureLevel() {
   const ROOM_W = 8;
   const ROOM_H = 6;
 
-  // Prendi la larghezza del contenitore padre (che ora sarà bella larga)
-  const parent = canvas.parentElement;
-  const parentRect = parent.getBoundingClientRect();
+  resizeTreasureCanvas();
 
-  // Usa quasi tutto lo spazio disponibile
-  let maxW = Math.min(parentRect.width * 0.97, 900); // limite desktop
-  let maxH = Math.min(parentRect.height * 0.93, 700);
-
-  // Calcola il tile
-  const tile = Math.floor(Math.min(maxW / ROOM_W, maxH / ROOM_H));
-
-  // Imposta canvas "fisico"
-  canvas.width = ROOM_W * tile;
-  canvas.height = ROOM_H * tile;
-
-  // Lascialo sempre adattivo in css
-  canvas.style.width = "100%";
-  canvas.style.height = "auto";
 
   treasureCtx = canvas.getContext('2d');
   treasureTimeLeft = 90 + treasureLevel * 3;
@@ -504,7 +507,8 @@ setupTreasureTouchControls();
 
 function drawTreasure() {
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
-  const tile = getTreasureDimensions().tile;
+    const tile = window.treasureTile || 64; // fallback default
+
 
   // SFONDO: viola per debug
   //treasureCtx.fillStyle = "#663399";
@@ -637,6 +641,14 @@ function showTreasureArrowsIfMobile() {
 }
 showTreasureArrowsIfMobile();
 window.addEventListener('resize', showTreasureArrowsIfMobile);
+
+window.addEventListener('resize', () => {
+  if (treasurePlaying) {
+    resizeTreasureCanvas();
+    drawTreasure();
+  }
+});
+
 
 
 // Avvio dal bottone minigioco

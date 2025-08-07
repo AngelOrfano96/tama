@@ -777,21 +777,10 @@ html, body {
     margin-bottom: 6px;
   }
 }
-@media (min-width: 900px) {
-  #treasure-canvas {
-    width: 480px !important;
-    max-width: 98vw;
-    height: auto;
-    aspect-ratio: 8/6;
-  }
-  .treasure-mobile-layout {
-    max-width: 90vw !important;
-    min-width: 400px !important;
-  }
-}
+
 @media (min-width: 900px) {
   .treasure-mobile-layout {
-    max-width: 90vw !important;
+    max-width: 98vw !important;
     min-width: 740px !important;
     min-height: 640px !important;
     height: 75vh !important;
@@ -799,14 +788,18 @@ html, body {
     border-radius: 28px;
   }
   #treasure-canvas {
-    width: 98%;
-    max-width: 820px !important;
+    width: 98vw !important;
+    max-width: 1100px !important;
     max-height: 72vh !important;
     aspect-ratio: 8/6;
     height: auto;
     margin-bottom: 18px;
     border-radius: 16px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
+
 
 

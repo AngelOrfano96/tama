@@ -834,15 +834,17 @@ html, body {
   align-items: center;
 }
 .treasure-dungeon-area {
-  position: relative; /* serve per l'assoluto dei figli */
   width: 100vw !important;
-  height: 100vh !important;
+  max-width: 100vw !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   background: none !important;
-  overflow: hidden;
 }
+
 #treasure-canvas {
   width: 100vw !important;
   height: 100vh !important;

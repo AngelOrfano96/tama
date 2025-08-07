@@ -607,6 +607,7 @@ function endTreasureMinigame() {
   if (treasureInterval) clearInterval(treasureInterval);
 
   setTimeout(() => {
+    document.getElementById('treasure-minigame-modal').classList.add('hidden');
     // Ricompensa exp e fun SOLO se il gioco è finito (sconfitta)
     if (typeof updateFunAndExpFromMiniGame === "function") {
       let fun, exp;

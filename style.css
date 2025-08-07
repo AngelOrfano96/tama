@@ -76,13 +76,18 @@ body {
   align-items: center;
   justify-content: center;
 }
-@media (max-width: 600px) {
-  .form-box {
-    padding: 1rem 0.5rem;
-    max-width: 98vw;
-    min-width: unset;
+@media (max-width: 700px) {
+  #treasure-canvas {
+    height: 52vh;
+    max-height: 52vh;
+    width: 98vw;
+    max-width: 99vw;
+  }
+  .treasure-bottom-row {
+    min-height: 80px;
   }
 }
+
 
 .form-box h2 {
   margin-bottom: 1rem;
@@ -667,10 +672,10 @@ html, body {
 }
 
 #treasure-canvas {
-  width: 99vw;
-  height: 62vh;      /* OCCUPA QUASI TUTTO LO SCHERMO VERTICALE! */
+   width: 99vw;
+  height: 54vh;      /* Riduci da 62vh/65vh a 54vh circa */
   max-width: 99vw;
-  max-height: 62vh;
+  max-height: 54vh;
   background: #181b1e;
   border-radius: 14px;
   box-shadow: 0 2px 12px #0007;
@@ -685,6 +690,7 @@ html, body {
   justify-content: space-between;
   align-items: flex-end;
   padding: 8px 3vw 0 3vw;
+  min-height: 85px;
 }
 
 .treasure-controls-area {

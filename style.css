@@ -898,22 +898,24 @@ body {
 
 .treasure-arrows-overlay {
   position: absolute;
-  bottom: 76px; /* 👈 PROVA 64-80px per mobile */
+  bottom: 104px; /* 👈 PROVA 64-80px per mobile */
   right: 24px;
   z-index: 10;
   pointer-events: none;
 }
 
 .treasure-arrows-container {
-  background: rgba(24, 24, 24, 0.50); /* sfondo scuro trasparente */
+  background: rgba(24,24,24,0.86);  /* più scuro e meno trasparente */
   border-radius: 24px;
   padding: 10px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   box-shadow: 0 2px 16px #0005;
-  pointer-events: auto; /* Serve per abilitare i click! */
+  pointer-events: auto;
+  backdrop-filter: blur(6px);  /* effetto vetro! */
 }
+
 
 .treasure-arrows-row {
   display: flex;

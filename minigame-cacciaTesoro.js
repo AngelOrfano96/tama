@@ -37,23 +37,25 @@ function getTreasureDimensions() {
 
 function resizeTreasureCanvas() {
   const canvas = document.getElementById('treasure-canvas');
+  // 1. Larghezza e altezza finestra
   let w = window.innerWidth;
-
-  // Prendi l'altezza della finestra, togli la barra info
+  // 2. Altezza meno la barra info
   let barra = document.querySelector('.treasure-info-bar');
   let barraH = barra ? barra.offsetHeight : 0;
   let h = window.innerHeight - barraH;
 
+  // 3. Calcola tile massimo che riempie tutto
   const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
 
+  // 4. Applica dimensioni
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
-
-  canvas.style.width = "100vw";
-  canvas.style.height = `${ROOM_H * tile}px`; // oppure `${h}px` se vuoi sfruttare tutto lo spazio
-
+  canvas.style.width = `${ROOM_W * tile}px`;
+  canvas.style.height = `${ROOM_H * tile}px`;
   window.treasureTile = tile;
 }
+
+
 
 
 

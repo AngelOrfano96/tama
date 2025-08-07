@@ -682,11 +682,11 @@ html, body {
   align-items: flex-end;
   padding-left: 9px;
 }
-.treasure-arrows-container {
+/*.treasure-arrows-container {
   display: flex;
   flex-direction: column;
   gap: 0;
-}
+}*/
 .treasure-arrows-row {
   display: flex;
   justify-content: center;

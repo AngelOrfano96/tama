@@ -145,22 +145,22 @@ function startTreasureLevel() {
   const ROOM_W = 8;
   const ROOM_H = 6;
 
-  // Usa lo spazio del parent, che è flex!
+  // Prendi la larghezza del contenitore padre (che ora sarà bella larga)
   const parent = canvas.parentElement;
   const parentRect = parent.getBoundingClientRect();
 
-  // Calcola la dimensione massima in base allo spazio effettivo (responsive)
-  let maxW = Math.min(window.innerWidth * 0.98, parentRect.width, 600);
-  let maxH = Math.min(window.innerHeight * 0.44, parentRect.height, 400);
+  // Usa quasi tutto lo spazio disponibile
+  let maxW = Math.min(parentRect.width * 0.97, 900); // limite desktop
+  let maxH = Math.min(parentRect.height * 0.93, 700);
 
-  // Calcola tile in base allo spazio disponibile
+  // Calcola il tile
   const tile = Math.floor(Math.min(maxW / ROOM_W, maxH / ROOM_H));
 
-  // Dimensione effettiva del canvas
+  // Imposta canvas "fisico"
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
 
-  // Il CSS DEVE restare `width: 100%; height: auto;`!
+  // Lascialo sempre adattivo in css
   canvas.style.width = "100%";
   canvas.style.height = "auto";
 
@@ -185,6 +185,7 @@ function startTreasureLevel() {
     drawTreasure();
   }, 700);
 }
+
 
 
 // Genera dungeon SOLO una volta!

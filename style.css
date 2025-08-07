@@ -617,7 +617,7 @@ html, body {
 
 .treasure-mobile-layout {
   width: 98vw;
-  max-width: 440px;
+  max-width: 90vw;
   min-width: 220px;
   background: #232323ec;
   border-radius: 22px;
@@ -785,13 +785,13 @@ html, body {
     aspect-ratio: 8/6;
   }
   .treasure-mobile-layout {
-    max-width: 540px !important;
+    max-width: 90vw !important;
     min-width: 400px !important;
   }
 }
 @media (min-width: 900px) {
   .treasure-mobile-layout {
-    max-width: 960px !important;
+    max-width: 90vw !important;
     min-width: 740px !important;
     min-height: 640px !important;
     height: 75vh !important;

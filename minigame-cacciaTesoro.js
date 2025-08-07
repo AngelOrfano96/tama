@@ -19,19 +19,19 @@ let treasureNeeded;
 
 // Responsive tile size!
 function getTreasureDimensions() {
-  if (window.innerWidth < 600) {
-    // MOBILE: canvas quasi tutto schermo, rettangolare verticale
+ if (window.innerWidth < 800) {
+    // MOBILE: canvas quasi tutto schermo
     const w = Math.floor(window.innerWidth * 0.98);
-    const h = Math.floor(w * 1.1); // es: rapporto 5:5.5 più alto
+    const h = Math.floor(window.innerHeight * 0.62); // più alto
     const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
     return { width: w, height: h, tile };
-  } else {
-    // DESKTOP: più ampio, rapporto classico
-    const w = Math.min(430, window.innerWidth * 0.6);
-    const h = Math.floor(w * 0.85); // es: 5:4
+} else {
+    // DESKTOP: canvas ENORME!
+    const w = Math.floor(window.innerWidth * 0.70); // prendi il 70% della larghezza disponibile
+    const h = Math.floor(window.innerHeight * 0.75); // prendi il 75% dell'altezza disponibile
     const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
-    return { width: w, height: h, tile };
-  }
+    return { width: tile * ROOM_W, height: tile * ROOM_H, tile };
+}
 }
 
 

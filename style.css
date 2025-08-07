@@ -861,7 +861,7 @@ body {
   left: 0;
   width: 100vw;    /* oppure 100% */
   z-index: 10;
-  background: rgb(255, 196, 0); /* oppure trasparente */
+  background: rgb(29, 20, 32); /* oppure trasparente */
   padding: 8px 0 5px 0;
   display: flex;
   gap: 28px;

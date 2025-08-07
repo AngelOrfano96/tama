@@ -419,7 +419,7 @@ function moveTreasureEnemies() {
 
 
 
-
+/*
 function showTreasureBonus(msg, color="#e67e22") {
   const lab = document.getElementById('treasure-bonus-label');
   lab.textContent = msg;
@@ -428,7 +428,7 @@ function showTreasureBonus(msg, color="#e67e22") {
   lab.style.opacity = "1";
   setTimeout(()=>lab.style.opacity="0", 1600);
   setTimeout(()=>lab.style.display="none", 2100);
-}
+} */
 
 // --- Utility BFS
 function findPath(matrix, start, end) {
@@ -639,6 +639,20 @@ window.addEventListener('resize', () => {
   }
 });
 
+
+function showTreasureBonus(msg, color="#e67e22") {
+  const lab = document.getElementById('treasure-bonus-label');
+  if (!lab) { 
+    console.warn("Non trovo treasure-bonus-label!");
+    return; 
+  }
+  lab.textContent = msg;
+  lab.style.display = "block";
+  lab.style.color = color;
+  lab.style.opacity = "1";
+  setTimeout(()=>lab.style.opacity="0", 1600);
+  setTimeout(()=>lab.style.display="none", 2100);
+}
 
 
 // Avvio dal bottone minigioco

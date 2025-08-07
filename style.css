@@ -800,6 +800,9 @@ html, body {
     margin-right: auto;
   }
 }
+.treasure-dungeon-area {
+  position: relative;
+}
 
 
 

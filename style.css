@@ -907,7 +907,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: 0 2px 16px #0005;
+  
   pointer-events: auto;
   backdrop-filter: blur(6px);  /* effetto vetro! */
 }

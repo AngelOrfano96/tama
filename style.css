@@ -777,5 +777,17 @@ html, body {
     margin-bottom: 6px;
   }
 }
+@media (min-width: 900px) {
+  #treasure-canvas {
+    width: 480px !important;
+    max-width: 98vw;
+    height: auto;
+    aspect-ratio: 8/6;
+  }
+  .treasure-mobile-layout {
+    max-width: 540px !important;
+    min-width: 400px !important;
+  }
+}
 
 

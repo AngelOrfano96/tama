@@ -140,25 +140,31 @@ function movePetTo(targetX, targetY, duration = 120) {
 
 // Inizia un livello (ma NON ricreare dungeon)
 function startTreasureLevel() {
-  /*
-  const {width, height, tile} = getTreasureDimensions();
-  treasureCanvas = document.getElementById('treasure-canvas');
-  treasureCanvas.width = ROOM_W * tile;
-  treasureCanvas.height = ROOM_H * tile;
-  treasureCanvas.style.width = width + "px";
-  treasureCanvas.style.height = height + "px";
-  treasureCtx = treasureCanvas.getContext('2d'); */
   const canvas = document.getElementById('treasure-canvas');
-  // Leggi le dimensioni dal CSS per la larghezza visiva
-  const rect = canvas.getBoundingClientRect();
-  // Calcola il tile dinamico per riempire tutto lo spazio disponibile
-  const tile = Math.floor(Math.min(rect.width / ROOM_W, rect.height / ROOM_H));
-  // Setta la risoluzione interna del canvas
+  // Usa le stesse dimensioni del CSS!
+  const ROOM_W = 8;
+  const ROOM_H = 6;
+
+  // Usa lo spazio del parent, che è flex!
+  const parent = canvas.parentElement;
+  const parentRect = parent.getBoundingClientRect();
+
+  // Calcola la dimensione massima in base allo spazio effettivo (responsive)
+  let maxW = Math.min(window.innerWidth * 0.98, parentRect.width, 600);
+  let maxH = Math.min(window.innerHeight * 0.44, parentRect.height, 400);
+
+  // Calcola tile in base allo spazio disponibile
+  const tile = Math.floor(Math.min(maxW / ROOM_W, maxH / ROOM_H));
+
+  // Dimensione effettiva del canvas
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
+
+  // Il CSS DEVE restare `width: 100%; height: auto;`!
+  canvas.style.width = "100%";
+  canvas.style.height = "auto";
+
   treasureCtx = canvas.getContext('2d');
-
-
   treasureTimeLeft = 90 + treasureLevel * 3;
   treasurePlaying = true;
   treasureCanMove = true;
@@ -179,6 +185,7 @@ function startTreasureLevel() {
     drawTreasure();
   }, 700);
 }
+
 
 // Genera dungeon SOLO una volta!
 function generateDungeon() {

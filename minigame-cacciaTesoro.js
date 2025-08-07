@@ -37,24 +37,24 @@ function getTreasureDimensions() {
 
 function resizeTreasureCanvas() {
   const canvas = document.getElementById('treasure-canvas');
-  // Occupa tutto lo schermo
   let w = window.innerWidth;
-  let h = window.innerHeight;
 
-  // Scegli il massimo tile che riempie tutto SENZA deformare la griglia
+  // Prendi l'altezza della finestra, togli la barra info
+  let barra = document.querySelector('.treasure-info-bar');
+  let barraH = barra ? barra.offsetHeight : 0;
+  let h = window.innerHeight - barraH;
+
   const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
 
-  // Imposta la dimensione reale del canvas (pixel)
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
 
-  // Fai in modo che il canvas riempia tutto lo spazio visuale disponibile
   canvas.style.width = "100vw";
-  canvas.style.height = "100vh";
+  canvas.style.height = `${ROOM_H * tile}px`; // oppure `${h}px` se vuoi sfruttare tutto lo spazio
 
-  // Salva il tile per il disegno
   window.treasureTile = tile;
 }
+
 
 
 // Avvia il minigioco (Vera partita nuova: rigenera dungeon)

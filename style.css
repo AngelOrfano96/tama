@@ -859,16 +859,24 @@ body {
   overflow: hidden !important;
 }
 .treasure-info-bar {
-  width: 100vw;
-  background: #222b3d;
-  color: #fff;
-  padding: 12px 0 6px 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;    /* oppure 100% */
+  z-index: 10;
+  background: rgba(24,28,36,0.88); /* oppure trasparente */
+  padding: 8px 0 5px 0;
   display: flex;
+  gap: 28px;
   justify-content: center;
   align-items: center;
   font-size: 1.15em;
-  z-index: 10;
-  position: relative; /* Importante! */
+  /* qualsiasi stile vuoi */
+  pointer-events: none; /* così i click passano sotto */
+}
+
+.treasure-info-bar span {
+  pointer-events: auto; /* per selezionare testo o icone, se vuoi */
 }
 
 

@@ -804,22 +804,13 @@ html, body {
   position: relative;
 }
 
-.treasure-minigame-modal,
-.treasure-mobile-layout {
-  width: 100vw;   /* o 100% se già dentro una modale full screen */
+#treasure-canvas {
+  display: block;
+  width: 100vw;
   max-width: 100vw;
-  min-width: 0;
-  padding: 0;
-  margin: 0;
-  box-sizing: border-box;
+  height: auto;
+  margin: 0 auto;
 }
 
-.treasure-dungeon-area {
-  width: 100%;
-  padding: 0;
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
-}
 
 

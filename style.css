@@ -655,16 +655,15 @@ html, body {
 }
 
 #treasure-canvas {
-  width: 97%;
-  max-width: 420px;
-  height: 37vw;
-  max-height: 260px;
-  background: #181b1e;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px #0007;
-  margin: 0 auto 10px auto;
   display: block;
+  max-width: 99vw;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 8px auto;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px #0007;
 }
+
 
 .treasure-bottom-row {
   width: 100%;

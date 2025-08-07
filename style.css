@@ -896,12 +896,12 @@ body {
 
  /*//////////////////////////////////////*/
 
- .treasure-arrows-overlay {
+.treasure-arrows-overlay {
   position: absolute;
-  bottom: 16px;  /* Distanza dal bordo basso */
-  right: 16px;   /* Distanza dal bordo destro */
+  bottom: 76px; /* 👈 PROVA 64-80px per mobile */
+  right: 24px;
   z-index: 10;
-  pointer-events: none; /* Consente i click solo sui bottoni interni */
+  pointer-events: none;
 }
 
 .treasure-arrows-container {

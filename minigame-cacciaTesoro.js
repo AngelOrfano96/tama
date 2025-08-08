@@ -83,6 +83,14 @@ window.addEventListener("orientationchange", checkOrientation);
 window.addEventListener("resize", checkOrientation);
 window.addEventListener("DOMContentLoaded", checkOrientation);
 
+if (screen.orientation && screen.orientation.lock) {
+  screen.orientation.lock("landscape").catch(e => {
+    // Fallisce spesso, quindi non farci troppo affidamento!
+    console.log("Impossibile bloccare orientamento:", e);
+  });
+}
+
+
 function animateRevealCircle(callback) {
   const canvas = document.getElementById('treasure-canvas');
   const ctx = canvas.getContext('2d');

@@ -79,6 +79,25 @@ let petSrc = document.getElementById('pet').src; // tipo 'assets/pets/pet_4.png'
 let match = petSrc.match(/pet_(\d+)/); // estrae il numero
 let petNum = match ? match[1] : "1"; // fallback su 1
 
+// SPRITES ANIMATI GOBLIN
+let goblinSprites = {
+  idle: new Image(),
+  right: [new Image(), new Image()],
+  left: [new Image(), new Image()],
+  up: [new Image(), new Image()],
+  down: [new Image(), new Image()]
+};
+goblinSprites.idle.src = "assets/enemies/goblin.png"; // base
+goblinSprites.right[0].src = "assets/enemies/goblin_right_1.png";
+goblinSprites.right[1].src = "assets/enemies/goblin_right_2.png";
+goblinSprites.left[0].src = "assets/enemies/goblin_left_1.png";
+goblinSprites.left[1].src = "assets/enemies/goblin_left_2.png";
+goblinSprites.up[0].src = "assets/enemies/goblin_up_1.png";
+goblinSprites.up[1].src = "assets/enemies/goblin_up_2.png";
+goblinSprites.down[0].src = "assets/enemies/goblin_down_1.png";
+goblinSprites.down[1].src = "assets/enemies/goblin_down_2.png";
+
+
 // Crea e carica tutti gli sprite per questo pet
 petSprites = {
   idle: new Image(),
@@ -304,7 +323,18 @@ for (let i = 0; i < nEnemies; i++) {
     isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
     tentativi++;
   } while (isDoor && tentativi < 30); // Massimo 30 tentativi, poi accetta dov'è
-  enemies.push({ x: ex, y: ey, drawX: ex, drawY: ey, slow: false });
+  enemies.push({
+  x: ex,
+  y: ey,
+  drawX: ex,
+  drawY: ey,
+  slow: false,
+  direction: "down", // oppure come vuoi inizializzare
+  stepFrame: 0,      // frame animazione
+  isMoving: false,   // animazione
+  lastMoveTime: 0    // per animazione idle
+});
+
 }
       
       // Powerup (random)
@@ -489,15 +519,42 @@ function moveTreasureEnemies() {
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let enemies = roomEnemies[key];
   if (!enemies) return;
+  const ENEMY_MOVE_DELAY = 350; // ms (aumenta per nemici più lenti)
+
   for (const e of enemies) {
+    // Sposta solo se è passato abbastanza tempo
+    let now = performance.now();
+    if (!e.lastMoveTime) e.lastMoveTime = 0;
+    if (now - e.lastMoveTime < ENEMY_MOVE_DELAY) {
+      // Se fermo da troppo tempo, vai in idle
+      if (now - e.lastMoveTime > ENEMY_MOVE_DELAY + 60) {
+        e.isMoving = false;
+        e.stepFrame = 0;
+      }
+      continue;
+    }
+
     let matrix = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
     let path = findPath(matrix, e, treasurePet);
+
     if (path && path.length > 1) {
-      let step = e.slow ? 1 : treasurePet.speed;
-      let next = path[Math.min(1, path.length-1)];
-      moveEnemyTo(e, next.x, next.y);
+      let next = path[1]; // prossimo passo
+      // Direzione (calcola dal movimento)
+      if (next.x > e.x) e.direction = "right";
+      else if (next.x < e.x) e.direction = "left";
+      else if (next.y > e.y) e.direction = "down";
+      else if (next.y < e.y) e.direction = "up";
+      // Alterna frame camminata
+      e.stepFrame = 1 - (e.stepFrame || 0);
+      e.isMoving = true;
+      e.lastMoveTime = now;
+      moveEnemyTo(e, next.x, next.y, ENEMY_MOVE_DELAY - 30);
       e.x = next.x;
       e.y = next.y;
+    } else {
+      // Non si muove
+      e.isMoving = false;
+      e.stepFrame = 0;
     }
 
     // Se goblin raggiunge il pet
@@ -513,6 +570,7 @@ function moveTreasureEnemies() {
     }
   }
 }
+
 
 
 // --- Utility BFS
@@ -668,14 +726,23 @@ if (petSpriteToDraw && petSpriteToDraw.complete) {
 
 
   // Nemici
-  for (const e of roomEnemies[key]) {
-  if (treasureEnemyImg.complete) {
+ for (const e of roomEnemies[key]) {
+  let sprite;
+  if (!e.isMoving) {
+    sprite = goblinSprites.idle;
+  } else {
+    sprite = goblinSprites[e.direction][e.stepFrame];
+  }
+  if (sprite && sprite.complete) {
+    treasureCtx.drawImage(sprite, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
+  } else if (treasureEnemyImg && treasureEnemyImg.complete) {
     treasureCtx.drawImage(treasureEnemyImg, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
   } else {
     treasureCtx.fillStyle = "#e74c3c";
     treasureCtx.fillRect(e.drawX*tile+8, e.drawY*tile+8, tile-16, tile-16);
   }
 }
+
 
   // USCITA
   if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {

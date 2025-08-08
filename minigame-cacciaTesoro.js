@@ -10,10 +10,6 @@ let petStepFrame = 0;          // 0 o 1, alterna a ogni passo
 let petIsMoving = false;       // Serve per animazione fluida
 let petLastMoveTime = 0;       // Per controllo animazione idle
 
-let petMoveInterval = null;
-let currentMoveKey = null; // memorizza quale tasto stai tenendo
-
-
 let dungeonRooms = [];
 let dungeonPetRoom = {x: 0, y: 0};
 let roomObjects = {};
@@ -65,29 +61,6 @@ function resizeTreasureCanvas() {
   canvas.style.height = `${ROOM_H * tile}px`;
   window.treasureTile = tile;
 }
-
-
-// Keydown: parte il movimento continuo
-window.addEventListener('keydown', (e) => {
-  // accetta solo se non è già in movimento e solo se tasto movimento!
-  if (petMoveInterval) return;
-  if (!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","a","s","d"].includes(e.key)) return;
-  currentMoveKey = e;
-  handleTreasureMove(e); // primo passo immediato!
-  petMoveInterval = setInterval(() => {
-    handleTreasureMove(currentMoveKey); // ripete in base all'intervallo!
-  }, 160); // <-- regola qui la velocità, es: 120/140/180 ms
-});
-
-// Keyup: ferma il movimento continuo
-window.addEventListener('keyup', (e) => {
-  if (!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","a","s","d"].includes(e.key)) return;
-  clearInterval(petMoveInterval);
-  petMoveInterval = null;
-  currentMoveKey = null;
-});
-
-
 
 
 

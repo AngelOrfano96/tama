@@ -22,6 +22,8 @@ let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft
 let treasureCanvas, treasureCtx, treasureActivePowerup, treasurePowerupTimer;
 let treasureNeeded;
 
+let goblinSprites = null;
+
 let treasureKeysPressed = {
   up: false,
   down: false,

@@ -71,6 +71,17 @@ function getAnimStep() {
   if (isPowerupActive()) return 0.12;
   return 0.18;
 }
+function checkOrientation() {
+  if (window.matchMedia("(orientation: landscape)").matches) {
+    document.getElementById('rotate-overlay').style.display = "none";
+  } else {
+    document.getElementById('rotate-overlay').style.display = "";
+  }
+}
+
+window.addEventListener("orientationchange", checkOrientation);
+window.addEventListener("resize", checkOrientation);
+window.addEventListener("DOMContentLoaded", checkOrientation);
 
 function animateRevealCircle(callback) {
   const canvas = document.getElementById('treasure-canvas');

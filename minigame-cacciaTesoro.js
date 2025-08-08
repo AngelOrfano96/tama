@@ -844,17 +844,18 @@ function hideTouchArrowsIfJoystick() {
 }
 hideTouchArrowsIfJoystick();
 
-console.log('SCRIPT CARICATO!');
-console.log('btn-minigame-treasure:', document.getElementById('btn-minigame-treasure'));
+window.addEventListener('DOMContentLoaded', function() {
+  // qui metti
+  console.log('SCRIPT CARICATO!');
+  console.log('btn-minigame-treasure:', document.getElementById('btn-minigame-treasure'));
 
-// ----- AVVIO DA BOTTONE -----
-document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
-  document.getElementById('minigame-select-modal').classList.add('hidden');
-  document.getElementById('treasure-minigame-modal').classList.remove('hidden');
-  resizeTreasureCanvas();
-  startTreasureMinigame();
+  document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
+    document.getElementById('minigame-select-modal').classList.add('hidden');
+    document.getElementById('treasure-minigame-modal').classList.remove('hidden');
+    resizeTreasureCanvas();
+    startTreasureMinigame();
+  });
+  document.getElementById('treasure-exit-btn').addEventListener('click', () => {
+    endTreasureMinigame();
+  });
 });
-document.getElementById('treasure-exit-btn').addEventListener('click', () => {
-  endTreasureMinigame();
-});
-

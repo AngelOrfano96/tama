@@ -1,12 +1,24 @@
 // === MINI GIOCO CACCIA AL TESORO MULTI-STANZA, MOVIMENTO LIBERO ===
 
 // ----- CONFIG E VARIABILI -----
-const DUNGEON_GRID_W = 3;
-const DUNGEON_GRID_H = 3;
-const ROOM_W = 8;
-const ROOM_H = 7;
-const petSpeed = 170;
-const enemySpeed = 100;
+let DUNGEON_GRID_W = 3;
+let DUNGEON_GRID_H = 3;
+let ROOM_W = 8;
+let ROOM_H = 7;
+
+if (isMobileOrTablet() || window.innerWidth < 800) {
+  DUNGEON_GRID_W = 2;
+  DUNGEON_GRID_H = 2;
+  ROOM_W = 7;
+  ROOM_H = 6;
+} else {
+  DUNGEON_GRID_W = 3;
+  DUNGEON_GRID_H = 3;
+  ROOM_W = 8;
+  ROOM_H = 7;
+}
+//const petSpeed = 170;
+//const enemySpeed = 100;
 const petSpeedDesktop = 180;
 const petSpeedMobile = 120;
 const enemySpeedDesktop = 100;
@@ -148,7 +160,7 @@ function startTreasureMinigame() {
   };
 // Se era attivo il powerup speed, mantieni la velocità raddoppiata
 if (treasureActivePowerup === 'speed') {
-  treasurePet.speed = petSpeed * 3;
+  treasurePet.speed = baseSpeed * 3;
 }
   startTreasureLevel();
 }

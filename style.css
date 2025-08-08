@@ -941,5 +941,59 @@ body {
     display: none; /* Non mostrare le frecce su desktop */
   }
 }
+/*//////////////////////////joystick//////////////////////////////////*/
+/* Overlay che occupa parte bassa a sinistra, solo su mobile */
+.treasure-joystick-overlay {
+  position: absolute;
+  left: 16px;
+  bottom: 24px;
+  width: 120px;
+  height: 120px;
+  z-index: 99;
+  touch-action: none; /* Importante! */
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none; /* Disabilita click, verrà riabilitato solo sulla base */
+}
 
+/* Base circolare */
+.treasure-joystick-base {
+  width: 100px;
+  height: 100px;
+  background: rgba(80,80,80,0.30);
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px #4444;
+  position: relative;
+  margin: 0;
+  pointer-events: auto; /* Solo qui gestisco il touch */
+  user-select: none;
+  touch-action: none;
+}
+
+/* Stick interno */
+.treasure-joystick-stick {
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle at 60% 40%, #eee 60%, #888 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 14px 2px #2227;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  transition: background 0.15s, box-shadow 0.1s;
+  pointer-events: none;
+}
+
+/* Effetto stick in movimento */
+.treasure-joystick-base.active .treasure-joystick-stick {
+  background: radial-gradient(circle at 60% 40%, #fff 50%, #666 100%);
+  box-shadow: 0 0 18px 3px #222b;
+}
+@media (max-width: 850px) {
+  .treasure-joystick-overlay { display: flex; }
+}
+@media (min-width: 851px) {
+  .treasure-joystick-overlay { display: none; }
+}
 

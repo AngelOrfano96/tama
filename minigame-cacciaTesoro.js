@@ -744,3 +744,129 @@ document.getElementById('treasure-exit-btn').addEventListener('click', () => {
   endTreasureMinigame();
 });
 
+// Joystick analogico virtuale per mobile
+const joystickBase = document.getElementById('treasure-joystick-base');
+const joystickStick = document.getElementById('treasure-joystick-stick');
+
+let joyActive = false;
+let joyCenter = { x: 0, y: 0 };
+let joyRadius = 50; // raggio base (half width of base)
+let stickRadius = 32; // max spostamento in pixel dal centro
+
+let joyDirX = 0;
+let joyDirY = 0;
+
+function updatePetDirFromJoystick(dx, dy) {
+  // Questo aggiorna direttamente la direzione globale di movimento!
+  // Se usi una logica tipo: treasurePet.dirX/dirY, oppure una variabile petDirX/petDirY
+  treasurePet.dirX = dx;
+  treasurePet.dirY = dy;
+}
+
+// Funzione di reset
+function resetJoystick() {
+  joyDirX = 0;
+  joyDirY = 0;
+  joystickStick.style.transform = "translate(-50%,-50%)";
+  updatePetDirFromJoystick(0,0);
+  joystickBase.classList.remove('active');
+}
+
+// Touch start
+joystickBase.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  joyActive = true;
+  joystickBase.classList.add('active');
+  // Centro relativo all’elemento
+  const rect = joystickBase.getBoundingClientRect();
+  joyCenter = {
+    x: rect.left + rect.width/2,
+    y: rect.top + rect.height/2
+  };
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}, { passive: false });
+
+// Touch move
+joystickBase.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (!joyActive) return;
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}, { passive: false });
+
+// Touch end/cancel
+joystickBase.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  resetJoystick();
+});
+joystickBase.addEventListener('touchcancel', function(e) {
+  e.preventDefault();
+  resetJoystick();
+});
+
+function handleJoystickMove(touch) {
+  const x = touch.clientX - joyCenter.x;
+  const y = touch.clientY - joyCenter.y;
+
+  // Distanza dal centro
+  const dist = Math.sqrt(x * x + y * y);
+  let normX = x, normY = y;
+  if (dist > stickRadius) {
+    // Limita lo spostamento massimo
+    normX = x * stickRadius / dist;
+    normY = y * stickRadius / dist;
+  }
+
+  // Muovi graficamente la levetta
+  joystickStick.style.transform = `translate(-50%,-50%) translate(${normX}px,${normY}px)`;
+
+  // Calcola direzione normalizzata (valori tra -1 e 1)
+  let dx = normX / stickRadius;
+  let dy = normY / stickRadius;
+
+  // Soglia minima (zona morta centrale)
+  const deadZone = 0.18; // regola quanto è "morta" la zona centrale
+  if (Math.abs(dx) < deadZone) dx = 0;
+  if (Math.abs(dy) < deadZone) dy = 0;
+
+  // Arrotonda a due decimali
+  dx = Math.abs(dx) < 0.01 ? 0 : Math.max(-1, Math.min(1, dx));
+  dy = Math.abs(dy) < 0.01 ? 0 : Math.max(-1, Math.min(1, dy));
+
+  joyDirX = dx;
+  joyDirY = dy;
+
+  // Chiama la funzione che aggiorna il movimento reale del pet!
+  updatePetDirFromJoystick(dx, dy);
+}
+
+// Se vuoi testarlo anche col mouse su desktop:
+/*
+joystickBase.addEventListener('mousedown', function(e) {
+  joyActive = true;
+  joystickBase.classList.add('active');
+  const rect = joystickBase.getBoundingClientRect();
+  joyCenter = {
+    x: rect.left + rect.width/2,
+    y: rect.top + rect.height/2
+  };
+  handleJoystickMove(e);
+});
+document.addEventListener('mousemove', function(e) {
+  if (!joyActive) return;
+  handleJoystickMove(e);
+});
+document.addEventListener('mouseup', function(e) {
+  if (!joyActive) return;
+  joyActive = false;
+  resetJoystick();
+});
+*/
+
+// *** DISATTIVA TASTI FRECCIA SU MOBILE SE JOYSTICK È ATTIVO ***
+function hideTouchArrowsIfJoystick() {
+  // Se usi ancora le frecce, nascondile qui:
+  const arrows = document.querySelector('.treasure-arrows-container');
+  if (arrows) arrows.style.display = 'none';
+}
+hideTouchArrowsIfJoystick();
+

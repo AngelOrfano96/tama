@@ -141,7 +141,10 @@ function startTreasureMinigame() {
     powered: false,
     dirX: 0, dirY: 0
   };
-
+// Se era attivo il powerup speed, mantieni la velocità raddoppiata
+if (treasureActivePowerup === 'speed') {
+  treasurePet.speed = petSpeed * 2;
+}
   startTreasureLevel();
 }
 

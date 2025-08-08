@@ -155,19 +155,7 @@ const dirMap = {
 };
 let keysStack = []; // Tiene traccia delle direzioni ancora premute
 
-document.addEventListener('keydown', (e) => {
-  if (!treasurePlaying) return;
-  let dir = dirMap[e.key];
-  if (!dir) return;
-  if (!keysStack.includes(dir)) keysStack.push(dir);
-  updatePetDir();
-});
-document.addEventListener('keyup', (e) => {
-  let dir = dirMap[e.key];
-  if (!dir) return;
-  keysStack = keysStack.filter(d => d !== dir);
-  updatePetDir();
-});
+
 
 // Aggiorna la direzione attiva in base ai tasti ancora premuti
 function updatePetDir() {
@@ -692,13 +680,7 @@ function showTreasureBonus(msg, color="#e67e22") {
 }
 
 
-// ----- RESPONSIVE & UI -----
-window.addEventListener('resize', () => {
-  if (treasurePlaying) {
-    resizeTreasureCanvas();
-    drawTreasure();
-  }
-});
+
 function showTreasureArrowsIfMobile() {
   const arrows = document.querySelector('.treasure-arrows-container');
   if (window.matchMedia("(hover: none) and (pointer: coarse)").matches) {
@@ -708,7 +690,7 @@ function showTreasureArrowsIfMobile() {
   }
 }
 showTreasureArrowsIfMobile();
-window.addEventListener('resize', showTreasureArrowsIfMobile);
+
 
 
 
@@ -746,36 +728,7 @@ function resetJoystick() {
   joystickBase.classList.remove('active');
 }
 
-// Touch start
-joystickBase.addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  joyActive = true;
-  joystickBase.classList.add('active');
-  // Centro relativo all’elemento
-  const rect = joystickBase.getBoundingClientRect();
-  joyCenter = {
-    x: rect.left + rect.width/2,
-    y: rect.top + rect.height/2
-  };
-  if (e.touches[0]) handleJoystickMove(e.touches[0]);
-}, { passive: false });
 
-// Touch move
-joystickBase.addEventListener('touchmove', function(e) {
-  e.preventDefault();
-  if (!joyActive) return;
-  if (e.touches[0]) handleJoystickMove(e.touches[0]);
-}, { passive: false });
-
-// Touch end/cancel
-joystickBase.addEventListener('touchend', function(e) {
-  e.preventDefault();
-  resetJoystick();
-});
-joystickBase.addEventListener('touchcancel', function(e) {
-  e.preventDefault();
-  resetJoystick();
-});
 
 function handleJoystickMove(touch) {
   const x = touch.clientX - joyCenter.x;
@@ -858,4 +811,59 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('treasure-exit-btn').addEventListener('click', () => {
     endTreasureMinigame();
   });
+
+  // ----- RESPONSIVE & UI -----
+window.addEventListener('resize', () => {
+  if (treasurePlaying) {
+    resizeTreasureCanvas();
+    drawTreasure();
+  }
+});
+  document.addEventListener('keydown', (e) => {
+  if (!treasurePlaying) return;
+  let dir = dirMap[e.key];
+  if (!dir) return;
+  if (!keysStack.includes(dir)) keysStack.push(dir);
+  updatePetDir();
+});
+document.addEventListener('keyup', (e) => {
+  let dir = dirMap[e.key];
+  if (!dir) return;
+  keysStack = keysStack.filter(d => d !== dir);
+  updatePetDir();
+});
+
+// Touch start
+joystickBase.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  joyActive = true;
+  joystickBase.classList.add('active');
+  // Centro relativo all’elemento
+  const rect = joystickBase.getBoundingClientRect();
+  joyCenter = {
+    x: rect.left + rect.width/2,
+    y: rect.top + rect.height/2
+  };
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}, { passive: false });
+
+// Touch move
+joystickBase.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (!joyActive) return;
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}, { passive: false });
+
+// Touch end/cancel
+joystickBase.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  resetJoystick();
+});
+joystickBase.addEventListener('touchcancel', function(e) {
+  e.preventDefault();
+  resetJoystick();
+});
+
+window.addEventListener('resize', showTreasureArrowsIfMobile);
+
 });

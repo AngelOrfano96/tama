@@ -720,6 +720,7 @@ function generateDungeon() {
 // ----- INIZIO LIVELLO -----
 function startTreasureLevel() {
   // ... setup canvas e logica
+  const canvas = document.getElementById('treasure-canvas');
   resizeTreasureCanvas();
   treasureCtx = canvas.getContext('2d');
   treasureTimeLeft = 90 + treasureLevel * 3;
@@ -898,7 +899,7 @@ hideTouchArrowsIfJoystick();
 
 window.addEventListener('DOMContentLoaded', function() {
   // qui metti
-  console.log('SCRIPT CARICATO!');
+  //console.log('SCRIPT CARICATO!');
   console.log('btn-minigame-treasure:', document.getElementById('btn-minigame-treasure'));
 
   document.getElementById('btn-minigame-treasure').addEventListener('click', () => {

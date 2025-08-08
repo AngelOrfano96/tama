@@ -683,12 +683,14 @@ function showTreasureBonus(msg, color="#e67e22") {
 
 function showTreasureArrowsIfMobile() {
   const arrows = document.querySelector('.treasure-arrows-container');
+  if (!arrows) return; // <-- Evita di accedere a .style se non esiste!
   if (window.matchMedia("(hover: none) and (pointer: coarse)").matches) {
     arrows.style.display = "";
   } else {
     arrows.style.display = "none";
   }
 }
+
 showTreasureArrowsIfMobile();
 
 

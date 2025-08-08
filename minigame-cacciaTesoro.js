@@ -260,16 +260,30 @@ function movePetFree(dt) {
 
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
   let size = tile - 20;
-  let tryMove = (nx, ny) => {
-    let minX = Math.floor((nx + 2) / tile);
-    let minY = Math.floor((ny + 2) / tile);
-    let maxX = Math.floor((nx + size - 2) / tile);
-    let maxY = Math.floor((ny + size - 2) / tile);
-    if (room[minY][minX] === 0 && room[minY][maxX] === 0 && room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
-      return true;
-    }
-    return false;
-  };
+ let tryMove = (nx, ny) => {
+  let minX = Math.floor((nx + 2) / tile);
+  let minY = Math.floor((ny + 2) / tile);
+  let maxX = Math.floor((nx + size - 2) / tile);
+  let maxY = Math.floor((ny + size - 2) / tile);
+
+  // **Controllo limiti array**
+  if (
+    minY < 0 || minY >= ROOM_H || maxY < 0 || maxY >= ROOM_H ||
+    minX < 0 || minX >= ROOM_W || maxX < 0 || maxX >= ROOM_W
+  ) {
+    return false; // fuori dai limiti, non consentito!
+  }
+
+  // Controlla i 4 punti solo se sei dentro i limiti
+  if (
+    room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+    room[maxY][minX] === 0 && room[maxY][maxX] === 0
+  ) {
+    return true;
+  }
+  return false;
+};
+
 
   if (tryMove(newPX, treasurePet.py)) treasurePet.px = newPX;
   if (tryMove(treasurePet.px, newPY)) treasurePet.py = newPY;

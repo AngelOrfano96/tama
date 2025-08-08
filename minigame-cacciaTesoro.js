@@ -393,44 +393,46 @@ function handleTreasureMove(dx, dy) {
   if (now - lastMoveTime < moveDelay) return;
   lastMoveTime = now;
 
-  // --- AGGIORNA DIREZIONE E ANIMAZIONE ---
+  // --- AGGIORNA DIREZIONE ---
   if (dx === 1) petDirection = "right";
   else if (dx === -1) petDirection = "left";
   else if (dy === 1) petDirection = "down";
   else if (dy === -1) petDirection = "up";
 
-  if (dx !== 0 || dy !== 0) {
-    petStepFrame = 1 - petStepFrame; // alterna tra 0 e 1
-    petIsMoving = true;
-    petLastMoveTime = now;
-  } else {
-    petIsMoving = false;
-  }
-
   let px = treasurePet.x + dx;
   let py = treasurePet.y + dy;
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
 
+  // Variabile per sapere se si è mossi
+  let moved = false;
+
   // Passaggio stanza
   if (px < 0 && dungeonPetRoom.x > 0 && room[treasurePet.y][0] === 0) {
-    dungeonPetRoom.x -= 1; treasurePet.x = ROOM_W - 2;
+    dungeonPetRoom.x -= 1; treasurePet.x = ROOM_W - 2; moved = true;
   } else if (px >= ROOM_W && dungeonPetRoom.x < DUNGEON_GRID_W - 1 && room[treasurePet.y][ROOM_W - 1] === 0) {
-    dungeonPetRoom.x += 1; treasurePet.x = 1;
+    dungeonPetRoom.x += 1; treasurePet.x = 1; moved = true;
   } else if (py < 0 && dungeonPetRoom.y > 0 && room[0][treasurePet.x] === 0) {
-    dungeonPetRoom.y -= 1; treasurePet.y = ROOM_H - 2;
+    dungeonPetRoom.y -= 1; treasurePet.y = ROOM_H - 2; moved = true;
   } else if (py >= ROOM_H && dungeonPetRoom.y < DUNGEON_GRID_H - 1 && room[ROOM_H - 1][treasurePet.x] === 0) {
-    dungeonPetRoom.y += 1; treasurePet.y = 1;
+    dungeonPetRoom.y += 1; treasurePet.y = 1; moved = true;
   } else if (px >= 0 && py >= 0 && px < ROOM_W && py < ROOM_H && room[py][px] === 0) {
     treasurePet.x = px;
     treasurePet.y = py;
+    moved = true;
+  }
+
+  // SOLO SE TI SEI MOSSO DAVVERO:
+  if (moved) {
+    petStepFrame = 1 - petStepFrame; // alterna frame SOLO SE CAMMINA
+    petIsMoving = true;
+    petLastMoveTime = now;
+    movePetTo(treasurePet.x, treasurePet.y); // animazione
   } else {
     petIsMoving = false;
     return;
   }
 
-  movePetTo(treasurePet.x, treasurePet.y);
-
-  // --- OGGETTI --- (rimane invariato)
+  // --- OGGETTI --- (tutto invariato dopo)
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o => o.type === 'coin' && o.x === treasurePet.x && o.y === treasurePet.y && !o.taken);
@@ -492,6 +494,7 @@ function handleTreasureMove(dx, dy) {
     return;
   }
 }
+
 
 
 

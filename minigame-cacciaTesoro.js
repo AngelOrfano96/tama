@@ -265,12 +265,12 @@ function movePetFree(dt) {
   let newPY = oldPY + dy * speed * dt;
 
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
-  let size = tile - 26;
+  let size = tile - 20;
   let tryMove = (nx, ny) => {
-    let minX = Math.floor((nx + 0) / tile);
-    let minY = Math.floor((ny + 0) / tile);
-    let maxX = Math.floor((nx + size - 0) / tile);
-    let maxY = Math.floor((ny + size - 0) / tile);
+    let minX = Math.floor((nx + 1) / tile);
+    let minY = Math.floor((ny + 1) / tile);
+    let maxX = Math.floor((nx + size - 1) / tile);
+    let maxY = Math.floor((ny + size - 1) / tile);
     if (room[minY][minX] === 0 && room[minY][maxX] === 0 && room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
       return true;
     }

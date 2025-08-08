@@ -287,12 +287,7 @@ if (treasurePet.animTime > getAnimStep()) {
 
   petLastMoveTime = performance.now();
 
-function getAnimStep() {
-  // Più veloce va il pet, più l’animazione è rapida (ma non troppo)
-  let base = 0.18;
-  let speedRatio = treasurePet.speed / baseSpeed; // es. 2 se powerup attivo
-  return base / speedRatio;
-}
+
 
 
   // --- OGGETTI ---
@@ -371,7 +366,12 @@ function getAnimStep() {
     return;
   }
 }
-
+function getAnimStep() {
+  // Più veloce va il pet, più l’animazione è rapida (ma non troppo)
+  let base = 0.18;
+  let speedRatio = treasurePet.speed / baseSpeed; // es. 2 se powerup attivo
+  return base / speedRatio;
+}
 
 // ----- MOVIMENTO LIBERO NEMICI -----
 function moveEnemiesFree(dt) {

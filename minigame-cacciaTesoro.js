@@ -365,33 +365,33 @@ document.addEventListener('keyup', (e) => {
 });
 
 // Il ciclo continuo:
+let lastMoveTime = 0;
+const moveDelay = 130; // puoi regolare a piacere (130-180 va bene)
+
 function continuousTreasureMovement() {
+  let now = performance.now();
   let dx = 0, dy = 0;
   if (treasureKeysPressed.up) dy = -1;
   else if (treasureKeysPressed.down) dy = 1;
   if (treasureKeysPressed.left) dx = -1;
   else if (treasureKeysPressed.right) dx = 1;
-  if (dx !== 0 || dy !== 0) {
+
+  if ((dx !== 0 || dy !== 0) && (now - lastMoveTime > moveDelay)) {
     handleTreasureMove(dx, dy);
-  } else {
+    lastMoveTime = now;
+  } else if (dx === 0 && dy === 0) {
     petIsMoving = false;
   }
   requestAnimationFrame(continuousTreasureMovement);
 }
+
+
 continuousTreasureMovement();
 
 
 
-let lastMoveTime = 0;
-const moveDelay = 130; // ms tra un movimento e l'altro, puoi regolare
-
 function handleTreasureMove(dx, dy) {
   if (!treasurePlaying || !treasureCanMove) return;
-
-  // Timer per evitare ripetizione troppo veloce
-  let now = performance.now();
-  if (now - lastMoveTime < moveDelay) return;
-  lastMoveTime = now;
 
   // --- AGGIORNA DIREZIONE ---
   if (dx === 1) petDirection = "right";
@@ -403,7 +403,6 @@ function handleTreasureMove(dx, dy) {
   let py = treasurePet.y + dy;
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
 
-  // Variabile per sapere se si è mossi
   let moved = false;
 
   // Passaggio stanza
@@ -421,12 +420,11 @@ function handleTreasureMove(dx, dy) {
     moved = true;
   }
 
-  // SOLO SE TI SEI MOSSO DAVVERO:
   if (moved) {
-    petStepFrame = 1 - petStepFrame; // alterna frame SOLO SE CAMMINA
+    petStepFrame = 1 - petStepFrame;
     petIsMoving = true;
-    petLastMoveTime = now;
-    movePetTo(treasurePet.x, treasurePet.y); // animazione
+    petLastMoveTime = performance.now();
+    movePetTo(treasurePet.x, treasurePet.y);
   } else {
     petIsMoving = false;
     return;

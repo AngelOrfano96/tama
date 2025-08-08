@@ -7,7 +7,12 @@ const ROOM_W = 8;
 const ROOM_H = 7;
 const petSpeed = 170;
 const enemySpeed = 100;
-
+const petSpeedDesktop = 180;
+const petSpeedMobile = 120;
+const enemySpeedDesktop = 100;
+const enemySpeedMobile = 60;
+let enemyBaseSpeed = isMobileOrTablet() ? enemySpeedMobile : enemySpeedDesktop;
+let baseSpeed = isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
 let petSprites = null, goblinSprites = null;
 let treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;
 
@@ -136,7 +141,7 @@ function startTreasureMinigame() {
     x: 1, y: 1,
     px: 1 * tile,
     py: 1 * tile,
-    speed: petSpeed,
+    speed: baseSpeed,
     animTime: 0,
     powered: false,
     dirX: 0, dirY: 0
@@ -284,7 +289,8 @@ function movePetFree(dt) {
     pow.taken = true;
     treasureScore += 12;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    if (pow.type === 'speed') { treasurePet.speed = petSpeed * 3; treasureActivePowerup = 'speed'; 
+    let baseSpeed = isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
+    if (pow.type === 'speed') { treasurePet.speed = baseSpeed * 3; treasureActivePowerup = 'speed'; 
       console.log("SPEED POWERUP PRESO! Nuova velocità:", treasurePet.speed);
     }    
     else {
@@ -294,7 +300,7 @@ function movePetFree(dt) {
     }
     if (treasurePowerupTimer) clearTimeout(treasurePowerupTimer);
     treasurePowerupTimer = setTimeout(() => {
-      treasurePet.speed = petSpeed;
+      treasurePet.speed = baseSpeed;
       let enemies = roomEnemies[key];
       for (const e of enemies) e.slow = false;
       treasureActivePowerup = null;
@@ -354,7 +360,7 @@ function moveEnemiesFree(dt) {
   let tile = window.treasureTile;
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
   for (const e of enemies) {
-    let spd = e.slow ? enemySpeed * 0.3 : enemySpeed;
+    let spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
     let dx = treasurePet.px - e.px, dy = treasurePet.py - e.py;
     let dist = Math.sqrt(dx*dx + dy*dy);
     if (dist > 2) {

@@ -5,8 +5,8 @@ const DUNGEON_GRID_W = 3;
 const DUNGEON_GRID_H = 3;
 const ROOM_W = 8;
 const ROOM_H = 7;
-const petSpeed = 180;
-const enemySpeed = 100;
+const petSpeed = 130;
+const enemySpeed = 65;
 
 let petSprites = null, goblinSprites = null;
 let treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;

@@ -279,12 +279,21 @@ function movePetFree(dt) {
 
   petIsMoving = true;
   treasurePet.animTime = (treasurePet.animTime || 0) + dt;
-  const ANIM_STEP = 0.18; // Cambia qui la velocità animazione (0.18 = ~5 passi/sec)
-  if (treasurePet.animTime > ANIM_STEP) {
-    petStepFrame = 1 - petStepFrame;
-    treasurePet.animTime = 0;
-  }
+  //const ANIM_STEP = 0.18; // Cambia qui la velocità animazione (0.18 = ~5 passi/sec)
+if (treasurePet.animTime > getAnimStep()) {
+  petStepFrame = 1 - petStepFrame;
+  treasurePet.animTime = 0;
+}
+
   petLastMoveTime = performance.now();
+
+function getAnimStep() {
+  // Più veloce va il pet, più l’animazione è rapida (ma non troppo)
+  let base = 0.18;
+  let speedRatio = treasurePet.speed / petSpeed; // es. 2 se powerup attivo
+  return base / speedRatio;
+}
+
 
   // --- OGGETTI ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;

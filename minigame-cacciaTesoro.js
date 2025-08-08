@@ -124,7 +124,7 @@ function startTreasureMinigame() {
   treasureWallImg = new Image();
   treasureWallImg.src = "assets/tiles/wall2.png";
   treasureBgImg = new Image();
-  treasureBgImg.src = "assets/backgrounds/dungeon3.png";
+  treasureBgImg.src = `${assetBase}/backgrounds/dungeon3.png`;
   treasurePowerupImg = new Image();
   treasurePowerupImg.src = "assets/bonus/powerup.png";
 

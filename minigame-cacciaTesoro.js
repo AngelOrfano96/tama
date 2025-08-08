@@ -290,7 +290,7 @@ if (treasurePet.animTime > getAnimStep()) {
 function getAnimStep() {
   // Più veloce va il pet, più l’animazione è rapida (ma non troppo)
   let base = 0.18;
-  let speedRatio = treasurePet.speed / petSpeed; // es. 2 se powerup attivo
+  let speedRatio = treasurePet.speed / baseSpeed; // es. 2 se powerup attivo
   return base / speedRatio;
 }
 

@@ -5,8 +5,8 @@ const DUNGEON_GRID_W = 3;
 const DUNGEON_GRID_H = 3;
 const ROOM_W = 8;
 const ROOM_H = 7;
-const petSpeed = 130;
-const enemySpeed = 65;
+const petSpeed = 170;
+const enemySpeed = 100;
 
 let petSprites = null, goblinSprites = null;
 let treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;
@@ -143,7 +143,7 @@ function startTreasureMinigame() {
   };
 // Se era attivo il powerup speed, mantieni la velocità raddoppiata
 if (treasureActivePowerup === 'speed') {
-  treasurePet.speed = petSpeed * 2;
+  treasurePet.speed = petSpeed * 3;
 }
   startTreasureLevel();
 }
@@ -284,7 +284,9 @@ function movePetFree(dt) {
     pow.taken = true;
     treasureScore += 12;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    if (pow.type === 'speed') { treasurePet.speed = petSpeed * 2; treasureActivePowerup = 'speed'; }
+    if (pow.type === 'speed') { treasurePet.speed = petSpeed * 3; treasureActivePowerup = 'speed'; 
+      console.log("SPEED POWERUP PRESO! Nuova velocità:", treasurePet.speed);
+    }    
     else {
       let enemies = roomEnemies[key];
       for (const e of enemies) e.slow = true;
@@ -635,7 +637,7 @@ function startTreasureLevel() {
   const canvas = document.getElementById('treasure-canvas');
   resizeTreasureCanvas();
   treasureCtx = canvas.getContext('2d');
-  treasureTimeLeft = 90 + treasureLevel * 3;
+  treasureTimeLeft = 115 + treasureLevel * 3;
   treasurePlaying = true;
   treasureCanMove = true;
   treasureActivePowerup = null;

@@ -137,19 +137,67 @@ function startTreasureMinigame() {
 
 
 // ----- GESTIONE MOVIMENTO CONTINUO -----
+const dirMap = {
+  "ArrowUp": "up",    "w": "up",
+  "ArrowDown": "down", "s": "down",
+  "ArrowLeft": "left", "a": "left",
+  "ArrowRight": "right", "d": "right"
+};
+let keysStack = []; // Tiene traccia delle direzioni ancora premute
+
 document.addEventListener('keydown', (e) => {
   if (!treasurePlaying) return;
-  if (e.key === "ArrowUp" || e.key === "w") { treasurePet.dirY = -1; petDirection = "up"; }
-  if (e.key === "ArrowDown" || e.key === "s") { treasurePet.dirY = 1; petDirection = "down"; }
-  if (e.key === "ArrowLeft" || e.key === "a") { treasurePet.dirX = -1; petDirection = "left"; }
-  if (e.key === "ArrowRight" || e.key === "d") { treasurePet.dirX = 1; petDirection = "right"; }
+  let dir = dirMap[e.key];
+  if (!dir) return;
+  if (!keysStack.includes(dir)) keysStack.push(dir);
+  updatePetDir();
 });
 document.addEventListener('keyup', (e) => {
-  if (e.key === "ArrowUp" || e.key === "w") if (treasurePet.dirY === -1) treasurePet.dirY = 0;
-  if (e.key === "ArrowDown" || e.key === "s") if (treasurePet.dirY === 1) treasurePet.dirY = 0;
-  if (e.key === "ArrowLeft" || e.key === "a") if (treasurePet.dirX === -1) treasurePet.dirX = 0;
-  if (e.key === "ArrowRight" || e.key === "d") if (treasurePet.dirX === 1) treasurePet.dirX = 0;
+  let dir = dirMap[e.key];
+  if (!dir) return;
+  keysStack = keysStack.filter(d => d !== dir);
+  updatePetDir();
 });
+
+// Aggiorna la direzione attiva in base ai tasti ancora premuti
+function updatePetDir() {
+  // Ordine di priorità: l'ultimo premuto in cima alla lista
+  let dx = 0, dy = 0;
+  // Se vuoi che prevalga sempre l'ultimo tasto premuto, prendi da fine array
+  if (keysStack.length) {
+    let dir = keysStack[keysStack.length - 1];
+    if (dir === "up")      { treasurePet.dirY = -1; petDirection = "up"; }
+    else if (dir === "down"){ treasurePet.dirY = 1; petDirection = "down"; }
+    else treasurePet.dirY = 0;
+    if (dir === "left")    { treasurePet.dirX = -1; petDirection = "left"; }
+    else if (dir === "right"){ treasurePet.dirX = 1; petDirection = "right"; }
+    else treasurePet.dirX = 0;
+
+    // GESTIONE DIAGONALE: se ci sono due tasti, uno verticale e uno orizzontale
+    if (keysStack.length >= 2) {
+      let d1 = keysStack[keysStack.length - 1];
+      let d2 = keysStack[keysStack.length - 2];
+      if (
+        (d1 === "up" || d1 === "down") &&
+        (d2 === "left" || d2 === "right")
+      ) {
+        // Muovi diagonale (es: up+left)
+        if (d2 === "left") { treasurePet.dirX = -1; }
+        if (d2 === "right") { treasurePet.dirX = 1; }
+      }
+      if (
+        (d1 === "left" || d1 === "right") &&
+        (d2 === "up" || d2 === "down")
+      ) {
+        if (d2 === "up") { treasurePet.dirY = -1; }
+        if (d2 === "down") { treasurePet.dirY = 1; }
+      }
+    }
+  } else {
+    treasurePet.dirX = 0; treasurePet.dirY = 0;
+  }
+}
+
 
 // ----- TOUCH (freccette) -----
 function setupTreasureTouchControls() {
@@ -175,11 +223,15 @@ function setupTreasureTouchControls() {
 }
 function treasureTouchMove(dir, pressed) {
   if (!treasurePlaying) return;
-  if (dir === "up") { treasurePet.dirY = pressed ? -1 : 0; petDirection = "up"; }
-  else if (dir === "down") { treasurePet.dirY = pressed ? 1 : 0; petDirection = "down"; }
-  else if (dir === "left") { treasurePet.dirX = pressed ? -1 : 0; petDirection = "left"; }
-  else if (dir === "right") { treasurePet.dirX = pressed ? 1 : 0; petDirection = "right"; }
+  if (!dir) return;
+  if (pressed) {
+    if (!keysStack.includes(dir)) keysStack.push(dir);
+  } else {
+    keysStack = keysStack.filter(d => d !== dir);
+  }
+  updatePetDir();
 }
+
 setupTreasureTouchControls();
 
 

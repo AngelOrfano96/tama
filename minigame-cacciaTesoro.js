@@ -81,7 +81,7 @@ let petSrc = document.getElementById('pet').src; // tipo 'assets/pets/pet_4.png'
 let match = petSrc.match(/pet_(\d+)/); // estrae il numero
 let petNum = match ? match[1] : "1"; // fallback su 1
 
-let goblinSprites = {
+ goblinSprites = {
   idle: new Image(),
   right: [new Image(), new Image()],
   left: [new Image(), new Image()],

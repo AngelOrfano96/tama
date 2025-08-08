@@ -162,7 +162,7 @@ function moveEnemyTo(enemy, targetX, targetY, duration = 120) {
 }
 
 
-function movePetTo(targetX, targetY, duration = 120) {
+function movePetTo(targetX, targetY, duration = 200) {
   const startX = treasurePet.drawX;
   const startY = treasurePet.drawY;
   const endX = targetX;
@@ -339,7 +339,7 @@ document.addEventListener('keyup', (e) => {
 
 // Il ciclo continuo:
 let lastMoveTime = 0;
-const moveDelay = 130; // puoi regolare a piacere (130-180 va bene)
+const moveDelay = 200; // puoi regolare a piacere (130-180 va bene)
 
 function continuousTreasureMovement() {
   let now = performance.now();

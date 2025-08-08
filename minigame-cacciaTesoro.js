@@ -6,7 +6,7 @@ const DUNGEON_GRID_H = 3;
 const ROOM_W = 8;
 const ROOM_H = 7;
 const petSpeed = 180;
-const enemySpeed = 115;
+const enemySpeed = 100;
 
 let petSprites = null, goblinSprites = null;
 let treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;
@@ -568,17 +568,30 @@ function generateDungeon() {
     dungeonRooms.push(row);
   }
 
+  // PORTE ALLARGATE (3 tile di larghezza/altezza)
   for (let y = 0; y < DUNGEON_GRID_H; y++) {
     for (let x = 0; x < DUNGEON_GRID_W; x++) {
+      // Porta destra/sinistra
       if (x < DUNGEON_GRID_W-1) {
         let mid = Math.floor(ROOM_H/2);
-        dungeonRooms[y][x][mid][ROOM_W-1] = 0;
-        dungeonRooms[y][x+1][mid][0] = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          let rowIdx = mid + dy;
+          if (rowIdx >= 1 && rowIdx < ROOM_H-1) {
+            dungeonRooms[y][x][rowIdx][ROOM_W-1] = 0;
+            dungeonRooms[y][x+1][rowIdx][0] = 0;
+          }
+        }
       }
+      // Porta sotto/sopra
       if (y < DUNGEON_GRID_H-1) {
         let mid = Math.floor(ROOM_W/2);
-        dungeonRooms[y][x][ROOM_H-1][mid] = 0;
-        dungeonRooms[y+1][x][0][mid] = 0;
+        for (let dx = -1; dx <= 1; dx++) {
+          let colIdx = mid + dx;
+          if (colIdx >= 1 && colIdx < ROOM_W-1) {
+            dungeonRooms[y][x][ROOM_H-1][colIdx] = 0;
+            dungeonRooms[y+1][x][0][colIdx] = 0;
+          }
+        }
       }
     }
   }
@@ -645,6 +658,7 @@ function generateDungeon() {
     }
    }
   }
+
 
 
 // ----- INIZIO LIVELLO -----

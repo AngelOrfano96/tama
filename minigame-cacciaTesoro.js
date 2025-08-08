@@ -37,6 +37,7 @@ let exitRoom = {x: 0, y: 0};
 let exitTile = {x: 0, y: 0};
 let treasurePowerupUntil = 0;
 let treasureActivePowerup = null; // assicurati che sia definita globale!
+let treasurePowerupExpiresAt = 0;
 
 
 let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft, treasureInterval, treasureCanMove;
@@ -52,6 +53,23 @@ let treasureKeysPressed = {up: false, down: false, left: false, right: false};
 
 function isMobileOrTablet() {
   return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+}
+function getCurrentBaseSpeed() {
+  return isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
+}
+
+function isPowerupActive() {
+  return treasureActivePowerup === "speed" && performance.now() < treasurePowerupExpiresAt;
+}
+
+function getCurrentPetSpeed() {
+  if (isPowerupActive()) return getCurrentBaseSpeed() * 3;
+  return getCurrentBaseSpeed();
+}
+
+function getAnimStep() {
+  if (isPowerupActive()) return 0.12;
+  return 0.18;
 }
 
 function animateRevealCircle(callback) {
@@ -297,17 +315,10 @@ function movePetFree(dt) {
   // --- GESTIONE POWERUP: aggiorna stato prima di tutto ---
   let baseSpeed = isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
 
-  // Speed powerup: aggiorna/annulla in base al tempo
-  if (treasureActivePowerup === "speed") {
-    if (Date.now() < treasurePowerupUntil) {
-      treasurePet.speed = baseSpeed * 3; // <-- Moltiplica la velocità!
-    } else {
-      treasurePet.speed = baseSpeed;
-      treasureActivePowerup = null;
-    }
-  } else {
-    treasurePet.speed = baseSpeed;
-  }
+  // Se il powerup è scaduto, torna a normalità!
+if (treasureActivePowerup === 'speed' && !isPowerupActive()) {
+  treasureActivePowerup = null;
+}
 
   // --- MOVIMENTO ---
   let dx = treasurePet.dirX, dy = treasurePet.dirY;
@@ -315,7 +326,8 @@ function movePetFree(dt) {
   if (dx !== 0 && dy !== 0) { dx /= Math.sqrt(2); dy /= Math.sqrt(2); }
   let tile = window.treasureTile;
   let oldPX = treasurePet.px, oldPY = treasurePet.py;
-  let speed = treasurePet.speed;
+  let speed = getCurrentPetSpeed();
+
 
   let newPX = oldPX + dx * speed * dt;
   let newPY = oldPY + dy * speed * dt;
@@ -365,22 +377,22 @@ function movePetFree(dt) {
   }
   let powers = roomPowerups[key];
   let pow = powers && powers.find(p => !p.taken && distCenter(treasurePet, p) < 0.6);
-  if (pow) {
-    pow.taken = true;
-    console.log("Presa il powerup!", pow.type, "al frame", performance.now());
-    treasureScore += 12;
-    document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    if (pow.type === 'speed') {
-      treasureActivePowerup = 'speed';
-      treasurePowerupUntil = Date.now() + 3000; // 3 secondi
-      console.log("SPEED POWERUP PRESO! Nuova velocità:", treasurePet.speed);
-    } else {
-      let enemies = roomEnemies[key];
-      for (const e of enemies) e.slow = true;
-      treasureActivePowerup = 'slow';
-      treasurePowerupUntil = Date.now() + 3000;
-    }
+if (pow) {
+  pow.taken = true;
+  treasureScore += 12;
+  document.getElementById('treasure-minigame-score').textContent = treasureScore;
+  if (pow.type === 'speed') {
+    treasureActivePowerup = 'speed';
+    treasurePowerupExpiresAt = performance.now() + 3000; // 3 secondi
+    console.log("SPEED POWERUP PRESO! Scade alle:", treasurePowerupExpiresAt, "velocità ora:", getCurrentPetSpeed());
+  } else {
+    let enemies = roomEnemies[key];
+    for (const e of enemies) e.slow = true;
+    treasureActivePowerup = 'slow';
+    // Puoi aggiungere anche per lo slow, ma qui non serve timestamp
   }
+}
+
 
   // --- GESTIONE FINE POWERUP SLOW ENEMICI ---
   if (treasureActivePowerup === "slow" && Date.now() > treasurePowerupUntil) {

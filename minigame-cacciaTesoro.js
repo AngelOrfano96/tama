@@ -79,6 +79,8 @@ function startTreasureMinigame() {
   let petNum = match ? match[1] : "1";
   let assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
 
+  
+
   goblinSprites = {
     idle: new Image(),
     right: [new Image(), new Image()],
@@ -850,4 +852,6 @@ function hideTouchArrowsIfJoystick() {
   if (arrows) arrows.style.display = 'none';
 }
 hideTouchArrowsIfJoystick();
+
+console.log('SCRIPT CARICATO!');
 

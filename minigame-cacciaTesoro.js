@@ -79,7 +79,6 @@ let petSrc = document.getElementById('pet').src; // tipo 'assets/pets/pet_4.png'
 let match = petSrc.match(/pet_(\d+)/); // estrae il numero
 let petNum = match ? match[1] : "1"; // fallback su 1
 
-// SPRITES ANIMATI GOBLIN
 let goblinSprites = {
   idle: new Image(),
   right: [new Image(), new Image()],
@@ -87,6 +86,9 @@ let goblinSprites = {
   up: [new Image(), new Image()],
   down: [new Image(), new Image()]
 };
+
+// SPRITES ANIMATI GOBLIN
+
 goblinSprites.idle.src = "assets/enemies/goblin.png"; // base
 goblinSprites.right[0].src = "assets/enemies/goblin_right_1.png";
 goblinSprites.right[1].src = "assets/enemies/goblin_right_2.png";
@@ -640,18 +642,14 @@ setupTreasureTouchControls();
 
 function drawTreasure() {
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
-    const tile = window.treasureTile || 64; // fallback default
+  const tile = window.treasureTile || 64; // fallback default
 
-
-  // SFONDO: viola per debug
-  //treasureCtx.fillStyle = "#663399";
-  //treasureCtx.fillRect(0,0,ROOM_W*tile,ROOM_H*tile);
+  // SFONDO
   treasureCtx.drawImage(treasureBgImg, 0, 0, ROOM_W*tile, ROOM_H*tile);
 
-  // MURI: grigio
+  // MURI
   for (let y = 0; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++) {
     if (room[y][x] === 1) {
-      // Usa l’asset del muro oppure colore
       if (treasureWallImg.complete) {
         treasureCtx.drawImage(treasureWallImg, x*tile, y*tile, tile, tile);
       } else {
@@ -694,55 +692,57 @@ function drawTreasure() {
     }
   }
 
-// --- PET ANIMATO ---
-
-let petSpriteToDraw;
-if (!petIsMoving) {
-  petSpriteToDraw = petSprites.idle;
-} else {
-  // In movimento: prendi frame della direzione attuale
-  petSpriteToDraw = petSprites[petDirection][petStepFrame];
-}
-
-if (petSpriteToDraw && petSpriteToDraw.complete) {
-  treasureCtx.drawImage(
-    petSpriteToDraw,
-    treasurePet.drawX * tile + 6,
-    treasurePet.drawY * tile + 6,
-    tile - 12,
-    tile - 12
-  );
-} else {
-  // fallback in caso di errore
-  treasureCtx.fillStyle = "#FFD700";
-  treasureCtx.fillRect(
-    treasurePet.drawX * tile + 8,
-    treasurePet.drawY * tile + 8,
-    tile - 16,
-    tile - 16
-  );
-}
-
-
-
-  // Nemici
- for (const e of roomEnemies[key]) {
-  let sprite;
-  if (!e.isMoving) {
-    sprite = goblinSprites.idle;
+  // --- PET ANIMATO ---
+  let petSpriteToDraw;
+  if (!petIsMoving) {
+    petSpriteToDraw = petSprites.idle;
   } else {
-    sprite = goblinSprites[e.direction][e.stepFrame];
+    petSpriteToDraw = petSprites[petDirection][petStepFrame];
   }
-  if (sprite && sprite.complete) {
-    treasureCtx.drawImage(sprite, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
-  } else if (treasureEnemyImg && treasureEnemyImg.complete) {
-    treasureCtx.drawImage(treasureEnemyImg, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
-  } else {
-    treasureCtx.fillStyle = "#e74c3c";
-    treasureCtx.fillRect(e.drawX*tile+8, e.drawY*tile+8, tile-16, tile-16);
-  }
-}
 
+  if (petSpriteToDraw && petSpriteToDraw.complete) {
+    treasureCtx.drawImage(
+      petSpriteToDraw,
+      treasurePet.drawX * tile + 6,
+      treasurePet.drawY * tile + 6,
+      tile - 12,
+      tile - 12
+    );
+  } else {
+    // fallback in caso di errore
+    treasureCtx.fillStyle = "#FFD700";
+    treasureCtx.fillRect(
+      treasurePet.drawX * tile + 8,
+      treasurePet.drawY * tile + 8,
+      tile - 16,
+      tile - 16
+    );
+  }
+
+  // --- NEMICI ANIMATI ---
+  // Check di sicurezza su goblinSprites globale!
+  for (const e of roomEnemies[key]) {
+    let sprite = null;
+    // fallback per stepFrame e direction
+    let frame = e.stepFrame || 0;
+    let dir = e.direction || "down";
+    if (typeof goblinSprites !== "undefined" && goblinSprites && goblinSprites.idle) {
+      if (!e.isMoving) {
+        sprite = goblinSprites.idle;
+      } else if (goblinSprites[dir] && goblinSprites[dir][frame]) {
+        sprite = goblinSprites[dir][frame];
+      }
+    }
+    // Disegna sprite animato, fallback su immagine base o colore
+    if (sprite && sprite.complete) {
+      treasureCtx.drawImage(sprite, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
+    } else if (treasureEnemyImg && treasureEnemyImg.complete) {
+      treasureCtx.drawImage(treasureEnemyImg, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
+    } else {
+      treasureCtx.fillStyle = "#e74c3c";
+      treasureCtx.fillRect(e.drawX*tile+8, e.drawY*tile+8, tile-16, tile-16);
+    }
+  }
 
   // USCITA
   if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
@@ -753,15 +753,17 @@ if (petSpriteToDraw && petSpriteToDraw.complete) {
       treasureCtx.fillRect(exitTile.x*tile+10, exitTile.y*tile+10, tile-20, tile-20);
     }
   }
-   /*
+  /*
   // Testo UI (in alto a sinistra)
   treasureCtx.font = "bold 18px Segoe UI";
   treasureCtx.fillStyle = "#fff";
   let moneteRimaste = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
   treasureCtx.fillText(`Monete rimaste: ${moneteRimaste}`, 18, 22);
   treasureCtx.fillText(`Tempo: ${treasureTimeLeft}s`, 180, 22);
-  treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22); */
+  treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
+  */
 }
+
 
 function endTreasureMinigame() {
   treasurePlaying = false;

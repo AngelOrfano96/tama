@@ -946,7 +946,7 @@ body {
 .treasure-joystick-overlay {
   position: absolute;
   left: 16px;
-  bottom: 100px;
+  bottom: 250px;
   width: 120px;
   height: 120px;
   z-index: 99;

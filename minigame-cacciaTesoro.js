@@ -51,6 +51,50 @@ function isMobileOrTablet() {
   return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
 }
 
+function animateRevealCircle(callback) {
+  const canvas = document.getElementById('treasure-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  let centerX = W / 2;
+  let centerY = H / 2;
+  let maxRadius = Math.sqrt(W*W + H*H) / 2;
+  let radius = 0;
+  let duration = 900; // ms, velocità animazione
+  let start = null;
+
+  function drawFrame(now) {
+    if (!start) start = now;
+    let progress = Math.min(1, (now - start) / duration);
+    radius = 20 + progress * maxRadius;
+
+    // Disegna la stanza sotto (aggiorna sempre)
+    drawTreasure();
+
+    // Overlay nero sopra tutto
+    ctx.save();
+    ctx.globalAlpha = 0.92; // più opaco o meno a piacere
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+
+    // Usa compositing per "bucare" il cerchio
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2*Math.PI);
+    ctx.fill();
+
+    ctx.restore();
+
+    if (progress < 1) {
+      requestAnimationFrame(drawFrame);
+    } else {
+      // Animazione finita
+      if (typeof callback === "function") callback();
+    }
+  }
+  requestAnimationFrame(drawFrame);
+}
+
 
 // ----- DIMENSIONI DINAMICHE -----
 function getTreasureDimensions() {
@@ -675,25 +719,32 @@ function generateDungeon() {
 
 // ----- INIZIO LIVELLO -----
 function startTreasureLevel() {
-  const canvas = document.getElementById('treasure-canvas');
+  // ... setup canvas e logica
   resizeTreasureCanvas();
   treasureCtx = canvas.getContext('2d');
-  treasureTimeLeft = 115 + treasureLevel * 3;
-  treasurePlaying = true;
-  treasureCanMove = true;
-  treasureActivePowerup = null;
-  treasureNeeded = 4 + treasureLevel;
-  drawTreasure();
-  document.getElementById('treasure-minigame-modal').classList.remove('hidden');
-  if (treasureInterval) clearInterval(treasureInterval);
-  treasureInterval = setInterval(() => {
-    if (!treasurePlaying) return;
-    treasureTimeLeft--;
-    document.getElementById('treasure-timer').textContent = treasureTimeLeft;
-    if (treasureTimeLeft <= 0) return endTreasureMinigame();
+  treasureTimeLeft = 90 + treasureLevel * 3;
+  treasurePlaying = false;  // BLOCCA il movimento durante l'animazione!
+
+  // Mostra subito la stanza ma con effetto reveal
+  animateRevealCircle(() => {
+    treasurePlaying = true; // Attiva il gioco SOLO dopo l'effetto!
+    treasureCanMove = true;
+    treasureActivePowerup = null;
+    treasureNeeded = 4 + treasureLevel;
     drawTreasure();
-  }, 700);
+    document.getElementById('treasure-minigame-modal').classList.remove('hidden');
+    // Timer, ecc
+    if (treasureInterval) clearInterval(treasureInterval);
+    treasureInterval = setInterval(() => {
+      if (!treasurePlaying) return;
+      treasureTimeLeft--;
+      document.getElementById('treasure-timer').textContent = treasureTimeLeft;
+      if (treasureTimeLeft <= 0) return endTreasureMinigame();
+      drawTreasure();
+    }, 700);
+  });
 }
+
 
 
 // ----- FINE MINIGIOCO -----

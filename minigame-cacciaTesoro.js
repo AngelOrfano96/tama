@@ -349,12 +349,18 @@ function continuousTreasureMovement() {
   if (treasureKeysPressed.left) dx = -1;
   else if (treasureKeysPressed.right) dx = 1;
 
-  if ((dx !== 0 || dy !== 0) && (now - lastMoveTime > moveDelay)) {
-    handleTreasureMove(dx, dy);
-    lastMoveTime = now;
-  } else if (dx === 0 && dy === 0) {
-    petIsMoving = false;
+    if (dx !== 0 || dy !== 0) {
+    // Stai premendo una direzione: avanza, chiama movimento e imposta moving!
+    if (now - lastMoveTime > moveDelay) {
+      handleTreasureMove(dx, dy);
+      lastMoveTime = now;
+    }
+    petIsMoving = true; // <--- AGGIUNGI QUESTA RIGA
+  } else {
+    petIsMoving = false; // <--- idle SOLO se non stai premendo niente
+    petStepFrame = 0;    //  e torna frame "neutro"
   }
+
   requestAnimationFrame(continuousTreasureMovement);
 }
 

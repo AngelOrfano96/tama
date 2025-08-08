@@ -24,6 +24,15 @@ let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft
 let treasureCanvas, treasureCtx, treasureActivePowerup, treasurePowerupTimer;
 let treasureNeeded;
 
+let treasureKeysPressed = {
+  up: false,
+  down: false,
+  left: false,
+  right: false
+};
+let treasureMoveInterval = null; // timer loop
+
+
 // Responsive tile size!
 function getTreasureDimensions() {
  if (window.innerWidth < 800) {
@@ -320,19 +329,48 @@ for (let i = 0; i < nEnemies; i++) {
    }
   }
 
+  
+document.addEventListener('keydown', (e) => {
+  if (e.key === "ArrowUp" || e.key === "w") treasureKeysPressed.up = true;
+  if (e.key === "ArrowDown" || e.key === "s") treasureKeysPressed.down = true;
+  if (e.key === "ArrowLeft" || e.key === "a") treasureKeysPressed.left = true;
+  if (e.key === "ArrowRight" || e.key === "d") treasureKeysPressed.right = true;
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === "ArrowUp" || e.key === "w") treasureKeysPressed.up = false;
+  if (e.key === "ArrowDown" || e.key === "s") treasureKeysPressed.down = false;
+  if (e.key === "ArrowLeft" || e.key === "a") treasureKeysPressed.left = false;
+  if (e.key === "ArrowRight" || e.key === "d") treasureKeysPressed.right = false;
+});
 
-// Spostamento del pet
-function handleTreasureMove(e) {
-  if (!treasurePlaying || !treasureCanMove) return;
+// Il ciclo continuo:
+function continuousTreasureMovement() {
   let dx = 0, dy = 0;
+  if (treasureKeysPressed.up) dy = -1;
+  else if (treasureKeysPressed.down) dy = 1;
+  if (treasureKeysPressed.left) dx = -1;
+  else if (treasureKeysPressed.right) dx = 1;
+  if (dx !== 0 || dy !== 0) {
+    handleTreasureMove(dx, dy);
+  } else {
+    petIsMoving = false;
+  }
+  requestAnimationFrame(continuousTreasureMovement);
+}
+continuousTreasureMovement();
 
-  // DIREZIONE dal tasto
-  if (e.key === "ArrowUp" || e.key === "w") dy = -1;
-  else if (e.key === "ArrowDown" || e.key === "s") dy = 1;
-  else if (e.key === "ArrowLeft" || e.key === "a") dx = -1;
-  else if (e.key === "ArrowRight" || e.key === "d") dx = 1;
-  else if (e.key === "Escape") { endTreasureMinigame(); return; }
-  else return;
+
+
+let lastMoveTime = 0;
+const moveDelay = 130; // ms tra un movimento e l'altro, puoi regolare
+
+function handleTreasureMove(dx, dy) {
+  if (!treasurePlaying || !treasureCanMove) return;
+
+  // Timer per evitare ripetizione troppo veloce
+  let now = performance.now();
+  if (now - lastMoveTime < moveDelay) return;
+  lastMoveTime = now;
 
   // --- AGGIORNA DIREZIONE E ANIMAZIONE ---
   if (dx === 1) petDirection = "right";
@@ -343,7 +381,7 @@ function handleTreasureMove(e) {
   if (dx !== 0 || dy !== 0) {
     petStepFrame = 1 - petStepFrame; // alterna tra 0 e 1
     petIsMoving = true;
-    petLastMoveTime = performance.now();
+    petLastMoveTime = now;
   } else {
     petIsMoving = false;
   }
@@ -365,12 +403,13 @@ function handleTreasureMove(e) {
     treasurePet.x = px;
     treasurePet.y = py;
   } else {
+    petIsMoving = false;
     return;
   }
 
   movePetTo(treasurePet.x, treasurePet.y);
 
-  // --- OGGETTI ---
+  // --- OGGETTI --- (rimane invariato)
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o => o.type === 'coin' && o.x === treasurePet.x && o.y === treasurePet.y && !o.taken);
@@ -403,7 +442,7 @@ function handleTreasureMove(e) {
   let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type === "coin" && !o.taken).length;
   document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
 
-  // Uscita
+  // Uscita (rimane invariato)
   if (
     dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
     treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
@@ -419,7 +458,7 @@ function handleTreasureMove(e) {
     return;
   }
 
-  // Nemici: perdita
+  // Nemici: perdita (rimane invariato)
   let enemies = roomEnemies[key];
   if (enemies && enemies.some(e => e.x === treasurePet.x && e.y === treasurePet.y)) {
     treasurePlaying = false;
@@ -432,6 +471,7 @@ function handleTreasureMove(e) {
     return;
   }
 }
+
 
 
 
@@ -588,24 +628,25 @@ function drawTreasure() {
   }
 
 // --- PET ANIMATO ---
-let petImgToDraw;
-if (petIsMoving && petSprites && petSprites[petDirection]) {
-  petImgToDraw = petSprites[petDirection][petStepFrame];
-} else if (petSprites) {
-  petImgToDraw = petSprites.idle;
+
+let petSpriteToDraw;
+if (!petIsMoving) {
+  petSpriteToDraw = petSprites.idle;
 } else {
-  petImgToDraw = treasurePetImg; // fallback vecchio
+  // In movimento: prendi frame della direzione attuale
+  petSpriteToDraw = petSprites[petDirection][petStepFrame];
 }
 
-if (petImgToDraw && petImgToDraw.complete) {
+if (petSpriteToDraw && petSpriteToDraw.complete) {
   treasureCtx.drawImage(
-    petImgToDraw,
+    petSpriteToDraw,
     treasurePet.drawX * tile + 6,
     treasurePet.drawY * tile + 6,
     tile - 12,
     tile - 12
   );
 } else {
+  // fallback in caso di errore
   treasureCtx.fillStyle = "#FFD700";
   treasureCtx.fillRect(
     treasurePet.drawX * tile + 8,
@@ -614,6 +655,7 @@ if (petImgToDraw && petImgToDraw.complete) {
     tile - 16
   );
 }
+
 
 // Dopo circa 180ms senza nuovi movimenti: torna a idle
 if (petIsMoving && performance.now() - petLastMoveTime > 180) {

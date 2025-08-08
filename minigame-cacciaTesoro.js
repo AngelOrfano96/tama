@@ -30,20 +30,25 @@ let petLastMoveTime = 0;
 
 let treasureKeysPressed = {up: false, down: false, left: false, right: false};
 
+function isMobileOrTablet() {
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+}
+
 
 // ----- DIMENSIONI DINAMICHE -----
 function getTreasureDimensions() {
- if (window.innerWidth < 800) {
-    const w = Math.floor(window.innerWidth * 0.98);
-    const h = Math.floor(window.innerHeight * 0.62);
-    const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
+  // Tile size fisso su mobile/tablet per ottimizzare le performance e la resa
+  if (isMobileOrTablet() || window.innerWidth < 800) {
+    const tile = 32; // oppure 40, scegli tu quanto deve essere piccola su mobile
+    const w = tile * ROOM_W;
+    const h = tile * ROOM_H;
     return { width: w, height: h, tile };
-} else {
+  } else {
     const w = Math.floor(window.innerWidth * 0.70);
     const h = Math.floor(window.innerHeight * 0.75);
     const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
     return { width: tile * ROOM_W, height: tile * ROOM_H, tile };
-}
+  }
 }
 
 function resizeTreasureCanvas() {
@@ -72,6 +77,7 @@ function startTreasureMinigame() {
   let petSrc = document.getElementById('pet').src;
   let match = petSrc.match(/pet_(\d+)/);
   let petNum = match ? match[1] : "1";
+  let assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
 
   goblinSprites = {
     idle: new Image(),
@@ -80,15 +86,17 @@ function startTreasureMinigame() {
     up: [new Image(), new Image()],
     down: [new Image(), new Image()]
   };
-  goblinSprites.idle.src = "assets/enemies/goblin.png";
-  goblinSprites.right[0].src = "assets/enemies/goblin_right_1.png";
-  goblinSprites.right[1].src = "assets/enemies/goblin_right_2.png";
-  goblinSprites.left[0].src = "assets/enemies/goblin_left_1.png";
-  goblinSprites.left[1].src = "assets/enemies/goblin_left_2.png";
-  goblinSprites.up[0].src = "assets/enemies/goblin_up_1.png";
-  goblinSprites.up[1].src = "assets/enemies/goblin_up_2.png";
-  goblinSprites.down[0].src = "assets/enemies/goblin_down_1.png";
-  goblinSprites.down[1].src = "assets/enemies/goblin_down_2.png";
+  goblinSprites.idle.src = `${assetBase}/enemies/goblin.png`;
+  goblinSprites.right[0].src = `${assetBase}/enemies/goblin_right_1.png`;
+  goblinSprites.right[1].src = `${assetBase}/enemies/goblin_right_2.png`;
+  goblinSprites.left[0].src = `${assetBase}/enemies/goblin_left_1.png`;
+  goblinSprites.left[1].src = `${assetBase}/enemies/goblin_left_2.png`;
+  goblinSprites.up[0].src = `${assetBase}/enemies/goblin_up_1.png`;
+  goblinSprites.up[1].src = `${assetBase}/enemies/goblin_up_2.png`;
+  goblinSprites.down[0].src = `${assetBase}/enemies/goblin_down_1.png`;
+  goblinSprites.down[1].src = `${assetBase}/enemies/goblin_down_2.png`;
+
+  
 
   petSprites = {
     idle: new Image(),
@@ -97,15 +105,15 @@ function startTreasureMinigame() {
     up: [new Image(), new Image()],
     down: [new Image(), new Image()]
   };
-  petSprites.idle.src = `assets/pets/pet_${petNum}.png`;
-  petSprites.right[0].src = `assets/pets/pet_${petNum}_right1.png`;
-  petSprites.right[1].src = `assets/pets/pet_${petNum}_right2.png`;
-  petSprites.left[0].src = `assets/pets/pet_${petNum}_left1.png`;
-  petSprites.left[1].src = `assets/pets/pet_${petNum}_left2.png`;
-  petSprites.down[0].src = `assets/pets/pet_${petNum}_down1.png`;
-  petSprites.down[1].src = `assets/pets/pet_${petNum}_down2.png`;
-  petSprites.up[0].src = `assets/pets/pet_${petNum}_up1.png`;
-  petSprites.up[1].src = `assets/pets/pet_${petNum}_up2.png`;
+  petSprites.idle.src = `${assetBase}/pets/pet_${petNum}.png`;
+  petSprites.right[0].src = `${assetBase}/pets/pet_${petNum}_right1.png`;
+  petSprites.right[1].src = `${assetBase}/pets/pet_${petNum}_right2.png`;
+  petSprites.left[0].src = `${assetBase}/pets/pet_${petNum}_left1.png`;
+  petSprites.left[1].src = `${assetBase}/pets/pet_${petNum}_left2.png`;
+  petSprites.down[0].src = `${assetBase}/pets/pet_${petNum}_down1.png`;
+  petSprites.down[1].src = `${assetBase}/pets/pet_${petNum}_down2.png`;
+  petSprites.up[0].src = `${assetBase}/pets/pet_${petNum}_up1.png`;
+  petSprites.up[1].src = `${assetBase}/pets/pet_${petNum}_up2.png`;
 
   treasureCoinImg = new Image();
   treasureCoinImg.src = "assets/collectibles/coin.png";

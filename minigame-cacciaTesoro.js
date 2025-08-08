@@ -127,6 +127,7 @@ function startTreasureMinigame() {
     px: 1 * tile,
     py: 1 * tile,
     speed: petSpeed,
+    animTime: 0,
     powered: false,
     dirX: 0, dirY: 0
   };
@@ -231,7 +232,12 @@ function movePetFree(dt) {
   treasurePet.y = Math.floor((treasurePet.py + size/2) / tile);
 
   petIsMoving = true;
-  petStepFrame = 1 - petStepFrame;
+  treasurePet.animTime = (treasurePet.animTime || 0) + dt;
+  const ANIM_STEP = 0.18; // Cambia qui la velocità animazione (0.18 = ~5 passi/sec)
+  if (treasurePet.animTime > ANIM_STEP) {
+    petStepFrame = 1 - petStepFrame;
+    treasurePet.animTime = 0;
+  }
   petLastMoveTime = performance.now();
 
   // --- OGGETTI ---
@@ -338,7 +344,13 @@ function moveEnemiesFree(dt) {
         if (Math.abs(dx) > Math.abs(dy)) e.direction = dx > 0 ? "right" : "left";
         else e.direction = dy > 0 ? "down" : "up";
         e.isMoving = true;
-        e.stepFrame = 1 - (e.stepFrame || 0);
+            e.animTime = (e.animTime || 0) + dt;
+    const ENEMY_ANIM_STEP = 0.22; // Nemici un filo più lenti nei passi
+    if (e.animTime > ENEMY_ANIM_STEP) {
+      e.stepFrame = 1 - (e.stepFrame || 0);
+      e.animTime = 0;
+    }
+
       } else {
         e.isMoving = false;
       }
@@ -555,7 +567,8 @@ function generateDungeon() {
           direction: "down",
           stepFrame: 0,
           isMoving: false,
-          lastMoveTime: 0
+          lastMoveTime: 0,
+          animTime: 0
         });
       }
       if (Math.random() < 0.35) {

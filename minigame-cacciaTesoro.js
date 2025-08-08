@@ -679,10 +679,6 @@ if (petSpriteToDraw && petSpriteToDraw.complete) {
 }
 
 
-petIsMoving = (dx !== 0 || dy !== 0);
-
-
-
 
   // Nemici
   for (const e of roomEnemies[key]) {

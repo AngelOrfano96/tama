@@ -367,6 +367,7 @@ function movePetFree(dt) {
   let pow = powers && powers.find(p => !p.taken && distCenter(treasurePet, p) < 0.6);
   if (pow) {
     pow.taken = true;
+    console.log("Presa il powerup!", pow.type, "al frame", performance.now());
     treasureScore += 12;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
     if (pow.type === 'speed') {

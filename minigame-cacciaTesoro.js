@@ -731,19 +731,6 @@ function showTreasureArrowsIfMobile() {
 }
 showTreasureArrowsIfMobile();
 window.addEventListener('resize', showTreasureArrowsIfMobile);
-
-
-// ----- AVVIO DA BOTTONE -----
-document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
-  document.getElementById('minigame-select-modal').classList.add('hidden');
-  document.getElementById('treasure-minigame-modal').classList.remove('hidden');
-  resizeTreasureCanvas();
-  startTreasureMinigame();
-});
-document.getElementById('treasure-exit-btn').addEventListener('click', () => {
-  endTreasureMinigame();
-});
-
 // Joystick analogico virtuale per mobile
 const joystickBase = document.getElementById('treasure-joystick-base');
 const joystickStick = document.getElementById('treasure-joystick-stick');
@@ -869,4 +856,17 @@ function hideTouchArrowsIfJoystick() {
   if (arrows) arrows.style.display = 'none';
 }
 hideTouchArrowsIfJoystick();
+
+// ----- AVVIO DA BOTTONE -----
+document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
+  document.getElementById('minigame-select-modal').classList.add('hidden');
+  document.getElementById('treasure-minigame-modal').classList.remove('hidden');
+  resizeTreasureCanvas();
+  startTreasureMinigame();
+});
+document.getElementById('treasure-exit-btn').addEventListener('click', () => {
+  endTreasureMinigame();
+});
+
+
 

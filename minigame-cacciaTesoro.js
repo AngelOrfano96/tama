@@ -35,9 +35,12 @@ let roomEnemies = {};
 let roomPowerups = {};
 let exitRoom = {x: 0, y: 0};
 let exitTile = {x: 0, y: 0};
+let treasurePowerupUntil = 0;
+let treasureActivePowerup = null; // assicurati che sia definita globale!
+
 
 let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft, treasureInterval, treasureCanMove;
-let treasureCanvas, treasureCtx, treasureActivePowerup, treasurePowerupTimer;
+let treasureCanvas, treasureCtx, treasurePowerupTimer;
 let treasureNeeded;
 
 let petDirection = "down";
@@ -291,9 +294,24 @@ gameLoop();
 
 // ----- MOVIMENTO LIBERO PET -----
 function movePetFree(dt) {
+  // --- GESTIONE POWERUP: aggiorna stato prima di tutto ---
+  let baseSpeed = isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
+
+  // Speed powerup: aggiorna/annulla in base al tempo
+  if (treasureActivePowerup === "speed") {
+    if (Date.now() < treasurePowerupUntil) {
+      treasurePet.speed = baseSpeed * 3; // <-- Moltiplica la velocità!
+    } else {
+      treasurePet.speed = baseSpeed;
+      treasureActivePowerup = null;
+    }
+  } else {
+    treasurePet.speed = baseSpeed;
+  }
+
+  // --- MOVIMENTO ---
   let dx = treasurePet.dirX, dy = treasurePet.dirY;
   if (dx === 0 && dy === 0) { petIsMoving = false; return; }
-
   if (dx !== 0 && dy !== 0) { dx /= Math.sqrt(2); dy /= Math.sqrt(2); }
   let tile = window.treasureTile;
   let oldPX = treasurePet.px, oldPY = treasurePet.py;
@@ -304,30 +322,22 @@ function movePetFree(dt) {
 
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
   let size = tile - 20;
- let tryMove = (nx, ny) => {
-  let minX = Math.floor((nx + 2) / tile);
-  let minY = Math.floor((ny + 2) / tile);
-  let maxX = Math.floor((nx + size - 2) / tile);
-  let maxY = Math.floor((ny + size - 2) / tile);
-
-  // **Controllo limiti array**
-  if (
-    minY < 0 || minY >= ROOM_H || maxY < 0 || maxY >= ROOM_H ||
-    minX < 0 || minX >= ROOM_W || maxX < 0 || maxX >= ROOM_W
-  ) {
-    return false; // fuori dai limiti, non consentito!
-  }
-
-  // Controlla i 4 punti solo se sei dentro i limiti
-  if (
-    room[minY][minX] === 0 && room[minY][maxX] === 0 &&
-    room[maxY][minX] === 0 && room[maxY][maxX] === 0
-  ) {
-    return true;
-  }
-  return false;
-};
-
+  // --- COLLISIONE MURI: controlla i limiti array prima! ---
+  let tryMove = (nx, ny) => {
+    let minX = Math.floor((nx + 2) / tile);
+    let minY = Math.floor((ny + 2) / tile);
+    let maxX = Math.floor((nx + size - 2) / tile);
+    let maxY = Math.floor((ny + size - 2) / tile);
+    if (
+      minY < 0 || minY >= ROOM_H || maxY < 0 || maxY >= ROOM_H ||
+      minX < 0 || minX >= ROOM_W || maxX < 0 || maxX >= ROOM_W
+    ) return false;
+    if (
+      room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+      room[maxY][minX] === 0 && room[maxY][maxX] === 0
+    ) return true;
+    return false;
+  };
 
   if (tryMove(newPX, treasurePet.py)) treasurePet.px = newPX;
   if (tryMove(treasurePet.px, newPY)) treasurePet.py = newPY;
@@ -335,20 +345,16 @@ function movePetFree(dt) {
   treasurePet.x = Math.floor((treasurePet.px + size/2) / tile);
   treasurePet.y = Math.floor((treasurePet.py + size/2) / tile);
 
+  // --- ANIMAZIONE (più veloce se powerup attivo) ---
   petIsMoving = true;
   treasurePet.animTime = (treasurePet.animTime || 0) + dt;
-  //const ANIM_STEP = 0.18; // Cambia qui la velocità animazione (0.18 = ~5 passi/sec)
-if (treasurePet.animTime > getAnimStep()) {
-  petStepFrame = 1 - petStepFrame;
-  treasurePet.animTime = 0;
-}
-
+  if (treasurePet.animTime > getAnimStep()) {
+    petStepFrame = 1 - petStepFrame;
+    treasurePet.animTime = 0;
+  }
   petLastMoveTime = performance.now();
 
-
-
-
-  // --- OGGETTI ---
+  // --- OGGETTI RACCOLTA ---
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o => o.type === 'coin' && !o.taken && distCenter(treasurePet, o) < 0.6);
@@ -363,23 +369,25 @@ if (treasurePet.animTime > getAnimStep()) {
     pow.taken = true;
     treasureScore += 12;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    let baseSpeed = isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
-    if (pow.type === 'speed') { treasurePet.speed = baseSpeed * 3; treasureActivePowerup = 'speed'; 
+    if (pow.type === 'speed') {
+      treasureActivePowerup = 'speed';
+      treasurePowerupUntil = Date.now() + 3000; // 3 secondi
       console.log("SPEED POWERUP PRESO! Nuova velocità:", treasurePet.speed);
-    }    
-    else {
+    } else {
       let enemies = roomEnemies[key];
       for (const e of enemies) e.slow = true;
       treasureActivePowerup = 'slow';
+      treasurePowerupUntil = Date.now() + 3000;
     }
-    if (treasurePowerupTimer) clearTimeout(treasurePowerupTimer);
-    treasurePowerupTimer = setTimeout(() => {
-      treasurePet.speed = baseSpeed;
-      let enemies = roomEnemies[key];
-      for (const e of enemies) e.slow = false;
-      treasureActivePowerup = null;
-    }, 3000);
   }
+
+  // --- GESTIONE FINE POWERUP SLOW ENEMICI ---
+  if (treasureActivePowerup === "slow" && Date.now() > treasurePowerupUntil) {
+    let enemies = roomEnemies[key];
+    for (const e of enemies) e.slow = false;
+    treasureActivePowerup = null;
+  }
+
   let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type === "coin" && !o.taken).length;
   document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
 
@@ -424,12 +432,17 @@ if (treasurePet.animTime > getAnimStep()) {
     return;
   }
 }
+
 function getAnimStep() {
-  // Più veloce va il pet, più l’animazione è rapida (ma non troppo)
+  // Valore base: animazione ogni 0.18s
   let base = 0.18;
-  let speedRatio = treasurePet.speed / baseSpeed; // es. 2 se powerup attivo
-  return base / speedRatio;
+  // Se attivo speed, vai più veloce
+  if (treasureActivePowerup === "speed" && Date.now() < treasurePowerupUntil) {
+    return base * 0.55; // Animazione più rapida (regola il valore a piacere!)
+  }
+  return base;
 }
+
 
 // ----- MOVIMENTO LIBERO NEMICI -----
 function moveEnemiesFree(dt) {

@@ -218,8 +218,6 @@ function treasureTouchMove(dir, pressed) {
   updatePetDir();
 }
 
-setupTreasureTouchControls();
-
 
 // ----- GAME LOOP -----
 let lastFrame = performance.now();
@@ -739,6 +737,11 @@ function updatePetDirFromJoystick(dx, dy) {
   // Se usi una logica tipo: treasurePet.dirX/dirY, oppure una variabile petDirX/petDirY
   treasurePet.dirX = dx;
   treasurePet.dirY = dy;
+
+  if (dx > 0.2) petDirection = "right";
+  else if (dx < -0.2) petDirection = "left";
+  else if (dy < -0.2) petDirection = "up";
+  else if (dy > 0.2) petDirection = "down";
 }
 
 // Funzione di reset

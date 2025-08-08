@@ -5,8 +5,8 @@ const DUNGEON_GRID_W = 3;
 const DUNGEON_GRID_H = 3;
 const ROOM_W = 8;
 const ROOM_H = 7;
-const petSpeed = 160;
-const enemySpeed = 85;
+const petSpeed = 180;
+const enemySpeed = 115;
 
 let petSprites = null, goblinSprites = null;
 let treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;
@@ -265,12 +265,12 @@ function movePetFree(dt) {
   let newPY = oldPY + dy * speed * dt;
 
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
-  let size = tile - 22;
+  let size = tile - 26;
   let tryMove = (nx, ny) => {
-    let minX = Math.floor((nx + 2) / tile);
-    let minY = Math.floor((ny + 2) / tile);
-    let maxX = Math.floor((nx + size - 2) / tile);
-    let maxY = Math.floor((ny + size - 2) / tile);
+    let minX = Math.floor((nx + 0) / tile);
+    let minY = Math.floor((ny + 0) / tile);
+    let maxX = Math.floor((nx + size - 0) / tile);
+    let maxY = Math.floor((ny + size - 0) / tile);
     if (room[minY][minX] === 0 && room[minY][maxX] === 0 && room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
       return true;
     }

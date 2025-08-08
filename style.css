@@ -945,7 +945,7 @@ body {
 /* Overlay che occupa parte bassa a sinistra, solo su mobile */
 .treasure-joystick-overlay {
   position: absolute;
-  left: 16px;
+  left: 50px;
   bottom: 150px;
   width: 120px;
   height: 120px;

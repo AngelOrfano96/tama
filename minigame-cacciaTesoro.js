@@ -4,11 +4,12 @@ const DUNGEON_GRID_W = 3;
 const DUNGEON_GRID_H = 3;
 const ROOM_W = 8;
 const ROOM_H = 7;
-let petSprites = null;  // sarà popolata ogni volta che parte il minigioco
-let petDirection = "down";     // "right", "left", "up", "down"
-let petStepFrame = 0;          // 0 o 1, alterna a ogni passo
-let petIsMoving = false;       // Serve per animazione fluida
-let petLastMoveTime = 0;       // Per controllo animazione idle
+let petSprites = null;
+let petDirection = "down";
+let petStepFrame = 0;
+let petIsMoving = false;
+let petLastMoveTime = 0;
+let treasureKeysDown = {};
 
 let dungeonRooms = [];
 let dungeonPetRoom = {x: 0, y: 0};
@@ -30,32 +31,27 @@ let treasureKeysPressed = {
   left: false,
   right: false
 };
-let treasureMoveInterval = null; // timer loop
-
+let treasureMoveInterval = null;
 
 // Responsive tile size!
 function getTreasureDimensions() {
  if (window.innerWidth < 800) {
-    // MOBILE: canvas quasi tutto schermo
     const w = Math.floor(window.innerWidth * 0.98);
-    const h = Math.floor(window.innerHeight * 0.62); // più alto
+    const h = Math.floor(window.innerHeight * 0.62);
     const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
     return { width: w, height: h, tile };
-} else {
-    // DESKTOP: canvas ENORME!
-    const w = Math.floor(window.innerWidth * 0.70); // prendi il 70% della larghezza disponibile
-    const h = Math.floor(window.innerHeight * 0.75); // prendi il 75% dell'altezza disponibile
+ } else {
+    const w = Math.floor(window.innerWidth * 0.70);
+    const h = Math.floor(window.innerHeight * 0.75);
     const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
     return { width: tile * ROOM_W, height: tile * ROOM_H, tile };
+ }
 }
-}
-
 
 function resizeTreasureCanvas() {
   const canvas = document.getElementById('treasure-canvas');
-  // Togli 70px dall’altezza per la barra info
   let w = window.innerWidth;
-  let h = window.innerHeight - 70; // <-- CAMBIA QUESTO NUMERO SE SERVE!
+  let h = window.innerHeight - 70;
   const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
@@ -63,8 +59,6 @@ function resizeTreasureCanvas() {
   canvas.style.height = `${ROOM_H * tile}px`;
   window.treasureTile = tile;
 }
-
-
 
 // Avvia il minigioco (Vera partita nuova: rigenera dungeon)
 function startTreasureMinigame() {
@@ -76,50 +70,44 @@ function startTreasureMinigame() {
   treasureActivePowerup = null;
 
   // CARICA GLI ASSET
-  // Ottieni il numero/id del pet attuale (tipo 4, 5, ecc)
-let petSrc = document.getElementById('pet').src; // tipo 'assets/pets/pet_4.png'
-let match = petSrc.match(/pet_(\d+)/); // estrae il numero
-let petNum = match ? match[1] : "1"; // fallback su 1
+  let petSrc = document.getElementById('pet').src;
+  let match = petSrc.match(/pet_(\d+)/);
+  let petNum = match ? match[1] : "1";
 
- goblinSprites = {
-  idle: new Image(),
-  right: [new Image(), new Image()],
-  left: [new Image(), new Image()],
-  up: [new Image(), new Image()],
-  down: [new Image(), new Image()]
-};
+  goblinSprites = {
+    idle: new Image(),
+    right: [new Image(), new Image()],
+    left: [new Image(), new Image()],
+    up: [new Image(), new Image()],
+    down: [new Image(), new Image()]
+  };
 
-// SPRITES ANIMATI GOBLIN
+  goblinSprites.idle.src = "assets/enemies/goblin.png";
+  goblinSprites.right[0].src = "assets/enemies/goblin_right_1.png";
+  goblinSprites.right[1].src = "assets/enemies/goblin_right_2.png";
+  goblinSprites.left[0].src = "assets/enemies/goblin_left_1.png";
+  goblinSprites.left[1].src = "assets/enemies/goblin_left_2.png";
+  goblinSprites.up[0].src = "assets/enemies/goblin_up_1.png";
+  goblinSprites.up[1].src = "assets/enemies/goblin_up_2.png";
+  goblinSprites.down[0].src = "assets/enemies/goblin_down_1.png";
+  goblinSprites.down[1].src = "assets/enemies/goblin_down_2.png";
 
-goblinSprites.idle.src = "assets/enemies/goblin.png"; // base
-goblinSprites.right[0].src = "assets/enemies/goblin_right_1.png";
-goblinSprites.right[1].src = "assets/enemies/goblin_right_2.png";
-goblinSprites.left[0].src = "assets/enemies/goblin_left_1.png";
-goblinSprites.left[1].src = "assets/enemies/goblin_left_2.png";
-goblinSprites.up[0].src = "assets/enemies/goblin_up_1.png";
-goblinSprites.up[1].src = "assets/enemies/goblin_up_2.png";
-goblinSprites.down[0].src = "assets/enemies/goblin_down_1.png";
-goblinSprites.down[1].src = "assets/enemies/goblin_down_2.png";
-
-
-// Crea e carica tutti gli sprite per questo pet
-petSprites = {
-  idle: new Image(),
-  right: [new Image(), new Image()],
-  left: [new Image(), new Image()],
-  up: [new Image(), new Image()],
-  down: [new Image(), new Image()]
-};
-
-petSprites.idle.src = `assets/pets/pet_${petNum}.png`;
-petSprites.right[0].src = `assets/pets/pet_${petNum}_right1.png`;
-petSprites.right[1].src = `assets/pets/pet_${petNum}_right2.png`;
-petSprites.left[0].src = `assets/pets/pet_${petNum}_left1.png`;
-petSprites.left[1].src = `assets/pets/pet_${petNum}_left2.png`;
-petSprites.down[0].src = `assets/pets/pet_${petNum}_down1.png`;
-petSprites.down[1].src = `assets/pets/pet_${petNum}_down2.png`;
-petSprites.up[0].src = `assets/pets/pet_${petNum}_up1.png`;
-petSprites.up[1].src = `assets/pets/pet_${petNum}_up2.png`;
+  petSprites = {
+    idle: new Image(),
+    right: [new Image(), new Image()],
+    left: [new Image(), new Image()],
+    up: [new Image(), new Image()],
+    down: [new Image(), new Image()]
+  };
+  petSprites.idle.src = `assets/pets/pet_${petNum}.png`;
+  petSprites.right[0].src = `assets/pets/pet_${petNum}_right1.png`;
+  petSprites.right[1].src = `assets/pets/pet_${petNum}_right2.png`;
+  petSprites.left[0].src = `assets/pets/pet_${petNum}_left1.png`;
+  petSprites.left[1].src = `assets/pets/pet_${petNum}_left2.png`;
+  petSprites.down[0].src = `assets/pets/pet_${petNum}_down1.png`;
+  petSprites.down[1].src = `assets/pets/pet_${petNum}_down2.png`;
+  petSprites.up[0].src = `assets/pets/pet_${petNum}_up1.png`;
+  petSprites.up[1].src = `assets/pets/pet_${petNum}_up2.png`;
 
   treasureCoinImg = new Image();
   treasureCoinImg.src = "assets/collectibles/coin.png";
@@ -135,13 +123,11 @@ petSprites.up[1].src = `assets/pets/pet_${petNum}_up2.png`;
   treasurePowerupImg.src = "assets/bonus/powerup.png";
 
   dungeonPetRoom = { x: Math.floor(DUNGEON_GRID_W/2), y: Math.floor(DUNGEON_GRID_H/2) };
-  treasurePet = { x: 1, y: 1, speed: 1, powered: false };
-  treasurePet.drawX = treasurePet.x;
-  treasurePet.drawY = treasurePet.y;
-
+  treasurePet = { x: 1, y: 1, speed: 1, powered: false, drawX: 1, drawY: 1 };
 
   startTreasureLevel();
 }
+
 function showTreasureFeedbackLabel(amount, color = "#ffe44c") {
   const label = document.getElementById('treasure-feedback-label');
   if (!label) return;
@@ -149,7 +135,6 @@ function showTreasureFeedbackLabel(amount, color = "#ffe44c") {
   label.style.color = color;
   label.style.opacity = "1";
   label.style.display = "block";
-  // reset possible previous animation
   label.style.transform = "translateX(-50%) scale(1)";
   setTimeout(() => {
     label.style.transform = "translateX(-50%) scale(1.4)";
@@ -161,30 +146,42 @@ function showTreasureFeedbackLabel(amount, color = "#ffe44c") {
     label.style.transform = "translateX(-50%) scale(1)";
   }, 1000);
 }
-function moveEnemyTo(enemy, targetX, targetY, duration = 120) {
-  const startX = enemy.drawX;
-  const startY = enemy.drawY;
-  const endX = targetX;
-  const endY = targetY;
-  const startTime = performance.now();
 
-  function animate(now) {
-    let t = Math.min(1, (now - startTime) / duration);
-    enemy.drawX = startX + (endX - startX) * t;
-    enemy.drawY = startY + (endY - startY) * t;
-    drawTreasure();
-    if (t < 1) {
-      requestAnimationFrame(animate);
-    } else {
-      enemy.drawX = endX;
-      enemy.drawY = endY;
-      drawTreasure();
-    }
-  }
-  requestAnimationFrame(animate);
+// === MOVIMENTO FLUIDO NEMICI ===
+function moveEnemyTo(enemy, targetX, targetY, duration = 300) {
+  enemy.startX = typeof enemy.drawX === 'number' ? enemy.drawX : enemy.x;
+  enemy.startY = typeof enemy.drawY === 'number' ? enemy.drawY : enemy.y;
+  enemy.targetX = targetX;
+  enemy.targetY = targetY;
+  enemy.startTime = performance.now();
+  enemy.moveDuration = duration;
 }
 
+function updateTreasureEnemies() {
+  let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
+  let enemies = roomEnemies[key];
+  if (!enemies) return;
 
+  for (const e of enemies) {
+    if (typeof e.targetX === 'number' && typeof e.startX === 'number' && typeof e.startTime === 'number') {
+      const now = performance.now();
+      const t = Math.min(1, (now - e.startTime) / (e.moveDuration || 300));
+      e.drawX = e.startX + (e.targetX - e.startX) * t;
+      e.drawY = e.startY + (e.targetY - e.startY) * t;
+      // Quando arrivi a destinazione, fissa la posizione
+      if (t === 1) {
+        e.drawX = e.x = e.targetX;
+        e.drawY = e.y = e.targetY;
+        delete e.targetX; delete e.startX; delete e.targetY; delete e.startY; delete e.startTime;
+      }
+    } else {
+      e.drawX = e.x;
+      e.drawY = e.y;
+    }
+  }
+}
+
+// === MOVIMENTO FLUIDO PET ===
 function movePetTo(targetX, targetY, duration = 200) {
   const startX = treasurePet.drawX;
   const startY = treasurePet.drawY;
@@ -208,17 +205,16 @@ function movePetTo(targetX, targetY, duration = 200) {
   requestAnimationFrame(animate);
 }
 
-
-
 // Inizia un livello (ma NON ricreare dungeon)
 function startTreasureLevel() {
   const canvas = document.getElementById('treasure-canvas');
-  // Usa le stesse dimensioni del CSS!
-  const ROOM_W = 8;
-  const ROOM_H = 6;
-
   resizeTreasureCanvas();
 
+  const tile = window.treasureTile;
+  treasurePet.posPX = treasurePet.x * tile;
+  treasurePet.posPY = treasurePet.y * tile;
+  treasurePet.size  = tile - 12;
+  treasurePet.speedPX = tile * 4;
 
   treasureCtx = canvas.getContext('2d');
   treasureTimeLeft = 90 + treasureLevel * 3;
@@ -241,8 +237,6 @@ function startTreasureLevel() {
     drawTreasure();
   }, 700);
 }
-
-
 
 // Genera dungeon SOLO una volta!
 function generateDungeon() {
@@ -291,7 +285,6 @@ function generateDungeon() {
   } while (exitRoom.x === Math.floor(DUNGEON_GRID_W/2) && exitRoom.y === Math.floor(DUNGEON_GRID_H/2));
   exitTile.x = ROOM_W-2; exitTile.y = ROOM_H-2;
 
-
   // Oggetti e nemici
   for (let ry = 0; ry < DUNGEON_GRID_H; ry++) {
     for (let rx = 0; rx < DUNGEON_GRID_W; rx++) {
@@ -299,7 +292,6 @@ function generateDungeon() {
       let objects = [];
       let enemies = [];
       let powerups = [];
-      // Monete
       let nCoins = (rx === exitRoom.x && ry === exitRoom.y) ? 1 : (2 + Math.floor(Math.random()*2));
       for (let i = 0; i < nCoins; i++) {
         let px, py;
@@ -310,37 +302,35 @@ function generateDungeon() {
         objects.push({ x: px, y: py, type: 'coin', taken: false });
       }
       // Nemici NON vicino alle porte
-      // 1. Calcola le posizioni delle porte di questa stanza
-let doorPositions = [];
-if (rx > 0) doorPositions.push({x: 0, y: Math.floor(ROOM_H/2)}); // porta a sinistra
-if (rx < DUNGEON_GRID_W-1) doorPositions.push({x: ROOM_W-1, y: Math.floor(ROOM_H/2)}); // destra
-if (ry > 0) doorPositions.push({x: Math.floor(ROOM_W/2), y: 0}); // sopra
-if (ry < DUNGEON_GRID_H-1) doorPositions.push({x: Math.floor(ROOM_W/2), y: ROOM_H-1}); // sotto
+      let doorPositions = [];
+      if (rx > 0) doorPositions.push({x: 0, y: Math.floor(ROOM_H/2)});
+      if (rx < DUNGEON_GRID_W-1) doorPositions.push({x: ROOM_W-1, y: Math.floor(ROOM_H/2)});
+      if (ry > 0) doorPositions.push({x: Math.floor(ROOM_W/2), y: 0});
+      if (ry < DUNGEON_GRID_H-1) doorPositions.push({x: Math.floor(ROOM_W/2), y: ROOM_H-1});
 
-let nEnemies = Math.floor(Math.random()*2);
-for (let i = 0; i < nEnemies; i++) {
-  let ex, ey, isDoor;
-  let tentativi = 0;
-  do {
-    ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
-    ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
-    isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
-    tentativi++;
-  } while (isDoor && tentativi < 30); // Massimo 30 tentativi, poi accetta dov'è
-  enemies.push({
-  x: ex,
-  y: ey,
-  drawX: ex,
-  drawY: ey,
-  slow: false,
-  direction: "down", // oppure come vuoi inizializzare
-  stepFrame: 0,      // frame animazione
-  isMoving: false,   // animazione
-  lastMoveTime: 0    // per animazione idle
-});
+      let nEnemies = Math.floor(Math.random()*2);
+      for (let i = 0; i < nEnemies; i++) {
+        let ex, ey, isDoor;
+        let tentativi = 0;
+        do {
+          ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
+          ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
+          isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
+          tentativi++;
+        } while (isDoor && tentativi < 30);
+        enemies.push({
+          x: ex,
+          y: ey,
+          drawX: ex,
+          drawY: ey,
+          slow: false,
+          direction: "down",
+          stepFrame: 0,
+          isMoving: false,
+          lastMoveTime: 0
+        });
+      }
 
-}
-      
       // Powerup (random)
       if (Math.random() < 0.35) {
         let ptx, pty;
@@ -357,7 +347,6 @@ for (let i = 0; i < nEnemies; i++) {
    }
   }
 
-  
 document.addEventListener('keydown', (e) => {
   if (e.key === "ArrowUp" || e.key === "w") treasureKeysPressed.up = true;
   if (e.key === "ArrowDown" || e.key === "s") treasureKeysPressed.down = true;
@@ -371,9 +360,8 @@ document.addEventListener('keyup', (e) => {
   if (e.key === "ArrowRight" || e.key === "d") treasureKeysPressed.right = false;
 });
 
-// Il ciclo continuo:
 let lastMoveTime = 0;
-const moveDelay = 200; // puoi regolare a piacere (130-180 va bene)
+const moveDelay = 200;
 
 function continuousTreasureMovement() {
   let now = performance.now();
@@ -387,33 +375,26 @@ function continuousTreasureMovement() {
     handleTreasureMove(dx, dy);
     lastMoveTime = now;
   }
-  
-  // --- NUOVO BLOCCO: Idle solo dopo almeno 180ms senza movimento
+
   if (
     !treasureKeysPressed.up && !treasureKeysPressed.down &&
     !treasureKeysPressed.left && !treasureKeysPressed.right
   ) {
-    // se NESSUN tasto premuto e sono passati almeno 180ms dall’ultimo passo
     if (petIsMoving && now - petLastMoveTime > 180) {
       petIsMoving = false;
-      petStepFrame = 0; // torna al frame base
-      drawTreasure(); // ridisegna in idle (opzionale, per aggiornamento immediato)
+      petStepFrame = 0;
+      drawTreasure();
     }
   }
 
+  updateTreasureEnemies(); // <- aggiorna posizione fluida dei nemici
   requestAnimationFrame(continuousTreasureMovement);
 }
-
-
-
 continuousTreasureMovement();
-
-
 
 function handleTreasureMove(dx, dy) {
   if (!treasurePlaying || !treasureCanMove) return;
 
-  // --- AGGIORNA DIREZIONE ---
   if (dx === 1) petDirection = "right";
   else if (dx === -1) petDirection = "left";
   else if (dy === 1) petDirection = "down";
@@ -425,7 +406,6 @@ function handleTreasureMove(dx, dy) {
 
   let moved = false;
 
-  // Passaggio stanza
   if (px < 0 && dungeonPetRoom.x > 0 && room[treasurePet.y][0] === 0) {
     dungeonPetRoom.x -= 1; treasurePet.x = ROOM_W - 2; moved = true;
   } else if (px >= ROOM_W && dungeonPetRoom.x < DUNGEON_GRID_W - 1 && room[treasurePet.y][ROOM_W - 1] === 0) {
@@ -446,11 +426,9 @@ function handleTreasureMove(dx, dy) {
     petLastMoveTime = performance.now();
     movePetTo(treasurePet.x, treasurePet.y);
   } else {
-    // NON mettere più petIsMoving = false qui!
     return;
   }
 
-  // --- OGGETTI --- (resto invariato)
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o => o.type === 'coin' && o.x === treasurePet.x && o.y === treasurePet.y && !o.taken);
@@ -459,7 +437,6 @@ function handleTreasureMove(dx, dy) {
     treasureScore += 1;
     document.getElementById('treasure-minigame-score').textContent = treasureScore;
   }
-  // Powerup
   let powers = roomPowerups[key];
   let pow = powers && powers.find(p => p.x === treasurePet.x && p.y === treasurePet.y && !p.taken);
   if (pow) {
@@ -483,7 +460,6 @@ function handleTreasureMove(dx, dy) {
   let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type === "coin" && !o.taken).length;
   document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
 
-  // Uscita (rimane invariato)
   if (
     dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
     treasurePet.x === exitTile.x && treasurePet.y === exitTile.y &&
@@ -499,7 +475,6 @@ function handleTreasureMove(dx, dy) {
     return;
   }
 
-  // Nemici: perdita (rimane invariato)
   let enemies = roomEnemies[key];
   if (enemies && enemies.some(e => e.x === treasurePet.x && e.y === treasurePet.y)) {
     treasurePlaying = false;
@@ -507,48 +482,38 @@ function handleTreasureMove(dx, dy) {
     window.removeEventListener('keydown', handleTreasureMove);
     if (treasureInterval) clearInterval(treasureInterval);
     setTimeout(() => {
-      endTreasureMinigame(); // <<<< ECCO L’EXP!
+      endTreasureMinigame();
     }, 1500);
     return;
   }
 }
 
-
-
-
-
-
-// Movimento goblin
+// Movimento goblin (AI + pathfinding + chiamata al movimento fluido)
 function moveTreasureEnemies() {
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let enemies = roomEnemies[key];
   if (!enemies) return;
-  const ENEMY_MOVE_DELAY = 350; // ms (aumenta per nemici più lenti)
+  const ENEMY_MOVE_DELAY = 350;
 
   for (const e of enemies) {
-    // Sposta solo se è passato abbastanza tempo
     let now = performance.now();
     if (!e.lastMoveTime) e.lastMoveTime = 0;
     if (now - e.lastMoveTime < ENEMY_MOVE_DELAY) {
-      // Se fermo da troppo tempo, vai in idle
       if (now - e.lastMoveTime > ENEMY_MOVE_DELAY + 60) {
         e.isMoving = false;
         e.stepFrame = 0;
       }
       continue;
     }
-
     let matrix = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
     let path = findPath(matrix, e, treasurePet);
 
     if (path && path.length > 1) {
-      let next = path[1]; // prossimo passo
-      // Direzione (calcola dal movimento)
+      let next = path[1];
       if (next.x > e.x) e.direction = "right";
       else if (next.x < e.x) e.direction = "left";
       else if (next.y > e.y) e.direction = "down";
       else if (next.y < e.y) e.direction = "up";
-      // Alterna frame camminata
       e.stepFrame = 1 - (e.stepFrame || 0);
       e.isMoving = true;
       e.lastMoveTime = now;
@@ -556,26 +521,21 @@ function moveTreasureEnemies() {
       e.x = next.x;
       e.y = next.y;
     } else {
-      // Non si muove
       e.isMoving = false;
       e.stepFrame = 0;
     }
-
-    // Se goblin raggiunge il pet
     if (e.x === treasurePet.x && e.y === treasurePet.y) {
       treasurePlaying = false;
       showTreasureBonus("Game Over!", "#e74c3c");
       window.removeEventListener('keydown', handleTreasureMove);
       if (treasureInterval) clearInterval(treasureInterval);
       setTimeout(() => {
-        endTreasureMinigame(); // <--- ASSEGNA L'EXP E CHIUDE
+        endTreasureMinigame();
       }, 1500);
       return;
     }
   }
 }
-
-
 
 // --- Utility BFS
 function findPath(matrix, start, end) {
@@ -610,8 +570,6 @@ function findPath(matrix, start, end) {
   return path;
 }
 
-
-
 // --- UI Responsive ---
 window.addEventListener('resize', () => {
   if (treasurePlaying) drawTreasure();
@@ -644,12 +602,10 @@ setupTreasureTouchControls();
 
 function drawTreasure() {
   let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
-  const tile = window.treasureTile || 64; // fallback default
+  const tile = window.treasureTile || 64;
 
-  // SFONDO
   treasureCtx.drawImage(treasureBgImg, 0, 0, ROOM_W*tile, ROOM_H*tile);
 
-  // MURI
   for (let y = 0; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++) {
     if (room[y][x] === 1) {
       if (treasureWallImg.complete) {
@@ -661,7 +617,6 @@ function drawTreasure() {
     }
   }
 
-  // OGGETTI (Monete)
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   if (roomObjects[key]) {
     for (const obj of roomObjects[key]) {
@@ -678,7 +633,6 @@ function drawTreasure() {
     }
   }
 
-  // POWERUP
   if (roomPowerups[key]) {
     for (const pow of roomPowerups[key]) {
       if (!pow.taken) {
@@ -701,31 +655,20 @@ function drawTreasure() {
   } else {
     petSpriteToDraw = petSprites[petDirection][petStepFrame];
   }
+  const px = (typeof treasurePet.drawX === 'number' ? treasurePet.drawX : treasurePet.x) * tile;
+  const py = (typeof treasurePet.drawY === 'number' ? treasurePet.drawY : treasurePet.y) * tile;
+  const sz = treasurePet.size ?? (tile - 12);
 
   if (petSpriteToDraw && petSpriteToDraw.complete) {
-    treasureCtx.drawImage(
-      petSpriteToDraw,
-      treasurePet.drawX * tile + 6,
-      treasurePet.drawY * tile + 6,
-      tile - 12,
-      tile - 12
-    );
+    treasureCtx.drawImage(petSpriteToDraw, px + 6, py + 6, sz, sz);
   } else {
-    // fallback in caso di errore
     treasureCtx.fillStyle = "#FFD700";
-    treasureCtx.fillRect(
-      treasurePet.drawX * tile + 8,
-      treasurePet.drawY * tile + 8,
-      tile - 16,
-      tile - 16
-    );
+    treasureCtx.fillRect(px + 8, py + 8, sz - 4, sz - 4);
   }
 
   // --- NEMICI ANIMATI ---
-  // Check di sicurezza su goblinSprites globale!
   for (const e of roomEnemies[key]) {
     let sprite = null;
-    // fallback per stepFrame e direction
     let frame = e.stepFrame || 0;
     let dir = e.direction || "down";
     if (typeof goblinSprites !== "undefined" && goblinSprites && goblinSprites.idle) {
@@ -735,7 +678,6 @@ function drawTreasure() {
         sprite = goblinSprites[dir][frame];
       }
     }
-    // Disegna sprite animato, fallback su immagine base o colore
     if (sprite && sprite.complete) {
       treasureCtx.drawImage(sprite, e.drawX*tile+6, e.drawY*tile+6, tile-12, tile-12);
     } else if (treasureEnemyImg && treasureEnemyImg.complete) {
@@ -755,17 +697,7 @@ function drawTreasure() {
       treasureCtx.fillRect(exitTile.x*tile+10, exitTile.y*tile+10, tile-20, tile-20);
     }
   }
-  /*
-  // Testo UI (in alto a sinistra)
-  treasureCtx.font = "bold 18px Segoe UI";
-  treasureCtx.fillStyle = "#fff";
-  let moneteRimaste = Object.values(roomObjects).flat().filter(o => o.type==="coin" && !o.taken).length;
-  treasureCtx.fillText(`Monete rimaste: ${moneteRimaste}`, 18, 22);
-  treasureCtx.fillText(`Tempo: ${treasureTimeLeft}s`, 180, 22);
-  treasureCtx.fillText(`Livello: ${treasureLevel}`, 320, 22);
-  */
 }
-
 
 function endTreasureMinigame() {
   treasurePlaying = false;
@@ -774,10 +706,8 @@ function endTreasureMinigame() {
 
   setTimeout(() => {
     document.getElementById('treasure-minigame-modal').classList.add('hidden');
-    // Ricompensa exp e fun SOLO se il gioco è finito (sconfitta)
     if (typeof updateFunAndExpFromMiniGame === "function") {
       let fun, exp;
-      // Puoi considerare sempre vittoria = false perché non c'è "vittoria vera"
       fun = 15 + Math.round(treasureScore * 0.6);
       exp = Math.round(treasureScore * 0.5);
       updateFunAndExpFromMiniGame(fun, exp);
@@ -788,7 +718,6 @@ function endTreasureMinigame() {
 
 function showTreasureArrowsIfMobile() {
   const arrows = document.querySelector('.treasure-arrows-container');
-  // Mostra SOLO se touch screen
   if (window.matchMedia("(hover: none) and (pointer: coarse)").matches) {
     arrows.style.display = "";
   } else {
@@ -805,7 +734,6 @@ window.addEventListener('resize', () => {
   }
 });
 
-
 function showTreasureBonus(msg, color="#e67e22") {
   const lab = document.getElementById('treasure-bonus-label');
   if (!lab) { 
@@ -820,15 +748,13 @@ function showTreasureBonus(msg, color="#e67e22") {
   setTimeout(()=>lab.style.display="none", 2100);
 }
 
-
 // Avvio dal bottone minigioco
 document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
   document.getElementById('minigame-select-modal').classList.add('hidden');
   document.getElementById('treasure-minigame-modal').classList.remove('hidden');
-  resizeTreasureCanvas(); // <- qui!
+  resizeTreasureCanvas();
   startTreasureMinigame();
 });
-
 
 // Bottone Esci dal minigioco
 document.getElementById('treasure-exit-btn').addEventListener('click', () => {

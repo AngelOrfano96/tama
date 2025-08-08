@@ -7,8 +7,8 @@ let ROOM_W = 8;
 let ROOM_H = 7;
 
 if (isMobileOrTablet() || window.innerWidth < 800) {
-  DUNGEON_GRID_W = 2;
-  DUNGEON_GRID_H = 2;
+  DUNGEON_GRID_W = 3;
+  DUNGEON_GRID_H = 3;
   ROOM_W = 7;
   ROOM_H = 6;
 } else {

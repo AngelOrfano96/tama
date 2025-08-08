@@ -349,20 +349,27 @@ function continuousTreasureMovement() {
   if (treasureKeysPressed.left) dx = -1;
   else if (treasureKeysPressed.right) dx = 1;
 
-    if (dx !== 0 || dy !== 0) {
-    // Stai premendo una direzione: avanza, chiama movimento e imposta moving!
-    if (now - lastMoveTime > moveDelay) {
-      handleTreasureMove(dx, dy);
-      lastMoveTime = now;
+  if ((dx !== 0 || dy !== 0) && (now - lastMoveTime > moveDelay)) {
+    handleTreasureMove(dx, dy);
+    lastMoveTime = now;
+  }
+  
+  // --- NUOVO BLOCCO: Idle solo dopo almeno 180ms senza movimento
+  if (
+    !treasureKeysPressed.up && !treasureKeysPressed.down &&
+    !treasureKeysPressed.left && !treasureKeysPressed.right
+  ) {
+    // se NESSUN tasto premuto e sono passati almeno 180ms dall’ultimo passo
+    if (petIsMoving && now - petLastMoveTime > 180) {
+      petIsMoving = false;
+      petStepFrame = 0; // torna al frame base
+      drawTreasure(); // ridisegna in idle (opzionale, per aggiornamento immediato)
     }
-    petIsMoving = true; // <--- AGGIUNGI QUESTA RIGA
-  } else {
-    petIsMoving = false; // <--- idle SOLO se non stai premendo niente
-    petStepFrame = 0;    //  e torna frame "neutro"
   }
 
   requestAnimationFrame(continuousTreasureMovement);
 }
+
 
 
 continuousTreasureMovement();
@@ -405,11 +412,11 @@ function handleTreasureMove(dx, dy) {
     petLastMoveTime = performance.now();
     movePetTo(treasurePet.x, treasurePet.y);
   } else {
-    petIsMoving = false;
+    // NON mettere più petIsMoving = false qui!
     return;
   }
 
-  // --- OGGETTI --- (tutto invariato dopo)
+  // --- OGGETTI --- (resto invariato)
   let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   let objects = roomObjects[key];
   let coin = objects.find(o => o.type === 'coin' && o.x === treasurePet.x && o.y === treasurePet.y && !o.taken);
@@ -471,6 +478,7 @@ function handleTreasureMove(dx, dy) {
     return;
   }
 }
+
 
 
 

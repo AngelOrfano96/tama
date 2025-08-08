@@ -679,11 +679,8 @@ if (petSpriteToDraw && petSpriteToDraw.complete) {
 }
 
 
-// Dopo circa 180ms senza nuovi movimenti: torna a idle
-if (petIsMoving && performance.now() - petLastMoveTime > 180) {
-  petIsMoving = false;
-  petStepFrame = 0;
-}
+petIsMoving = (dx !== 0 || dy !== 0);
+
 
 
 

@@ -653,7 +653,7 @@ html, body {
   align-items: center;
   justify-content: flex-start;
 }
-/*
+
 #treasure-canvas {
   display: block;
   max-width: 99vw;
@@ -662,7 +662,7 @@ html, body {
   margin: 0 auto 8px auto;
   border-radius: 14px;
   box-shadow: 0 2px 12px #0007;
-}*/
+}
 
 
 /*.treasure-bottom-row {
@@ -747,7 +747,7 @@ html, body {
     flex: 0 0 auto;
     width: 100vw;
   }
-  /*
+  
   #treasure-canvas {
     width: 99vw;
     max-width: 99vw;
@@ -755,7 +755,7 @@ html, body {
     max-height: 36vh;
     margin: 0 auto 3vw auto;
     border-radius: 10px;
-  }*/
+  }
   .treasure-bottom-row {
     min-height: 96px;
     width: 100vw;
@@ -784,7 +784,7 @@ html, body {
     padding: 0 0 28px 0;
     border-radius: 28px;
   }
-  /*
+  
   #treasure-canvas {
     width: 98vw !important;
     max-width: 1100px !important;
@@ -796,7 +796,7 @@ html, body {
     display: block;
     margin-left: auto;
     margin-right: auto;
-  }*/
+  }
 }
 .treasure-dungeon-area {
   position: relative;
@@ -842,7 +842,7 @@ html, body {
   align-items: flex-start;
   background: none !important;
 }
-/*
+
 #treasure-canvas {
   width: 100vw !important;
   height: 100vh !important;
@@ -851,7 +851,7 @@ html, body {
   margin: 0 auto !important;
   display: block;
   background: none !important;
-}*/
+}
 body {
   overflow: hidden !important;
 }
@@ -999,17 +999,4 @@ body {
   .treasure-joystick-overlay { display: none; }
 }
 
-/* Mobile */
-#treasure-canvas {
-  display: block;
-  margin: 0 auto;
-  width: auto;      /* lascia che sia il JS a fissare width/height */
-  height: auto;
-  max-width: 99vw;  /* solo limiti soft per sicurezza */
-  max-height: 98vh;
-  border-radius: 14px;
-  box-shadow: 0 2px 12px #0007;
-}
-@media (max-width: 700px) {
-  #treasure-canvas { max-height: 70vh; }
 }

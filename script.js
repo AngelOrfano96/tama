@@ -19,30 +19,22 @@ function showOnly(id) {
 // Rende disponibile al minigioco l'aggiornamento di FUN + EXP
 window.updateFunAndExpFromMiniGame = async function(funDelta = 0, expDelta = 0) {
   try {
-    // 1) prendi stato corrente
-    const { data: state, error } = await supabaseClient
+    const { data: state } = await supabaseClient
       .from('pet_states')
       .select('hunger, fun, clean, level, exp')
       .eq('pet_id', petId)
       .single();
 
-    if (error || !state) {
-      console.warn('[Treasure] impossibile leggere stato pet:', error);
-      return;
-    }
+    if (!state) return;
 
-    // 2) aggiorna FUN (clamp 0–100)
     const newFun = Math.max(0, Math.min(100, (state.fun ?? 0) + funDelta));
 
-    // 3) applica EXP usando la tua funzione (gestisce level up + UI)
     await addExpAndMaybeLevelUp(state, expDelta);
 
-    // 4) salva FUN e aggiorna UI
     await supabaseClient.from('pet_states')
       .update({ fun: newFun, updated_at: new Date() })
       .eq('pet_id', petId);
 
-    // ricarica stato per numeri aggiornati (level/exp possono essere cambiati)
     const { data: updated } = await supabaseClient
       .from('pet_states')
       .select('hunger, fun, clean, level, exp')
@@ -50,19 +42,20 @@ window.updateFunAndExpFromMiniGame = async function(funDelta = 0, expDelta = 0) 
       .single();
 
     if (updated) {
-      const l = (typeof updated.level === 'number' && !isNaN(updated.level)) ? updated.level : 1;
-      const e = (typeof updated.exp   === 'number' && !isNaN(updated.exp))   ? updated.exp   : 0;
+      const l = Number.isFinite(updated.level) ? updated.level : 1;
+      const e = Number.isFinite(updated.exp)   ? updated.exp   : 0;
       updateBars(updated.hunger, updated.fun, updated.clean, l, e);
     }
 
-    // 5) feedback visivo EXP (se hai la funzione)
-    if (typeof window.showExpGainLabel === 'function') {
-      window.showExpGainLabel(expDelta);
+    // Mostra l'etichetta dopo che il modal è stato nascosto (endTreasureMinigame usa 1000ms)
+    if (typeof window.showExpGainLabel === 'function' && expDelta > 0) {
+      setTimeout(() => window.showExpGainLabel(expDelta), 1100);
     }
   } catch (err) {
     console.error('[Treasure] errore updateFunAndExpFromMiniGame:', err);
   }
 };
+
 
 // Aggiorna le barre
 function updateBars(hunger, fun, clean, level, exp) {

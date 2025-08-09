@@ -882,19 +882,20 @@ function endTreasureMinigame(reason = "end") {
   // calcolo ricompense
   const fun = 15 + Math.round(treasureScore * 0.6);
   const exp = Math.round(treasureScore * 0.5);
-
   console.log("[Treasure] endTreasureMinigame:", { reason, treasureScore, fun, exp });
 
-  // CONSEGNA SUBITO le ricompense
+  // 1) Chiudi SUBITO il modal, così qualsiasi etichetta sarà visibile sopra
+  const modal = document.getElementById('treasure-minigame-modal');
+  if (modal) modal.classList.add('hidden');
+
+  // 2) Delega l'assegnazione (e la label) alla funzione globale
   try {
     const updater =
       (typeof window !== "undefined" && window.updateFunAndExpFromMiniGame) ||
       (typeof updateFunAndExpFromMiniGame === "function" && updateFunAndExpFromMiniGame);
 
     if (typeof updater === "function") {
-      updater(fun, exp);
-      // opzionale: etichetta di feedback in UI principale
-      if (typeof window.showExpGainLabel === "function") window.showExpGainLabel(exp);
+      updater(fun, exp);      // ← niente showExpGainLabel qui
     } else {
       console.warn("[Treasure] updateFunAndExpFromMiniGame non trovato");
     }
@@ -902,14 +903,11 @@ function endTreasureMinigame(reason = "end") {
     console.error("[Treasure] errore durante award EXP/FUN:", err);
   }
 
-  // chiudi subito il modal (niente timeout)
-  const modal = document.getElementById('treasure-minigame-modal');
-  if (modal) modal.classList.add('hidden');
-
   // pulizia stato input/movimento
   keysStack = [];
   if (typeof resetJoystick === "function") resetJoystick();
 }
+
 
 
 

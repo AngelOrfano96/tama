@@ -69,6 +69,9 @@ function updateBars(hunger, fun, clean, level, exp) {
     document.getElementById('exp-bar').style.width = `${perc}%`;
   }
 }
+if (typeof window.showExpGainLabel === 'function' && expDelta > 0) {
+  setTimeout(() => window.showExpGainLabel(expDelta), 200);
+}
 
 function expForNextLevel(level) {
   return Math.round(100 * Math.pow(1.2, level - 1));

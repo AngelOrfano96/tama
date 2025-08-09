@@ -227,6 +227,33 @@ function showLevelUpMessage() {
     }
   });
 });
+// Etichetta "+EXP" sopra la barra
+window.showExpGainLabel = function(expAmount) {
+  const el = document.getElementById('exp-gain-label');
+  if (!el) {
+    console.warn('[UI] exp-gain-label non trovato');
+    return;
+  }
+
+  // testo
+  el.textContent = `+${expAmount} exp`;
+
+  // mostra
+  el.style.display = 'block';
+  el.style.opacity = '1';
+  el.style.transform = 'translateY(-50%) scale(1)';
+  el.style.zIndex = '9999';     // assicura che stia sopra al resto
+
+  // fade-out
+  setTimeout(() => {
+    el.style.opacity = '0';
+  }, 1000);
+
+  // nascondi dopo il fade
+  setTimeout(() => {
+    el.style.display = 'none';
+  }, 1700);
+};
 
 // --- SELEZIONE UOVO ---
 document.querySelectorAll('.egg.selectable').forEach(img =>

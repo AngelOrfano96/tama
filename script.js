@@ -274,10 +274,26 @@ window.addEventListener('DOMContentLoaded', async () => {
   } else {
     showOnly('login-container');
   }
+  const playBtn = document.getElementById('play-btn');
+  const selectModal = document.getElementById('minigame-select-modal');
+  const treasureModal = document.getElementById('treasure-minigame-modal');
+  const cancelBtn = document.getElementById('btn-minigame-cancel');
+
+  if (playBtn && selectModal) {
+    playBtn.addEventListener('click', () => {
+      // assicurati che l’altro modal non copra tutto
+      treasureModal?.classList.add('hidden');
+      // mostra il selettore
+      selectModal.classList.remove('hidden');
+    });
+  }
+
+  cancelBtn?.addEventListener('click', () => {
+    selectModal.classList.add('hidden');
+  });
 });
-document.getElementById('play-btn')?.addEventListener('click', () => {
-  document.getElementById('minigame-select-modal')?.classList.remove('hidden');
-});
+
+
 
 // --- SCEGLI NUOVO UOVO / LOGOUT PERSONALIZZATO ---
 document.getElementById('choose-egg-btn').addEventListener('click', () => {

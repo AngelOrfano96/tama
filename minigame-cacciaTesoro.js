@@ -1034,10 +1034,6 @@ window.addEventListener('DOMContentLoaded', function() {
     endTreasureMinigame();
   });
 
-  document.getElementById('play-btn')?.addEventListener('click', () => {
-  document.getElementById('minigame-select-modal')?.classList.remove('hidden');
-});
-
 
   // ----- RESPONSIVE & UI -----
 window.addEventListener('resize', () => {

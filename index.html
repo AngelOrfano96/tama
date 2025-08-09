@@ -99,71 +99,6 @@
         </div>
       </div>
     </div>
-    
-    <!-- MODALE MINIGIOCO PRENDIMI-->
-    <div id="minigame-modal" class="hidden" style="
-      position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.25); display:flex; align-items:center; justify-content:center;">
-      <div class="minigame-box" style="
-        background:#fcf8e3; border-radius:30px; min-width:380px; min-height:340px; box-shadow:0 6px 40px #0002; padding:28px 34px 34px 34px; display:flex; flex-direction:column; align-items:center; position:relative;">
-        <div id="minigame-topbar" style="display: flex; justify-content: space-between; align-items: center; width: 90%; margin-bottom: 14px;">
-          <span id="minigame-title" style="font-weight: bold; font-size: 1.18em; color: #2c3e50;">Acchiappa il tuo pet!</span>
-          <span id="minigame-timer" style="font-size: 1.2em; color: #2c3e50;"></span>
-        </div>
-        <canvas id="minigame-canvas" width="320" height="320" style="background:#1a1a1a;border-radius:12px;"></canvas>
-        <div id="minigame-ui" style="width:100%;margin-top:18px;display:flex;justify-content:flex-end">
-          <button id="minigame-exit-btn" type="button" style="background:#e67e22;color:#fff;font-size:1.06em;padding:8px 18px;border-radius:6px;border:none;cursor:pointer;">Chiudi</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Minigioco: Fuga dal Dungeon -->
-    <div id="maze-minigame-modal" class="modal hidden">
-      <div class="minigame-box" style="position:relative;">
-        <!-- Il bonus label UNICO e centrato! -->
-        <div id="maze-bonus-label" class="exp-gain-label"
-          style="display:none;position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:1.1em;font-weight:700;">
-        </div>
-        <div class="minigame-header">
-          <span id="maze-minigame-timer">30</span> s
-          <span style="margin-left:20px;">Punteggio: <span id="maze-minigame-score">0</span></span>
-        </div>
-        <canvas id="maze-canvas" width="320" height="256" style="background:#222;display:block;margin:auto;border-radius:10px"></canvas>
-        <div style="text-align:center;margin-top:1em;">
-          <button id="maze-exit-btn">Esci</button>
-        </div>
-        <div id="maze-touch-controls" class="maze-touch-controls" style="margin-top:18px; display:none;">
-          <div class="maze-touch-row">
-            <button class="maze-arrow-btn" data-dir="up">▲</button>
-          </div>
-          <div class="maze-touch-row">
-            <button class="maze-arrow-btn" data-dir="left">◀</button>
-            <button class="maze-arrow-btn" data-dir="down">▼</button>
-            <button class="maze-arrow-btn" data-dir="right">▶</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODALE MINI GIOCO SALTA OSTACOLI -->
-<div id="jumper-minigame-modal" class="modal hidden">
-  <div class="minigame-box" style="position:relative;">
-    <div class="minigame-header" style="display:flex;justify-content:space-between;">
-      <span id="jumper-minigame-title" style="font-weight: bold; font-size: 1.18em; color: #2c3e50;">Salta gli ostacoli!</span>
-      <span id="jumper-minigame-timer">20</span> s
-      <span style="margin-left:20px;">Punteggio: <span id="jumper-minigame-score">0</span></span>
-    </div>
-    <canvas id="jumper-canvas" width="320" height="192" style="background:#222;display:block;margin:auto;border-radius:10px"></canvas>
-    <div id="jumper-bonus-label" class="exp-gain-label" style="display:none;position:absolute;top:24px;left:50%;transform:translateX(-50%);color:#fff;font-size:1.15em;font-weight:700;"></div>
-    <div style="text-align:center;margin-top:1em;">
-      <button id="jumper-mobile-jump-btn"
-  style="display:none; width:85vw; max-width:370px; font-size:1.7rem; height:60px; margin:10px auto; background:#f1c40f; color:#2c3e50; border-radius:20px; border:none; font-weight:bold; box-shadow:0 2px 8px #aaa; transition:.2s;">
-  SALTA
-    </button>
-
-      <button id="jumper-exit-btn">Esci</button>
-    </div>
-  </div>
-</div>
 
 <!-- ===== MODALE MINIGIOCO CACCIA AL TESORO ===== -->
 <div id="treasure-minigame-modal" class="treasure-minigame-modal hidden">
@@ -211,14 +146,11 @@
     <div id="minigame-select-modal" class="modal hidden">
       <div class="modal-content" style="text-align:center;">
         <h2>Scegli un mini gioco</h2>
-        <button id="btn-minigame-catch">Prendimi!</button>
-        <button id="btn-minigame-maze" class="minigame-btn">Fuga dal Dungeon</button>
-        <button id="btn-minigame-jumper" class="minigame-btn">Salta gli ostacoli</button>
         <button id="btn-minigame-treasure" class="minigame-btn">Caccia al Tesoro</button>
 
         <!-- Qui in futuro puoi aggiungere altri bottoni/mini giochi -->
         <br>
-        <button id="btn-minigame-cancel" class="btn-minigame-cancel" style="margin-top:18px;">Chiudi</button>
+        <button id="btn-minigame-cancel" class="minigame-btn" style="margin-top:18px;">Chiudi</button>
       </div>
     </div>
 
@@ -230,10 +162,7 @@
     window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
     window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWNpZnlic2hvYXdod2VjaGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNzM0MDQsImV4cCI6MjA2OTY0OTQwNH0.Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
   </script>
-  <script src="minigame-acchiappami.js"></script>
 <script src="minigame-cacciaTesoro.js"></script>
-<script src="minigame-fugaDungeon.js"></script>
-<script src="minigame-saltaOstacoli.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

@@ -627,7 +627,7 @@ function drawTreasure() {
 // --- Disegna teschi decorativi ---
 for (let skull of dungeonSkulls) {
   if (skull.roomX === dungeonPetRoom.x && skull.roomY === dungeonPetRoom.y) {
-    ctx.drawImage(
+    treasureCtx.drawImage(
       skull.img,
       skull.x * window.treasureTile,
       skull.y * window.treasureTile,

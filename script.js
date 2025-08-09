@@ -275,6 +275,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     showOnly('login-container');
   }
 });
+document.getElementById('play-btn')?.addEventListener('click', () => {
+  document.getElementById('minigame-select-modal')?.classList.remove('hidden');
+});
 
 // --- SCEGLI NUOVO UOVO / LOGOUT PERSONALIZZATO ---
 document.getElementById('choose-egg-btn').addEventListener('click', () => {

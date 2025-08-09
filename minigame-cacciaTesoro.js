@@ -583,6 +583,19 @@ function drawTreasure() {
     }
   }
 
+  // --- Disegna teschi decorativi ---
+for (let skull of dungeonSkulls) {
+  if (skull.roomX === dungeonPetRoom.x && skull.roomY === dungeonPetRoom.y) {
+    treasureCtx.drawImage(
+      skull.img,
+      skull.x * window.treasureTile,
+      skull.y * window.treasureTile,
+      window.treasureTile,
+      window.treasureTile
+    );
+  }
+}
+
   // PET
   let petSpriteToDraw;
   if (!petIsMoving) {
@@ -624,18 +637,7 @@ function drawTreasure() {
     }
   }
 
-// --- Disegna teschi decorativi ---
-for (let skull of dungeonSkulls) {
-  if (skull.roomX === dungeonPetRoom.x && skull.roomY === dungeonPetRoom.y) {
-    treasureCtx.drawImage(
-      skull.img,
-      skull.x * window.treasureTile,
-      skull.y * window.treasureTile,
-      window.treasureTile,
-      window.treasureTile
-    );
-  }
-}
+
 
 
   // USCITA

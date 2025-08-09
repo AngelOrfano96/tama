@@ -872,41 +872,46 @@ function startTreasureLevel() {
 
 // ----- FINE MINIGIOCO -----
 function endTreasureMinigame(reason = "end") {
-  // stop loop/timer
+  // 1) stop loop/timer
   treasurePlaying = false;
   if (treasureInterval) {
     clearInterval(treasureInterval);
     treasureInterval = null;
   }
 
-  // calcolo ricompense
-  const fun = 15 + Math.round(treasureScore * 0.6);
-  const exp = Math.round(treasureScore * 0.5);
-  console.log("[Treasure] endTreasureMinigame:", { reason, treasureScore, fun, exp });
-
-  // 1) Chiudi SUBITO il modal, così qualsiasi etichetta sarà visibile sopra
+  // 2) chiudi SUBITO il modal
   const modal = document.getElementById('treasure-minigame-modal');
   if (modal) modal.classList.add('hidden');
 
-  // 2) Delega l'assegnazione (e la label) alla funzione globale
-  try {
-    const updater =
-      (typeof window !== "undefined" && window.updateFunAndExpFromMiniGame) ||
-      (typeof updateFunAndExpFromMiniGame === "function" && updateFunAndExpFromMiniGame);
+  // 3) calcola ricompense
+  const fun = 15 + Math.round(treasureScore * 0.6);
+  const exp = Math.round(treasureScore * 0.5);
 
-    if (typeof updater === "function") {
-      updater(fun, exp);      // ← niente showExpGainLabel qui
-    } else {
-      console.warn("[Treasure] updateFunAndExpFromMiniGame non trovato");
+  console.log("[Treasure] endTreasureMinigame:", { reason, treasureScore, fun, exp });
+
+  // 4) dopo un piccolo delay, aggiorna DB/UI e mostra la label
+  setTimeout(async () => {
+    try {
+      if (typeof window.updateFunAndExpFromMiniGame === "function") {
+        await window.updateFunAndExpFromMiniGame(fun, exp);
+      } else {
+        console.warn("[Treasure] updateFunAndExpFromMiniGame non trovato");
+      }
+
+      // mostra SEMPRE la label exp dopo l’aggiornamento
+      if (typeof window.showExpGainLabel === "function" && exp > 0) {
+        window.showExpGainLabel(exp);
+      }
+    } catch (err) {
+      console.error("[Treasure] errore award EXP/FUN:", err);
     }
-  } catch (err) {
-    console.error("[Treasure] errore durante award EXP/FUN:", err);
-  }
 
-  // pulizia stato input/movimento
-  keysStack = [];
-  if (typeof resetJoystick === "function") resetJoystick();
+    // pulizia input
+    keysStack = [];
+    if (typeof resetJoystick === "function") resetJoystick();
+  }, 180); // 150-250ms vanno bene
 }
+
 
 
 

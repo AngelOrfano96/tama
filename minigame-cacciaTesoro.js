@@ -771,9 +771,9 @@ dungeonSkulls = []; // reset array
 let assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
 
 let skullSources = [
-  `${assetBase}/background/teschio_1.png`,
-  `${assetBase}/background/teschio_2.png`,
-  `${assetBase}/background/teschio_3.png`
+  `${assetBase}/backgrounds/teschio_1.png`,
+  `${assetBase}/backgrounds/teschio_2.png`,
+  `${assetBase}/backgrounds/teschio_3.png`
 ];
 
 // Precarica e posiziona

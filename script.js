@@ -274,29 +274,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   } else {
     showOnly('login-container');
   }
- const playBtn = document.getElementById('play-btn');
-  const selectModal = document.getElementById('minigame-select-modal');
-  const closeSelect = document.getElementById('btn-minigame-cancel');
-
-  if (!playBtn) {
-    console.warn('#play-btn non trovato');
-    return;
-  }
-  if (!selectModal) {
-    console.warn('#minigame-select-modal non trovato');
-    return;
-  }
-
-  playBtn.addEventListener('click', () => {
-    // chiudi eventuali altri modali aperti
-    document.getElementById('treasure-minigame-modal')?.classList.add('hidden');
-    // mostra il selettore
-    selectModal.classList.remove('hidden');
-  });
-
-  closeSelect?.addEventListener('click', () => {
-    selectModal.classList.add('hidden');
-  });
 });
 
 // --- SCEGLI NUOVO UOVO / LOGOUT PERSONALIZZATO ---

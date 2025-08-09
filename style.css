@@ -180,7 +180,7 @@ body {
   color: #e67e22;
 }
 
-/* Layout di gioco compatto e centrato */
+/* Layout di gioco compatto e centrato GIOCO MAIN /////////////////////////////////////////////////////////*/
 #game {
   display: flex;
   flex-direction: column;
@@ -391,34 +391,8 @@ body {
   display: none;
 }
 
-#minigame-modal {
-  position: fixed; top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(0,0,0,0.85);
-  display: flex; justify-content: center; align-items: center;
-  z-index: 120;
-}
-#minigame-modal.hidden { display: none; }
-.minigame-box {
-  background: #fffbe9;
-  border-radius: 24px;
-  padding: 2rem 1.5rem;
-  box-shadow: 0 6px 38px 0 rgba(0,0,0,0.19);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-#minigame-ui {
-  margin-top: 1rem;
-  width: 100%;
-  text-align: right;
-}
-#minigame-exit-btn {
-  background: #e67e22; color: #fff; border: none; border-radius: 6px; font-size: 1.1em; padding: 0.7em 1.7em; cursor: pointer;
-}
-#minigame-exit-btn:hover { background: #d35400; }
 
-
+/*IMPORTANTE FINESTRA SELEZIONE GIOCO//////////////////////////////////////////////////////////////////*/
 .modal {
   position: fixed; left: 0; top: 0;
   width: 100vw; height: 100vh;
@@ -459,10 +433,7 @@ body {
 }
 
 /* Bottoni selezione minigiochi */
-#minigame-select-modal .minigame-btn,
-#minigame-select-modal #btn-minigame-catch,
-#minigame-select-modal #btn-minigame-maze,
-#minigame-select-modal #btn-minigame-cancel {
+#minigame-select-modal .minigame-btn {
   display: inline-block;
   margin: 16px 10px 0 10px;
   padding: 14px 32px;
@@ -478,19 +449,13 @@ body {
   outline: none;
 }
 
-#minigame-select-modal .minigame-btn:hover,
-#minigame-select-modal #btn-minigame-catch:hover,
-#minigame-select-modal #btn-minigame-maze:hover,
-#minigame-select-modal #btn-minigame-cancel:hover {
+#minigame-select-modal .minigame-btn:hover {
   background: linear-gradient(90deg, #ffbc73 0%, #ffe484 100%);
   color: #e67e22;
   transform: scale(1.06);
 }
 
-#minigame-select-modal .minigame-btn:active,
-#minigame-select-modal #btn-minigame-catch:active,
-#minigame-select-modal #btn-minigame-maze:active,
-#minigame-select-modal #btn-minigame-cancel:active {
+#minigame-select-modal .minigame-btn:active {
   background: #ffd471;
   color: #ad5d0c;
   transform: scale(0.98);
@@ -506,104 +471,7 @@ body {
   margin: auto;
   border: 2.5px solid #ffe484;
 }
-
-.maze-touch-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.maze-touch-row {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-}
-
-.maze-arrow-btn {
-  background: #ffe484;
-  color: #3d2100;
-  border: none;
-  border-radius: 50%;
-  width: 46px;
-  height: 46px;
-  font-size: 1.8em;
-  box-shadow: 0 2px 8px #0001;
-  margin: 2px;
-  transition: background 0.18s, transform 0.13s;
-}
-
-.maze-arrow-btn:active {
-  background: #ffd471;
-  color: #e67e22;
-  transform: scale(0.94);
-}
-
-/* Mostra i controlli solo su mobile */
-@media (max-width: 800px) {
-  #maze-touch-controls {
-    display: flex !important;
-  }
-}
-
-.maze-arrow-btn {
-  touch-action: manipulation;   /* previene double-tap zoom */
-}
-
-.maze-arrow-btn {
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-button, .maze-arrow-btn {
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.minigame-box { position: relative; }
-#maze-bonus-label {
-  z-index: 2;
-  position: absolute;
-  top: 16px; left: 50%; transform: translateX(-50%);
-  color: #fff;
-  font-size: 1.1em;
-  font-weight: 700;
-  pointer-events: none;
-  text-shadow: 0 2px 6px #000b;
-}
-
-@media (min-width: 700px) {
-  .minigame-box {
-    min-width: 520px !important;
-    min-height: 440px !important;
-    /* puoi aumentare padding/margini qui */
-  }
-  #maze-canvas,
-  #minigame-canvas {
-    width: 480px !important;
-    height: 384px !important;
-    image-rendering: pixelated;
-  }
-}
-
-@media (min-width: 600px) {
-  .minigame-box {
-    min-width: 480px !important;
-    min-height: 480px !important;
-  }
-}
-body, canvas, button, #jumper-mobile-jump-btn {
-  user-select: none;          /* Disabilita selezione testo */
-  -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;  /* Disabilita highlight azzurro sui tap */
-  touch-action: manipulation; /* Disabilita gesture extra tipo double-tap zoom */
-}
-html, body {
-  overscroll-behavior: contain; /* Niente scroll elastico */
-  touch-action: manipulation;   /* Blocca zoom e pan via touch */
-}
+/*//////////////////////////////////////////////////////////////////////// DA QUI INIZIA IL CSS DEL GIOCO CACCIA AL TESORO*/
 
 #treasure-minigame-modal, .treasure-minigame-modal {
   position: fixed;
@@ -997,6 +865,4 @@ body {
 }
 @media (min-width: 851px) {
   .treasure-joystick-overlay { display: none; }
-}
-
 }

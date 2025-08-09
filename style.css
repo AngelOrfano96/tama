@@ -395,7 +395,11 @@ body {
 /*IMPORTANTE FINESTRA SELEZIONE GIOCO//////////////////////////////////////////////////////////////////*/
 
 #minigame-select-modal { z-index: 1500; }
-
+.treasure-minigame-modal.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 .modal {
   position: fixed; left: 0; top: 0;
   width: 100vw; height: 100vh;

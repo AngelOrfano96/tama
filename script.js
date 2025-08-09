@@ -279,17 +279,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   const treasureModal = document.getElementById('treasure-minigame-modal');
   const cancelBtn = document.getElementById('btn-minigame-cancel');
 
-  if (playBtn && selectModal) {
-    playBtn.addEventListener('click', () => {
-      // assicurati che l’altro modal non copra tutto
-      treasureModal?.classList.add('hidden');
-      // mostra il selettore
-      selectModal.classList.remove('hidden');
-    });
-  }
+  playBtn?.addEventListener('click', () => {
+    treasureModal?.classList.add('hidden');   // <-- importante
+    selectModal?.classList.remove('hidden');
+  });
 
   cancelBtn?.addEventListener('click', () => {
-    selectModal.classList.add('hidden');
+    selectModal?.classList.add('hidden');
   });
 });
 

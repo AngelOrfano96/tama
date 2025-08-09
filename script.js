@@ -274,19 +274,36 @@ window.addEventListener('DOMContentLoaded', async () => {
   } else {
     showOnly('login-container');
   }
-  const playBtn = document.getElementById('play-btn');
-  const selectModal = document.getElementById('minigame-select-modal');
+   const selectModal   = document.getElementById('minigame-select-modal');
   const treasureModal = document.getElementById('treasure-minigame-modal');
-  const cancelBtn = document.getElementById('btn-minigame-cancel');
+  const playBtn       = document.getElementById('play-btn');
+  const startTreasure = document.getElementById('btn-minigame-treasure');
+  const cancelBtn     = document.getElementById('btn-minigame-cancel');
 
+  // Apri selettore
   playBtn?.addEventListener('click', () => {
-    treasureModal?.classList.add('hidden');   // <-- importante
-    selectModal?.classList.remove('hidden');
+    treasureModal?.classList.add('hidden');     // nascondi il dungeon se fosse aperto
+    selectModal?.classList.remove('hidden');    // mostra il selettore
   });
 
+  // Avvia “Caccia al Tesoro”
+  startTreasure?.addEventListener('click', () => {
+    selectModal?.classList.add('hidden');
+    treasureModal?.classList.remove('hidden');
+    resizeTreasureCanvas();
+    startTreasureMinigame();
+  });
+
+  // CHIUDI selettore
   cancelBtn?.addEventListener('click', () => {
     selectModal?.classList.add('hidden');
   });
+
+  // Chiudi anche cliccando fuori dalla card
+  selectModal?.addEventListener('click', (e) => {
+    if (e.target === selectModal) selectModal.classList.add('hidden');
+  });
+
 });
 
 

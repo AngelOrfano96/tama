@@ -400,6 +400,16 @@ body {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+/* i modal devono sparire davvero quando hanno .hidden */
+.modal.hidden { 
+  display: none !important; 
+}
+.treasure-minigame-modal.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .modal {
   position: fixed; left: 0; top: 0;
   width: 100vw; height: 100vh;

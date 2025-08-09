@@ -38,7 +38,8 @@ let exitTile = {x: 0, y: 0};
 let treasurePowerupUntil = 0;
 let treasureActivePowerup = null; // assicurati che sia definita globale!
 let treasurePowerupExpiresAt = 0;
-
+let dungeonSkulls = [];
+let skullAssets = ['teschio_1.png', 'teschio_2.png', 'teschio_3.png'];
 
 let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft, treasureInterval, treasureCanMove;
 let treasureCanvas, treasureCtx, treasurePowerupTimer;
@@ -623,6 +624,20 @@ function drawTreasure() {
     }
   }
 
+// --- Disegna teschi decorativi ---
+for (let skull of dungeonSkulls) {
+  if (skull.roomX === dungeonPetRoom.x && skull.roomY === dungeonPetRoom.y) {
+    ctx.drawImage(
+      skull.img,
+      skull.x * window.treasureTile,
+      skull.y * window.treasureTile,
+      window.treasureTile,
+      window.treasureTile
+    );
+  }
+}
+
+
   // USCITA
   if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
     if (treasureExitImg.complete) {
@@ -748,6 +763,52 @@ function generateDungeon() {
       roomPowerups[key] = powerups;
     }
    }
+
+   // --- TESCHI DECORATIVI ---
+dungeonSkulls = []; // reset array
+
+// Lista file teschi in base alla piattaforma
+let assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
+
+let skullSources = [
+  `${assetBase}/background/teschio_1.png`,
+  `${assetBase}/background/teschio_2.png`,
+  `${assetBase}/background/teschio_3.png`
+];
+
+// Precarica e posiziona
+for (let src of skullSources) {
+  let placed = false;
+  let attempts = 0;
+  let img = new Image();
+  img.src = src;
+
+  while (!placed && attempts < 100) {
+    attempts++;
+
+    // Stanza casuale
+    let roomX = Math.floor(Math.random() * DUNGEON_GRID_W);
+    let roomY = Math.floor(Math.random() * DUNGEON_GRID_H);
+    let room = dungeonRooms[roomY][roomX];
+
+    // Cella casuale
+    let cellX = Math.floor(Math.random() * ROOM_W);
+    let cellY = Math.floor(Math.random() * ROOM_H);
+
+    // 0 = pavimento
+    if (room[cellY][cellX] === 0) {
+      dungeonSkulls.push({
+        img: img,
+        roomX,
+        roomY,
+        x: cellX,
+        y: cellY
+      });
+      placed = true;
+    }
+  }
+}
+
   }
 
 

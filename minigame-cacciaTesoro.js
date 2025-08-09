@@ -871,20 +871,46 @@ function startTreasureLevel() {
 
 
 // ----- FINE MINIGIOCO -----
-function endTreasureMinigame() {
+function endTreasureMinigame(reason = "end") {
+  // stop loop/timer
   treasurePlaying = false;
-  if (treasureInterval) clearInterval(treasureInterval);
+  if (treasureInterval) {
+    clearInterval(treasureInterval);
+    treasureInterval = null;
+  }
 
-  setTimeout(() => {
-    document.getElementById('treasure-minigame-modal').classList.add('hidden');
-    if (typeof updateFunAndExpFromMiniGame === "function") {
-      let fun = 15 + Math.round(treasureScore * 0.6);
-      let exp = Math.round(treasureScore * 0.5);
-      updateFunAndExpFromMiniGame(fun, exp);
-      showExpGainLabel(exp);
+  // calcolo ricompense
+  const fun = 15 + Math.round(treasureScore * 0.6);
+  const exp = Math.round(treasureScore * 0.5);
+
+  console.log("[Treasure] endTreasureMinigame:", { reason, treasureScore, fun, exp });
+
+  // CONSEGNA SUBITO le ricompense
+  try {
+    const updater =
+      (typeof window !== "undefined" && window.updateFunAndExpFromMiniGame) ||
+      (typeof updateFunAndExpFromMiniGame === "function" && updateFunAndExpFromMiniGame);
+
+    if (typeof updater === "function") {
+      updater(fun, exp);
+      // opzionale: etichetta di feedback in UI principale
+      if (typeof window.showExpGainLabel === "function") window.showExpGainLabel(exp);
+    } else {
+      console.warn("[Treasure] updateFunAndExpFromMiniGame non trovato");
     }
-  }, 1000);
+  } catch (err) {
+    console.error("[Treasure] errore durante award EXP/FUN:", err);
+  }
+
+  // chiudi subito il modal (niente timeout)
+  const modal = document.getElementById('treasure-minigame-modal');
+  if (modal) modal.classList.add('hidden');
+
+  // pulizia stato input/movimento
+  keysStack = [];
+  if (typeof resetJoystick === "function") resetJoystick();
 }
+
 
 
 // ----- BONUS/FEEDBACK -----

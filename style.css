@@ -997,3 +997,10 @@ body {
   .treasure-joystick-overlay { display: none; }
 }
 
+/* Mobile */
+@media (max-width: 768px) {
+  #treasure-canvas {
+    display: block;
+    margin: auto;
+  }
+}

@@ -142,7 +142,7 @@ function getTreasureDimensions() {
     return { width: tile * ROOM_W, height: tile * ROOM_H, tile };
   }
 }
-
+/*
 function resizeTreasureCanvas() {
   const canvas = document.getElementById('treasure-canvas');
   let w = window.innerWidth;
@@ -152,6 +152,30 @@ function resizeTreasureCanvas() {
   canvas.height = ROOM_H * tile;
   canvas.style.width = `${ROOM_W * tile}px`;
   canvas.style.height = `${ROOM_H * tile}px`;
+  window.treasureTile = tile;
+} */
+function resizeTreasureCanvas() {
+  const canvas = document.getElementById('treasure-canvas');
+  let w = window.innerWidth;
+
+  // Altezza base
+  let h = window.innerHeight - 70;
+
+  // Se siamo su mobile/tablet, usa solo il 70% dell'altezza
+  if (isMobileOrTablet()) {
+    h = Math.floor((window.innerHeight - 70) * 0.7);
+  }
+
+  // Calcolo della tile in base allo spazio disponibile
+  const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
+
+  // Dimensioni del canvas
+  canvas.width = ROOM_W * tile;
+  canvas.height = ROOM_H * tile;
+  canvas.style.width = `${ROOM_W * tile}px`;
+  canvas.style.height = `${ROOM_H * tile}px`;
+
+  // Salva la tile globalmente
   window.treasureTile = tile;
 }
 

@@ -33,6 +33,10 @@ const MoleCfg = {
     Cfg.roomH = 6;
   }
 
+  const scale = (isMobile ? 0.7 : 1); // riduce la dimensione degli sprite su mobile
+ctx.drawImage(sprite, x, y, sprite.width * scale, sprite.height * scale);
+
+
   const GRID_POOL_DESKTOP = [[2,2],[3,2],[2,3],[3,3],[4,3],[3,4]];
 const GRID_POOL_MOBILE  = [[2,2],[3,2],[2,3],[3,3]];
 

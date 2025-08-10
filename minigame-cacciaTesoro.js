@@ -6,28 +6,41 @@ let DUNGEON_GRID_H = 3;
 let ROOM_W = 8;
 let ROOM_H = 7;
 
+function isMobileOrTablet() {
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+}
+
 if (isMobileOrTablet() || window.innerWidth < 800) {
   DUNGEON_GRID_W = 3;
   DUNGEON_GRID_H = 3;
   ROOM_W = 7;
   ROOM_H = 6;
-} else {
-  DUNGEON_GRID_W = 3;
-  DUNGEON_GRID_H = 3;
-  ROOM_W = 8;
-  ROOM_H = 7;
 }
-//const petSpeed = 170;
-//const enemySpeed = 100;
-const petSpeedDesktop = 180;
-const petSpeedMobile = 120;
+
+const petSpeedDesktop   = 180;
+const petSpeedMobile    = 120;
 const enemySpeedDesktop = 100;
-const enemySpeedMobile = 60;
+const enemySpeedMobile  = 60;
+
 let enemyBaseSpeed = isMobileOrTablet() ? enemySpeedMobile : enemySpeedDesktop;
-let baseSpeed = isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
+let baseSpeed      = isMobileOrTablet() ? petSpeedMobile  : petSpeedDesktop;
+
+// SPRITES
 let petSprites = null, goblinSprites = null;
 let treasureCoinImg, treasureEnemyImg, treasureExitImg, treasureWallImg, treasureBgImg, treasurePowerupImg;
 
+// ----- HUD & CANVAS -----
+let hudDirty = true;
+const HUD = {
+  coins:  document.getElementById('treasure-minigame-coins'),
+  score:  document.getElementById('treasure-minigame-score'),
+  level:  document.getElementById('treasure-level'),
+  timer:  document.getElementById('treasure-timer'),
+};
+let treasureCanvas = document.getElementById('treasure-canvas');
+let treasureCtx    = treasureCanvas.getContext('2d');
+
+// ----- STATO DI GIOCO -----
 let dungeonRooms = [];
 let dungeonPetRoom = {x: 0, y: 0};
 let roomObjects = {};
@@ -35,150 +48,77 @@ let roomEnemies = {};
 let roomPowerups = {};
 let exitRoom = {x: 0, y: 0};
 let exitTile = {x: 0, y: 0};
-let treasurePowerupUntil = 0;
-let treasureActivePowerup = null; // assicurati che sia definita globale!
-let treasurePowerupExpiresAt = 0;
-let dungeonSkulls = [];
-let skullAssets = ['teschio_1.png', 'teschio_2.png', 'teschio_3.png'];
 
-let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft, treasureInterval, treasureCanMove;
-let treasureCanvas, treasureCtx, treasurePowerupTimer;
-let treasureNeeded;
+let dungeonSkulls = [];
+
+let treasurePet, treasurePlaying, treasureScore, treasureLevel, treasureTimeLeft, treasureInterval;
+let treasureActivePowerup = null;     // "speed" | "slow" | null
+let treasurePowerupExpiresAt = 0;     // ms (performance.now())
+let slowExpiresAt = 0;                // ms (per lo slow dei nemici)
 
 let petDirection = "down";
 let petStepFrame = 0;
 let petIsMoving = false;
-let petLastMoveTime = 0;
 
-let treasureKeysPressed = {up: false, down: false, left: false, right: false};
+let keysStack = []; // per diagonali (ultimo premuto ha priorità)
 
-function isMobileOrTablet() {
-  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
-}
+// ----- UTILS -----
 function getCurrentBaseSpeed() {
   return isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
 }
-
-function isPowerupActive() {
-  return treasureActivePowerup === "speed" && performance.now() < treasurePowerupExpiresAt;
+function isPowerupActive(type = treasureActivePowerup) {
+  return type && performance.now() < treasurePowerupExpiresAt;
 }
-
 function getCurrentPetSpeed() {
-  if (isPowerupActive()) return getCurrentBaseSpeed() * 3;
-  return getCurrentBaseSpeed();
+  return (treasureActivePowerup === "speed" && isPowerupActive("speed"))
+    ? getCurrentBaseSpeed() * 3
+    : getCurrentBaseSpeed();
 }
-
 function getAnimStep() {
-  if (isPowerupActive()) return 0.12;
-  return 0.18;
+  return (treasureActivePowerup === "speed" && isPowerupActive("speed")) ? 0.12 : 0.18;
+}
+function distCenter(a, b) {
+  const tile = window.treasureTile;
+  return Math.hypot(
+    ((a.px ?? a.x * tile) + tile/2) / tile - ((b.px ?? b.x * tile) + tile/2) / tile,
+    ((a.py ?? a.y * tile) + tile/2) / tile - ((b.py ?? b.y * tile) + tile/2) / tile
+  );
 }
 
-
+// best-effort orientamento
 if (screen.orientation && screen.orientation.lock) {
-  screen.orientation.lock("landscape").catch(e => {
-    // Fallisce spesso, quindi non farci troppo affidamento!
-    console.log("Impossibile bloccare orientamento:", e);
-  });
+  screen.orientation.lock("landscape").catch(()=>{});
 }
 
-
-function animateRevealCircle(callback) {
-  const canvas = document.getElementById('treasure-canvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-  let centerX = W / 2;
-  let centerY = H / 2;
-  let maxRadius = Math.sqrt(W*W + H*H) / 2;
-  let radius = 0;
-  let duration = 900; // ms, velocità animazione
-  let start = null;
-
-  function drawFrame(now) {
-    if (!start) start = now;
-    let progress = Math.min(1, (now - start) / duration);
-    radius = 20 + progress * maxRadius;
-
-    // Disegna la stanza sotto (aggiorna sempre)
-    drawTreasure();
-
-    // Overlay nero sopra tutto
-    ctx.save();
-    ctx.globalAlpha = 0.92; // più opaco o meno a piacere
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, W, H);
-
-    // Usa compositing per "bucare" il cerchio
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, 2*Math.PI);
-    ctx.fill();
-
-    ctx.restore();
-
-    if (progress < 1) {
-      requestAnimationFrame(drawFrame);
-    } else {
-      // Animazione finita
-      if (typeof callback === "function") callback();
-    }
-  }
-  requestAnimationFrame(drawFrame);
-}
-
-
-// ----- DIMENSIONI DINAMICHE -----
-function getTreasureDimensions() {
-  // Tile size fisso su mobile/tablet per ottimizzare le performance e la resa
-  if (isMobileOrTablet() || window.innerWidth < 800) {
-    const tile = 32; // oppure 40, scegli tu quanto deve essere piccola su mobile
-    const w = tile * ROOM_W;
-    const h = tile * ROOM_H;
-    return { width: w, height: h, tile };
-  } else {
-    const w = Math.floor(window.innerWidth * 0.70);
-    const h = Math.floor(window.innerHeight * 0.75);
-    const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
-    return { width: tile * ROOM_W, height: tile * ROOM_H, tile };
-  }
-}
-/*
+// ----- DIMENSIONI -----
 function resizeTreasureCanvas() {
-  const canvas = document.getElementById('treasure-canvas');
+  const canvas = treasureCanvas;
   let w = window.innerWidth;
   let h = window.innerHeight - 70;
+  if (isMobileOrTablet()) h = Math.floor((window.innerHeight - 70) * 0.7);
+
   const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
   canvas.width = ROOM_W * tile;
   canvas.height = ROOM_H * tile;
   canvas.style.width = `${ROOM_W * tile}px`;
   canvas.style.height = `${ROOM_H * tile}px`;
   window.treasureTile = tile;
-} */
-function resizeTreasureCanvas() {
-  const canvas = document.getElementById('treasure-canvas');
-  let w = window.innerWidth;
 
-  // Altezza base
-  let h = window.innerHeight - 70;
-
-  // Se siamo su mobile/tablet, usa solo il 70% dell'altezza
-  if (isMobileOrTablet()) {
-    h = Math.floor((window.innerHeight - 70) * 0.7);
-  }
-
-  // Calcolo della tile in base allo spazio disponibile
-  const tile = Math.floor(Math.min(w / ROOM_W, h / ROOM_H));
-
-  // Dimensioni del canvas
-  canvas.width = ROOM_W * tile;
-  canvas.height = ROOM_H * tile;
-  canvas.style.width = `${ROOM_W * tile}px`;
-  canvas.style.height = `${ROOM_H * tile}px`;
-
-  // Salva la tile globalmente
-  window.treasureTile = tile;
+  treasureCtx = canvas.getContext('2d'); // rinnova ctx dopo resize
+  hudDirty = true;
 }
 
+// ----- HUD -----
+function countCoinsLeft() {
+  return Object.values(roomObjects).flat().filter(o => o.type === "coin" && !o.taken).length;
+}
+function syncHud() {
+  if (HUD.coins) HUD.coins.textContent = String(countCoinsLeft());
+  if (HUD.score) HUD.score.textContent = String(treasureScore);
+  if (HUD.level) HUD.level.textContent = String(treasureLevel);
+  if (HUD.timer) HUD.timer.textContent = String(treasureTimeLeft);
+  hudDirty = false;
+}
 
 // ----- AVVIO MINIGIOCO -----
 function startTreasureMinigame() {
@@ -188,201 +128,140 @@ function startTreasureMinigame() {
   treasureScore = 0;
   treasurePlaying = true;
   treasureActivePowerup = null;
+  treasurePowerupExpiresAt = 0;
+  slowExpiresAt = 0;
 
   // SPRITE LOADING
-  let petSrc = document.getElementById('pet').src;
-  let match = petSrc.match(/pet_(\d+)/);
-  let petNum = match ? match[1] : "1";
-  let assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
-
-  
+  const petSrc = document.getElementById('pet').src;
+  const match = petSrc.match(/pet_(\d+)/);
+  const petNum = match ? match[1] : "1";
+  const assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
 
   goblinSprites = {
     idle: new Image(),
     right: [new Image(), new Image()],
-    left: [new Image(), new Image()],
-    up: [new Image(), new Image()],
-    down: [new Image(), new Image()]
+    left:  [new Image(), new Image()],
+    up:    [new Image(), new Image()],
+    down:  [new Image(), new Image()]
   };
-  goblinSprites.idle.src = `${assetBase}/enemies/goblin.png`;
-  goblinSprites.right[0].src = `${assetBase}/enemies/goblin_right_1.png`;
-  goblinSprites.right[1].src = `${assetBase}/enemies/goblin_right_2.png`;
-  goblinSprites.left[0].src = `${assetBase}/enemies/goblin_left_1.png`;
-  goblinSprites.left[1].src = `${assetBase}/enemies/goblin_left_2.png`;
-  goblinSprites.up[0].src = `${assetBase}/enemies/goblin_up_1.png`;
-  goblinSprites.up[1].src = `${assetBase}/enemies/goblin_up_2.png`;
-  goblinSprites.down[0].src = `${assetBase}/enemies/goblin_down_1.png`;
-  goblinSprites.down[1].src = `${assetBase}/enemies/goblin_down_2.png`;
-
-  
+  goblinSprites.idle.src       = `${assetBase}/enemies/goblin.png`;
+  goblinSprites.right[0].src   = `${assetBase}/enemies/goblin_right_1.png`;
+  goblinSprites.right[1].src   = `${assetBase}/enemies/goblin_right_2.png`;
+  goblinSprites.left[0].src    = `${assetBase}/enemies/goblin_left_1.png`;
+  goblinSprites.left[1].src    = `${assetBase}/enemies/goblin_left_2.png`;
+  goblinSprites.up[0].src      = `${assetBase}/enemies/goblin_up_1.png`;
+  goblinSprites.up[1].src      = `${assetBase}/enemies/goblin_up_2.png`;
+  goblinSprites.down[0].src    = `${assetBase}/enemies/goblin_down_1.png`;
+  goblinSprites.down[1].src    = `${assetBase}/enemies/goblin_down_2.png`;
 
   petSprites = {
     idle: new Image(),
     right: [new Image(), new Image()],
-    left: [new Image(), new Image()],
-    up: [new Image(), new Image()],
-    down: [new Image(), new Image()]
+    left:  [new Image(), new Image()],
+    up:    [new Image(), new Image()],
+    down:  [new Image(), new Image()]
   };
-  petSprites.idle.src = `${assetBase}/pets/pet_${petNum}.png`;
-  petSprites.right[0].src = `${assetBase}/pets/pet_${petNum}_right1.png`;
-  petSprites.right[1].src = `${assetBase}/pets/pet_${petNum}_right2.png`;
-  petSprites.left[0].src = `${assetBase}/pets/pet_${petNum}_left1.png`;
-  petSprites.left[1].src = `${assetBase}/pets/pet_${petNum}_left2.png`;
-  petSprites.down[0].src = `${assetBase}/pets/pet_${petNum}_down1.png`;
-  petSprites.down[1].src = `${assetBase}/pets/pet_${petNum}_down2.png`;
-  petSprites.up[0].src = `${assetBase}/pets/pet_${petNum}_up1.png`;
-  petSprites.up[1].src = `${assetBase}/pets/pet_${petNum}_up2.png`;
+  petSprites.idle.src       = `${assetBase}/pets/pet_${petNum}.png`;
+  petSprites.right[0].src   = `${assetBase}/pets/pet_${petNum}_right1.png`;
+  petSprites.right[1].src   = `${assetBase}/pets/pet_${petNum}_right2.png`;
+  petSprites.left[0].src    = `${assetBase}/pets/pet_${petNum}_left1.png`;
+  petSprites.left[1].src    = `${assetBase}/pets/pet_${petNum}_left2.png`;
+  petSprites.down[0].src    = `${assetBase}/pets/pet_${petNum}_down1.png`;
+  petSprites.down[1].src    = `${assetBase}/pets/pet_${petNum}_down2.png`;
+  petSprites.up[0].src      = `${assetBase}/pets/pet_${petNum}_up1.png`;
+  petSprites.up[1].src      = `${assetBase}/pets/pet_${petNum}_up2.png`;
 
-  treasureCoinImg = new Image();
-  treasureCoinImg.src = "assets/collectibles/coin.png";
-  treasureEnemyImg = new Image();
-  treasureEnemyImg.src = "assets/enemies/goblin.png";
-  treasureExitImg = new Image();
-  treasureExitImg.src = "assets/icons/door.png";
-  treasureWallImg = new Image();
-  treasureWallImg.src = "assets/tiles/wall2.png";
-  treasureBgImg = new Image();
-  treasureBgImg.src = `${assetBase}/backgrounds/dungeon3.png`;
-  treasurePowerupImg = new Image();
-  treasurePowerupImg.src = "assets/bonus/powerup.png";
+  treasureCoinImg    = new Image(); treasureCoinImg.src    = "assets/collectibles/coin.png";
+  treasureEnemyImg   = new Image(); treasureEnemyImg.src   = "assets/enemies/goblin.png";
+  treasureExitImg    = new Image(); treasureExitImg.src    = "assets/icons/door.png";
+  treasureWallImg    = new Image(); treasureWallImg.src    = "assets/tiles/wall2.png";
+  treasureBgImg      = new Image(); treasureBgImg.src      = `${assetBase}/backgrounds/dungeon3.png`;
+  treasurePowerupImg = new Image(); treasurePowerupImg.src = "assets/bonus/powerup.png";
 
+  // pet
+  const tile = window.treasureTile || 64;
   dungeonPetRoom = { x: Math.floor(DUNGEON_GRID_W/2), y: Math.floor(DUNGEON_GRID_H/2) };
-  let tile = window.treasureTile || 64;
   treasurePet = {
     x: 1, y: 1,
     px: 1 * tile,
     py: 1 * tile,
     speed: baseSpeed,
     animTime: 0,
-    powered: false,
     dirX: 0, dirY: 0
   };
-// Se era attivo il powerup speed, mantieni la velocità raddoppiata
-if (treasureActivePowerup === 'speed') {
-  treasurePet.speed = baseSpeed * 3;
-}
+
   startTreasureLevel();
 }
 
-
-// ----- GESTIONE MOVIMENTO CONTINUO -----
+// ----- INPUT -----
 const dirMap = {
   "ArrowUp": "up",    "w": "up",
-  "ArrowDown": "down", "s": "down",
-  "ArrowLeft": "left", "a": "left",
-  "ArrowRight": "right", "d": "right"
+  "ArrowDown": "down","s": "down",
+  "ArrowLeft": "left","a": "left",
+  "ArrowRight":"right","d":"right"
 };
-let keysStack = []; // Tiene traccia delle direzioni ancora premute
 
-
-
-// Aggiorna la direzione attiva in base ai tasti ancora premuti
 function updatePetDir() {
-  // Ordine di priorità: l'ultimo premuto in cima alla lista
-  let dx = 0, dy = 0;
-  // Se vuoi che prevalga sempre l'ultimo tasto premuto, prendi da fine array
-  if (keysStack.length) {
-    let dir = keysStack[keysStack.length - 1];
-    if (dir === "up")      { treasurePet.dirY = -1; petDirection = "up"; }
-    else if (dir === "down"){ treasurePet.dirY = 1; petDirection = "down"; }
-    else treasurePet.dirY = 0;
-    if (dir === "left")    { treasurePet.dirX = -1; petDirection = "left"; }
-    else if (dir === "right"){ treasurePet.dirX = 1; petDirection = "right"; }
-    else treasurePet.dirX = 0;
-
-    // GESTIONE DIAGONALE: se ci sono due tasti, uno verticale e uno orizzontale
-    if (keysStack.length >= 2) {
-      let d1 = keysStack[keysStack.length - 1];
-      let d2 = keysStack[keysStack.length - 2];
-      if (
-        (d1 === "up" || d1 === "down") &&
-        (d2 === "left" || d2 === "right")
-      ) {
-        // Muovi diagonale (es: up+left)
-        if (d2 === "left") { treasurePet.dirX = -1; }
-        if (d2 === "right") { treasurePet.dirX = 1; }
-      }
-      if (
-        (d1 === "left" || d1 === "right") &&
-        (d2 === "up" || d2 === "down")
-      ) {
-        if (d2 === "up") { treasurePet.dirY = -1; }
-        if (d2 === "down") { treasurePet.dirY = 1; }
-      }
-    }
-  } else {
-    treasurePet.dirX = 0; treasurePet.dirY = 0;
-  }
+  if (!keysStack.length) { treasurePet.dirX = 0; treasurePet.dirY = 0; return; }
+  let dir = keysStack[keysStack.length - 1];
+  treasurePet.dirX = (dir === "left") ? -1 : (dir === "right" ? 1 : 0);
+  treasurePet.dirY = (dir === "up")   ? -1 : (dir === "down"  ? 1 : 0);
+  if (treasurePet.dirX > 0) petDirection = "right";
+  else if (treasurePet.dirX < 0) petDirection = "left";
+  else if (treasurePet.dirY < 0) petDirection = "up";
+  else if (treasurePet.dirY > 0) petDirection = "down";
 }
-
-
-function treasureTouchMove(dir, pressed) {
-  if (!treasurePlaying) return;
-  if (!dir) return;
-  if (pressed) {
-    if (!keysStack.includes(dir)) keysStack.push(dir);
-  } else {
-    keysStack = keysStack.filter(d => d !== dir);
-  }
-  updatePetDir();
-}
-
 
 // ----- GAME LOOP -----
 let lastFrame = performance.now();
 function gameLoop() {
-  let now = performance.now();
-  let dt = (now - lastFrame) / 1000;
+  const now = performance.now();
+  const dt = (now - lastFrame) / 1000;
   lastFrame = now;
+
   if (treasurePlaying) {
-    movePetFree(dt);
-    moveEnemiesFree(dt);
-    drawTreasure();
+    updateTreasure(dt);     // LOGICA
+    renderTreasure();       // GRAFICA
+    if (hudDirty) syncHud();// HUD
   }
   requestAnimationFrame(gameLoop);
 }
 gameLoop();
 
-
-// ----- MOVIMENTO LIBERO PET -----
+// ----- LOGICA -----
 function movePetFree(dt) {
-  // --- GESTIONE POWERUP: aggiorna stato prima di tutto ---
-  let baseSpeed = isMobileOrTablet() ? petSpeedMobile : petSpeedDesktop;
+  // scadenza powerup slow (globale)
+  if (treasureActivePowerup === "slow" && performance.now() >= slowExpiresAt) {
+    for (const list of Object.values(roomEnemies)) {
+      for (const e of list) e.slow = false;
+    }
+    treasureActivePowerup = null;
+  }
 
-  // Se il powerup è scaduto, torna a normalità!
-if (treasureActivePowerup === 'speed' && !isPowerupActive()) {
-  treasureActivePowerup = null;
-}
-
-  // --- MOVIMENTO ---
+  // movimento
   let dx = treasurePet.dirX, dy = treasurePet.dirY;
   if (dx === 0 && dy === 0) { petIsMoving = false; return; }
-  if (dx !== 0 && dy !== 0) { dx /= Math.sqrt(2); dy /= Math.sqrt(2); }
-  let tile = window.treasureTile;
-  let oldPX = treasurePet.px, oldPY = treasurePet.py;
-  let speed = getCurrentPetSpeed();
+  if (dx !== 0 && dy !== 0) { const inv = 1/Math.sqrt(2); dx *= inv; dy *= inv; }
 
+  const tile = window.treasureTile;
+  const speed = getCurrentPetSpeed();
+  let newPX = treasurePet.px + dx * speed * dt;
+  let newPY = treasurePet.py + dy * speed * dt;
 
-  let newPX = oldPX + dx * speed * dt;
-  let newPY = oldPY + dy * speed * dt;
+  const room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
+  const size = tile - 20;
 
-  let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
-  let size = tile - 20;
-  // --- COLLISIONE MURI: controlla i limiti array prima! ---
-  let tryMove = (nx, ny) => {
+  const tryMove = (nx, ny) => {
     let minX = Math.floor((nx + 2) / tile);
     let minY = Math.floor((ny + 2) / tile);
     let maxX = Math.floor((nx + size - 2) / tile);
     let maxY = Math.floor((ny + size - 2) / tile);
-    if (
-      minY < 0 || minY >= ROOM_H || maxY < 0 || maxY >= ROOM_H ||
-      minX < 0 || minX >= ROOM_W || maxX < 0 || maxX >= ROOM_W
-    ) return false;
-    if (
+    if (minY < 0 || minY >= ROOM_H || maxY < 0 || maxY >= ROOM_H ||
+        minX < 0 || minX >= ROOM_W || maxX < 0 || maxX >= ROOM_W) return false;
+    return (
       room[minY][minX] === 0 && room[minY][maxX] === 0 &&
       room[maxY][minX] === 0 && room[maxY][maxX] === 0
-    ) return true;
-    return false;
+    );
   };
 
   if (tryMove(newPX, treasurePet.py)) treasurePet.px = newPX;
@@ -391,54 +270,37 @@ if (treasureActivePowerup === 'speed' && !isPowerupActive()) {
   treasurePet.x = Math.floor((treasurePet.px + size/2) / tile);
   treasurePet.y = Math.floor((treasurePet.py + size/2) / tile);
 
-  // --- ANIMAZIONE (più veloce se powerup attivo) ---
   petIsMoving = true;
   treasurePet.animTime = (treasurePet.animTime || 0) + dt;
-  if (treasurePet.animTime > getAnimStep()) {
-    petStepFrame = 1 - petStepFrame;
-    treasurePet.animTime = 0;
-  }
-  petLastMoveTime = performance.now();
+  if (treasurePet.animTime > getAnimStep()) { petStepFrame = 1 - petStepFrame; treasurePet.animTime = 0; }
 
-  // --- OGGETTI RACCOLTA ---
-  let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
-  let objects = roomObjects[key];
-  let coin = objects.find(o => o.type === 'coin' && !o.taken && distCenter(treasurePet, o) < 0.6);
-  if (coin) {
-    coin.taken = true;
-    treasureScore += 1;
-    document.getElementById('treasure-minigame-score').textContent = treasureScore;
-  }
-  let powers = roomPowerups[key];
-  let pow = powers && powers.find(p => !p.taken && distCenter(treasurePet, p) < 0.6);
-if (pow) {
-  pow.taken = true;
-  treasureScore += 12;
-  document.getElementById('treasure-minigame-score').textContent = treasureScore;
-  if (pow.type === 'speed') {
-    treasureActivePowerup = 'speed';
-    treasurePowerupExpiresAt = performance.now() + 3000; // 3 secondi
-    console.log("SPEED POWERUP PRESO! Scade alle:", treasurePowerupExpiresAt, "velocità ora:", getCurrentPetSpeed());
-  } else {
-    let enemies = roomEnemies[key];
-    for (const e of enemies) e.slow = true;
-    treasureActivePowerup = 'slow';
-    // Puoi aggiungere anche per lo slow, ma qui non serve timestamp
-  }
-}
+  // raccolte
+  const key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
+  const objects = roomObjects[key] || [];
 
+  const coin = objects.find(o => o.type === 'coin' && !o.taken && distCenter(treasurePet, o) < 0.6);
+  if (coin) { coin.taken = true; treasureScore += 1; hudDirty = true; }
 
-  // --- GESTIONE FINE POWERUP SLOW ENEMICI ---
-  if (treasureActivePowerup === "slow" && Date.now() > treasurePowerupUntil) {
-    let enemies = roomEnemies[key];
-    for (const e of enemies) e.slow = false;
-    treasureActivePowerup = null;
+  const powers = roomPowerups[key] || [];
+  const pow = powers.find(p => !p.taken && distCenter(treasurePet, p) < 0.6);
+  if (pow) {
+    pow.taken = true;
+    treasureScore += 12;
+    hudDirty = true;
+    if (pow.type === 'speed') {
+      treasureActivePowerup = 'speed';
+      treasurePowerupExpiresAt = performance.now() + 3000; // 3s
+    } else {
+      // slow su tutti i nemici per 3s (più semplice che “solo stanza corrente”)
+      for (const list of Object.values(roomEnemies)) {
+        for (const e of list) e.slow = true;
+      }
+      treasureActivePowerup = 'slow';
+      slowExpiresAt = performance.now() + 3000;
+    }
   }
 
-  let coinsLeft = Object.values(roomObjects).flat().filter(o => o.type === "coin" && !o.taken).length;
-  document.getElementById('treasure-minigame-coins').textContent = coinsLeft;
-
-  // --- PASSAGGIO STANZA ---
+  // passaggio stanza
   if (treasurePet.px < 0 && dungeonPetRoom.x > 0 && room[treasurePet.y][0] === 0) {
     dungeonPetRoom.x -= 1; treasurePet.px = (ROOM_W - 2) * tile; treasurePet.x = ROOM_W - 2;
   }
@@ -452,81 +314,57 @@ if (pow) {
     dungeonPetRoom.y += 1; treasurePet.py = 1 * tile; treasurePet.y = 1;
   }
 
-  // --- USCITA ---
-  if (
-    dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
-    Math.abs(treasurePet.x - exitTile.x) < 1 && Math.abs(treasurePet.y - exitTile.y) < 1 &&
-    coinsLeft === 0
-  ) {
+  // uscita (se prese tutte le monete globali)
+  const coinsLeft = countCoinsLeft();
+  if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y &&
+      Math.abs(treasurePet.x - exitTile.x) < 1 && Math.abs(treasurePet.y - exitTile.y) < 1 &&
+      coinsLeft === 0) {
     treasureLevel++;
-    document.getElementById('treasure-minigame-score').textContent = treasureScore;
-    setTimeout(() => {
-      generateDungeon();
-      startTreasureLevel();
-    }, 550);
+    hudDirty = true;
+    setTimeout(() => { generateDungeon(); startTreasureLevel(); }, 550);
     return;
   }
 
-  // --- NEMICI: collisione = game over ---
-  let enemies = roomEnemies[key];
-  if (enemies && enemies.some(e => distCenter(treasurePet, e) < 0.5)) {
+  // collisione nemici = game over
+  const enemies = roomEnemies[key] || [];
+  if (enemies.some(e => distCenter(treasurePet, e) < 0.5)) {
     treasurePlaying = false;
     showTreasureBonus("Game Over!", "#e74c3c");
     if (treasureInterval) clearInterval(treasureInterval);
-    setTimeout(() => {
-      endTreasureMinigame();
-    }, 1500);
-    return;
+    setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
 
-function getAnimStep() {
-  // Valore base: animazione ogni 0.18s
-  let base = 0.18;
-  // Se attivo speed, vai più veloce
-  if (treasureActivePowerup === "speed" && Date.now() < treasurePowerupUntil) {
-    return base * 0.55; // Animazione più rapida (regola il valore a piacere!)
-  }
-  return base;
-}
-
-
-// ----- MOVIMENTO LIBERO NEMICI -----
 function moveEnemiesFree(dt) {
-  let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
-  let enemies = roomEnemies[key];
+  const key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
+  const enemies = roomEnemies[key];
   if (!enemies) return;
-  let tile = window.treasureTile;
-  let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
+
+  const tile = window.treasureTile;
+  const room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
+
   for (const e of enemies) {
-    let spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
+    const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
     let dx = treasurePet.px - e.px, dy = treasurePet.py - e.py;
-    let dist = Math.sqrt(dx*dx + dy*dy);
+    const dist = Math.sqrt(dx*dx + dy*dy);
     if (dist > 2) {
       dx /= dist; dy /= dist;
-      let newPX = e.px + dx * spd * dt;
-      let newPY = e.py + dy * spd * dt;
-      let size = tile - 14;
-      let minX = Math.floor((newPX + 6) / tile);
-      let minY = Math.floor((newPY + 6) / tile);
-      let maxX = Math.floor((newPX + size - 6) / tile);
-      let maxY = Math.floor((newPY + size - 6) / tile);
-
+      const newPX = e.px + dx * spd * dt;
+      const newPY = e.py + dy * spd * dt;
+      const size = tile - 14;
+      const minX = Math.floor((newPX + 6) / tile);
+      const minY = Math.floor((newPY + 6) / tile);
+      const maxX = Math.floor((newPX + size - 6) / tile);
+      const maxY = Math.floor((newPY + size - 6) / tile);
       if (room[minY][minX] === 0 && room[minY][maxX] === 0 && room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
-        e.px = newPX;
-        e.py = newPY;
+        e.px = newPX; e.py = newPY;
         e.x = Math.floor((e.px + size/2) / tile);
         e.y = Math.floor((e.py + size/2) / tile);
-        if (Math.abs(dx) > Math.abs(dy)) e.direction = dx > 0 ? "right" : "left";
-        else e.direction = dy > 0 ? "down" : "up";
+        e.direction = (Math.abs(dx) > Math.abs(dy)) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
         e.isMoving = true;
-            e.animTime = (e.animTime || 0) + dt;
-    const ENEMY_ANIM_STEP = 0.22; // Nemici un filo più lenti nei passi
-    if (e.animTime > ENEMY_ANIM_STEP) {
-      e.stepFrame = 1 - (e.stepFrame || 0);
-      e.animTime = 0;
-    }
-
+        e.animTime = (e.animTime || 0) + dt;
+        const ENEMY_ANIM_STEP = 0.22;
+        if (e.animTime > ENEMY_ANIM_STEP) { e.stepFrame = 1 - (e.stepFrame || 0); e.animTime = 0; }
       } else {
         e.isMoving = false;
       }
@@ -534,30 +372,21 @@ function moveEnemiesFree(dt) {
     if (distCenter(e, treasurePet) < 0.5) {
       treasurePlaying = false;
       showTreasureBonus("Game Over!", "#e74c3c");
-      setTimeout(() => {
-        endTreasureMinigame();
-      }, 1500);
+      setTimeout(() => endTreasureMinigame(), 1500);
       return;
     }
   }
 }
 
-
-// ----- UTILITY: DISTANZA -----
-function distCenter(a, b) {
-  let tile = window.treasureTile;
-  return Math.hypot(
-    ((a.px ?? a.x * tile) + tile/2) / tile - ((b.px ?? b.x * tile) + tile/2) / tile,
-    ((a.py ?? a.y * tile) + tile/2) / tile - ((b.py ?? b.y * tile) + tile/2) / tile
-  );
+function updateTreasure(dt) {
+  movePetFree(dt);
+  moveEnemiesFree(dt);
 }
 
-
-// ----- DISEGNO -----
-function drawTreasure() {
-  let room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
+// ----- RENDER -----
+function renderTreasure() {
+  const room = dungeonRooms[dungeonPetRoom.y][dungeonPetRoom.x];
   const tile = window.treasureTile || 64;
-  treasureCtx = document.getElementById('treasure-canvas').getContext('2d');
 
   // SFONDO
   treasureCtx.drawImage(treasureBgImg, 0, 0, ROOM_W*tile, ROOM_H*tile);
@@ -575,7 +404,7 @@ function drawTreasure() {
   }
 
   // OGGETTI
-  let key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
+  const key = `${dungeonPetRoom.x},${dungeonPetRoom.y}`;
   if (roomObjects[key]) {
     for (const obj of roomObjects[key]) {
       if (obj.type === 'coin' && !obj.taken) {
@@ -607,29 +436,17 @@ function drawTreasure() {
     }
   }
 
-  // --- Disegna teschi decorativi ---
-for (let skull of dungeonSkulls) {
-  if (skull.roomX === dungeonPetRoom.x && skull.roomY === dungeonPetRoom.y) {
-    treasureCtx.drawImage(
-      skull.img,
-      skull.x * window.treasureTile,
-      skull.y * window.treasureTile,
-      window.treasureTile,
-      window.treasureTile
-    );
+  // TESCHI DECORATIVI
+  for (let skull of dungeonSkulls) {
+    if (skull.roomX === dungeonPetRoom.x && skull.roomY === dungeonPetRoom.y) {
+      treasureCtx.drawImage(skull.img, skull.x*tile, skull.y*tile, tile, tile);
+    }
   }
-}
 
   // PET
-  let petSpriteToDraw;
-  if (!petIsMoving) {
-    petSpriteToDraw = petSprites.idle;
-  } else {
-    petSpriteToDraw = petSprites[petDirection][petStepFrame];
-  }
-  const px = treasurePet.px ?? treasurePet.x * tile;
-  const py = treasurePet.py ?? treasurePet.y * tile;
+  const px = treasurePet.px, py = treasurePet.py;
   const sz = tile - 12;
+  let petSpriteToDraw = !petIsMoving ? petSprites.idle : petSprites[petDirection][petStepFrame];
   if (petSpriteToDraw && petSpriteToDraw.complete) {
     treasureCtx.drawImage(petSpriteToDraw, px + 6, py + 6, sz, sz);
   } else {
@@ -640,17 +457,12 @@ for (let skull of dungeonSkulls) {
   // NEMICI
   for (const e of roomEnemies[key]) {
     let sprite = null;
-    let frame = e.stepFrame || 0;
-    let dir = e.direction || "down";
-    if (typeof goblinSprites !== "undefined" && goblinSprites && goblinSprites.idle) {
-      if (!e.isMoving) {
-        sprite = goblinSprites.idle;
-      } else if (goblinSprites[dir] && goblinSprites[dir][frame]) {
-        sprite = goblinSprites[dir][frame];
-      }
+    const frame = e.stepFrame || 0;
+    const dir = e.direction || "down";
+    if (goblinSprites && goblinSprites.idle) {
+      sprite = e.isMoving ? (goblinSprites[dir] && goblinSprites[dir][frame]) : goblinSprites.idle;
     }
-    let ex = e.px ?? e.x * tile;
-    let ey = e.py ?? e.y * tile;
+    const ex = e.px, ey = e.py;
     if (sprite && sprite.complete) {
       treasureCtx.drawImage(sprite, ex + 6, ey + 6, tile - 12, tile - 12);
     } else if (treasureEnemyImg && treasureEnemyImg.complete) {
@@ -660,9 +472,6 @@ for (let skull of dungeonSkulls) {
       treasureCtx.fillRect(ex + 8, ey + 8, tile - 16, tile - 16);
     }
   }
-
-
-
 
   // USCITA
   if (dungeonPetRoom.x === exitRoom.x && dungeonPetRoom.y === exitRoom.y) {
@@ -675,14 +484,14 @@ for (let skull of dungeonSkulls) {
   }
 }
 
-
-// ----- GENERA DUNGEON E OGGETTI -----
+// ----- GENERAZIONE DUNGEON -----
 function generateDungeon() {
   dungeonRooms = [];
   roomObjects = {};
   roomEnemies = {};
   roomPowerups = {};
 
+  // stanze base con muri
   for (let y = 0; y < DUNGEON_GRID_H; y++) {
     let row = [];
     for (let x = 0; x < DUNGEON_GRID_W; x++) {
@@ -690,8 +499,7 @@ function generateDungeon() {
       for (let ty = 0; ty < ROOM_H; ty++) {
         let rrow = [];
         for (let tx = 0; tx < ROOM_W; tx++) {
-          let isWall = (tx === 0 || ty === 0 || tx === ROOM_W-1 || ty === ROOM_H-1);
-          rrow.push(isWall ? 1 : 0);
+          rrow.push((tx === 0 || ty === 0 || tx === ROOM_W-1 || ty === ROOM_H-1) ? 1 : 0);
         }
         room.push(rrow);
       }
@@ -700,82 +508,85 @@ function generateDungeon() {
     dungeonRooms.push(row);
   }
 
-  // PORTE ALLARGATE (3 tile di larghezza/altezza)
+  // porte larghe 3
   for (let y = 0; y < DUNGEON_GRID_H; y++) {
     for (let x = 0; x < DUNGEON_GRID_W; x++) {
-      // Porta destra/sinistra
       if (x < DUNGEON_GRID_W-1) {
         let mid = Math.floor(ROOM_H/2);
         for (let dy = -1; dy <= 1; dy++) {
-          let rowIdx = mid + dy;
-          if (rowIdx >= 1 && rowIdx < ROOM_H-1) {
-            dungeonRooms[y][x][rowIdx][ROOM_W-1] = 0;
-            dungeonRooms[y][x+1][rowIdx][0] = 0;
+          let r = mid + dy;
+          if (r >= 1 && r < ROOM_H-1) {
+            dungeonRooms[y][x][r][ROOM_W-1] = 0;
+            dungeonRooms[y][x+1][r][0] = 0;
           }
         }
       }
-      // Porta sotto/sopra
       if (y < DUNGEON_GRID_H-1) {
         let mid = Math.floor(ROOM_W/2);
         for (let dx = -1; dx <= 1; dx++) {
-          let colIdx = mid + dx;
-          if (colIdx >= 1 && colIdx < ROOM_W-1) {
-            dungeonRooms[y][x][ROOM_H-1][colIdx] = 0;
-            dungeonRooms[y+1][x][0][colIdx] = 0;
+          let c = mid + dx;
+          if (c >= 1 && c < ROOM_W-1) {
+            dungeonRooms[y][x][ROOM_H-1][c] = 0;
+            dungeonRooms[y+1][x][0][c] = 0;
           }
         }
       }
     }
   }
 
+  // uscita in stanza casuale (non la centrale)
   do {
     exitRoom.x = Math.floor(Math.random() * DUNGEON_GRID_W);
     exitRoom.y = Math.floor(Math.random() * DUNGEON_GRID_H);
   } while (exitRoom.x === Math.floor(DUNGEON_GRID_W/2) && exitRoom.y === Math.floor(DUNGEON_GRID_H/2));
   exitTile.x = ROOM_W-2; exitTile.y = ROOM_H-2;
 
+  // popola stanze
   for (let ry = 0; ry < DUNGEON_GRID_H; ry++) {
     for (let rx = 0; rx < DUNGEON_GRID_W; rx++) {
-      let key = `${rx},${ry}`;
-      let objects = [];
-      let enemies = [];
-      let powerups = [];
-      let nCoins = (rx === exitRoom.x && ry === exitRoom.y) ? 1 : (2 + Math.floor(Math.random()*2));
+      const key = `${rx},${ry}`;
+      const objects = [];
+      const enemies = [];
+      const powerups = [];
+
+      const nCoins = (rx === exitRoom.x && ry === exitRoom.y) ? 1 : (2 + Math.floor(Math.random()*2));
       for (let i = 0; i < nCoins; i++) {
         let px, py;
         do {
           px = 1 + Math.floor(Math.random() * (ROOM_W-2));
           py = 1 + Math.floor(Math.random() * (ROOM_H-2));
-        } while ((rx === exitRoom.x && ry === exitRoom.y && px === exitTile.x && py === exitTile.y));
+        } while (rx === exitRoom.x && ry === exitRoom.y && px === exitTile.x && py === exitTile.y);
         objects.push({ x: px, y: py, type: 'coin', taken: false });
       }
-      let doorPositions = [];
-      if (rx > 0) doorPositions.push({x: 0, y: Math.floor(ROOM_H/2)});
+
+      const doorPositions = [];
+      if (rx > 0)                doorPositions.push({x: 0,         y: Math.floor(ROOM_H/2)});
       if (rx < DUNGEON_GRID_W-1) doorPositions.push({x: ROOM_W-1, y: Math.floor(ROOM_H/2)});
-      if (ry > 0) doorPositions.push({x: Math.floor(ROOM_W/2), y: 0});
+      if (ry > 0)                doorPositions.push({x: Math.floor(ROOM_W/2), y: 0});
       if (ry < DUNGEON_GRID_H-1) doorPositions.push({x: Math.floor(ROOM_W/2), y: ROOM_H-1});
-      let nEnemies = Math.floor(Math.random()*2);
+
+      const nEnemies = Math.floor(Math.random()*2);
+      const tile = window.treasureTile || 64;
       for (let i = 0; i < nEnemies; i++) {
-        let ex, ey, isDoor;
-        let tentativi = 0;
+        let ex, ey, isDoor, tries = 0;
         do {
           ex = 1 + Math.floor(Math.random() * (ROOM_W-2));
           ey = 1 + Math.floor(Math.random() * (ROOM_H-2));
           isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
-          tentativi++;
-        } while (isDoor && tentativi < 30);
+          tries++;
+        } while (isDoor && tries < 30);
         enemies.push({
           x: ex, y: ey,
-          px: ex * (window.treasureTile || 64),
-          py: ey * (window.treasureTile || 64),
+          px: ex * tile,
+          py: ey * tile,
           slow: false,
           direction: "down",
           stepFrame: 0,
           isMoving: false,
-          lastMoveTime: 0,
           animTime: 0
         });
       }
+
       if (Math.random() < 0.35) {
         let ptx, pty;
         do {
@@ -784,112 +595,76 @@ function generateDungeon() {
         } while (objects.some(o => o.x===ptx && o.y===pty));
         powerups.push({ x: ptx, y: pty, type: (Math.random()<0.5 ? 'speed' : 'slow'), taken: false });
       }
-      roomObjects[key] = objects;
-      roomEnemies[key] = enemies;
+
+      roomObjects[key]  = objects;
+      roomEnemies[key]  = enemies;
       roomPowerups[key] = powerups;
     }
-   }
+  }
 
-   // --- TESCHI DECORATIVI ---
-dungeonSkulls = []; // reset array
-
-// Lista file teschi in base alla piattaforma
-let assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
-
-let skullSources = [
-  `${assetBase}/backgrounds/teschio_1.png`,
-  `${assetBase}/backgrounds/teschio_2.png`,
-  `${assetBase}/backgrounds/teschio_3.png`
-];
-
-// Precarica e posiziona
-for (let src of skullSources) {
-  let placed = false;
-  let attempts = 0;
-  let img = new Image();
-  img.src = src;
-
-  while (!placed && attempts < 100) {
-    attempts++;
-
-    // Stanza casuale
-    let roomX = Math.floor(Math.random() * DUNGEON_GRID_W);
-    let roomY = Math.floor(Math.random() * DUNGEON_GRID_H);
-    let room = dungeonRooms[roomY][roomX];
-
-    // Cella casuale
-    let cellX = Math.floor(Math.random() * ROOM_W);
-    let cellY = Math.floor(Math.random() * ROOM_H);
-
-    // 0 = pavimento
-    if (room[cellY][cellX] === 0) {
-      dungeonSkulls.push({
-        img: img,
-        roomX,
-        roomY,
-        x: cellX,
-        y: cellY
-      });
-      placed = true;
+  // TESCHI DECORATIVI
+  dungeonSkulls = [];
+  const assetBase = isMobileOrTablet() ? "assets/mobile" : "assets/desktop";
+  const skullSources = [
+    `${assetBase}/backgrounds/teschio_1.png`,
+    `${assetBase}/backgrounds/teschio_2.png`,
+    `${assetBase}/backgrounds/teschio_3.png`
+  ];
+  for (let src of skullSources) {
+    let placed = false, attempts = 0;
+    const img = new Image(); img.src = src;
+    while (!placed && attempts < 100) {
+      attempts++;
+      const roomX = Math.floor(Math.random() * DUNGEON_GRID_W);
+      const roomY = Math.floor(Math.random() * DUNGEON_GRID_H);
+      const room = dungeonRooms[roomY][roomX];
+      const cellX = Math.floor(Math.random() * ROOM_W);
+      const cellY = Math.floor(Math.random() * ROOM_H);
+      if (room[cellY][cellX] === 0) {
+        dungeonSkulls.push({ img, roomX, roomY, x: cellX, y: cellY });
+        placed = true;
+      }
     }
   }
+
+  hudDirty = true;
 }
-
-  }
-
-
 
 // ----- INIZIO LIVELLO -----
 function startTreasureLevel() {
-  // ... setup canvas e logica
-  const canvas = document.getElementById('treasure-canvas');
   resizeTreasureCanvas();
-  treasureCtx = canvas.getContext('2d');
   treasureTimeLeft = 90 + treasureLevel * 3;
-  treasurePlaying = false;  // BLOCCA il movimento durante l'animazione!
+  treasurePlaying = false;
 
-  // Mostra subito la stanza ma con effetto reveal
+  // reveal + start
   animateRevealCircle(() => {
-    treasurePlaying = true; // Attiva il gioco SOLO dopo l'effetto!
-    treasureCanMove = true;
+    treasurePlaying = true;
     treasureActivePowerup = null;
-    treasureNeeded = 4 + treasureLevel;
-    drawTreasure();
+    renderTreasure();
     document.getElementById('treasure-minigame-modal').classList.remove('hidden');
-    // Timer, ecc
+
     if (treasureInterval) clearInterval(treasureInterval);
     treasureInterval = setInterval(() => {
       if (!treasurePlaying) return;
       treasureTimeLeft--;
-      document.getElementById('treasure-timer').textContent = treasureTimeLeft;
-      if (treasureTimeLeft <= 0) return endTreasureMinigame();
-      drawTreasure();
-    }, 700);
+      hudDirty = true; // aggiorno HUD solo quando serve
+      if (treasureTimeLeft <= 0) endTreasureMinigame();
+    }, 1000); // 1s fisso
   });
 }
 
-
-
 // ----- FINE MINIGIOCO -----
 function endTreasureMinigame(reason = "end") {
-  // 1) stop loop/timer
   treasurePlaying = false;
-  if (treasureInterval) {
-    clearInterval(treasureInterval);
-    treasureInterval = null;
-  }
+  if (treasureInterval) { clearInterval(treasureInterval); treasureInterval = null; }
 
-  // 2) chiudi SUBITO il modal
   const modal = document.getElementById('treasure-minigame-modal');
   if (modal) modal.classList.add('hidden');
 
-  // 3) calcola ricompense
   const fun = 15 + Math.round(treasureScore * 0.6);
   const exp = Math.round(treasureScore * 0.5);
-
   console.log("[Treasure] endTreasureMinigame:", { reason, treasureScore, fun, exp });
 
-  // 4) dopo un piccolo delay, aggiorna DB/UI e mostra la label
   setTimeout(async () => {
     try {
       if (typeof window.updateFunAndExpFromMiniGame === "function") {
@@ -897,24 +672,14 @@ function endTreasureMinigame(reason = "end") {
       } else {
         console.warn("[Treasure] updateFunAndExpFromMiniGame non trovato");
       }
-
-      // mostra SEMPRE la label exp dopo l’aggiornamento
-      if (typeof window.showExpGainLabel === "function" && exp > 0) {
-        window.showExpGainLabel(exp);
-      }
+      if (typeof window.showExpGainLabel === "function" && exp > 0) window.showExpGainLabel(exp);
     } catch (err) {
       console.error("[Treasure] errore award EXP/FUN:", err);
     }
-
-    // pulizia input
     keysStack = [];
     if (typeof resetJoystick === "function") resetJoystick();
-  }, 180); // 150-250ms vanno bene
+  }, 180);
 }
-
-
-
-
 
 // ----- BONUS/FEEDBACK -----
 function showTreasureBonus(msg, color="#e67e22") {
@@ -928,194 +693,125 @@ function showTreasureBonus(msg, color="#e67e22") {
   setTimeout(()=>lab.style.display="none", 2100);
 }
 
+// ----- JOYSTICK -----
+const joystickBase = document.getElementById('treasure-joystick-base');
+const joystickStick = document.getElementById('treasure-joystick-stick');
 
+let joyCenter = { x: 0, y: 0 };
+let stickRadius = 32;
 
+function updatePetDirFromJoystick(dx, dy) {
+  treasurePet.dirX = dx; treasurePet.dirY = dy;
+  if (dx > 0.2) petDirection = "right";
+  else if (dx < -0.2) petDirection = "left";
+  else if (dy < -0.2) petDirection = "up";
+  else if (dy > 0.2) petDirection = "down";
+}
+function resetJoystick() {
+  joystickStick.style.transform = "translate(-50%,-50%)";
+  updatePetDirFromJoystick(0,0);
+  joystickBase.classList.remove('active');
+}
+function handleJoystickMove(touch) {
+  const x = touch.clientX - joyCenter.x;
+  const y = touch.clientY - joyCenter.y;
+  const dist = Math.sqrt(x*x + y*y);
+  let normX = x, normY = y;
+  if (dist > stickRadius) { normX = x * stickRadius / dist; normY = y * stickRadius / dist; }
+  joystickStick.style.transform = `translate(-50%,-50%) translate(${normX}px,${normY}px)`;
+  let dx = normX / stickRadius, dy = normY / stickRadius;
+  const dead = 0.18;
+  if (Math.abs(dx) < dead) dx = 0;
+  if (Math.abs(dy) < dead) dy = 0;
+  updatePetDirFromJoystick(dx, dy);
+}
+
+// ----- FRECCE TOUCH OPZIONALI -----
 function showTreasureArrowsIfMobile() {
   const arrows = document.querySelector('.treasure-arrows-container');
-  if (!arrows) return; // <-- Evita di accedere a .style se non esiste!
+  if (!arrows) return;
   if (window.matchMedia("(hover: none) and (pointer: coarse)").matches) {
     arrows.style.display = "";
   } else {
     arrows.style.display = "none";
   }
 }
-
 showTreasureArrowsIfMobile();
 
-
-
-
-
-// Joystick analogico virtuale per mobile
-const joystickBase = document.getElementById('treasure-joystick-base');
-const joystickStick = document.getElementById('treasure-joystick-stick');
-
-let joyActive = false;
-let joyCenter = { x: 0, y: 0 };
-let joyRadius = 50; // raggio base (half width of base)
-let stickRadius = 32; // max spostamento in pixel dal centro
-
-let joyDirX = 0;
-let joyDirY = 0;
-
-function updatePetDirFromJoystick(dx, dy) {
-  // Questo aggiorna direttamente la direzione globale di movimento!
-  // Se usi una logica tipo: treasurePet.dirX/dirY, oppure una variabile petDirX/petDirY
-  treasurePet.dirX = dx;
-  treasurePet.dirY = dy;
-
-  if (dx > 0.2) petDirection = "right";
-  else if (dx < -0.2) petDirection = "left";
-  else if (dy < -0.2) petDirection = "up";
-  else if (dy > 0.2) petDirection = "down";
-}
-
-// Funzione di reset
-function resetJoystick() {
-  joyDirX = 0;
-  joyDirY = 0;
-  joystickStick.style.transform = "translate(-50%,-50%)";
-  updatePetDirFromJoystick(0,0);
-  joystickBase.classList.remove('active');
-}
-
-
-
-function handleJoystickMove(touch) {
-  const x = touch.clientX - joyCenter.x;
-  const y = touch.clientY - joyCenter.y;
-
-  // Distanza dal centro
-  const dist = Math.sqrt(x * x + y * y);
-  let normX = x, normY = y;
-  if (dist > stickRadius) {
-    // Limita lo spostamento massimo
-    normX = x * stickRadius / dist;
-    normY = y * stickRadius / dist;
-  }
-
-  // Muovi graficamente la levetta
-  joystickStick.style.transform = `translate(-50%,-50%) translate(${normX}px,${normY}px)`;
-
-  // Calcola direzione normalizzata (valori tra -1 e 1)
-  let dx = normX / stickRadius;
-  let dy = normY / stickRadius;
-
-  // Soglia minima (zona morta centrale)
-  const deadZone = 0.18; // regola quanto è "morta" la zona centrale
-  if (Math.abs(dx) < deadZone) dx = 0;
-  if (Math.abs(dy) < deadZone) dy = 0;
-
-  // Arrotonda a due decimali
-  dx = Math.abs(dx) < 0.01 ? 0 : Math.max(-1, Math.min(1, dx));
-  dy = Math.abs(dy) < 0.01 ? 0 : Math.max(-1, Math.min(1, dy));
-
-  joyDirX = dx;
-  joyDirY = dy;
-
-  // Chiama la funzione che aggiorna il movimento reale del pet!
-  updatePetDirFromJoystick(dx, dy);
-}
-
-// Se vuoi testarlo anche col mouse su desktop:
-/*
-joystickBase.addEventListener('mousedown', function(e) {
-  joyActive = true;
-  joystickBase.classList.add('active');
-  const rect = joystickBase.getBoundingClientRect();
-  joyCenter = {
-    x: rect.left + rect.width/2,
-    y: rect.top + rect.height/2
-  };
-  handleJoystickMove(e);
-});
-document.addEventListener('mousemove', function(e) {
-  if (!joyActive) return;
-  handleJoystickMove(e);
-});
-document.addEventListener('mouseup', function(e) {
-  if (!joyActive) return;
-  joyActive = false;
-  resetJoystick();
-});
-*/
-
-// *** DISATTIVA TASTI FRECCIA SU MOBILE SE JOYSTICK È ATTIVO ***
-function hideTouchArrowsIfJoystick() {
-  // Se usi ancora le frecce, nascondile qui:
-  const arrows = document.querySelector('.treasure-arrows-container');
-  if (arrows) arrows.style.display = 'none';
-}
-hideTouchArrowsIfJoystick();
-
-window.addEventListener('DOMContentLoaded', function() {
-  // qui metti
-  //console.log('SCRIPT CARICATO!');
-  console.log('btn-minigame-treasure:', document.getElementById('btn-minigame-treasure'));
-
-  document.getElementById('btn-minigame-treasure').addEventListener('click', () => {
-    document.getElementById('minigame-select-modal').classList.add('hidden');
-    document.getElementById('treasure-minigame-modal').classList.remove('hidden');
+// ----- EVENTI -----
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btn-minigame-treasure')?.addEventListener('click', () => {
+    document.getElementById('minigame-select-modal')?.classList.add('hidden');
+    document.getElementById('treasure-minigame-modal')?.classList.remove('hidden');
     resizeTreasureCanvas();
     startTreasureMinigame();
   });
-  document.getElementById('treasure-exit-btn').addEventListener('click', () => {
-    endTreasureMinigame();
+  document.getElementById('treasure-exit-btn')?.addEventListener('click', () => endTreasureMinigame());
+
+  window.addEventListener('resize', () => {
+    if (treasurePlaying) { resizeTreasureCanvas(); renderTreasure(); hudDirty = true; }
+    showTreasureArrowsIfMobile();
   });
 
-
-  // ----- RESPONSIVE & UI -----
-window.addEventListener('resize', () => {
-  if (treasurePlaying) {
-    resizeTreasureCanvas();
-    drawTreasure();
-  }
-});
   document.addEventListener('keydown', (e) => {
-  if (!treasurePlaying) return;
-  let dir = dirMap[e.key];
-  if (!dir) return;
-  if (!keysStack.includes(dir)) keysStack.push(dir);
-  updatePetDir();
-});
-document.addEventListener('keyup', (e) => {
-  let dir = dirMap[e.key];
-  if (!dir) return;
-  keysStack = keysStack.filter(d => d !== dir);
-  updatePetDir();
-});
+    if (!treasurePlaying) return;
+    const dir = dirMap[e.key];
+    if (!dir) return;
+    if (!keysStack.includes(dir)) keysStack.push(dir);
+    updatePetDir();
+  });
+  document.addEventListener('keyup', (e) => {
+    const dir = dirMap[e.key];
+    if (!dir) return;
+    keysStack = keysStack.filter(d => d !== dir);
+    updatePetDir();
+  });
 
-// Touch start
-joystickBase.addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  joyActive = true;
-  joystickBase.classList.add('active');
-  // Centro relativo all’elemento
-  const rect = joystickBase.getBoundingClientRect();
-  joyCenter = {
-    x: rect.left + rect.width/2,
-    y: rect.top + rect.height/2
-  };
-  if (e.touches[0]) handleJoystickMove(e.touches[0]);
-}, { passive: false });
+  // Touch joystick
+  joystickBase?.addEventListener('touchstart', (e) => {
+    e.preventDefault(); joystickBase.classList.add('active');
+    const rect = joystickBase.getBoundingClientRect();
+    joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+    if (e.touches[0]) handleJoystickMove(e.touches[0]);
+  }, { passive: false });
 
-// Touch move
-joystickBase.addEventListener('touchmove', function(e) {
-  e.preventDefault();
-  if (!joyActive) return;
-  if (e.touches[0]) handleJoystickMove(e.touches[0]);
-}, { passive: false });
+  joystickBase?.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (e.touches[0]) handleJoystickMove(e.touches[0]);
+  }, { passive: false });
 
-// Touch end/cancel
-joystickBase.addEventListener('touchend', function(e) {
-  e.preventDefault();
-  resetJoystick();
-});
-joystickBase.addEventListener('touchcancel', function(e) {
-  e.preventDefault();
-  resetJoystick();
+  joystickBase?.addEventListener('touchend',   (e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
+  joystickBase?.addEventListener('touchcancel',(e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
 });
 
-window.addEventListener('resize', showTreasureArrowsIfMobile);
+// ----- REVEAL -----
+function animateRevealCircle(callback) {
+  const canvas = treasureCanvas;
+  const ctx = treasureCtx;
+  const W = canvas.width, H = canvas.height;
+  let centerX = W/2, centerY = H/2;
+  const maxRadius = Math.sqrt(W*W + H*H) / 2;
+  let start = null;
 
-});
+  function drawFrame(now) {
+    if (!start) start = now;
+    const progress = Math.min(1, (now - start) / 900);
+    const radius = 20 + progress * maxRadius;
+
+    renderTreasure();
+
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2*Math.PI);
+    ctx.fill();
+    ctx.restore();
+
+    if (progress < 1) requestAnimationFrame(drawFrame);
+    else if (typeof callback === "function") callback();
+  }
+  requestAnimationFrame(drawFrame);
+}

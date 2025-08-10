@@ -25,7 +25,26 @@
     Cfg.roomH = 6;
   }
 
-  
+  const GRID_POOL_DESKTOP = [[2,2],[3,2],[2,3],[3,3],[4,3],[3,4]];
+const GRID_POOL_MOBILE  = [[2,2],[3,2],[2,3],[3,3]];
+
+function pickGridForLevel(level) {
+  const pool = isMobileOrTablet() ? GRID_POOL_MOBILE : GRID_POOL_DESKTOP;
+  // bias semplice: ogni 3 livelli “sblocca” una taglia più grande
+  const band = Math.min(pool.length - 1, Math.floor((level - 1) / 3));
+  // tieni un po’ di varietà
+  const j = Math.max(0, band - 1);
+  const k = Math.min(pool.length - 1, band + 1);
+  const choice = pool[Math.floor(Math.random() * (k - j + 1)) + j];
+  return { w: choice[0], h: choice[1] };
+}
+
+function setGridForLevel(level) {
+  const { w, h } = pickGridForLevel(level);
+  Cfg.gridW = w;
+  Cfg.gridH = h;
+}
+
 
   // ---------- DOM / HUD ----------
   const DOM = {
@@ -262,7 +281,11 @@ function getCurrentPetSpeed() {
 
     startLevel();
   }
+  // *** NUOVO: scegli griglia e poi genera ***
+  setGridForLevel(G.level);
+  generateDungeon();
 
+  startLevel();
   // ---------- INPUT ----------
   const dirMap = {
     ArrowUp: 'up',    w: 'up',
@@ -455,6 +478,7 @@ for (let i = 0; i < steps; i++) {
       coinsLeft === 0) {
     G.level++;
     G.hudDirty = true;
+    setGridForLevel(G.level);
     setTimeout(() => { generateDungeon(); startLevel(); }, 550);
     return;
   }

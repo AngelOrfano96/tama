@@ -131,11 +131,13 @@
   function isPowerupActive(type = G.activePowerup) {
     return type && performance.now() < G.powerupExpiresAt;
   }
-  function getCurrentPetSpeed() {
-    return (G.activePowerup === 'speed' && isPowerupActive('speed'))
-      ? getCurrentBaseSpeed() * 3
-      : getCurrentBaseSpeed();
+ function getCurrentPetSpeed() {
+  if (G.activePowerup === 'speed') {
+    return getCurrentBaseSpeed() * 3;
   }
+  return getCurrentBaseSpeed();
+}
+
   function getAnimStep() {
     return (G.activePowerup === 'speed' && isPowerupActive('speed')) ? 0.12 : 0.18;
   }
@@ -312,6 +314,9 @@ function updatePetDirFromKeys() {
   gameLoop();
 
   function handlePickupsForRoom(roomKey, tile) {
+    G.activePowerup = 'speed';
+G.powerupExpiresAt = performance.now() + 3000;
+
   const objects = G.objects[roomKey] || [];
   const powers  = G.powerups[roomKey] || [];
 

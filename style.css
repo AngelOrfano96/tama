@@ -998,3 +998,18 @@ body {
 @media (min-width: 851px) {
   .treasure-joystick-overlay { display: none; }
 }
+.exp-gain-label {
+  position: absolute;
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 1.2em;
+  animation: expPop 1.5s ease-out forwards;
+  pointer-events: none;
+  text-shadow: 0 0 5px #fff, 0 0 10px #ffd700, 0 0 20px #ff8c00;
+}
+
+@keyframes expPop {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  50%  { transform: translateY(-10px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-20px) scale(1); opacity: 0; }
+}

@@ -50,6 +50,7 @@
     level: 1,
     score: 0,
     timeLeft: 0,
+    speedMul: 1,
     timerId: null,
 
     // potenziamenti
@@ -128,14 +129,12 @@
   function getCurrentBaseSpeed() {
     return isMobileOrTablet() ? Cfg.petSpeedMobile : Cfg.petSpeedDesktop;
   }
-  function isPowerupActive(type = G.activePowerup) {
-    return type && performance.now() < G.powerupExpiresAt;
-  }
- function getCurrentPetSpeed() {
-  if (G.activePowerup === 'speed') {
-    return getCurrentBaseSpeed() * 3;
-  }
-  return getCurrentBaseSpeed();
+ function isPowerupActive(type = G.activePowerup) {
+  return G.activePowerup === type && performance.now() < G.powerupExpiresAt;
+}
+
+function getCurrentPetSpeed() {
+  return getCurrentBaseSpeed() * (G.speedMul || 1);
 }
 
   function getAnimStep() {
@@ -313,62 +312,6 @@ function updatePetDirFromKeys() {
   }
   gameLoop();
 
-  function handlePickupsForRoom(roomKey, tile) {
-    G.activePowerup = 'speed';
-G.powerupExpiresAt = performance.now() + 3000;
-
-  const objects = G.objects[roomKey] || [];
-  const powers  = G.powerups[roomKey] || [];
-
-  // hitbox del pet (coerente con il draw: +6 e size = tile-12)
-  const petBox = {
-    x: G.pet.px + 6,
-    y: G.pet.py + 6,
-    w: tile - 12,
-    h: tile - 12,
-  };
-
-  // COIN (sprite: tile/2, centrato nella tile)
-  for (const o of objects) {
-    if (o.type !== 'coin' || o.taken) continue;
-    const bx = o.x * tile + tile / 4;
-    const by = o.y * tile + tile / 4;
-    if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
-      o.taken = true;
-      G.score += 1;
-      G.hudDirty = true;
-    }
-  }
-
-  // POWERUP (sprite come le coin)
-  for (const p of powers) {
-    if (p.taken) continue;
-    const bx = p.x * tile + tile / 4;
-    const by = p.y * tile + tile / 4;
-    if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
-      p.taken = true;
-      G.score += 12;
-      G.hudDirty = true;
-
-      console.log("[pickup] powerup:", p.type); // DEBUG: vedi se è speed o slow
-
-      if (p.type === 'speed') {
-        G.activePowerup   = 'speed';
-        G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
-      } else {
-        // slow su tutti i nemici per Cfg.powerupMs
-        for (const list of Object.values(G.enemies)) {
-          for (const e of list) e.slow = true;
-        }
-        G.activePowerup = 'slow';
-        G.slowExpiresAt = performance.now() + Cfg.powerupMs;
-      }
-      break; // uno per frame basta
-    }
-  }
-}
-
-
   // ---------- LOGICA ----------
 function movePet(dt) {
   // --- setup base ---
@@ -383,8 +326,10 @@ function movePet(dt) {
   }
   // scadenza powerup speed
   if (G.activePowerup === 'speed' && performance.now() >= G.powerupExpiresAt) {
-    G.activePowerup = null;
-  }
+  G.activePowerup = null;
+  G.speedMul = 1; // ← torna alla velocità normale
+}
+
 
   // --- movimento ---
   let dx = G.pet.dirX, dy = G.pet.dirY;
@@ -473,16 +418,17 @@ function movePet(dt) {
       G.score += 12;
       G.hudDirty = true;
 
-      if (p.type === 'speed') {
-        G.activePowerup = 'speed';
-        G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
-      } else {
-        for (const list of Object.values(G.enemies)) {
-          for (const e of list) e.slow = true;
-        }
-        G.activePowerup = 'slow';
-        G.slowExpiresAt = performance.now() + Cfg.powerupMs;
-      }
+     if (p.type === 'speed') {
+  G.activePowerup     = 'speed';
+  G.powerupExpiresAt  = performance.now() + Cfg.powerupMs;
+  G.speedMul          = 3;                // ← attiva subito il boost
+} else {
+  for (const list of Object.values(G.enemies)) {
+    for (const e of list) e.slow = true;
+  }
+  G.activePowerup = 'slow';
+  G.slowExpiresAt = performance.now() + Cfg.powerupMs;
+}
       break; // preso un powerup: basta per questo frame
     }
   }
@@ -793,6 +739,7 @@ function movePet(dt) {
     animateRevealCircle(() => {
       G.playing = true;
       G.activePowerup = null;
+      G.speedMul = 1;
       render();
       DOM.modal?.classList.remove('hidden');
 

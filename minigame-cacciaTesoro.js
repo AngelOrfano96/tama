@@ -237,16 +237,30 @@
     ArrowRight: 'right', d: 'right',
   };
 
-  function updatePetDirFromKeys() {
-    if (!G.keysStack.length) { G.pet.dirX = 0; G.pet.dirY = 0; return; }
-    const dir = G.keysStack[G.keysStack.length - 1];
-    G.pet.dirX = (dir === 'left') ? -1 : (dir === 'right' ? 1 : 0);
-    G.pet.dirY = (dir === 'up')   ? -1 : (dir === 'down'  ? 1 : 0);
-    if (G.pet.dirX > 0) G.pet.direction = 'right';
-    else if (G.pet.dirX < 0) G.pet.direction = 'left';
-    else if (G.pet.dirY < 0) G.pet.direction = 'up';
-    else if (G.pet.dirY > 0) G.pet.direction = 'down';
+function updatePetDirFromKeys() {
+  // calcolo assi in base ai tasti ancora premuti
+  const pressed = new Set(G.keysStack);
+
+  let dx = 0, dy = 0;
+  if (pressed.has('left'))  dx -= 1;
+  if (pressed.has('right')) dx += 1;
+  if (pressed.has('up'))    dy -= 1;
+  if (pressed.has('down'))  dy += 1;
+
+  // applica ai controlli del pet
+  G.pet.dirX = dx;
+  G.pet.dirY = dy;
+
+  // direzione “di faccia” (solo estetica): usa l’ultimo tasto premuto
+  if (G.keysStack.length) {
+    const last = G.keysStack[G.keysStack.length - 1];
+    if (last === 'left')  G.pet.direction = 'left';
+    if (last === 'right') G.pet.direction = 'right';
+    if (last === 'up')    G.pet.direction = 'up';
+    if (last === 'down')  G.pet.direction = 'down';
   }
+}
+
 
   // ---------- GAME LOOP ----------
   let lastT = performance.now();

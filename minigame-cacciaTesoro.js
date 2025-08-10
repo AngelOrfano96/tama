@@ -25,6 +25,8 @@
     Cfg.roomH = 6;
   }
 
+  
+
   // ---------- DOM / HUD ----------
   const DOM = {
     coins: document.getElementById('treasure-minigame-coins'),
@@ -117,7 +119,6 @@
     petBox.y + petBox.h > powerBox.y
   );
 }
-
 
   // velocità base
   const enemyBaseSpeed = isMobileOrTablet() ? Cfg.enemySpeedMobile : Cfg.enemySpeedDesktop;
@@ -310,133 +311,164 @@ function updatePetDirFromKeys() {
   }
   gameLoop();
 
-  // ---------- LOGICA ----------
-  function movePet(dt) {
-    // scadenza slow globale
-    if (G.activePowerup === 'slow' && performance.now() >= G.slowExpiresAt) {
-      for (const list of Object.values(G.enemies)) for (const e of list) e.slow = false;
-      G.activePowerup = null;
-    }
+  function handlePickupsForRoom(roomKey, tile) {
+  const objects = G.objects[roomKey] || [];
+  const powers  = G.powerups[roomKey] || [];
 
-    let dx = G.pet.dirX, dy = G.pet.dirY;
-    if (dx === 0 && dy === 0) { G.pet.moving = false; return; }
-    if (dx !== 0 && dy !== 0) { const inv = 1/Math.sqrt(2); dx *= inv; dy *= inv; }
+  // hitbox del pet (coerente con il draw: +6 e size = tile-12)
+  const petBox = {
+    x: G.pet.px + 6,
+    y: G.pet.py + 6,
+    w: tile - 12,
+    h: tile - 12,
+  };
 
-    const tile = window.treasureTile || 64;
-    const speed = getCurrentPetSpeed();
-    let newPX = G.pet.px + dx * speed * dt;
-    let newPY = G.pet.py + dy * speed * dt;
-
-    const room = G.rooms[G.petRoom.y][G.petRoom.x];
-    const size = tile - 20;
-
-    const tryMove = (nx, ny) => {
-      const minX = Math.floor((nx + 2) / tile);
-      const minY = Math.floor((ny + 2) / tile);
-      const maxX = Math.floor((nx + size - 2) / tile);
-      const maxY = Math.floor((ny + size - 2) / tile);
-      if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
-          minX < 0 || minX >= Cfg.roomW || maxX < 0 || maxX >= Cfg.roomW) return false;
-      return (
-        room[minY][minX] === 0 && room[minY][maxX] === 0 &&
-        room[maxY][minX] === 0 && room[maxY][maxX] === 0
-      );
-    };
-
-    if (tryMove(newPX, G.pet.py)) G.pet.px = newPX;
-    if (tryMove(G.pet.px, newPY)) G.pet.py = newPY;
-
-    G.pet.x = Math.floor((G.pet.px + size/2) / tile);
-    G.pet.y = Math.floor((G.pet.py + size/2) / tile);
-
-    G.pet.moving = true;
-    G.pet.animTime = (G.pet.animTime || 0) + dt;
-    if (G.pet.animTime > getAnimStep()) { G.pet.stepFrame = 1 - G.pet.stepFrame; G.pet.animTime = 0; }
-
-   // ---- RACCOLTE (AABB in pixel) ----
-const key = `${G.petRoom.x},${G.petRoom.y}`;
-const objects = G.objects[key] || [];
-const powers  = G.powerups[key] || [];
-
-// bounding box del pet (usa le stesse “margini” del draw: +6 e tile-12)
-const petBox = {
-  x: G.pet.px + 6,
-  y: G.pet.py + 6,
-  w: tile - 12,
-  h: tile - 12,
-};
-
-// COIN: disegnate a (x*tile + tile/4, y*tile + tile/4) con size (tile/2)
-for (const o of objects) {
-  if (o.type !== 'coin' || o.taken) continue;
-  const bx = o.x * tile + tile / 4;
-  const by = o.y * tile + tile / 4;
-  if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
-    o.taken = true;
-    G.score += 1;
-    G.hudDirty = true;
-  }
-}
-
-// POWERUP: stesso sprite/size delle coin
-for (const p of powers) {
-  if (p.taken) continue;
-  const bx = p.x * tile + tile / 4;
-  const by = p.y * tile + tile / 4;
-  if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
-    p.taken = true;
-    G.score += 12;
-    G.hudDirty = true;
-
-    if (p.type === 'speed') {
-      G.activePowerup = 'speed';
-      G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
-    } else {
-      // slow su tutti i nemici per Cfg.powerupMs
-      for (const list of Object.values(G.enemies)) {
-        for (const e of list) e.slow = true;
-      }
-      G.activePowerup = 'slow';
-      G.slowExpiresAt = performance.now() + Cfg.powerupMs;
-    }
-    break; // preso un powerup, basta così per questo frame
-  }
-}
-
-    // passaggio stanza
-    if (G.pet.px < 0 && G.petRoom.x > 0 && room[G.pet.y][0] === 0) {
-      G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
-    }
-    if (G.pet.px > (Cfg.roomW - 1) * tile && G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y][Cfg.roomW - 1] === 0) {
-      G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
-    }
-    if (G.pet.py < 0 && G.petRoom.y > 0 && room[0][G.pet.x] === 0) {
-      G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
-    }
-    if (G.pet.py > (Cfg.roomH - 1) * tile && G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1][G.pet.x] === 0) {
-      G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
-    }
-
-    // uscita (tutte le monete prese)
-    const coinsLeft = countCoinsLeft();
-    if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
-        Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1 &&
-        coinsLeft === 0) {
-      G.level++;
+  // COIN (sprite: tile/2, centrato nella tile)
+  for (const o of objects) {
+    if (o.type !== 'coin' || o.taken) continue;
+    const bx = o.x * tile + tile / 4;
+    const by = o.y * tile + tile / 4;
+    if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
+      o.taken = true;
+      G.score += 1;
       G.hudDirty = true;
-      setTimeout(() => { generateDungeon(); startLevel(); }, 550);
-      return;
-    }
-
-    // collisione nemici = game over
-    const enemies = G.enemies[key] || [];
-    if (enemies.some(e => distCenter(G.pet, e) < 0.5)) {
-      G.playing = false;
-      showTreasureBonus('Game Over!', '#e74c3c');
-      if (G.timerId) clearInterval(G.timerId);
-      setTimeout(() => endTreasureMinigame(), 1500);
     }
   }
+
+  // POWERUP (sprite come le coin)
+  for (const p of powers) {
+    if (p.taken) continue;
+    const bx = p.x * tile + tile / 4;
+    const by = p.y * tile + tile / 4;
+    if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
+      p.taken = true;
+      G.score += 12;
+      G.hudDirty = true;
+
+      console.log("[pickup] powerup:", p.type); // DEBUG: vedi se è speed o slow
+
+      if (p.type === 'speed') {
+        G.activePowerup   = 'speed';
+        G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
+      } else {
+        // slow su tutti i nemici per Cfg.powerupMs
+        for (const list of Object.values(G.enemies)) {
+          for (const e of list) e.slow = true;
+        }
+        G.activePowerup = 'slow';
+        G.slowExpiresAt = performance.now() + Cfg.powerupMs;
+      }
+      break; // uno per frame basta
+    }
+  }
+}
+
+
+  // ---------- LOGICA ----------
+function movePet(dt) {
+  // scadenza slow globale
+  if (G.activePowerup === 'slow' && performance.now() >= G.slowExpiresAt) {
+    for (const list of Object.values(G.enemies)) {
+      for (const e of list) e.slow = false;
+    }
+    G.activePowerup = null;
+  }
+
+  // scadenza speed
+  if (G.activePowerup === 'speed' && performance.now() >= G.powerupExpiresAt) {
+    G.activePowerup = null;
+  }
+
+  let dx = G.pet.dirX, dy = G.pet.dirY;
+  if (dx === 0 && dy === 0) { 
+    G.pet.moving = false; 
+    return; 
+  }
+  if (dx !== 0 && dy !== 0) { 
+    const inv = 1 / Math.sqrt(2); 
+    dx *= inv; 
+    dy *= inv; 
+  }
+
+  const tile = window.treasureTile || 64;
+  const speed = getCurrentPetSpeed();
+  let newPX = G.pet.px + dx * speed * dt;
+  let newPY = G.pet.py + dy * speed * dt;
+
+  const room = G.rooms[G.petRoom.y][G.petRoom.x];
+  const size = tile - 20;
+
+  const tryMove = (nx, ny) => {
+    const minX = Math.floor((nx + 2) / tile);
+    const minY = Math.floor((ny + 2) / tile);
+    const maxX = Math.floor((nx + size - 2) / tile);
+    const maxY = Math.floor((ny + size - 2) / tile);
+    if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
+        minX < 0 || minX >= Cfg.roomW || maxX < 0 || maxX >= Cfg.roomW) return false;
+    return (
+      room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+      room[maxY][minX] === 0 && room[maxY][maxX] === 0
+    );
+  };
+
+  // controlla pickup nella stanza attuale PRIMA di muoversi
+  const keyBefore = `${G.petRoom.x},${G.petRoom.y}`;
+  handlePickupsForRoom(keyBefore, tile);
+
+  // movimento in pixel
+  if (tryMove(newPX, G.pet.py)) G.pet.px = newPX;
+  if (tryMove(G.pet.px, newPY)) G.pet.py = newPY;
+
+  G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
+  G.pet.y = Math.floor((G.pet.py + size / 2) / tile);
+
+  G.pet.moving = true;
+  G.pet.animTime = (G.pet.animTime || 0) + dt;
+  if (G.pet.animTime > getAnimStep()) { 
+    G.pet.stepFrame = 1 - G.pet.stepFrame; 
+    G.pet.animTime = 0; 
+  }
+
+  // passaggio stanza
+  if (G.pet.px < 0 && G.petRoom.x > 0 && room[G.pet.y][0] === 0) {
+    G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
+  }
+  if (G.pet.px > (Cfg.roomW - 1) * tile && G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y][Cfg.roomW - 1] === 0) {
+    G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
+  }
+  if (G.pet.py < 0 && G.petRoom.y > 0 && room[0][G.pet.x] === 0) {
+    G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
+  }
+  if (G.pet.py > (Cfg.roomH - 1) * tile && G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1][G.pet.x] === 0) {
+    G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
+  }
+
+  // controlla pickup nella nuova stanza DOPO essersi mossi
+  const keyAfter = `${G.petRoom.x},${G.petRoom.y}`;
+  handlePickupsForRoom(keyAfter, tile);
+
+  // uscita (tutte le monete prese)
+  const coinsLeft = countCoinsLeft();
+  if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
+      Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1 &&
+      coinsLeft === 0) {
+    G.level++;
+    G.hudDirty = true;
+    setTimeout(() => { generateDungeon(); startLevel(); }, 550);
+    return;
+  }
+
+  // collisione nemici = game over
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  const enemies = G.enemies[key] || [];
+  if (enemies.some(e => distCenter(G.pet, e) < 0.5)) {
+    G.playing = false;
+    showTreasureBonus('Game Over!', '#e74c3c');
+    if (G.timerId) clearInterval(G.timerId);
+    setTimeout(() => endTreasureMinigame(), 1500);
+  }
+}
+
 
   function moveEnemies(dt) {
     const key = `${G.petRoom.x},${G.petRoom.y}`;

@@ -366,32 +366,26 @@ function updatePetDirFromKeys() {
 
   // ---------- LOGICA ----------
 function movePet(dt) {
-  // scadenza slow globale
+  // --- setup base ---
   const tile = window.treasureTile || 64;
+
+  // scadenza powerup slow
   if (G.activePowerup === 'slow' && performance.now() >= G.slowExpiresAt) {
     for (const list of Object.values(G.enemies)) {
       for (const e of list) e.slow = false;
     }
     G.activePowerup = null;
   }
-
-  // scadenza speed
+  // scadenza powerup speed
   if (G.activePowerup === 'speed' && performance.now() >= G.powerupExpiresAt) {
     G.activePowerup = null;
   }
 
+  // --- movimento ---
   let dx = G.pet.dirX, dy = G.pet.dirY;
-  if (dx === 0 && dy === 0) { 
-    G.pet.moving = false; 
-    return; 
-  }
-  if (dx !== 0 && dy !== 0) { 
-    const inv = 1 / Math.sqrt(2); 
-    dx *= inv; 
-    dy *= inv; 
-  }
+  if (dx === 0 && dy === 0) { G.pet.moving = false; return; }
+  if (dx !== 0 && dy !== 0) { const inv = 1 / Math.sqrt(2); dx *= inv; dy *= inv; }
 
-  
   const speed = getCurrentPetSpeed();
   let newPX = G.pet.px + dx * speed * dt;
   let newPY = G.pet.py + dy * speed * dt;
@@ -400,8 +394,8 @@ function movePet(dt) {
   const size = tile - 20;
 
   const tryMove = (nx, ny) => {
-    const minX = Math.floor((nx + 2) / tile);
-    const minY = Math.floor((ny + 2) / tile);
+    const minX = Math.floor((nx + 2)        / tile);
+    const minY = Math.floor((ny + 2)        / tile);
     const maxX = Math.floor((nx + size - 2) / tile);
     const maxY = Math.floor((ny + size - 2) / tile);
     if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
@@ -412,25 +406,23 @@ function movePet(dt) {
     );
   };
 
-  // controlla pickup nella stanza attuale PRIMA di muoversi
-  const keyBefore = `${G.petRoom.x},${G.petRoom.y}`;
-  handlePickupsForRoom(keyBefore, tile);
-
-  // movimento in pixel
+  // applica movimento
   if (tryMove(newPX, G.pet.py)) G.pet.px = newPX;
   if (tryMove(G.pet.px, newPY)) G.pet.py = newPY;
 
-  G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
-  G.pet.y = Math.floor((G.pet.py + size / 2) / tile);
+  // aggiorna cella logica
+  G.pet.x = Math.floor((G.pet.px + size/2) / tile);
+  G.pet.y = Math.floor((G.pet.py + size/2) / tile);
 
+  // animazione camminata
   G.pet.moving = true;
   G.pet.animTime = (G.pet.animTime || 0) + dt;
-  if (G.pet.animTime > getAnimStep()) { 
-    G.pet.stepFrame = 1 - G.pet.stepFrame; 
-    G.pet.animTime = 0; 
+  if (G.pet.animTime > getAnimStep()) {
+    G.pet.stepFrame = 1 - G.pet.stepFrame;
+    G.pet.animTime = 0;
   }
 
-  // passaggio stanza
+  // --- passaggio stanza (porte) ---
   if (G.pet.px < 0 && G.petRoom.x > 0 && room[G.pet.y][0] === 0) {
     G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
   }
@@ -444,11 +436,53 @@ function movePet(dt) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
   }
 
-  // controlla pickup nella nuova stanza DOPO essersi mossi
-  const keyAfter = `${G.petRoom.x},${G.petRoom.y}`;
-  handlePickupsForRoom(keyAfter, tile);
+  // --- PICKUP con AABB (pixel), nella stanza corrente ---
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  const objects = G.objects[key]  || [];
+  const powers  = G.powerups[key] || [];
 
-  // uscita (tutte le monete prese)
+  // bounding box del pet come da draw (offset +6, size tile-12)
+  const petBox = { x: G.pet.px + 6, y: G.pet.py + 6, w: tile - 12, h: tile - 12 };
+  const overlap = (ax, ay, aw, ah, bx, by, bw, bh) =>
+    ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+
+  // coin: disegnate a (x*tile+tile/4, y*tile+tile/4) dimensione tile/2
+  for (const o of objects) {
+    if (o.type !== 'coin' || o.taken) continue;
+    const bx = o.x * tile + tile / 4;
+    const by = o.y * tile + tile / 4;
+    if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
+      o.taken = true;
+      G.score += 1;
+      G.hudDirty = true;
+    }
+  }
+
+  // powerup: stessa posizione/size visiva delle coin
+  for (const p of powers) {
+    if (p.taken) continue;
+    const bx = p.x * tile + tile / 4;
+    const by = p.y * tile + tile / 4;
+    if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
+      p.taken = true;
+      G.score += 12;
+      G.hudDirty = true;
+
+      if (p.type === 'speed') {
+        G.activePowerup = 'speed';
+        G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
+      } else {
+        for (const list of Object.values(G.enemies)) {
+          for (const e of list) e.slow = true;
+        }
+        G.activePowerup = 'slow';
+        G.slowExpiresAt = performance.now() + Cfg.powerupMs;
+      }
+      break; // preso un powerup: basta per questo frame
+    }
+  }
+
+  // --- uscita (tutte le monete prese) ---
   const coinsLeft = countCoinsLeft();
   if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
       Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1 &&
@@ -459,8 +493,7 @@ function movePet(dt) {
     return;
   }
 
-  // collisione nemici = game over
-  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  // --- collisione con nemici ---
   const enemies = G.enemies[key] || [];
   if (enemies.some(e => distCenter(G.pet, e) < 0.5)) {
     G.playing = false;
@@ -469,6 +502,7 @@ function movePet(dt) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
   function moveEnemies(dt) {

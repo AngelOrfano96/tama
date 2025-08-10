@@ -15,6 +15,14 @@
     baseTimerMs: 1000,
   };
 
+const MoleCfg = {
+  emerge1: 0.5,   // terriccio
+  emerge2: 1.0,   // testa
+  hold:   0.8,    // tutta su (finestra di hit)
+  retreat1: 0.25, // torna testa -> terriccio
+  retreat2: 0.40, // terriccio -> sotto
+  gap: 0.30,      // pausa prima del prossimo spot
+};
   function isMobileOrTablet() {
     return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
   }
@@ -86,6 +94,15 @@ function setGridForLevel(level) {
     exitRoom: { x: 0, y: 0 },
     exitTile: { x: 0, y: 0 },
     skulls: [],
+
+    //talpa
+    mole: {
+    enabled: false,
+    roomX: 0, roomY: 0,
+    x: 0, y: 0,            // cella
+    phase: 'emerge1',      // 'emerge1'|'emerge2'|'hold'|'retreat2'|'retreat1'|'gap'
+    t: 0,                  // timer fase corrente
+      },
 
     // pet
     pet: {
@@ -537,11 +554,78 @@ for (let i = 0; i < steps; i++) {
       }
     }
   }
+function placeMoleAtRandomSpot() {
+  const room = G.rooms[G.mole.roomY][G.mole.roomX];
+  let tries = 0;
+  do {
+    G.mole.x = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+    G.mole.y = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+    tries++;
+  } while ((room[G.mole.y][G.mole.x] !== 0) && tries < 200);
+}
 
   function update(dt) {
     movePet(dt);
     moveEnemies(dt);
+    updateMole(dt);
   }
+
+  function updateMole(dt) {
+  if (!G.mole.enabled) return;
+
+  // la talpa progredisce anche se non sei in quella stanza,
+  // ma il game over si controlla solo quando è visibile e sei nella stanza
+  G.mole.t += dt;
+
+  switch (G.mole.phase) {
+    case 'emerge1': // terriccio
+      if (G.mole.t >= MoleCfg.emerge1) { G.mole.phase = 'emerge2'; G.mole.t = 0; }
+      break;
+
+    case 'emerge2': // testa
+      if (G.mole.t >= MoleCfg.emerge2) { G.mole.phase = 'hold'; G.mole.t = 0; }
+      break;
+
+    case 'hold': {  // tutta su (hit window)
+      // Se sei nella stessa stanza, controlla collisione
+      if (G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
+        const tile = window.treasureTile || 64;
+        const petBox = { x: G.pet.px + 6, y: G.pet.py + 6, w: tile - 12, h: tile - 12 };
+        const molePx = G.mole.x * tile;  // disegno centrato nella tile come i nemici
+        const molePy = G.mole.y * tile;
+        const moleBox = { x: molePx + 6, y: molePy + 6, w: tile - 12, h: tile - 12 };
+        const hit = (petBox.x < moleBox.x + moleBox.w && petBox.x + petBox.w > moleBox.x &&
+                     petBox.y < moleBox.y + moleBox.h && petBox.y + petBox.h > moleBox.y);
+        if (hit) {
+          G.playing = false;
+          showTreasureBonus('Game Over!', '#e74c3c');
+          if (G.timerId) clearInterval(G.timerId);
+          setTimeout(() => endTreasureMinigame(), 1500);
+          return;
+        }
+      }
+      if (G.mole.t >= MoleCfg.hold) { G.mole.phase = 'retreat2'; G.mole.t = 0; }
+      break;
+    }
+
+    case 'retreat2': // torna da full -> testa
+      if (G.mole.t >= MoleCfg.retreat2) { G.mole.phase = 'retreat1'; G.mole.t = 0; }
+      break;
+
+    case 'retreat1': // torna da testa -> terriccio
+      if (G.mole.t >= MoleCfg.retreat1) { G.mole.phase = 'gap'; G.mole.t = 0; }
+      break;
+
+    case 'gap': // pausa e poi teleporta in un altro spot della stessa stanza
+      if (G.mole.t >= MoleCfg.gap) {
+        placeMoleAtRandomSpot();
+        G.mole.phase = 'emerge1';
+        G.mole.t = 0;
+      }
+      break;
+  }
+}
+
 
   // ---------- RENDER ----------
   function render() {
@@ -594,6 +678,37 @@ for (let i = 0; i < steps; i++) {
         ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
       }
     }
+// --- Talpa ---
+if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
+  const tile = window.treasureTile || 64;
+  const mx = G.mole.x * tile;
+  const my = G.mole.y * tile;
+
+  let frame = null;
+  switch (G.mole.phase) {
+    case 'emerge1':
+    case 'retreat1':
+      frame = 0; break; // terriccio
+    case 'emerge2':
+    case 'retreat2':
+      frame = 1; break; // testa
+    case 'hold':
+      frame = 2; break; // tutta
+    default:
+      frame = null;     // gap: nulla
+  }
+
+  if (frame !== null) {
+    const img = G.sprites.mole?.[frame];
+    if (img && img.complete) {
+      ctx.drawImage(img, mx + 6, my + 6, tile - 12, tile - 12);
+    } else {
+      // fallback debug
+      ctx.fillStyle = '#7a4f2b';
+      ctx.fillRect(mx + 8, my + 8, tile - 16, tile - 16);
+    }
+  }
+}
 
     // pet
     const px = G.pet.px, py = G.pet.py;
@@ -777,6 +892,21 @@ for (let i = 0; i < steps; i++) {
 
     animateRevealCircle(() => {
       G.playing = true;
+      // Talpa: attiva solo dal livello 2 in poi
+G.mole.enabled = (G.level >= 2);
+if (G.mole.enabled) {
+  // scegli una stanza a caso
+  G.mole.roomX = Math.floor(Math.random() * Cfg.gridW);
+  G.mole.roomY = Math.floor(Math.random() * Cfg.gridH);
+
+  // scegli una cella libera dentro quella stanza
+  placeMoleAtRandomSpot();
+
+  // fase iniziale
+  G.mole.phase = 'emerge1';
+  G.mole.t = 0;
+}
+
       G.activePowerup = null;
       G.speedMul = 1;
       render();

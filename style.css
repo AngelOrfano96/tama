@@ -1028,3 +1028,20 @@ body {
   z-index: 50; /* sopra al canvas ma sotto ai modali */
 }
 #treasure-joystick-base.active { opacity: .9; }
+
+
+#treasure-hud, #treasure-minigame-modal .hud {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  z-index: 60;
+  pointer-events: none;     /* l'HUD non intercetta swipe; rimetti pointer-events sugli elementi cliccabili */
+}
+#treasure-hud .clickable { pointer-events: auto; }
+

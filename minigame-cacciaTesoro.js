@@ -708,7 +708,7 @@ for (let i = 0; i < steps; i++) {
             ptx = 1 + Math.floor(Math.random() * (Cfg.roomW-2));
             pty = 1 + Math.floor(Math.random() * (Cfg.roomH-2));
           } while (objects.some(o => o.x===ptx && o.y===pty));
-          powerups.push({ x: ptx, y: pty, type: (Math.random()<0.5 ? 'speed' : 'slow'), taken: false });
+          powerups.push({ x: ptx, y: pty, type: 'speed', taken: false });
         }
 
         G.objects[key]  = objects;

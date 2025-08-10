@@ -367,6 +367,7 @@ function updatePetDirFromKeys() {
   // ---------- LOGICA ----------
 function movePet(dt) {
   // scadenza slow globale
+  const tile = window.treasureTile || 64;
   if (G.activePowerup === 'slow' && performance.now() >= G.slowExpiresAt) {
     for (const list of Object.values(G.enemies)) {
       for (const e of list) e.slow = false;
@@ -390,7 +391,7 @@ function movePet(dt) {
     dy *= inv; 
   }
 
-  const tile = window.treasureTile || 64;
+  
   const speed = getCurrentPetSpeed();
   let newPX = G.pet.px + dx * speed * dt;
   let newPY = G.pet.py + dy * speed * dt;

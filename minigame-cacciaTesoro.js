@@ -336,29 +336,41 @@ function movePet(dt) {
   if (dx === 0 && dy === 0) { G.pet.moving = false; return; }
   if (dx !== 0 && dy !== 0) { const inv = 1 / Math.sqrt(2); dx *= inv; dy *= inv; }
 
-  const speed = getCurrentPetSpeed();
-  let newPX = G.pet.px + dx * speed * dt;
-  let newPY = G.pet.py + dy * speed * dt;
+const speed = getCurrentPetSpeed();
+const room  = G.rooms[G.petRoom.y][G.petRoom.x];
+const size  = tile - 20;
 
-  const room = G.rooms[G.petRoom.y][G.petRoom.x];
-  const size = tile - 20;
+const tryMove = (nx, ny) => {
+  const minX = Math.floor((nx + 2)        / tile);
+  const minY = Math.floor((ny + 2)        / tile);
+  const maxX = Math.floor((nx + size - 2) / tile);
+  const maxY = Math.floor((ny + size - 2) / tile);
+  if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
+      minX < 0 || minX >= Cfg.roomW || maxX < 0 || maxX >= Cfg.roomW) return false;
+  return (
+    room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+    room[maxY][minX] === 0 && room[maxY][maxX] === 0
+  );
+};
 
-  const tryMove = (nx, ny) => {
-    const minX = Math.floor((nx + 2)        / tile);
-    const minY = Math.floor((ny + 2)        / tile);
-    const maxX = Math.floor((nx + size - 2) / tile);
-    const maxY = Math.floor((ny + size - 2) / tile);
-    if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
-        minX < 0 || minX >= Cfg.roomW || maxX < 0 || maxX >= Cfg.roomW) return false;
-    return (
-      room[minY][minX] === 0 && room[minY][maxX] === 0 &&
-      room[maxY][minX] === 0 && room[maxY][maxX] === 0
-    );
-  };
+// --- micro-step movement (evita tunneling ai muri) ---
+const totalDX = dx * speed * dt;
+const totalDY = dy * speed * dt;
 
-  // applica movimento
-  if (tryMove(newPX, G.pet.py)) G.pet.px = newPX;
-  if (tryMove(G.pet.px, newPY)) G.pet.py = newPY;
+// grandezza massima per substep (≈ un terzo di tile)
+const maxStep = tile / 3;
+const steps = Math.max(1, Math.ceil(Math.hypot(totalDX, totalDY) / maxStep));
+
+const stepDX = totalDX / steps;
+const stepDY = totalDY / steps;
+
+for (let i = 0; i < steps; i++) {
+  const tryPX = G.pet.px + stepDX;
+  if (tryMove(tryPX, G.pet.py)) G.pet.px = tryPX;
+
+  const tryPY = G.pet.py + stepDY;
+  if (tryMove(G.pet.px, tryPY)) G.pet.py = tryPY;
+}
 
   // aggiorna cella logica
   G.pet.x = Math.floor((G.pet.px + size/2) / tile);
@@ -422,12 +434,15 @@ function movePet(dt) {
   G.activePowerup     = 'speed';
   G.powerupExpiresAt  = performance.now() + Cfg.powerupMs;
   G.speedMul          = 3;                // ← attiva subito il boost
+  showTreasureBonus('SPEED!', '#22c55e');
 } else {
   for (const list of Object.values(G.enemies)) {
     for (const e of list) e.slow = true;
+  
   }
   G.activePowerup = 'slow';
   G.slowExpiresAt = performance.now() + Cfg.powerupMs;
+  showTreasureBonus('SLOW!', '#3b82f6');
 }
       break; // preso un powerup: basta per questo frame
     }

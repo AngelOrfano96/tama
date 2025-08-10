@@ -91,6 +91,33 @@
       powerup: null,
     },
   };
+   function checkPickup(pet, powerup) {
+  const halfTile = G.tile / 2;
+
+  // bounding box del pet
+  const petBox = {
+    x: pet.x,
+    y: pet.y,
+    w: G.tile,
+    h: G.tile
+  };
+
+  // bounding box del power-up
+  const powerBox = {
+    x: powerup.x,
+    y: powerup.y,
+    w: G.tile,
+    h: G.tile
+  };
+
+  return (
+    petBox.x < powerBox.x + powerBox.w &&
+    petBox.x + petBox.w > powerBox.x &&
+    petBox.y < powerBox.y + powerBox.h &&
+    petBox.y + petBox.h > powerBox.y
+  );
+}
+
 
   // velocità base
   const enemyBaseSpeed = isMobileOrTablet() ? Cfg.enemySpeedMobile : Cfg.enemySpeedDesktop;
@@ -118,6 +145,11 @@
       ((a.py ?? a.y * tile) + tile/2) / tile - ((b.py ?? b.y * tile) + tile/2) / tile
     );
   }
+
+  function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
 
   if (screen.orientation && screen.orientation.lock) {
     screen.orientation.lock('landscape').catch(()=>{});
@@ -321,28 +353,55 @@ function updatePetDirFromKeys() {
     G.pet.animTime = (G.pet.animTime || 0) + dt;
     if (G.pet.animTime > getAnimStep()) { G.pet.stepFrame = 1 - G.pet.stepFrame; G.pet.animTime = 0; }
 
-    const key = `${G.petRoom.x},${G.petRoom.y}`;
-    const objects = G.objects[key] || [];
+   // ---- RACCOLTE (AABB in pixel) ----
+const key = `${G.petRoom.x},${G.petRoom.y}`;
+const objects = G.objects[key] || [];
+const powers  = G.powerups[key] || [];
 
-    const coin = objects.find(o => o.type === 'coin' && !o.taken && distCenter(G.pet, o) < 0.6);
-    if (coin) { coin.taken = true; G.score += 1; G.hudDirty = true; }
+// bounding box del pet (usa le stesse “margini” del draw: +6 e tile-12)
+const petBox = {
+  x: G.pet.px + 6,
+  y: G.pet.py + 6,
+  w: tile - 12,
+  h: tile - 12,
+};
 
-    const powers = G.powerups[key] || [];
-    const pow = powers.find(p => !p.taken && distCenter(G.pet, p) < 0.6);
-    if (pow) {
-      pow.taken = true;
-      G.score += 12;
-      G.hudDirty = true;
-      if (pow.type === 'speed') {
-        G.activePowerup = 'speed';
-        G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
-      } else {
-        // slow su tutti i nemici (semplice)
-        for (const list of Object.values(G.enemies)) for (const e of list) e.slow = true;
-        G.activePowerup = 'slow';
-        G.slowExpiresAt = performance.now() + Cfg.powerupMs;
+// COIN: disegnate a (x*tile + tile/4, y*tile + tile/4) con size (tile/2)
+for (const o of objects) {
+  if (o.type !== 'coin' || o.taken) continue;
+  const bx = o.x * tile + tile / 4;
+  const by = o.y * tile + tile / 4;
+  if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
+    o.taken = true;
+    G.score += 1;
+    G.hudDirty = true;
+  }
+}
+
+// POWERUP: stesso sprite/size delle coin
+for (const p of powers) {
+  if (p.taken) continue;
+  const bx = p.x * tile + tile / 4;
+  const by = p.y * tile + tile / 4;
+  if (rectsOverlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile / 2, tile / 2)) {
+    p.taken = true;
+    G.score += 12;
+    G.hudDirty = true;
+
+    if (p.type === 'speed') {
+      G.activePowerup = 'speed';
+      G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
+    } else {
+      // slow su tutti i nemici per Cfg.powerupMs
+      for (const list of Object.values(G.enemies)) {
+        for (const e of list) e.slow = true;
       }
+      G.activePowerup = 'slow';
+      G.slowExpiresAt = performance.now() + Cfg.powerupMs;
     }
+    break; // preso un powerup, basta così per questo frame
+  }
+}
 
     // passaggio stanza
     if (G.pet.px < 0 && G.petRoom.x > 0 && room[G.pet.y][0] === 0) {
@@ -470,6 +529,7 @@ function updatePetDirFromKeys() {
         }
       }
     }
+
 
     // skulls
     for (const s of G.skulls) {

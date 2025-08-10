@@ -360,69 +360,68 @@ function updatePetDirFromKeys() {
 
   // ---------- LOGICA ----------
 function movePet(dt) {
-  // --- setup base ---
   const tile = window.treasureTile || 64;
 
-  // scadenza powerup slow
-  if (G.activePowerup === 'slow' && performance.now() >= G.slowExpiresAt) {
-    for (const list of Object.values(G.enemies)) {
-      for (const e of list) e.slow = false;
-    }
+  // --- scadenze powerup ---
+  if (G.activePowerup === 'slow'  && performance.now() >= G.slowExpiresAt) {
+    for (const list of Object.values(G.enemies)) for (const e of list) e.slow = false;
     G.activePowerup = null;
   }
-  // scadenza powerup speed
   if (G.activePowerup === 'speed' && performance.now() >= G.powerupExpiresAt) {
-  G.activePowerup = null;
-  G.speedMul = 1; // ← torna alla velocità normale
-}
+    G.activePowerup = null;
+    G.speedMul = 1; // ritorna alla velocità normale
+  }
 
-
-  // --- movimento ---
+  // --- input / direzione ---
   let dx = G.pet.dirX, dy = G.pet.dirY;
   if (dx === 0 && dy === 0) { G.pet.moving = false; return; }
-  if (dx !== 0 && dy !== 0) { const inv = 1 / Math.sqrt(2); dx *= inv; dy *= inv; }
 
-const speed = getCurrentPetSpeed();
-const room  = G.rooms[G.petRoom.y][G.petRoom.x];
-const size  = tile - 20;
+  // normalizza la diagonale per avere stessa velocità in tutte le direzioni
+  if (dx !== 0 && dy !== 0) {
+    const inv = 1 / Math.sqrt(2);
+    dx *= inv; dy *= inv;
+  }
 
-const tryMove = (nx, ny) => {
-  const minX = Math.floor((nx + 2)        / tile);
-  const minY = Math.floor((ny + 2)        / tile);
-  const maxX = Math.floor((nx + size - 2) / tile);
-  const maxY = Math.floor((ny + size - 2) / tile);
-  if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
-      minX < 0 || minX >= Cfg.roomW || maxX < 0 || maxX >= Cfg.roomW) return false;
-  return (
-    room[minY][minX] === 0 && room[minY][maxX] === 0 &&
-    room[maxY][minX] === 0 && room[maxY][maxX] === 0
-  );
-};
+  // --- movimento con micro-step (evita “tunneling” ai muri) ---
+  const speed   = getCurrentPetSpeed();
+  const room    = G.rooms[G.petRoom.y][G.petRoom.x];
+  const size    = tile - 20;
 
-// --- micro-step movement (evita tunneling ai muri) ---
-const totalDX = dx * speed * dt;
-const totalDY = dy * speed * dt;
+  const tryMove = (nx, ny) => {
+    const minX = Math.floor((nx + 2)        / tile);
+    const minY = Math.floor((ny + 2)        / tile);
+    const maxX = Math.floor((nx + size - 2) / tile);
+    const maxY = Math.floor((ny + size - 2) / tile);
+    if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
+        minX < 0 || minX >= Cfg.roomW || maxX < 0 || maxX >= Cfg.roomW) return false;
+    return (
+      room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+      room[maxY][minX] === 0 && room[maxY][maxX] === 0
+    );
+  };
 
-// grandezza massima per substep (≈ un terzo di tile)
-const maxStep = tile / 3;
-const steps = Math.max(1, Math.ceil(Math.hypot(totalDX, totalDY) / maxStep));
+  const totalDX = dx * speed * dt;
+  const totalDY = dy * speed * dt;
 
-const stepDX = totalDX / steps;
-const stepDY = totalDY / steps;
+  // substep massimo ~ un terzo di tile (min 8px per sicurezza su tile piccoli)
+  const maxStep = Math.max(8, tile / 3);
+  const steps   = Math.max(1, Math.ceil(Math.hypot(totalDX, totalDY) / maxStep));
+  const stepDX  = totalDX / steps;
+  const stepDY  = totalDY / steps;
 
-for (let i = 0; i < steps; i++) {
-  const tryPX = G.pet.px + stepDX;
-  if (tryMove(tryPX, G.pet.py)) G.pet.px = tryPX;
+  for (let i = 0; i < steps; i++) {
+    const tryPX = G.pet.px + stepDX;
+    if (tryMove(tryPX, G.pet.py)) G.pet.px = tryPX;
 
-  const tryPY = G.pet.py + stepDY;
-  if (tryMove(G.pet.px, tryPY)) G.pet.py = tryPY;
-}
+    const tryPY = G.pet.py + stepDY;
+    if (tryMove(G.pet.px, tryPY)) G.pet.py = tryPY;
+  }
 
   // aggiorna cella logica
   G.pet.x = Math.floor((G.pet.px + size/2) / tile);
   G.pet.y = Math.floor((G.pet.py + size/2) / tile);
 
-  // animazione camminata
+  // animazione
   G.pet.moving = true;
   G.pet.animTime = (G.pet.animTime || 0) + dt;
   if (G.pet.animTime > getAnimStep()) {
@@ -444,17 +443,15 @@ for (let i = 0; i < steps; i++) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
   }
 
-  // --- PICKUP con AABB (pixel), nella stanza corrente ---
-  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  // --- pickup (AABB in pixel) ---
+  const key     = `${G.petRoom.x},${G.petRoom.y}`;
   const objects = G.objects[key]  || [];
   const powers  = G.powerups[key] || [];
 
-  // bounding box del pet come da draw (offset +6, size tile-12)
   const petBox = { x: G.pet.px + 6, y: G.pet.py + 6, w: tile - 12, h: tile - 12 };
   const overlap = (ax, ay, aw, ah, bx, by, bw, bh) =>
     ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 
-  // coin: disegnate a (x*tile+tile/4, y*tile+tile/4) dimensione tile/2
   for (const o of objects) {
     if (o.type !== 'coin' || o.taken) continue;
     const bx = o.x * tile + tile / 4;
@@ -466,7 +463,6 @@ for (let i = 0; i < steps; i++) {
     }
   }
 
-  // powerup: stessa posizione/size visiva delle coin
   for (const p of powers) {
     if (p.taken) continue;
     const bx = p.x * tile + tile / 4;
@@ -476,21 +472,18 @@ for (let i = 0; i < steps; i++) {
       G.score += 12;
       G.hudDirty = true;
 
-     if (p.type === 'speed') {
-  G.activePowerup     = 'speed';
-  G.powerupExpiresAt  = performance.now() + Cfg.powerupMs;
-  G.speedMul          = 3;                // ← attiva subito il boost
-  showTreasureBonus('SPEED!', '#22c55e');
-} else {
-  for (const list of Object.values(G.enemies)) {
-    for (const e of list) e.slow = true;
-  
-  }
-  G.activePowerup = 'slow';
-  G.slowExpiresAt = performance.now() + Cfg.powerupMs;
-  showTreasureBonus('SLOW!', '#3b82f6');
-}
-      break; // preso un powerup: basta per questo frame
+      if (p.type === 'speed') {
+        G.activePowerup    = 'speed';
+        G.powerupExpiresAt = performance.now() + Cfg.powerupMs;
+        G.speedMul         = 3;
+        showTreasureBonus('SPEED!', '#22c55e');
+      } else {
+        for (const list of Object.values(G.enemies)) for (const e of list) e.slow = true;
+        G.activePowerup = 'slow';
+        G.slowExpiresAt = performance.now() + Cfg.powerupMs;
+        showTreasureBonus('SLOW!', '#3b82f6');
+      }
+      break;
     }
   }
 
@@ -515,6 +508,7 @@ for (let i = 0; i < steps; i++) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 

@@ -282,6 +282,12 @@ function getCurrentPetSpeed() {
     G.sprites.bg   = new Image();    G.sprites.bg.src   = `${assetBase}/backgrounds/dungeon3.png`;
     G.sprites.powerup = new Image(); G.sprites.powerup.src = 'assets/bonus/powerup.png';
 
+    const mole = [new Image(), new Image(), new Image()];
+mole[0].src = `${assetBase}/enemies/talpa_1.png`;
+mole[1].src = `${assetBase}/enemies/talpa_2.png`;
+mole[2].src = `${assetBase}/enemies/talpa_3.png`;
+G.sprites.mole = mole;
+
     // PET
     const tile = window.treasureTile || 64;
     G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };

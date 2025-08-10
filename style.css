@@ -1013,3 +1013,18 @@ body {
   50%  { transform: translateY(-10px) scale(1.1); opacity: 1; }
   100% { transform: translateY(-20px) scale(1); opacity: 0; }
 }
+/* HUD compatto su mobile */
+.hud-compact .hud-item { transform: scale(0.9); }
+.hud-compact { padding-top: env(safe-area-inset-top, 0px); }
+
+/* joystick meno invasivo e safe-area friendly */
+#treasure-joystick-base {
+  position: fixed;
+  left: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  opacity: .45;
+  transition: opacity .15s ease;
+  touch-action: none;
+  z-index: 50; /* sopra al canvas ma sotto ai modali */
+}
+#treasure-joystick-base.active { opacity: .9; }

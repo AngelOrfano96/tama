@@ -69,7 +69,7 @@ function setGridForLevel(level) {
     joyStick: document.getElementById('treasure-joystick-stick'),
   };
   let ctx = DOM.canvas.getContext('2d');
-
+  const isTouch = window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches;
   // ---------- STATO GIOCO ----------
   const G = {
     // dinamiche
@@ -195,21 +195,54 @@ function getCurrentPetSpeed() {
   }
 
   // ---------- CANVAS SIZE ----------
-  function resizeTreasureCanvas() {
-    const w = window.innerWidth;
-    let h = window.innerHeight - 70;
-    if (isMobileOrTablet()) h = Math.floor((window.innerHeight - 70) * 0.7);
+function resizeTreasureCanvas() {
+  const wWin = window.innerWidth;
+  const hWin = window.innerHeight;
 
-    const tile = Math.floor(Math.min(w / Cfg.roomW, h / Cfg.roomH));
-    DOM.canvas.width = Cfg.roomW * tile;
-    DOM.canvas.height = Cfg.roomH * tile;
-    DOM.canvas.style.width = `${Cfg.roomW * tile}px`;
-    DOM.canvas.style.height = `${Cfg.roomH * tile}px`;
-    window.treasureTile = tile; // lasciamo compatibilità
+  // spazio effettivo: tolgo l’HUD (circa 70px) e considero il notch
+  const hudH   = 70;
+  const safeB  = (window.visualViewport ? (window.visualViewport.height - hWin) : 0) || 0;
+  let w = wWin;
+  let h = hWin - hudH - safeB;
 
-    ctx = DOM.canvas.getContext('2d');
-    G.hudDirty = true;
+  // base tile calcolata sul room size logico
+  let tileBase = Math.min(w / Cfg.roomW, h / Cfg.roomH);
+
+  // su mobile zoom-out leggero (mostra più mappa a parità di schermo)
+  if (isMobileOrTablet()) tileBase *= 0.82;
+
+  // clamp per evitare tile esagerate
+  const TILE_MIN = 28;   // più piccolo = più mappa visibile
+  const TILE_MAX = 96;   // evita sprite sgranati
+  const tile = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.floor(tileBase)));
+
+  // piccolo padding per non “schiacciare” sugli edge
+  const padX = Math.max(0, Math.floor((w - Cfg.roomW * tile) / 2));
+  const padY = Math.max(0, Math.floor((h - Cfg.roomH * tile) / 2));
+
+  DOM.canvas.width  = Cfg.roomW * tile;
+  DOM.canvas.height = Cfg.roomH * tile;
+
+  // centra il canvas nell’area disponibile
+  DOM.canvas.style.width  = `${Cfg.roomW * tile}px`;
+  DOM.canvas.style.height = `${Cfg.roomH * tile}px`;
+  DOM.canvas.style.marginLeft = `${padX}px`;
+  DOM.canvas.style.marginRight = `${padX}px`;
+  DOM.canvas.style.marginTop = `${padY}px`;
+  DOM.canvas.style.marginBottom = `${padY}px`;
+
+  window.treasureTile = tile;  // usato ovunque
+  ctx = DOM.canvas.getContext('2d');
+  G.hudDirty = true;
+
+  // attiva HUD compatto su mobile
+  const hudWrap = document.getElementById('treasure-hud') || DOM.modal;
+  if (hudWrap) {
+    if (isMobileOrTablet()) hudWrap.classList.add('hud-compact');
+    else hudWrap.classList.remove('hud-compact');
   }
+}
+
 
   // ---------- HUD ----------
   function countCoinsLeft() {
@@ -887,6 +920,7 @@ if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roo
 
   // ---------- START LEVEL ----------
   function startLevel() {
+    if (isTouch) DOM.joyBase.style.opacity = '0.45';
     resizeTreasureCanvas();
     G.timeLeft = 90 + G.level * 3;
     G.playing = false;
@@ -1020,6 +1054,10 @@ if (G.mole.enabled) {
     e.preventDefault();
     DOM.joyBase.classList.add('active');
     const rect = DOM.joyBase.getBoundingClientRect();
+    DOM.joyBase.style.bottom = `calc(16px + env(safe-area-inset-bottom, 0px))`;
+    DOM.joyBase?.addEventListener('touchstart', () => { DOM.joyBase.style.opacity = '0.9'; });
+    DOM.joyBase?.addEventListener('touchend',   () => { DOM.joyBase.style.opacity = '0.45'; });
+    DOM.joyBase?.addEventListener('touchcancel',() => { DOM.joyBase.style.opacity = '0.45'; });
     joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
     if (e.touches[0]) handleJoystickMove(e.touches[0]);
   }, { passive: false });

@@ -65,6 +65,16 @@
     <div id="game" class="fullscreen center hidden">
       <button id="logout-btn" type="button">Logout</button>
       <div class="form-box">
+        <!-- HUD compatto (mobile-first) -->
+<div id="hud-compact" class="hud-compact hidden">
+  <span class="hud-item">⭐ <b id="hud-level">1</b></span>
+  <span class="hud-item">⚡ <b id="hud-exp">0%</b></span>
+  <span class="hud-item">🍖 <b id="hud-hunger">0</b></span>
+  <span class="hud-item">🎉 <b id="hud-fun">0</b></span>
+  <span class="hud-item">🧼 <b id="hud-clean">0</b></span>
+  <button id="open-minigames" class="hud-cta" type="button" aria-label="Apri minigiochi">🎮</button>
+</div>
+
         <div id="level-container" class="level-box">
           <span id="level-label">Livello 1</span>
           <div id="exp-bar-bg" style="display:flex;align-items:center;gap:7px;">
@@ -161,6 +171,116 @@
     window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
     window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWNpZnlic2hvYXdod2VjaGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNzM0MDQsImV4cCI6MjA2OTY0OTQwNH0.Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
   </script>
+  <script>
+(function(){
+  // Prendi riferimenti
+  const hud = {
+    wrap: document.getElementById('hud-compact'),
+    level: document.getElementById('hud-level'),
+    exp: document.getElementById('hud-exp'),
+    hunger: document.getElementById('hud-hunger'),
+    fun: document.getElementById('hud-fun'),
+    clean: document.getElementById('hud-clean'),
+    openMinigames: document.getElementById('open-minigames'),
+  };
+
+  const els = {
+    levelLabel: document.getElementById('level-label'),
+    expBar: document.getElementById('exp-bar'),
+    expBarBg: document.getElementById('exp-bar-bg'),
+    hungerBar: document.getElementById('hunger-bar'),
+    funBar: document.getElementById('fun-bar'),
+    cleanBar: document.getElementById('clean-bar'),
+    minigameModal: document.getElementById('minigame-select-modal'),
+    minigameCancel: document.getElementById('btn-minigame-cancel'),
+    login: document.getElementById('login-container'),
+    eggSel: document.getElementById('egg-selection'),
+    game: document.getElementById('game'),
+  };
+
+  // Helper: percentuale da una barra (usa width inline se c'è, altrimenti calcola)
+  function getPercentFromBar(barEl, bgEl){
+    if (!barEl) return 0;
+    // 1) prova a leggere "width: 37%;" inline
+    const inline = barEl.style.width;
+    if (inline && inline.includes('%')) {
+      const v = parseFloat(inline);
+      return isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+    }
+    // 2) fallback: ratio tra width computate
+    if (bgEl) {
+      const bw = barEl.getBoundingClientRect().width;
+      const bgw = bgEl.getBoundingClientRect().width;
+      if (bgw > 0) return Math.round((bw / bgw) * 100);
+    }
+    return 0;
+  }
+
+  function getLevelFromLabel(){
+    // es: "Livello 3" -> 3
+    if (!els.levelLabel) return 1;
+    const m = (els.levelLabel.textContent || '').match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : 1;
+  }
+
+  function getExpPercent(){
+    return getPercentFromBar(els.expBar, els.expBarBg);
+  }
+
+  function syncHUD(){
+    if (!hud.wrap) return;
+    hud.level.textContent = getLevelFromLabel();
+    hud.exp.textContent   = getExpPercent() + '%';
+    hud.hunger.textContent = getPercentFromBar(els.hungerBar, els.hungerBar?.parentElement);
+    hud.fun.textContent    = getPercentFromBar(els.funBar, els.funBar?.parentElement);
+    hud.clean.textContent  = getPercentFromBar(els.cleanBar, els.cleanBar?.parentElement);
+  }
+
+  // Mostra HUD quando si entra nel gioco
+  function toggleHUD(){
+    const inGame = !els.game.classList.contains('hidden');
+    if (inGame) hud.wrap.classList.remove('hidden');
+    else hud.wrap.classList.add('hidden');
+  }
+
+  // Apri/chiudi selezione minigiochi
+  if (hud.openMinigames && els.minigameModal){
+    hud.openMinigames.addEventListener('click', ()=>{
+      els.minigameModal.classList.remove('hidden');
+    });
+  }
+  if (els.minigameCancel){
+    els.minigameCancel.addEventListener('click', ()=>{
+      els.minigameModal.classList.add('hidden');
+    });
+  }
+
+  // Aggiorna quando cambiano le barre/exp/level
+  const obs = new MutationObserver(()=> syncHUD());
+  [els.expBar, els.hungerBar, els.funBar, els.cleanBar, els.levelLabel].forEach(el=>{
+    if (el) obs.observe(el, { attributes:true, attributeFilter:['style','class'], characterData:true, subtree:true, childList:true });
+  });
+
+  // Aggiorna quando si passa da login/egg a gioco
+  const visObs = new MutationObserver(()=>{
+    toggleHUD();
+    syncHUD();
+  });
+  [els.login, els.eggSel, els.game].forEach(el=>{
+    if (el) visObs.observe(el, { attributes:true, attributeFilter:['class'] });
+  });
+
+  // Primo sync quando il DOM è pronto
+  document.addEventListener('DOMContentLoaded', ()=>{
+    toggleHUD();
+    syncHUD();
+  });
+
+  // (Facoltativo) Se da qualche parte aggiorni valori via funzioni globali, puoi richiamare window.syncHUD()
+  window.syncHUD = syncHUD;
+})();
+</script>
+
 <script src="minigame-cacciaTesoro.js"></script>
 <script src="script.js"></script>
 </body>

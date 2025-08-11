@@ -1058,3 +1058,50 @@ body {
   transform: scale(var(--ui-scale));
   transform-origin: top center;
 }
+/* === HUD compatto (mobile-first) === */
+.hud-compact{
+  position: sticky;
+  top: env(safe-area-inset-top, 0);
+  z-index: 30;
+  display: grid;
+  grid-auto-flow: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 249, 235, 0.9);
+  padding: 8px 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: .95rem;
+  backdrop-filter: blur(4px);
+}
+.hud-compact .hud-item{
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  transform: scale(0.96);
+}
+.hud-cta{
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: #e67e22;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+/* Preferisci HUD al posto delle barre grandi su schermi piccoli */
+@media (max-width: 768px){
+  #hud-compact{ display: grid !important; }
+  #hud-compact.hidden{ display: none !important; }
+  .bars{ display: none; }                /* nasconde le 3 barre grandi */
+  .level-box{ margin-top: 6px; }
+}
+
+/* su desktop tieni tutto */
+@media (min-width: 769px){
+  #hud-compact{ display: grid !important; }
+}

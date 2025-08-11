@@ -286,6 +286,40 @@
 </script>
 
 <script src="minigame-cacciaTesoro.js"></script>
+<script>
+(function(){
+  const modal = document.getElementById('minigame-select-modal');
+  const openHudBtn = document.getElementById('open-minigames');      // 🎮 nell’HUD
+  const desktopPlayBtn = document.getElementById('play-btn');        // Play desktop
+  const treasureBtn = document.getElementById('btn-minigame-treasure');
+  const cancelBtn = document.getElementById('btn-minigame-cancel');
+
+  // Apri il menu minigiochi (HUD mobile + Play desktop)
+  function openMinigames(){
+    if (modal) modal.classList.remove('hidden');
+  }
+  openHudBtn?.addEventListener('click', openMinigames);
+  desktopPlayBtn?.addEventListener('click', openMinigames);
+
+  // Avvia Caccia al Tesoro
+  function startTreasure(){
+    // chiudi la modale, poi avvia il minigioco
+    modal?.classList.add('hidden');
+    if (typeof window.startTreasureMinigame === 'function') {
+      window.startTreasureMinigame();
+    } else {
+      console.warn('startTreasureMinigame non è ancora disponibile');
+      // retry veloce nel caso lo script non fosse ancora pronto
+      setTimeout(()=> window.startTreasureMinigame?.(), 50);
+    }
+  }
+  treasureBtn?.addEventListener('click', startTreasure);
+
+  // Chiudi la modale
+  cancelBtn?.addEventListener('click', ()=> modal?.classList.add('hidden'));
+})();
+</script>
+
 <script src="script.js"></script>
 </body>
 </html>

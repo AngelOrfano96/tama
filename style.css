@@ -1116,22 +1116,44 @@ body {
   /* nasconde le barre grandi su mobile */
   .bars { display: none !important; }
 
-  /* dock in basso per i bottoni su mobile */
+/* MOBILE: usa solo il bottone 🎮 dell’HUD, nascondi il vecchio Play */
+@media (hover: none) and (pointer: coarse) {
+  #hud-compact { display: grid !important; }
+  .bars { display: none !important; }
+
+  /* dock in basso per i controlli */
   .controls{
     position: fixed;
     left: 0; right: 0;
     bottom: calc(env(safe-area-inset-bottom,0) + 8px);
     padding: 0 12px;
     display: grid;
-    grid-template-columns: repeat(3,1fr);
+    grid-template-columns: repeat(2,1fr); /* 2 colonne perché togliamo Play */
     gap: 8px;
     z-index: 60;
   }
+  /* nascondi SOLO il vecchio Play */
+  #play-btn{ display: none !important; }
+
   .controls button{
     min-height: 52px;
     font-size: 1rem;
     border-radius: 12px;
   }
+}
+
+/* DESKTOP: niente HUD, tieni tutto com’era */
+@media (hover: hover) and (pointer: fine) {
+  #hud-compact { display: none !important; }
+  .bars { display: flex !important; }
+  .controls{
+    position: static;
+    display: flex;
+    gap: 1rem;
+    padding: 0;
+  }
+}
+
 
   /* riduci un filo il margine del level box per recuperare spazio */
   .level-box { margin-top: 6px; }

@@ -1105,3 +1105,49 @@ body {
 @media (min-width: 769px){
   #hud-compact{ display: grid !important; }
 }
+/* di default l’HUD è nascosto */
+#hud-compact { display: none; }
+
+/* --- SOLO MOBILE (touch) --- */
+@media (hover: none) and (pointer: coarse) {
+  /* mostra HUD compatto su mobile */
+  #hud-compact { display: grid !important; }
+
+  /* nasconde le barre grandi su mobile */
+  .bars { display: none !important; }
+
+  /* dock in basso per i bottoni su mobile */
+  .controls{
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom,0) + 8px);
+    padding: 0 12px;
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 8px;
+    z-index: 60;
+  }
+  .controls button{
+    min-height: 52px;
+    font-size: 1rem;
+    border-radius: 12px;
+  }
+
+  /* riduci un filo il margine del level box per recuperare spazio */
+  .level-box { margin-top: 6px; }
+}
+
+/* --- SOLO DESKTOP (mouse/precisione) --- */
+@media (hover: hover) and (pointer: fine) {
+  /* tieni l’HUD spento su desktop */
+  #hud-compact { display: none !important; }
+
+  /* mantieni le barre e i bottoni com’erano */
+  .bars { display: flex !important; }
+  .controls{
+    position: static;
+    display: flex;
+    gap: 1rem;
+    padding: 0;
+  }
+}

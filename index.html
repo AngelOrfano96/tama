@@ -237,9 +237,13 @@
   }
 
   // Mostra HUD quando si entra nel gioco
+    const isMobileCoarse = () =>
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
   function toggleHUD(){
     const inGame = !els.game.classList.contains('hidden');
-    if (inGame) hud.wrap.classList.remove('hidden');
+    const onMobile = isMobileCoarse();
+    if (inGame && onMobile) hud.wrap.classList.remove('hidden');
     else hud.wrap.classList.add('hidden');
   }
 

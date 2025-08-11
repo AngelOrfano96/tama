@@ -1051,9 +1051,7 @@ if (G.mole.enabled) {
     else arrows.style.display = 'none';
   }
   showTreasureArrowsIfMobile();
-document.addEventListener('visibilitychange', ()=>{
-  G.playing = !document.hidden && !DOM.modal.classList.contains('hidden');
-});
+
 
   window.addEventListener('resize', () => {
     if (G.playing) { resizeTreasureCanvas(); render(); G.hudDirty = true; }

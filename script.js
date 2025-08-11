@@ -347,6 +347,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const playBtn       = document.getElementById('play-btn');
   const startTreasure = document.getElementById('btn-minigame-treasure');
   const cancelBtn     = document.getElementById('btn-minigame-cancel');
+  await requestLandscape();
 
   // Apri selettore
   playBtn?.addEventListener('click', () => {

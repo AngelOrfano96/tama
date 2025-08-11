@@ -259,6 +259,7 @@ function resizeTreasureCanvas() {
   // ---------- AVVIO ----------
   function startTreasureMinigame() {
     generateDungeon();
+    requestLandscape();
 
     G.level = 1;
     G.score = 0;
@@ -918,6 +919,26 @@ if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roo
     G.hudDirty = true;
   }
 
+  async function requestLandscape() {
+  const el = document.documentElement; // o DOM.canvas
+
+  // prova full screen (richiede gesto utente)
+  try {
+    if (el.requestFullscreen) await el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen(); // iOS vecchi
+  } catch (_) {}
+
+  // prova lock orientamento (funziona quasi solo su Android)
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock('landscape');
+    }
+  } catch (_) {
+    // ignoriamo: iOS non lo consente
+  }
+}
+
+
   // ---------- START LEVEL ----------
   function startLevel() {
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
@@ -1030,6 +1051,9 @@ if (G.mole.enabled) {
     else arrows.style.display = 'none';
   }
   showTreasureArrowsIfMobile();
+document.addEventListener('visibilitychange', ()=>{
+  G.playing = !document.hidden && !DOM.modal.classList.contains('hidden');
+});
 
   window.addEventListener('resize', () => {
     if (G.playing) { resizeTreasureCanvas(); render(); G.hudDirty = true; }

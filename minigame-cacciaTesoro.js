@@ -800,19 +800,31 @@ function drawSafe(img, x, y, tile) {
   if (img && img.complete) ctx.drawImage(img, x*tile, y*tile, tile, tile);
 }
 
+// Ruota tutta la famiglia di curve di 0..3 quarti di giro
+// Se vedi ancora direzioni sbagliate, cambia questo valore tra 0,1,2,3
+const CURVE_ROT_PHASE = 1; // <-- prova 1 (cioè +90°). Se serve usa 2 (=180°) o 3 (=270°).
+
 function drawCurve(x, y, tile, orient /* 'TL'|'TR'|'BL'|'BR' */) {
   const img = G.sprites.wallParts.curve_base;
-  if (!img || !img.complete) return;
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+
+  // Mappatura base delle rotazioni (partendo dall'assunzione "TL" è l'orientamento naturale)
+  let baseRot =
+      orient === 'TR' ?  Math.PI / 2 :
+      orient === 'BR' ?  Math.PI     :
+      orient === 'BL' ? -Math.PI / 2 :
+                         0; // 'TL'
+
+  // Fase globale per allineare il tuo sprite reale
+  baseRot += CURVE_ROT_PHASE * (Math.PI / 2);
+
   ctx.save();
-  ctx.translate(x*tile + tile/2, y*tile + tile/2);
-  const rot = orient === 'TR' ? Math.PI/2
-            : orient === 'BR' ? Math.PI
-            : orient === 'BL' ? -Math.PI/2
-            : 0; // TL
-  ctx.rotate(rot);
-  ctx.drawImage(img, -tile/2, -tile/2, tile, tile);
+  ctx.translate(x * tile + tile / 2, y * tile + tile / 2);
+  ctx.rotate(baseRot);
+  ctx.drawImage(img, -tile / 2, -tile / 2, tile, tile);
   ctx.restore();
 }
+
 
  // helper locali per il disegno safe
 function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }

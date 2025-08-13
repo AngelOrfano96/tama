@@ -290,15 +290,16 @@ G.sprites.wallParts = {
   corner_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
 
   // curve di chiusura ai bordi vicino alle porte (gli "angoli" che volevi usare)
-  angleTL:  loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // metti il nome giusto del tuo asset
+/*  angleTL:  loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // metti il nome giusto del tuo asset
   angleTR:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
   angleBL:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
-  angleBR:  loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+  angleBR:  loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),*/
 
-   curve_tl: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
-  curve_tr: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
-  curve_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
-  curve_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+ curve_tl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`), // Top Left
+curve_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // Top Right
+curve_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),// Bottom Left
+curve_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),  // Bottom Right
+
 
   // lati (2 varianti per continuità)
   top:    [ loadImg(`${tileBase}/muroDungeon_Alto_1.png`),       loadImg(`${tileBase}/muroDungeon_Alto_2.png`) ],

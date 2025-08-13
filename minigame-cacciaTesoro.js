@@ -295,6 +295,11 @@ G.sprites.wallParts = {
   angleBL:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
   angleBR:  loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
 
+   curve_tl: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
+  curve_tr: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
+  curve_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
+  curve_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+
   // lati (2 varianti per continuità)
   top:    [ loadImg(`${tileBase}/muroDungeon_Alto_1.png`),       loadImg(`${tileBase}/muroDungeon_Alto_2.png`) ],
   bottom: [ loadImg(`${tileBase}/muroDungeon_Basso_1.png`),      loadImg(`${tileBase}/muroDungeon_Basso_2.png`) ],
@@ -830,38 +835,47 @@ for (let y = 0; y < Cfg.roomH; y++) {
     const openRight = (x < Cfg.roomW - 1)   && room[y][x+1] === 0;
 
     // lati + curve di chiusura
-    if (isTop) {
-      const leftOpen  = (x > 0) && room[0][x-1] === 0;
-      const rightOpen = (x < Cfg.roomW-1) && room[0][x+1] === 0;
-      if (leftOpen)  { drawSafe(G.sprites.wallParts.angleTL, x, y, tile); continue; }
-      if (rightOpen) { drawSafe(G.sprites.wallParts.angleTR, x, y, tile); continue; }
-      drawSafe(G.sprites.wallParts.top[x % 2], x, y, tile);
-      continue;
-    }
-    if (isBottom) {
-      const leftOpen  = (x > 0) && room[Cfg.roomH-1][x-1] === 0;
-      const rightOpen = (x < Cfg.roomW-1) && room[Cfg.roomH-1][x+1] === 0;
-      if (leftOpen)  { drawSafe(G.sprites.wallParts.angleBL, x, y, tile); continue; }
-      if (rightOpen) { drawSafe(G.sprites.wallParts.angleBR, x, y, tile); continue; }
-      drawSafe(G.sprites.wallParts.bottom[x % 2], x, y, tile);
-      continue;
-    }
-    if (isLeft) {
-      const topOpen    = (y > 0) && room[y-1][0] === 0;
-      const bottomOpen = (y < Cfg.roomH-1) && room[y+1][0] === 0;
-      if (topOpen)    { drawSafe(G.sprites.wallParts.angleTL, x, y, tile); continue; }
-      if (bottomOpen) { drawSafe(G.sprites.wallParts.angleBL, x, y, tile); continue; }
-      drawSafe(G.sprites.wallParts.left[y % 2], x, y, tile);
-      continue;
-    }
-    if (isRight) {
-      const topOpen    = (y > 0) && room[y-1][Cfg.roomW-1] === 0;
-      const bottomOpen = (y < Cfg.roomH-1) && room[y+1][Cfg.roomW-1] === 0;
-      if (topOpen)    { drawSafe(G.sprites.wallParts.angleTR, x, y, tile); continue; }
-      if (bottomOpen) { drawSafe(G.sprites.wallParts.angleBR, x, y, tile); continue; }
-      drawSafe(G.sprites.wallParts.right[y % 2], x, y, tile);
-      continue;
-    }
+   if (isTop) {
+  if (openRight && !openLeft) { drawPart(G.sprites.wallParts.curve_tr, x, y, tile); continue; }
+  if (openLeft  && !openRight){ drawPart(G.sprites.wallParts.curve_tl, x, y, tile); continue; }
+  drawPart(G.sprites.wallParts.top[x % 2], x, y, tile);
+  continue;
+}
+// --- BORDO BASSO ---
+if (isBottom) {
+  const leftOpen  = (x > 0) && room[Cfg.roomH - 1][x - 1] === 0;
+  const rightOpen = (x < Cfg.roomW - 1) && room[Cfg.roomH - 1][x + 1] === 0;
+
+  if (leftOpen)  { drawSafe(G.sprites.wallParts.curve_bl, x, y, tile); continue; } // curva verso sinistra
+  if (rightOpen) { drawSafe(G.sprites.wallParts.curve_br, x, y, tile); continue; } // curva verso destra
+
+  drawSafe(G.sprites.wallParts.bottom[x % 2], x, y, tile);
+  continue;
+}
+
+// --- BORDO SINISTRO ---
+if (isLeft) {
+  const topOpen    = (y > 0) && room[y - 1][0] === 0;
+  const bottomOpen = (y < Cfg.roomH - 1) && room[y + 1][0] === 0;
+
+  if (topOpen)    { drawSafe(G.sprites.wallParts.curve_tl, x, y, tile); continue; } // curva verso alto
+  if (bottomOpen) { drawSafe(G.sprites.wallParts.curve_bl, x, y, tile); continue; } // curva verso basso
+
+  drawSafe(G.sprites.wallParts.left[y % 2], x, y, tile);
+  continue;
+}
+
+// --- BORDO DESTRO ---
+if (isRight) {
+  const topOpen    = (y > 0) && room[y - 1][Cfg.roomW - 1] === 0;
+  const bottomOpen = (y < Cfg.roomH - 1) && room[y + 1][Cfg.roomW - 1] === 0;
+
+  if (topOpen)    { drawSafe(G.sprites.wallParts.curve_tr, x, y, tile); continue; } // curva verso alto
+  if (bottomOpen) { drawSafe(G.sprites.wallParts.curve_br, x, y, tile); continue; } // curva verso basso
+
+  drawSafe(G.sprites.wallParts.right[y % 2], x, y, tile);
+  continue;
+}
 
     // fallback (non dovrebbe capitare)
     drawSafe(G.sprites.wallParts.top[0], x, y, tile);

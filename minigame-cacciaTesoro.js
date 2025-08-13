@@ -765,68 +765,78 @@ function render() {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
   const tile = window.treasureTile || 64;
 
-  // sfondo
+  // bg
   ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // === WALLS con corner + lati curvi ===
-  for (let y = 0; y < Cfg.roomH; y++) {
-    for (let x = 0; x < Cfg.roomW; x++) {
-      if (room[y][x] !== 1) continue;
+  // ----- ANGOLI FISSI -----
+  // (solo se la cella è muro: con le porte gli angoli restano comunque 1)
+  if (room[0][0] === 1)                         ctx.drawImage(G.sprites.wallParts.corner_tl, 0, 0, tile, tile);
+  if (room[0][Cfg.roomW-1] === 1)               ctx.drawImage(G.sprites.wallParts.corner_tr, (Cfg.roomW-1)*tile, 0, tile, tile);
+  if (room[Cfg.roomH-1][Cfg.roomW-1] === 1)     ctx.drawImage(G.sprites.wallParts.corner_br, (Cfg.roomW-1)*tile, (Cfg.roomH-1)*tile, tile, tile);
+  if (room[Cfg.roomH-1][0] === 1)               ctx.drawImage(G.sprites.wallParts.corner_bl, 0, (Cfg.roomH-1)*tile, tile, tile);
 
-      const topEmpty    = (y > 0)             ? room[y-1][x] === 0 : true;
-      const bottomEmpty = (y < Cfg.roomH - 1) ? room[y+1][x] === 0 : true;
-      const leftEmpty   = (x > 0)             ? room[y][x-1] === 0 : true;
-      const rightEmpty  = (x < Cfg.roomW - 1) ? room[y][x+1] === 0 : true;
+  // ----- LATO ALTO (y = 0) -----
+  for (let x = 1; x < Cfg.roomW-1; x++) {
+    if (room[0][x] !== 1) continue; // è una porta
+    const leftOpen  = room[0][x-1] === 0;
+    const rightOpen = room[0][x+1] === 0;
 
-      // Angoli esterni
-      if (topEmpty && leftEmpty)  { drawPart(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
-      if (topEmpty && rightEmpty) { drawPart(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
-      if (bottomEmpty && rightEmpty) { drawPart(G.sprites.wallParts.corner_br, x, y, tile); continue; }
-      if (bottomEmpty && leftEmpty)  { drawPart(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
+    if (leftOpen)      { ctx.drawImage(G.sprites.wallParts.corner_tl, x*tile, 0, tile, tile); continue; }
+    if (rightOpen)     { ctx.drawImage(G.sprites.wallParts.corner_tr, x*tile, 0, tile, tile); continue; }
 
-      // Lati con eventuale curva di fine muro
-      if (topEmpty) {
-        drawPart(G.sprites.wallParts.top[x % 2], x, y, tile);
-        if (leftEmpty)  drawPart(G.sprites.wallParts.corner_tl, x, y, tile);
-        if (rightEmpty) drawPart(G.sprites.wallParts.corner_tr, x, y, tile);
-        continue;
-      }
-      if (bottomEmpty) {
-        drawPart(G.sprites.wallParts.bottom[x % 2], x, y, tile);
-        if (leftEmpty)  drawPart(G.sprites.wallParts.corner_bl, x, y, tile);
-        if (rightEmpty) drawPart(G.sprites.wallParts.corner_br, x, y, tile);
-        continue;
-      }
-      if (leftEmpty) {
-        drawPart(G.sprites.wallParts.left[y % 2], x, y, tile);
-        if (topEmpty)    drawPart(G.sprites.wallParts.corner_tl, x, y, tile);
-        if (bottomEmpty) drawPart(G.sprites.wallParts.corner_bl, x, y, tile);
-        continue;
-      }
-      if (rightEmpty) {
-        drawPart(G.sprites.wallParts.right[y % 2], x, y, tile);
-        if (topEmpty)    drawPart(G.sprites.wallParts.corner_tr, x, y, tile);
-        if (bottomEmpty) drawPart(G.sprites.wallParts.corner_br, x, y, tile);
-        continue;
-      }
-    }
+    // pezzo dritto
+    const img = G.sprites.wallParts.top[x % 2];
+    if (img) ctx.drawImage(img, x*tile, 0, tile, tile);
   }
 
+  // ----- LATO BASSO (y = roomH-1) -----
+  for (let x = 1; x < Cfg.roomW-1; x++) {
+    if (room[Cfg.roomH-1][x] !== 1) continue;
+    const leftOpen  = room[Cfg.roomH-1][x-1] === 0;
+    const rightOpen = room[Cfg.roomH-1][x+1] === 0;
+
+    if (leftOpen)      { ctx.drawImage(G.sprites.wallParts.corner_bl, x*tile, (Cfg.roomH-1)*tile, tile, tile); continue; }
+    if (rightOpen)     { ctx.drawImage(G.sprites.wallParts.corner_br, x*tile, (Cfg.roomH-1)*tile, tile, tile); continue; }
+
+    const img = G.sprites.wallParts.bottom[x % 2];
+    if (img) ctx.drawImage(img, x*tile, (Cfg.roomH-1)*tile, tile, tile);
+  }
+
+  // ----- LATO SINISTRO (x = 0) -----
+  for (let y = 1; y < Cfg.roomH-1; y++) {
+    if (room[y][0] !== 1) continue;
+    const topOpen    = room[y-1]?.[0] === 0;
+    const bottomOpen = room[y+1]?.[0] === 0;
+
+    if (topOpen)       { ctx.drawImage(G.sprites.wallParts.corner_tl, 0, y*tile, tile, tile); continue; }
+    if (bottomOpen)    { ctx.drawImage(G.sprites.wallParts.corner_bl, 0, y*tile, tile, tile); continue; }
+
+    const img = G.sprites.wallParts.left[y % 2];
+    if (img) ctx.drawImage(img, 0, y*tile, tile, tile);
+  }
+
+  // ----- LATO DESTRO (x = roomW-1) -----
+  for (let y = 1; y < Cfg.roomH-1; y++) {
+    if (room[y][Cfg.roomW-1] !== 1) continue;
+    const topOpen    = room[y-1]?.[Cfg.roomW-1] === 0;
+    const bottomOpen = room[y+1]?.[Cfg.roomW-1] === 0;
+
+    if (topOpen)       { ctx.drawImage(G.sprites.wallParts.corner_tr, (Cfg.roomW-1)*tile, y*tile, tile, tile); continue; }
+    if (bottomOpen)    { ctx.drawImage(G.sprites.wallParts.corner_br, (Cfg.roomW-1)*tile, y*tile, tile, tile); continue; }
+
+    const img = G.sprites.wallParts.right[y % 2];
+    if (img) ctx.drawImage(img, (Cfg.roomW-1)*tile, y*tile, tile, tile);
+  }
+
+  // ======= resto identico al tuo: oggetti, powerup, teschi, talpa, pet, nemici, exit =======
   const key = `${G.petRoom.x},${G.petRoom.y}`;
 
-  // --- resto della tua render originale ---
   // coins
   if (G.objects[key]) {
     for (const obj of G.objects[key]) {
       if (obj.type === 'coin' && !obj.taken) {
-        if (G.sprites.coin.complete)
-          ctx.drawImage(G.sprites.coin, obj.x * tile + tile / 4, obj.y * tile + tile / 4, tile / 2, tile / 2);
-        else {
-          ctx.fillStyle = '#FFA500';
-          ctx.beginPath();
-          ctx.arc(obj.x * tile + tile / 2, obj.y * tile + tile / 2, tile / 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        if (G.sprites.coin.complete) ctx.drawImage(G.sprites.coin, obj.x*tile+tile/4, obj.y*tile+tile/4, tile/2, tile/2);
+        else { ctx.fillStyle = '#FFA500'; ctx.beginPath(); ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill(); }
       }
     }
   }
@@ -835,29 +845,22 @@ function render() {
   if (G.powerups[key]) {
     for (const pow of G.powerups[key]) {
       if (!pow.taken) {
-        if (G.sprites.powerup.complete)
-          ctx.drawImage(G.sprites.powerup, pow.x * tile + tile / 4, pow.y * tile + tile / 4, tile / 2, tile / 2);
-        else {
-          ctx.fillStyle = '#0cf';
-          ctx.beginPath();
-          ctx.arc(pow.x * tile + tile / 2, pow.y * tile + tile / 2, tile / 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        if (G.sprites.powerup.complete) ctx.drawImage(G.sprites.powerup, pow.x*tile+tile/4, pow.y*tile+tile/4, tile/2, tile/2);
+        else { ctx.fillStyle = '#0cf'; ctx.beginPath(); ctx.arc(pow.x*tile + tile/2, pow.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill(); }
       }
     }
   }
 
-  // skulls decor
+  // skulls
   for (const s of G.skulls) {
     if (s.roomX === G.petRoom.x && s.roomY === G.petRoom.y) {
-      ctx.drawImage(s.img, s.x * tile, s.y * tile, tile, tile);
+      ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
     }
   }
 
   // talpa
   if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
-    const mx = G.mole.x * tile;
-    const my = G.mole.y * tile;
+    const mx = G.mole.x * tile, my = G.mole.y * tile;
     let frame = null;
     switch (G.mole.phase) {
       case 'emerge1':
@@ -865,7 +868,6 @@ function render() {
       case 'emerge2':
       case 'retreat2': frame = 1; break;
       case 'hold':     frame = 2; break;
-      default: frame = null;
     }
     if (frame !== null) {
       const img = G.sprites.mole?.[frame];
@@ -875,8 +877,7 @@ function render() {
   }
 
   // pet
-  const px = G.pet.px, py = G.pet.py;
-  const sz = tile - 12;
+  const px = G.pet.px, py = G.pet.py, sz = tile - 12;
   let sPet = !G.pet.moving ? G.sprites.pet.idle : G.sprites.pet[G.pet.direction][G.pet.stepFrame];
   if (sPet && sPet.complete) ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
   else { ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4); }
@@ -897,10 +898,11 @@ function render() {
 
   // exit
   if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
-    if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x * tile + 10, G.exitTile.y * tile + 10, tile - 20, tile - 20);
-    else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x * tile + 10, G.exitTile.y * tile + 10, tile - 20, tile - 20); }
+    if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20);
+    else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20); }
   }
 }
+
 
 
 function isOpening(room, tx, ty) {

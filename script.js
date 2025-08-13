@@ -369,7 +369,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     selectModal?.classList.add('hidden');
     treasureModal?.classList.remove('hidden');
     //resizeTreasureCanvas();
-    startTreasureMinigame();
+    //startTreasureMinigame();
   });
 
   // CHIUDI selettore

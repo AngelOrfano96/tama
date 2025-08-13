@@ -817,9 +817,9 @@ function drawCurve(x, y, tile, orient /* 'TL'|'TR'|'BL'|'BR' */) {
   // Mappa rotazioni: parti da una curva “TL”.
   // Se la tua curva base NON è “TL”, vedi la nota sotto (Switch di base).
   const rot =
-    orient === 'TR' ?  Math.PI / 2 :
-    orient === 'BR' ?  Math.PI :
-    orient === 'BL' ? -Math.PI / 2 :
+    orient === 'TR' ?  -Math.PI / 2 :
+    orient === 'BR' ?  Math.PI / 2 :
+    orient === 'BL' ? Math.PI :
     0; // 'TL'
 
   ctx.rotate(rot);

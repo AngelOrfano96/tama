@@ -291,8 +291,8 @@ G.sprites.wallParts = {
 
   // curve di chiusura ai bordi vicino alle porte (gli "angoli" che volevi usare)
   angleTL:  loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // metti il nome giusto del tuo asset
-  angleTR:  loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
-  angleBL:  loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+  angleTR:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
+  angleBL:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
   angleBR:  loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
 
   // lati (2 varianti per continuità)

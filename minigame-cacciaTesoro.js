@@ -337,6 +337,16 @@ G.sprites.mole = mole;
       stepFrame: 0,
     };
 
+    // Subito dopo aver creato G.petRoom e G.pet in startTreasureMinigame():
+
+(function ensureSafeSpawn() {
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  const list = G.enemies[key] || [];
+  // rimuovi eventuali nemici sulla stessa cella del pet
+  G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
+})();
+
+
     startLevel();
   }
   // *** NUOVO: scegli griglia e poi genera ***
@@ -877,14 +887,27 @@ if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roo
 
         const nEnemies = Math.floor(Math.random()*2);
         const tile = window.treasureTile || 64;
-        for (let i = 0; i < nEnemies; i++) {
-          let ex, ey, isDoor, tries = 0;
-          do {
-            ex = 1 + Math.floor(Math.random() * (Cfg.roomW-2));
-            ey = 1 + Math.floor(Math.random() * (Cfg.roomH-2));
-            isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
-            tries++;
-          } while (isDoor && tries < 30);
+        const centerRoomX = Math.floor(Cfg.gridW / 2);
+const centerRoomY = Math.floor(Cfg.gridH / 2);
+const spawnCellX = 1, spawnCellY = 1;
+
+for (let i = 0; i < nEnemies; i++) {
+  let ex, ey, isDoor, overlapsSpawn, overlapsOther, tries = 0;
+  do {
+    ex = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+    ey = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+
+    isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
+
+    // evita la cella di spawn del pet nella stanza centrale
+    const isCenterRoom = (rx === centerRoomX && ry === centerRoomY);
+    overlapsSpawn = isCenterRoom && ex === spawnCellX && ey === spawnCellY;
+
+    // evita sovrapposizioni con altri nemici già messi in questa stanza
+    overlapsOther = enemies.some(en => en.x === ex && en.y === ey);
+
+    tries++;
+  } while ((isDoor || overlapsSpawn || overlapsOther) && tries < 60);
           enemies.push({
             x: ex, y: ey,
             px: ex * tile,

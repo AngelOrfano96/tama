@@ -768,66 +768,61 @@ function render() {
   // bg
   ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // ----- ANGOLI FISSI -----
-  // (solo se la cella è muro: con le porte gli angoli restano comunque 1)
-  if (room[0][0] === 1)                         ctx.drawImage(G.sprites.wallParts.corner_tl, 0, 0, tile, tile);
-  if (room[0][Cfg.roomW-1] === 1)               ctx.drawImage(G.sprites.wallParts.corner_tr, (Cfg.roomW-1)*tile, 0, tile, tile);
-  if (room[Cfg.roomH-1][Cfg.roomW-1] === 1)     ctx.drawImage(G.sprites.wallParts.corner_br, (Cfg.roomW-1)*tile, (Cfg.roomH-1)*tile, tile, tile);
-  if (room[Cfg.roomH-1][0] === 1)               ctx.drawImage(G.sprites.wallParts.corner_bl, 0, (Cfg.roomH-1)*tile, tile, tile);
+  // === MURI: angoli veri + lati con chiusure arrotondate verso le aperture ===
+  for (let y = 0; y < Cfg.roomH; y++) {
+    for (let x = 0; x < Cfg.roomW; x++) {
+      if (room[y][x] !== 1) continue;
 
-  // ----- LATO ALTO (y = 0) -----
-  for (let x = 1; x < Cfg.roomW-1; x++) {
-    if (room[0][x] !== 1) continue; // è una porta
-    const leftOpen  = room[0][x-1] === 0;
-    const rightOpen = room[0][x+1] === 0;
+      const isTop    = (y === 0);
+      const isBottom = (y === Cfg.roomH - 1);
+      const isLeft   = (x === 0);
+      const isRight  = (x === Cfg.roomW - 1);
 
-    if (leftOpen)      { ctx.drawImage(G.sprites.wallParts.corner_tl, x*tile, 0, tile, tile); continue; }
-    if (rightOpen)     { ctx.drawImage(G.sprites.wallParts.corner_tr, x*tile, 0, tile, tile); continue; }
+      // ---- ANGOLI VERI DELLA STANZA ----
+      if (isTop && isLeft)     { ctx.drawImage(G.sprites.wallParts.corner_tl, x*tile, y*tile, tile, tile); continue; }
+      if (isTop && isRight)    { ctx.drawImage(G.sprites.wallParts.corner_tr, x*tile, y*tile, tile, tile); continue; }
+      if (isBottom && isRight) { ctx.drawImage(G.sprites.wallParts.corner_br, x*tile, y*tile, tile, tile); continue; }
+      if (isBottom && isLeft)  { ctx.drawImage(G.sprites.wallParts.corner_bl, x*tile, y*tile, tile, tile); continue; }
 
-    // pezzo dritto
-    const img = G.sprites.wallParts.top[x % 2];
-    if (img) ctx.drawImage(img, x*tile, 0, tile, tile);
+      // ---- LATI ----
+      if (isTop) {
+        // se il pezzo precedente/seguente è un'apertura, usa l’angolo come chiusura arrotondata
+        const leftOpen  = (x > 0) && (room[0][x-1] === 0);
+        const rightOpen = (x < Cfg.roomW - 1) && (room[0][x+1] === 0);
+        if (leftOpen)  { ctx.drawImage(G.sprites.wallParts.corner_tl, x*tile, y*tile, tile, tile); continue; }
+        if (rightOpen) { ctx.drawImage(G.sprites.wallParts.corner_tr, x*tile, y*tile, tile, tile); continue; }
+        ctx.drawImage(G.sprites.wallParts.top[x % 2], x*tile, y*tile, tile, tile);
+        continue;
+      }
+
+      if (isBottom) {
+        const leftOpen  = (x > 0) && (room[Cfg.roomH - 1][x-1] === 0);
+        const rightOpen = (x < Cfg.roomW - 1) && (room[Cfg.roomH - 1][x+1] === 0);
+        if (leftOpen)  { ctx.drawImage(G.sprites.wallParts.corner_bl, x*tile, y*tile, tile, tile); continue; }
+        if (rightOpen) { ctx.drawImage(G.sprites.wallParts.corner_br, x*tile, y*tile, tile, tile); continue; }
+        ctx.drawImage(G.sprites.wallParts.bottom[x % 2], x*tile, y*tile, tile, tile);
+        continue;
+      }
+
+      if (isLeft) {
+        const topOpen    = (y > 0) && (room[y-1][0] === 0);
+        const bottomOpen = (y < Cfg.roomH - 1) && (room[y+1][0] === 0);
+        if (topOpen)    { ctx.drawImage(G.sprites.wallParts.corner_tl, x*tile, y*tile, tile, tile); continue; }
+        if (bottomOpen) { ctx.drawImage(G.sprites.wallParts.corner_bl, x*tile, y*tile, tile, tile); continue; }
+        ctx.drawImage(G.sprites.wallParts.left[y % 2], x*tile, y*tile, tile, tile);
+        continue;
+      }
+
+      if (isRight) {
+        const topOpen    = (y > 0) && (room[y-1][Cfg.roomW - 1] === 0);
+        const bottomOpen = (y < Cfg.roomH - 1) && (room[y+1][Cfg.roomW - 1] === 0);
+        if (topOpen)    { ctx.drawImage(G.sprites.wallParts.corner_tr, x*tile, y*tile, tile, tile); continue; }
+        if (bottomOpen) { ctx.drawImage(G.sprites.wallParts.corner_br, x*tile, y*tile, tile, tile); continue; }
+        ctx.drawImage(G.sprites.wallParts.right[y % 2], x*tile, y*tile, tile, tile);
+        continue;
+      }
+    }
   }
-
-  // ----- LATO BASSO (y = roomH-1) -----
-  for (let x = 1; x < Cfg.roomW-1; x++) {
-    if (room[Cfg.roomH-1][x] !== 1) continue;
-    const leftOpen  = room[Cfg.roomH-1][x-1] === 0;
-    const rightOpen = room[Cfg.roomH-1][x+1] === 0;
-
-    if (leftOpen)      { ctx.drawImage(G.sprites.wallParts.corner_bl, x*tile, (Cfg.roomH-1)*tile, tile, tile); continue; }
-    if (rightOpen)     { ctx.drawImage(G.sprites.wallParts.corner_br, x*tile, (Cfg.roomH-1)*tile, tile, tile); continue; }
-
-    const img = G.sprites.wallParts.bottom[x % 2];
-    if (img) ctx.drawImage(img, x*tile, (Cfg.roomH-1)*tile, tile, tile);
-  }
-
-  // ----- LATO SINISTRO (x = 0) -----
-  for (let y = 1; y < Cfg.roomH-1; y++) {
-    if (room[y][0] !== 1) continue;
-    const topOpen    = room[y-1]?.[0] === 0;
-    const bottomOpen = room[y+1]?.[0] === 0;
-
-    if (topOpen)       { ctx.drawImage(G.sprites.wallParts.corner_tl, 0, y*tile, tile, tile); continue; }
-    if (bottomOpen)    { ctx.drawImage(G.sprites.wallParts.corner_bl, 0, y*tile, tile, tile); continue; }
-
-    const img = G.sprites.wallParts.left[y % 2];
-    if (img) ctx.drawImage(img, 0, y*tile, tile, tile);
-  }
-
-  // ----- LATO DESTRO (x = roomW-1) -----
-  for (let y = 1; y < Cfg.roomH-1; y++) {
-    if (room[y][Cfg.roomW-1] !== 1) continue;
-    const topOpen    = room[y-1]?.[Cfg.roomW-1] === 0;
-    const bottomOpen = room[y+1]?.[Cfg.roomW-1] === 0;
-
-    if (topOpen)       { ctx.drawImage(G.sprites.wallParts.corner_tr, (Cfg.roomW-1)*tile, y*tile, tile, tile); continue; }
-    if (bottomOpen)    { ctx.drawImage(G.sprites.wallParts.corner_br, (Cfg.roomW-1)*tile, y*tile, tile, tile); continue; }
-
-    const img = G.sprites.wallParts.right[y % 2];
-    if (img) ctx.drawImage(img, (Cfg.roomW-1)*tile, y*tile, tile, tile);
-  }
-
   // ======= resto identico al tuo: oggetti, powerup, teschi, talpa, pet, nemici, exit =======
   const key = `${G.petRoom.x},${G.petRoom.y}`;
 

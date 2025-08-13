@@ -393,6 +393,11 @@ const wallSprites = {
   angleBL: G.sprites.wallParts.angleBL,
   angleBR: G.sprites.wallParts.angleBR
 };
+const wp = G.sprites.wallParts;
+wp.angleTL = wp.angleTL || wp.corner_tl;
+wp.angleTR = wp.angleTR || wp.corner_tr;
+wp.angleBL = wp.angleBL || wp.corner_bl;
+wp.angleBR = wp.angleBR || wp.corner_br;
 
     // Subito dopo aver creato G.petRoom e G.pet in startTreasureMinigame():
 
@@ -774,6 +779,17 @@ wp.angleBR = wp.angleBR || wp.corner_br;
   ctx.restore();
 }
 
+// ---- DRAW HELPERS (safe) ----
+function canUse(img) {
+  return !!(img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
+}
+function drawImg(img, dx, dy, dw, dh) {
+  if (canUse(img)) ctx.drawImage(img, dx, dy, dw, dh);
+}
+function drawTile(img, x, y, tile) {
+  if (canUse(img)) ctx.drawImage(img, x*tile, y*tile, tile, tile);
+  else { ctx.fillStyle = '#8c6a2e'; ctx.fillRect(x*tile, y*tile, tile, tile); }
+}
 
   // ---------- RENDER ----------
 function render() {
@@ -781,7 +797,8 @@ function render() {
   const tile = window.treasureTile || 64;
 
   // bg
-  ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
+  drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
+
 
  // helper locali per il disegno safe
 function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }

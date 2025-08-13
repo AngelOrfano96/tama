@@ -14,6 +14,28 @@
     powerupMs: 3000,
     baseTimerMs: 1000,
   };
+const wallSprites = {
+  top: [
+    G.sprites.wallParts.top1,
+    G.sprites.wallParts.top2
+  ],
+  bottom: [
+    G.sprites.wallParts.bottom1,
+    G.sprites.wallParts.bottom2
+  ],
+  left: [
+    G.sprites.wallParts.left1,
+    G.sprites.wallParts.left2
+  ],
+  right: [
+    G.sprites.wallParts.right1,
+    G.sprites.wallParts.right2
+  ],
+  angleTL: G.sprites.wallParts.angleTL, // muroDungeon_angolosinistro_Alto
+  angleTR: G.sprites.wallParts.angleTR, // muroDungeon_angolodestro_Alto
+  angleBL: G.sprites.wallParts.angleBL, // muroDungeon_angolosinistro_Basso
+  angleBR: G.sprites.wallParts.angleBR  // muroDungeon_angolodestro_Basso
+};
 
 const MoleCfg = {
   emerge1: 0.5,   // terriccio
@@ -737,7 +759,6 @@ function drawCapRot(x, y, tile, angleRad = 0, flipX = false) {
 }
 
 
-
   // ---------- RENDER ----------
 function render() {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
@@ -746,56 +767,35 @@ function render() {
   // bg
   ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // === WALLS con corner + lati + cap ===
-  for (let y = 0; y < Cfg.roomH; y++) for (let x = 0; x < Cfg.roomW; x++) {
-    if (room[y][x] !== 1) continue;
+  // === WALLS con auto-angoli e lati ===
+  for (let y = 0; y < Cfg.roomH; y++) {
+    for (let x = 0; x < Cfg.roomW; x++) {
+      if (room[y][x] !== 1) continue;
 
-    const isTop    = (y === 0);
-    const isBottom = (y === Cfg.roomH - 1);
-    const isLeft   = (x === 0);
-    const isRight  = (x === Cfg.roomW - 1);
+      // Controlla celle vicine (0 = apertura)
+      const openUp    = y > 0 && room[y-1][x] === 0;
+      const openDown  = y < Cfg.roomH-1 && room[y+1][x] === 0;
+      const openLeft  = x > 0 && room[y][x-1] === 0;
+      const openRight = x < Cfg.roomW-1 && room[y][x+1] === 0;
 
-    // CORNER
-    if (isTop && isLeft)        { drawPart(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
-    if (isTop && isRight)       { drawPart(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
-    if (isBottom && isRight)    { drawPart(G.sprites.wallParts.corner_br, x, y, tile); continue; }
-    if (isBottom && isLeft)     { drawPart(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
+      let img = null;
 
-    // LATI
-    if (isTop) {
-      drawPart(G.sprites.wallParts.top[x % 2], x, y, tile);
-      const leftOpen  = (x > 0) && (room[0][x-1] === 0);
-      const rightOpen = (x < Cfg.roomW-1) && (room[0][x+1] === 0);
-      if (leftOpen)  drawCapRot(x, y, tile, 0, true);   // top-left
-      if (rightOpen) drawCapRot(x, y, tile, 0, false);  // top-right
-      continue;
-    }
+      // --- ANGOLI ---
+      if (openUp && openLeft)       img = G.sprites.wallParts.angleTL; // muroDungeon_angolosinistro_Alto
+      else if (openUp && openRight) img = G.sprites.wallParts.angleTR; // muroDungeon_angolodestro_Alto
+      else if (openDown && openLeft) img = G.sprites.wallParts.angleBL; // muroDungeon_angolosinistro_Basso
+      else if (openDown && openRight) img = G.sprites.wallParts.angleBR; // muroDungeon_angolodestro_Basso
 
-    if (isBottom) {
-      drawPart(G.sprites.wallParts.bottom[x % 2], x, y, tile);
-      const leftOpen  = (x > 0) && (room[Cfg.roomH-1][x-1] === 0);
-      const rightOpen = (x < Cfg.roomW-1) && (room[Cfg.roomH-1][x+1] === 0);
-      if (leftOpen)  drawCapRot(x, y, tile, Math.PI, false); // bottom-left
-      if (rightOpen) drawCapRot(x, y, tile, Math.PI, true);  // bottom-right
-      continue;
-    }
+      // --- LATI DRITTI ---
+      else if (openUp)    img = G.sprites.wallParts.top[x % 2];
+      else if (openDown)  img = G.sprites.wallParts.bottom[x % 2];
+      else if (openLeft)  img = G.sprites.wallParts.left[y % 2];
+      else if (openRight) img = G.sprites.wallParts.right[y % 2];
 
-    if (isLeft) {
-      drawPart(G.sprites.wallParts.left[y % 2], x, y, tile);
-      const topOpen    = (y > 0) && (room[y-1][0] === 0);
-      const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][0] === 0);
-      if (topOpen)    drawCapRot(x, y, tile, -Math.PI/2, true);  // left-top
-      if (bottomOpen) drawCapRot(x, y, tile, -Math.PI/2, false); // left-bottom
-      continue;
-    }
+      // Fallback (muro pieno se non rientra nei casi sopra)
+      if (!img) img = G.sprites.wall2;
 
-    if (isRight) {
-      drawPart(G.sprites.wallParts.right[y % 2], x, y, tile);
-      const topOpen    = (y > 0) && (room[y-1][Cfg.roomW-1] === 0);
-      const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][Cfg.roomW-1] === 0);
-      if (topOpen)    drawCapRot(x, y, tile,  Math.PI/2, false); // right-top
-      if (bottomOpen) drawCapRot(x, y, tile,  Math.PI/2, true);  // right-bottom
-      continue;
+      ctx.drawImage(img, x * tile, y * tile, tile, tile);
     }
   }
 
@@ -882,6 +882,10 @@ function render() {
   }
 }
 
+function isOpening(room, tx, ty) {
+  // ritorna true se la cella è vuota e non è muro
+  return room[ty] && room[ty][tx] === 0;
+}
 
   // ---------- GENERAZIONE ----------
   function generateDungeon() {

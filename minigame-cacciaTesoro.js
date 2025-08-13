@@ -547,48 +547,61 @@ function movePet(dt) {
 
 
 
-  function moveEnemies(dt) {
-    const key = `${G.petRoom.x},${G.petRoom.y}`;
-    const enemies = G.enemies[key];
-    if (!enemies) return;
+function moveEnemies(dt) {
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  const enemies = G.enemies[key];
+  if (!enemies) return;
 
-    const tile = window.treasureTile || 64;
-    const room = G.rooms[G.petRoom.y][G.petRoom.x];
+  const tile = window.treasureTile || 64;
+  const room = G.rooms[G.petRoom.y][G.petRoom.x];
 
-    for (const e of enemies) {
-      const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
-      let dx = G.pet.px - e.px, dy = G.pet.py - e.py;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist > 2) {
-        dx /= dist; dy /= dist;
-        const newPX = e.px + dx * spd * dt;
-        const newPY = e.py + dy * spd * dt;
-        const size = tile - 14;
-        const minX = Math.floor((newPX + 6) / tile);
-        const minY = Math.floor((newPY + 6) / tile);
-        const maxX = Math.floor((newPX + size - 6) / tile);
-        const maxY = Math.floor((newPY + size - 6) / tile);
-        if (room[minY][minX] === 0 && room[minY][maxX] === 0 && room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
-          e.px = newPX; e.py = newPY;
-          e.x = Math.floor((e.px + size/2) / tile);
-          e.y = Math.floor((e.py + size/2) / tile);
-          e.direction = (Math.abs(dx) > Math.abs(dy)) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-          e.isMoving = true;
-          e.animTime = (e.animTime || 0) + dt;
-          const ENEMY_ANIM_STEP = 0.22;
-          if (e.animTime > ENEMY_ANIM_STEP) { e.stepFrame = 1 - (e.stepFrame || 0); e.animTime = 0; }
-        } else {
-          e.isMoving = false;
-        }
-      }
-      if (distCenter(e, G.pet) < 0.5) {
-        G.playing = false;
-        showTreasureBonus('Game Over!', '#e74c3c');
-        setTimeout(() => endTreasureMinigame(), 1500);
-        return;
+  for (const e of enemies) {
+    // --- attesa iniziale per ogni goblin (2s) ---
+    if (e.reactDelay === undefined) e.reactDelay = 2; // inizializza una volta
+    if (e.reactDelay > 0) {
+      e.reactDelay -= dt;
+      e.isMoving = false; // resta fermo durante l'attesa
+      // puoi opzionalmente aggiornare un'animazione idle qui
+      continue; // salta l'inseguimento finché non scade
+    }
+
+    const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
+    let dx = G.pet.px - e.px, dy = G.pet.py - e.py;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (dist > 2) {
+      dx /= dist; dy /= dist;
+      const newPX = e.px + dx * spd * dt;
+      const newPY = e.py + dy * spd * dt;
+      const size = tile - 14;
+      const minX = Math.floor((newPX + 6) / tile);
+      const minY = Math.floor((newPY + 6) / tile);
+      const maxX = Math.floor((newPX + size - 6) / tile);
+      const maxY = Math.floor((newPY + size - 6) / tile);
+
+      if (room[minY][minX] === 0 && room[minY][maxX] === 0 && room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
+        e.px = newPX; e.py = newPY;
+        e.x = Math.floor((e.px + size/2) / tile);
+        e.y = Math.floor((e.py + size/2) / tile);
+        e.direction = (Math.abs(dx) > Math.abs(dy)) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+        e.isMoving = true;
+        e.animTime = (e.animTime || 0) + dt;
+        const ENEMY_ANIM_STEP = 0.22;
+        if (e.animTime > ENEMY_ANIM_STEP) { e.stepFrame = 1 - (e.stepFrame || 0); e.animTime = 0; }
+      } else {
+        e.isMoving = false;
       }
     }
+
+    if (distCenter(e, G.pet) < 0.5) {
+      G.playing = false;
+      showTreasureBonus('Game Over!', '#e74c3c');
+      setTimeout(() => endTreasureMinigame(), 1500);
+      return;
+    }
   }
+}
+
 function placeMoleAtRandomSpot() {
   const room = G.rooms[G.mole.roomY][G.mole.roomX];
   let tries = 0;
@@ -873,6 +886,7 @@ if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roo
             stepFrame: 0,
             isMoving: false,
             animTime: 0,
+            reactDelay: 2,
           });
         }
 

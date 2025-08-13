@@ -1124,3 +1124,33 @@ if (G.mole.enabled) {
   window.resetJoystick = resetJoystick; // se serve fuori
 
 })();
+
+document.addEventListener('DOMContentLoaded', () => {
+  const playBtn = document.getElementById('play-btn');
+  const modal = document.getElementById('minigame-select-modal');
+  const openTreasure = document.getElementById('btn-minigame-treasure');
+  const closeModal = document.getElementById('btn-minigame-cancel');
+
+  if (playBtn && modal) {
+    playBtn.addEventListener('click', () => {
+      modal.classList.remove('hidden');
+    });
+  }
+
+  if (openTreasure) {
+    openTreasure.addEventListener('click', () => {
+      modal.classList.add('hidden');
+      if (typeof window.startTreasureMinigame === 'function') {
+        window.startTreasureMinigame();
+      } else {
+        console.warn('startTreasureMinigame non trovato');
+      }
+    });
+  }
+
+  if (closeModal) {
+    closeModal.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+});

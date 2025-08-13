@@ -287,6 +287,7 @@ G.sprites.wallParts = {
   bottom:[ loadImg(`${tileBase}/muroDungeon_Basso_1.png`),      loadImg(`${tileBase}/muroDungeon_Basso_2.png`) ],
   left:  [ loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`), loadImg(`${tileBase}/muroDungeon_latoSinistro_2.png`) ],
   right: [ loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),   loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`) ],
+  cap: loadImg(`${tileBase}/chiusura.png`),
 };
 
     // SPRITES
@@ -712,6 +713,25 @@ function placeMoleAtRandomSpot() {
       break;
   }
 }
+// --- helpers per disegnare i muri ---
+function drawPart(img, x, y) {
+  if (img && img.complete) ctx.drawImage(img, x*tile, y*tile, tile, tile);
+  else { 
+    ctx.fillStyle = '#8c6a2e'; 
+    ctx.fillRect(x*tile, y*tile, tile, tile); 
+  }
+}
+
+function drawCapRot(x, y, angleRad = 0, flipX = false) {
+  const img = G.sprites.wallParts.cap;
+  if (!img) return;
+  ctx.save();
+  ctx.translate(x*tile + tile/2, y*tile + tile/2);
+  ctx.rotate(angleRad);
+  if (flipX) ctx.scale(-1, 1);
+  ctx.drawImage(img, -tile/2, -tile/2, tile, tile);
+  ctx.restore();
+}
 
 
   // ---------- RENDER ----------
@@ -722,42 +742,60 @@ function placeMoleAtRandomSpot() {
     // bg
     ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-   // walls (perimetro con autotile)
 for (let y = 0; y < Cfg.roomH; y++) for (let x = 0; x < Cfg.roomW; x++) {
   if (room[y][x] !== 1) continue;
 
-  // Corner?
   const isTop    = (y === 0);
   const isBottom = (y === Cfg.roomH - 1);
   const isLeft   = (x === 0);
   const isRight  = (x === Cfg.roomW - 1);
 
-  let img = null;
+  // CORNER
+  if (isTop && isLeft)        { drawPart(G.sprites.wallParts.corner_tl, x, y); continue; }
+  if (isTop && isRight)       { drawPart(G.sprites.wallParts.corner_tr, x, y); continue; }
+  if (isBottom && isRight)    { drawPart(G.sprites.wallParts.corner_br, x, y); continue; }
+  if (isBottom && isLeft)     { drawPart(G.sprites.wallParts.corner_bl, x, y); continue; }
 
-  if (isTop && isLeft)        img = G.sprites.wallParts.corner_tl;
-  else if (isTop && isRight)  img = G.sprites.wallParts.corner_tr;
-  else if (isBottom && isRight) img = G.sprites.wallParts.corner_br;
-  else if (isBottom && isLeft)  img = G.sprites.wallParts.corner_bl;
-  else if (isTop) {
-    const v = (x % 2); // alterna 0/1 per continuità
-    img = G.sprites.wallParts.top[v];
-  } else if (isBottom) {
-    const v = (x % 2);
-    img = G.sprites.wallParts.bottom[v];
-  } else if (isLeft) {
-    const v = (y % 2);
-    img = G.sprites.wallParts.left[v];
-  } else if (isRight) {
-    const v = (y % 2);
-    img = G.sprites.wallParts.right[v];
+  // LATI
+  if (isTop) {
+    drawPart(G.sprites.wallParts.top[x % 2], x, y);
+
+    // CAP a fine segmento (verso destra o sinistra se c'è un'apertura)
+    const leftOpen  = (x > 0) && (room[0][x-1] === 0);
+    const rightOpen = (x < Cfg.roomW-1) && (room[0][x+1] === 0);
+    if (leftOpen)  drawCapRot(x, y, 0, true);   // top-left
+    if (rightOpen) drawCapRot(x, y, 0, false);  // top-right
+    continue;
   }
 
-  if (img && img.complete) {
-    ctx.drawImage(img, x * tile, y * tile, tile, tile);
-  } else {
-    // fallback debug
-    ctx.fillStyle = '#8c6a2e';
-    ctx.fillRect(x * tile, y * tile, tile, tile);
+  if (isBottom) {
+    drawPart(G.sprites.wallParts.bottom[x % 2], x, y);
+
+    const leftOpen  = (x > 0) && (room[Cfg.roomH-1][x-1] === 0);
+    const rightOpen = (x < Cfg.roomW-1) && (room[Cfg.roomH-1][x+1] === 0);
+    if (leftOpen)  drawCapRot(x, y, Math.PI, false); // bottom-left
+    if (rightOpen) drawCapRot(x, y, Math.PI, true);  // bottom-right
+    continue;
+  }
+
+  if (isLeft) {
+    drawPart(G.sprites.wallParts.left[y % 2], x, y);
+
+    const topOpen    = (y > 0) && (room[y-1][0] === 0);
+    const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][0] === 0);
+    if (topOpen)    drawCapRot(x, y, -Math.PI/2, true);  // left-top
+    if (bottomOpen) drawCapRot(x, y, -Math.PI/2, false); // left-bottom
+    continue;
+  }
+
+  if (isRight) {
+    drawPart(G.sprites.wallParts.right[y % 2], x, y);
+
+    const topOpen    = (y > 0) && (room[y-1][Cfg.roomW-1] === 0);
+    const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][Cfg.roomW-1] === 0);
+    if (topOpen)    drawCapRot(x, y,  Math.PI/2, false); // right-top
+    if (bottomOpen) drawCapRot(x, y,  Math.PI/2, true);  // right-bottom
+    continue;
   }
 }
 

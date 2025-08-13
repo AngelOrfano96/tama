@@ -14,28 +14,7 @@
     powerupMs: 3000,
     baseTimerMs: 1000,
   };
-const wallSprites = {
-  top: [
-    G.sprites.wallParts.top1,
-    G.sprites.wallParts.top2
-  ],
-  bottom: [
-    G.sprites.wallParts.bottom1,
-    G.sprites.wallParts.bottom2
-  ],
-  left: [
-    G.sprites.wallParts.left1,
-    G.sprites.wallParts.left2
-  ],
-  right: [
-    G.sprites.wallParts.right1,
-    G.sprites.wallParts.right2
-  ],
-  angleTL: G.sprites.wallParts.angleTL, // muroDungeon_angolosinistro_Alto
-  angleTR: G.sprites.wallParts.angleTR, // muroDungeon_angolodestro_Alto
-  angleBL: G.sprites.wallParts.angleBL, // muroDungeon_angolosinistro_Basso
-  angleBR: G.sprites.wallParts.angleBR  // muroDungeon_angolodestro_Basso
-};
+
 
 
 const MoleCfg = {
@@ -154,6 +133,29 @@ function setGridForLevel(level) {
       powerup: null,
     },
   };
+
+  const wallSprites = {
+  top: [
+    G.sprites.wallParts.top1,
+    G.sprites.wallParts.top2
+  ],
+  bottom: [
+    G.sprites.wallParts.bottom1,
+    G.sprites.wallParts.bottom2
+  ],
+  left: [
+    G.sprites.wallParts.left1,
+    G.sprites.wallParts.left2
+  ],
+  right: [
+    G.sprites.wallParts.right1,
+    G.sprites.wallParts.right2
+  ],
+  angleTL: G.sprites.wallParts.angleTL, // muroDungeon_angolosinistro_Alto
+  angleTR: G.sprites.wallParts.angleTR, // muroDungeon_angolodestro_Alto
+  angleBL: G.sprites.wallParts.angleBL, // muroDungeon_angolosinistro_Basso
+  angleBR: G.sprites.wallParts.angleBR  // muroDungeon_angolodestro_Basso
+};
    function checkPickup(pet, powerup) {
   const halfTile = G.tile / 2;
 

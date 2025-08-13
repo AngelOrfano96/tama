@@ -1068,7 +1068,7 @@ for (let i = 0; i < nEnemies; i++) {
   // ---------- START LEVEL ----------
   function startLevel() {
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
-    resizeTreasureCanvas();
+   resizeTreasureCanvas();
     G.timeLeft = 90 + G.level * 3;
     G.playing = false;
 

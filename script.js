@@ -368,7 +368,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   startTreasure?.addEventListener('click', () => {
     selectModal?.classList.add('hidden');
     treasureModal?.classList.remove('hidden');
-    resizeTreasureCanvas();
+    //resizeTreasureCanvas();
     startTreasureMinigame();
   });
 

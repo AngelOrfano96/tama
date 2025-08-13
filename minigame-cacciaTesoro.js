@@ -268,6 +268,27 @@ function resizeTreasureCanvas() {
     G.powerupExpiresAt = 0;
     G.slowExpiresAt = 0;
 
+    // helper
+const loadImg = (src) => { const i = new Image(); i.src = src; return i; };
+
+// Desktop/Mobile
+const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/tiles';
+
+// Pacchetto muri
+G.sprites.wallParts = {
+  // angoli
+  corner_tl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
+  corner_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
+  corner_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+  corner_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
+
+  // lati (2 varianti per continuità)
+  top:   [ loadImg(`${tileBase}/muroDungeon_Alto_1.png`),       loadImg(`${tileBase}/muroDungeon_Alto_2.png`) ],
+  bottom:[ loadImg(`${tileBase}/muroDungeon_Basso_1.png`),      loadImg(`${tileBase}/muroDungeon_Basso_2.png`) ],
+  left:  [ loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`), loadImg(`${tileBase}/muroDungeon_latoSinistro_2.png`) ],
+  right: [ loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),   loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`) ],
+};
+
     // SPRITES
     const petSrc = DOM.petImg?.src || '';
     const match = petSrc.match(/pet_(\d+)/);
@@ -701,13 +722,45 @@ function placeMoleAtRandomSpot() {
     // bg
     ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-    // walls
-    for (let y = 0; y < Cfg.roomH; y++) for (let x = 0; x < Cfg.roomW; x++) {
-      if (room[y][x] === 1) {
-        if (G.sprites.wall.complete) ctx.drawImage(G.sprites.wall, x*tile, y*tile, tile, tile);
-        else { ctx.fillStyle = '#888'; ctx.fillRect(x*tile, y*tile, tile, tile); }
-      }
-    }
+   // walls (perimetro con autotile)
+for (let y = 0; y < Cfg.roomH; y++) for (let x = 0; x < Cfg.roomW; x++) {
+  if (room[y][x] !== 1) continue;
+
+  // Corner?
+  const isTop    = (y === 0);
+  const isBottom = (y === Cfg.roomH - 1);
+  const isLeft   = (x === 0);
+  const isRight  = (x === Cfg.roomW - 1);
+
+  let img = null;
+
+  if (isTop && isLeft)        img = G.sprites.wallParts.corner_tl;
+  else if (isTop && isRight)  img = G.sprites.wallParts.corner_tr;
+  else if (isBottom && isRight) img = G.sprites.wallParts.corner_br;
+  else if (isBottom && isLeft)  img = G.sprites.wallParts.corner_bl;
+  else if (isTop) {
+    const v = (x % 2); // alterna 0/1 per continuità
+    img = G.sprites.wallParts.top[v];
+  } else if (isBottom) {
+    const v = (x % 2);
+    img = G.sprites.wallParts.bottom[v];
+  } else if (isLeft) {
+    const v = (y % 2);
+    img = G.sprites.wallParts.left[v];
+  } else if (isRight) {
+    const v = (y % 2);
+    img = G.sprites.wallParts.right[v];
+  }
+
+  if (img && img.complete) {
+    ctx.drawImage(img, x * tile, y * tile, tile, tile);
+  } else {
+    // fallback debug
+    ctx.fillStyle = '#8c6a2e';
+    ctx.fillRect(x * tile, y * tile, tile, tile);
+  }
+}
+
 
     const key = `${G.petRoom.x},${G.petRoom.y}`;
 

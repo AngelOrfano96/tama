@@ -758,6 +758,13 @@ function drawPart(img, x, y, tile) {
 
 function drawCapRot(x, y, tile, angleRad = 0, flipX = false) {
   const img = G.sprites.wallParts.cap;
+  // Fallback: se le curve non esistono, usa i corner corrispondenti
+const wp = G.sprites.wallParts;
+wp.angleTL = wp.angleTL || wp.corner_tl;
+wp.angleTR = wp.angleTR || wp.corner_tr;
+wp.angleBL = wp.angleBL || wp.corner_bl;
+wp.angleBR = wp.angleBR || wp.corner_br;
+
   if (!img) return;
   ctx.save();
   ctx.translate(x*tile + tile/2, y*tile + tile/2);
@@ -776,7 +783,13 @@ function render() {
   // bg
   ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // === MURI: angoli veri + lati con chiusure arrotondate verso le aperture ===
+ // helper locali per il disegno safe
+function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
+function drawSafe(img, x, y, tile){
+  if (canUse(img)) ctx.drawImage(img, x*tile, y*tile, tile, tile);
+  else { ctx.fillStyle = '#8c6a2e'; ctx.fillRect(x*tile, y*tile, tile, tile); }
+}
+
 // === MURI: spigoli veri + lati; vicino alle aperture usa le curve angle* ===
 for (let y = 0; y < Cfg.roomH; y++) {
   for (let x = 0; x < Cfg.roomW; x++) {
@@ -788,62 +801,55 @@ for (let y = 0; y < Cfg.roomH; y++) {
     const isRight  = (x === Cfg.roomW - 1);
 
     // spigoli veri della stanza
-    if (isTop && isLeft)     { ctx.drawImage(G.sprites.wallParts.corner_tl, x*tile, y*tile, tile, tile); continue; }
-    if (isTop && isRight)    { ctx.drawImage(G.sprites.wallParts.corner_tr, x*tile, y*tile, tile, tile); continue; }
-    if (isBottom && isRight) { ctx.drawImage(G.sprites.wallParts.corner_br, x*tile, y*tile, tile, tile); continue; }
-    if (isBottom && isLeft)  { ctx.drawImage(G.sprites.wallParts.corner_bl, x*tile, y*tile, tile, tile); continue; }
+    if (isTop && isLeft)     { drawSafe(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
+    if (isTop && isRight)    { drawSafe(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
+    if (isBottom && isRight) { drawSafe(G.sprites.wallParts.corner_br, x, y, tile); continue; }
+    if (isBottom && isLeft)  { drawSafe(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
 
-    // lati + chiusure
+    // aperture adiacenti (0 = vuoto)
+    const openUp    = (y > 0)               && room[y-1][x] === 0;
+    const openDown  = (y < Cfg.roomH - 1)   && room[y+1][x] === 0;
+    const openLeft  = (x > 0)               && room[y][x-1] === 0;
+    const openRight = (x < Cfg.roomW - 1)   && room[y][x+1] === 0;
+
+    // lati + curve di chiusura
     if (isTop) {
-      const leftOpen  = (x > 0) && (room[0][x-1] === 0);
-      const rightOpen = (x < Cfg.roomW-1) && (room[0][x+1] === 0);
-      if (leftOpen)  { ctx.drawImage(G.sprites.wallParts.angleTL, x*tile, y*tile, tile, tile); continue; }
-      if (rightOpen) { ctx.drawImage(G.sprites.wallParts.angleTR, x*tile, y*tile, tile, tile); continue; }
-      ctx.drawImage(G.sprites.wallParts.top[x % 2], x*tile, y*tile, tile, tile);
+      const leftOpen  = (x > 0) && room[0][x-1] === 0;
+      const rightOpen = (x < Cfg.roomW-1) && room[0][x+1] === 0;
+      if (leftOpen)  { drawSafe(G.sprites.wallParts.angleTL, x, y, tile); continue; }
+      if (rightOpen) { drawSafe(G.sprites.wallParts.angleTR, x, y, tile); continue; }
+      drawSafe(G.sprites.wallParts.top[x % 2], x, y, tile);
       continue;
     }
     if (isBottom) {
-      const leftOpen  = (x > 0) && (room[Cfg.roomH-1][x-1] === 0);
-      const rightOpen = (x < Cfg.roomW-1) && (room[Cfg.roomH-1][x+1] === 0);
-      if (leftOpen)  { ctx.drawImage(G.sprites.wallParts.angleBL, x*tile, y*tile, tile, tile); continue; }
-      if (rightOpen) { ctx.drawImage(G.sprites.wallParts.angleBR, x*tile, y*tile, tile, tile); continue; }
-      ctx.drawImage(G.sprites.wallParts.bottom[x % 2], x*tile, y*tile, tile, tile);
+      const leftOpen  = (x > 0) && room[Cfg.roomH-1][x-1] === 0;
+      const rightOpen = (x < Cfg.roomW-1) && room[Cfg.roomH-1][x+1] === 0;
+      if (leftOpen)  { drawSafe(G.sprites.wallParts.angleBL, x, y, tile); continue; }
+      if (rightOpen) { drawSafe(G.sprites.wallParts.angleBR, x, y, tile); continue; }
+      drawSafe(G.sprites.wallParts.bottom[x % 2], x, y, tile);
       continue;
     }
     if (isLeft) {
-      const topOpen    = (y > 0) && (room[y-1][0] === 0);
-      const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][0] === 0);
-      if (topOpen)    { ctx.drawImage(G.sprites.wallParts.angleTL, x*tile, y*tile, tile, tile); continue; }
-      if (bottomOpen) { ctx.drawImage(G.sprites.wallParts.angleBL, x*tile, y*tile, tile, tile); continue; }
-      ctx.drawImage(G.sprites.wallParts.left[y % 2], x*tile, y*tile, tile, tile);
+      const topOpen    = (y > 0) && room[y-1][0] === 0;
+      const bottomOpen = (y < Cfg.roomH-1) && room[y+1][0] === 0;
+      if (topOpen)    { drawSafe(G.sprites.wallParts.angleTL, x, y, tile); continue; }
+      if (bottomOpen) { drawSafe(G.sprites.wallParts.angleBL, x, y, tile); continue; }
+      drawSafe(G.sprites.wallParts.left[y % 2], x, y, tile);
       continue;
     }
     if (isRight) {
-      const topOpen    = (y > 0) && (room[y-1][Cfg.roomW-1] === 0);
-      const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][Cfg.roomW-1] === 0);
-      if (topOpen)    { ctx.drawImage(G.sprites.wallParts.angleTR, x*tile, y*tile, tile, tile); continue; }
-      if (bottomOpen) { ctx.drawImage(G.sprites.wallParts.angleBR, x*tile, y*tile, tile, tile); continue; }
-      ctx.drawImage(G.sprites.wallParts.right[y % 2], x*tile, y*tile, tile, tile);
+      const topOpen    = (y > 0) && room[y-1][Cfg.roomW-1] === 0;
+      const bottomOpen = (y < Cfg.roomH-1) && room[y+1][Cfg.roomW-1] === 0;
+      if (topOpen)    { drawSafe(G.sprites.wallParts.angleTR, x, y, tile); continue; }
+      if (bottomOpen) { drawSafe(G.sprites.wallParts.angleBR, x, y, tile); continue; }
+      drawSafe(G.sprites.wallParts.right[y % 2], x, y, tile);
       continue;
     }
+
+    // fallback (non dovrebbe capitare)
+    drawSafe(G.sprites.wallParts.top[0], x, y, tile);
   }
 }
-document.addEventListener('keydown', (e) => {
-  if (!G.playing) return;
-  const dir = dirMap[e.key];
-  if (!dir) return;
-  e.preventDefault();               // <-- aggiungi questo
-  if (!G.keysStack.includes(dir)) G.keysStack.push(dir);
-  updatePetDirFromKeys();
-});
-document.addEventListener('keyup', (e) => {
-  const dir = dirMap[e.key];
-  if (!dir) return;
-  e.preventDefault();               // <-- e qui
-  G.keysStack = G.keysStack.filter(d => d !== dir);
-  updatePetDirFromKeys();
-});
-
   // ======= resto identico al tuo: oggetti, powerup, teschi, talpa, pet, nemici, exit =======
   const key = `${G.petRoom.x},${G.petRoom.y}`;
 
@@ -920,6 +926,21 @@ document.addEventListener('keyup', (e) => {
 }
 
 
+document.addEventListener('keydown', (e) => {
+  if (!G.playing) return;
+  const dir = dirMap[e.key];
+  if (!dir) return;
+  e.preventDefault();               // <-- aggiungi questo
+  if (!G.keysStack.includes(dir)) G.keysStack.push(dir);
+  updatePetDirFromKeys();
+});
+document.addEventListener('keyup', (e) => {
+  const dir = dirMap[e.key];
+  if (!dir) return;
+  e.preventDefault();               // <-- e qui
+  G.keysStack = G.keysStack.filter(d => d !== dir);
+  updatePetDirFromKeys();
+});
 
 function isOpening(room, tx, ty) {
   // ritorna true se la cella è vuota e non è muro

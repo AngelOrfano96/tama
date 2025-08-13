@@ -198,6 +198,9 @@ function getCurrentPetSpeed() {
 function resizeTreasureCanvas() {
   const wWin = window.innerWidth;
   const hWin = window.innerHeight;
+  ctx = DOM.canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false; // <- qui
+
 
   // spazio effettivo: tolgo l’HUD (circa 70px) e considero il notch
   const hudH   = 70;
@@ -372,10 +375,10 @@ G.sprites.mole = mole;
     startLevel();
   }
   // *** NUOVO: scegli griglia e poi genera ***
-  setGridForLevel(G.level);
-  generateDungeon();
+  //setGridForLevel(G.level);
+  //generateDungeon();
 
-  startLevel();
+  //startLevel();
   // ---------- INPUT ----------
   const dirMap = {
     ArrowUp: 'up',    w: 'up',
@@ -736,167 +739,149 @@ function drawCapRot(x, y, tile, angleRad = 0, flipX = false) {
 
 
   // ---------- RENDER ----------
-  function render() {
-    const room = G.rooms[G.petRoom.y][G.petRoom.x];
-    const tile = window.treasureTile || 64;
-
-    // bg
-    ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
-drawPart(G.sprites.wallParts.side1, wallX, wallY, tile);
-drawCapRot(wallX, wallY, tile, Math.PI/2);
-
-for (let y = 0; y < Cfg.roomH; y++) for (let x = 0; x < Cfg.roomW; x++) {
-  if (room[y][x] !== 1) continue;
-
-  const isTop    = (y === 0);
-  const isBottom = (y === Cfg.roomH - 1);
-  const isLeft   = (x === 0);
-  const isRight  = (x === Cfg.roomW - 1);
-
-  // CORNER
-  if (isTop && isLeft)        { drawPart(G.sprites.wallParts.corner_tl, x, y); continue; }
-  if (isTop && isRight)       { drawPart(G.sprites.wallParts.corner_tr, x, y); continue; }
-  if (isBottom && isRight)    { drawPart(G.sprites.wallParts.corner_br, x, y); continue; }
-  if (isBottom && isLeft)     { drawPart(G.sprites.wallParts.corner_bl, x, y); continue; }
-
-  // LATI
-  if (isTop) {
-    drawPart(G.sprites.wallParts.top[x % 2], x, y);
-
-    // CAP a fine segmento (verso destra o sinistra se c'è un'apertura)
-    const leftOpen  = (x > 0) && (room[0][x-1] === 0);
-    const rightOpen = (x < Cfg.roomW-1) && (room[0][x+1] === 0);
-    if (leftOpen)  drawCapRot(x, y, 0, true);   // top-left
-    if (rightOpen) drawCapRot(x, y, 0, false);  // top-right
-    continue;
-  }
-
-  if (isBottom) {
-    drawPart(G.sprites.wallParts.bottom[x % 2], x, y);
-
-    const leftOpen  = (x > 0) && (room[Cfg.roomH-1][x-1] === 0);
-    const rightOpen = (x < Cfg.roomW-1) && (room[Cfg.roomH-1][x+1] === 0);
-    if (leftOpen)  drawCapRot(x, y, Math.PI, false); // bottom-left
-    if (rightOpen) drawCapRot(x, y, Math.PI, true);  // bottom-right
-    continue;
-  }
-
-  if (isLeft) {
-    drawPart(G.sprites.wallParts.left[y % 2], x, y);
-
-    const topOpen    = (y > 0) && (room[y-1][0] === 0);
-    const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][0] === 0);
-    if (topOpen)    drawCapRot(x, y, -Math.PI/2, true);  // left-top
-    if (bottomOpen) drawCapRot(x, y, -Math.PI/2, false); // left-bottom
-    continue;
-  }
-
-  if (isRight) {
-    drawPart(G.sprites.wallParts.right[y % 2], x, y);
-
-    const topOpen    = (y > 0) && (room[y-1][Cfg.roomW-1] === 0);
-    const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][Cfg.roomW-1] === 0);
-    if (topOpen)    drawCapRot(x, y,  Math.PI/2, false); // right-top
-    if (bottomOpen) drawCapRot(x, y,  Math.PI/2, true);  // right-bottom
-    continue;
-  }
-}
-
-
-    const key = `${G.petRoom.x},${G.petRoom.y}`;
-
-    // coins
-    if (G.objects[key]) {
-      for (const obj of G.objects[key]) {
-        if (obj.type === 'coin' && !obj.taken) {
-          if (G.sprites.coin.complete) ctx.drawImage(G.sprites.coin, obj.x*tile+tile/4, obj.y*tile+tile/4, tile/2, tile/2);
-          else {
-            ctx.fillStyle = '#FFA500';
-            ctx.beginPath(); ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill();
-          }
-        }
-      }
-    }
-
-    // powerups
-    if (G.powerups[key]) {
-      for (const pow of G.powerups[key]) {
-        if (!pow.taken) {
-          if (G.sprites.powerup.complete) ctx.drawImage(G.sprites.powerup, pow.x*tile+tile/4, pow.y*tile+tile/4, tile/2, tile/2);
-          else {
-            ctx.fillStyle = '#0cf';
-            ctx.beginPath(); ctx.arc(pow.x*tile + tile/2, pow.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill();
-          }
-        }
-      }
-    }
-
-
-    // skulls
-    for (const s of G.skulls) {
-      if (s.roomX === G.petRoom.x && s.roomY === G.petRoom.y) {
-        ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
-      }
-    }
-// --- Talpa ---
-if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
+function render() {
+  const room = G.rooms[G.petRoom.y][G.petRoom.x];
   const tile = window.treasureTile || 64;
-  const mx = G.mole.x * tile;
-  const my = G.mole.y * tile;
 
-  let frame = null;
-  switch (G.mole.phase) {
-    case 'emerge1':
-    case 'retreat1':
-      frame = 0; break; // terriccio
-    case 'emerge2':
-    case 'retreat2':
-      frame = 1; break; // testa
-    case 'hold':
-      frame = 2; break; // tutta
-    default:
-      frame = null;     // gap: nulla
+  // bg
+  ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
+
+  // === WALLS con corner + lati + cap ===
+  for (let y = 0; y < Cfg.roomH; y++) for (let x = 0; x < Cfg.roomW; x++) {
+    if (room[y][x] !== 1) continue;
+
+    const isTop    = (y === 0);
+    const isBottom = (y === Cfg.roomH - 1);
+    const isLeft   = (x === 0);
+    const isRight  = (x === Cfg.roomW - 1);
+
+    // CORNER
+    if (isTop && isLeft)        { drawPart(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
+    if (isTop && isRight)       { drawPart(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
+    if (isBottom && isRight)    { drawPart(G.sprites.wallParts.corner_br, x, y, tile); continue; }
+    if (isBottom && isLeft)     { drawPart(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
+
+    // LATI
+    if (isTop) {
+      drawPart(G.sprites.wallParts.top[x % 2], x, y, tile);
+      const leftOpen  = (x > 0) && (room[0][x-1] === 0);
+      const rightOpen = (x < Cfg.roomW-1) && (room[0][x+1] === 0);
+      if (leftOpen)  drawCapRot(x, y, tile, 0, true);   // top-left
+      if (rightOpen) drawCapRot(x, y, tile, 0, false);  // top-right
+      continue;
+    }
+
+    if (isBottom) {
+      drawPart(G.sprites.wallParts.bottom[x % 2], x, y, tile);
+      const leftOpen  = (x > 0) && (room[Cfg.roomH-1][x-1] === 0);
+      const rightOpen = (x < Cfg.roomW-1) && (room[Cfg.roomH-1][x+1] === 0);
+      if (leftOpen)  drawCapRot(x, y, tile, Math.PI, false); // bottom-left
+      if (rightOpen) drawCapRot(x, y, tile, Math.PI, true);  // bottom-right
+      continue;
+    }
+
+    if (isLeft) {
+      drawPart(G.sprites.wallParts.left[y % 2], x, y, tile);
+      const topOpen    = (y > 0) && (room[y-1][0] === 0);
+      const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][0] === 0);
+      if (topOpen)    drawCapRot(x, y, tile, -Math.PI/2, true);  // left-top
+      if (bottomOpen) drawCapRot(x, y, tile, -Math.PI/2, false); // left-bottom
+      continue;
+    }
+
+    if (isRight) {
+      drawPart(G.sprites.wallParts.right[y % 2], x, y, tile);
+      const topOpen    = (y > 0) && (room[y-1][Cfg.roomW-1] === 0);
+      const bottomOpen = (y < Cfg.roomH-1) && (room[y+1][Cfg.roomW-1] === 0);
+      if (topOpen)    drawCapRot(x, y, tile,  Math.PI/2, false); // right-top
+      if (bottomOpen) drawCapRot(x, y, tile,  Math.PI/2, true);  // right-bottom
+      continue;
+    }
   }
 
-  if (frame !== null) {
-    const img = G.sprites.mole?.[frame];
-    if (img && img.complete) {
-      ctx.drawImage(img, mx + 6, my + 6, tile - 12, tile - 12);
-    } else {
-      // fallback debug
-      ctx.fillStyle = '#7a4f2b';
-      ctx.fillRect(mx + 8, my + 8, tile - 16, tile - 16);
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+
+  // coins
+  if (G.objects[key]) {
+    for (const obj of G.objects[key]) {
+      if (obj.type === 'coin' && !obj.taken) {
+        if (G.sprites.coin.complete) ctx.drawImage(G.sprites.coin, obj.x*tile+tile/4, obj.y*tile+tile/4, tile/2, tile/2);
+        else {
+          ctx.fillStyle = '#FFA500';
+          ctx.beginPath(); ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill();
+        }
+      }
     }
+  }
+
+  // powerups
+  if (G.powerups[key]) {
+    for (const pow of G.powerups[key]) {
+      if (!pow.taken) {
+        if (G.sprites.powerup.complete) ctx.drawImage(G.sprites.powerup, pow.x*tile+tile/4, pow.y*tile+tile/4, tile/2, tile/2);
+        else {
+          ctx.fillStyle = '#0cf';
+          ctx.beginPath(); ctx.arc(pow.x*tile + tile/2, pow.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill();
+        }
+      }
+    }
+  }
+
+  // skulls decor
+  for (const s of G.skulls) {
+    if (s.roomX === G.petRoom.x && s.roomY === G.petRoom.y) {
+      ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
+    }
+  }
+
+  // talpa
+  if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
+    const mx = G.mole.x * tile;
+    const my = G.mole.y * tile;
+    let frame = null;
+    switch (G.mole.phase) {
+      case 'emerge1':
+      case 'retreat1': frame = 0; break;
+      case 'emerge2':
+      case 'retreat2': frame = 1; break;
+      case 'hold':     frame = 2; break;
+      default: frame = null;
+    }
+    if (frame !== null) {
+      const img = G.sprites.mole?.[frame];
+      if (img && img.complete) ctx.drawImage(img, mx + 6, my + 6, tile - 12, tile - 12);
+      else { ctx.fillStyle = '#7a4f2b'; ctx.fillRect(mx + 8, my + 8, tile - 16, tile - 16); }
+    }
+  }
+
+  // pet
+  const px = G.pet.px, py = G.pet.py;
+  const sz = tile - 12;
+  let sPet = !G.pet.moving ? G.sprites.pet.idle : G.sprites.pet[G.pet.direction][G.pet.stepFrame];
+  if (sPet && sPet.complete) ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
+  else { ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4); }
+
+  // enemies
+  for (const e of (G.enemies[key] || [])) {
+    let sprite = null;
+    const frame = e.stepFrame || 0;
+    const dir = e.direction || 'down';
+    if (G.sprites.goblin && G.sprites.goblin.idle) {
+      sprite = e.isMoving ? (G.sprites.goblin[dir] && G.sprites.goblin[dir][frame]) : G.sprites.goblin.idle;
+    }
+    const ex = e.px, ey = e.py;
+    if (sprite && sprite.complete) ctx.drawImage(sprite, ex + 6, ey + 6, tile - 12, tile - 12);
+    else if (G.sprites.enemy && G.sprites.enemy.complete) ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, tile - 12, tile - 12);
+    else { ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex + 8, ey + 8, tile - 16, tile - 16); }
+  }
+
+  // exit
+  if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
+    if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20);
+    else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20); }
   }
 }
 
-    // pet
-    const px = G.pet.px, py = G.pet.py;
-    const sz = tile - 12;
-    let sPet = !G.pet.moving ? G.sprites.pet.idle : G.sprites.pet[G.pet.direction][G.pet.stepFrame];
-    if (sPet && sPet.complete) ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
-    else { ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4); }
-
-    // enemies
-    for (const e of (G.enemies[key] || [])) {
-      let sprite = null;
-      const frame = e.stepFrame || 0;
-      const dir = e.direction || 'down';
-      if (G.sprites.goblin && G.sprites.goblin.idle) {
-        sprite = e.isMoving ? (G.sprites.goblin[dir] && G.sprites.goblin[dir][frame]) : G.sprites.goblin.idle;
-      }
-      const ex = e.px, ey = e.py;
-      if (sprite && sprite.complete) ctx.drawImage(sprite, ex + 6, ey + 6, tile - 12, tile - 12);
-      else if (G.sprites.enemy && G.sprites.enemy.complete) ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, tile - 12, tile - 12);
-      else { ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex + 8, ey + 8, tile - 16, tile - 16); }
-    }
-
-    // exit
-    if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
-      if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20);
-      else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20); }
-    }
-  }
 
   // ---------- GENERAZIONE ----------
   function generateDungeon() {

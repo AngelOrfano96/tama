@@ -312,7 +312,6 @@ G.sprites.wallParts = {
   bottom:[ loadImg(`${tileBase}/muroDungeon_Basso_1.png`),      loadImg(`${tileBase}/muroDungeon_Basso_2.png`) ],
   left:  [ loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`), loadImg(`${tileBase}/muroDungeon_latoSinistro_2.png`) ],
   right: [ loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),   loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`) ],
-  cap: loadImg(`${tileBase}/chiusura.png`),
 };
 
     // SPRITES

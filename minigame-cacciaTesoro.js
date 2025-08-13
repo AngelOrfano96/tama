@@ -610,7 +610,6 @@ function movePet(dt) {
 
 
 
-
 function moveEnemies(dt) {
   const key = `${G.petRoom.x},${G.petRoom.y}`;
   const enemies = G.enemies[key];

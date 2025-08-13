@@ -332,6 +332,15 @@ signupBtn.addEventListener('click', async () => {
     document.getElementById('auth-error').textContent = err.message;
   }
 });
+function requestLandscape() {
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(err => {
+      console.warn('Impossibile forzare landscape:', err);
+    });
+  } else {
+    console.log('Blocco orientamento non supportato dal browser');
+  }
+}
 
 // --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {

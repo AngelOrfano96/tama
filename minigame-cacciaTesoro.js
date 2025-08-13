@@ -37,6 +37,7 @@ const wallSprites = {
   angleBR: G.sprites.wallParts.angleBR  // muroDungeon_angolodestro_Basso
 };
 
+
 const MoleCfg = {
   emerge1: 0.5,   // terriccio
   emerge2: 1.0,   // testa
@@ -762,51 +763,67 @@ function render() {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
   const tile = window.treasureTile || 64;
 
-  // bg
+  // sfondo
   ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // === WALLS con auto-angoli e lati ===
+  // === WALLS con corner + lati curvi ===
   for (let y = 0; y < Cfg.roomH; y++) {
     for (let x = 0; x < Cfg.roomW; x++) {
       if (room[y][x] !== 1) continue;
 
-      // Controlla celle vicine (0 = apertura)
-      const openUp    = y > 0 && room[y-1][x] === 0;
-      const openDown  = y < Cfg.roomH-1 && room[y+1][x] === 0;
-      const openLeft  = x > 0 && room[y][x-1] === 0;
-      const openRight = x < Cfg.roomW-1 && room[y][x+1] === 0;
+      const topEmpty    = (y > 0)             ? room[y-1][x] === 0 : true;
+      const bottomEmpty = (y < Cfg.roomH - 1) ? room[y+1][x] === 0 : true;
+      const leftEmpty   = (x > 0)             ? room[y][x-1] === 0 : true;
+      const rightEmpty  = (x < Cfg.roomW - 1) ? room[y][x+1] === 0 : true;
 
-      let img = null;
+      // Angoli esterni
+      if (topEmpty && leftEmpty)  { drawPart(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
+      if (topEmpty && rightEmpty) { drawPart(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
+      if (bottomEmpty && rightEmpty) { drawPart(G.sprites.wallParts.corner_br, x, y, tile); continue; }
+      if (bottomEmpty && leftEmpty)  { drawPart(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
 
-      // --- ANGOLI ---
-      if (openUp && openLeft)       img = G.sprites.wallParts.angleTL; // muroDungeon_angolosinistro_Alto
-      else if (openUp && openRight) img = G.sprites.wallParts.angleTR; // muroDungeon_angolodestro_Alto
-      else if (openDown && openLeft) img = G.sprites.wallParts.angleBL; // muroDungeon_angolosinistro_Basso
-      else if (openDown && openRight) img = G.sprites.wallParts.angleBR; // muroDungeon_angolodestro_Basso
-
-      // --- LATI DRITTI ---
-      else if (openUp)    img = G.sprites.wallParts.top[x % 2];
-      else if (openDown)  img = G.sprites.wallParts.bottom[x % 2];
-      else if (openLeft)  img = G.sprites.wallParts.left[y % 2];
-      else if (openRight) img = G.sprites.wallParts.right[y % 2];
-
-      // Fallback (muro pieno se non rientra nei casi sopra)
-      if (!img) img = G.sprites.wall2;
-
-      ctx.drawImage(img, x * tile, y * tile, tile, tile);
+      // Lati con eventuale curva di fine muro
+      if (topEmpty) {
+        drawPart(G.sprites.wallParts.top[x % 2], x, y, tile);
+        if (leftEmpty)  drawPart(G.sprites.wallParts.corner_tl, x, y, tile);
+        if (rightEmpty) drawPart(G.sprites.wallParts.corner_tr, x, y, tile);
+        continue;
+      }
+      if (bottomEmpty) {
+        drawPart(G.sprites.wallParts.bottom[x % 2], x, y, tile);
+        if (leftEmpty)  drawPart(G.sprites.wallParts.corner_bl, x, y, tile);
+        if (rightEmpty) drawPart(G.sprites.wallParts.corner_br, x, y, tile);
+        continue;
+      }
+      if (leftEmpty) {
+        drawPart(G.sprites.wallParts.left[y % 2], x, y, tile);
+        if (topEmpty)    drawPart(G.sprites.wallParts.corner_tl, x, y, tile);
+        if (bottomEmpty) drawPart(G.sprites.wallParts.corner_bl, x, y, tile);
+        continue;
+      }
+      if (rightEmpty) {
+        drawPart(G.sprites.wallParts.right[y % 2], x, y, tile);
+        if (topEmpty)    drawPart(G.sprites.wallParts.corner_tr, x, y, tile);
+        if (bottomEmpty) drawPart(G.sprites.wallParts.corner_br, x, y, tile);
+        continue;
+      }
     }
   }
 
   const key = `${G.petRoom.x},${G.petRoom.y}`;
 
+  // --- resto della tua render originale ---
   // coins
   if (G.objects[key]) {
     for (const obj of G.objects[key]) {
       if (obj.type === 'coin' && !obj.taken) {
-        if (G.sprites.coin.complete) ctx.drawImage(G.sprites.coin, obj.x*tile+tile/4, obj.y*tile+tile/4, tile/2, tile/2);
+        if (G.sprites.coin.complete)
+          ctx.drawImage(G.sprites.coin, obj.x * tile + tile / 4, obj.y * tile + tile / 4, tile / 2, tile / 2);
         else {
           ctx.fillStyle = '#FFA500';
-          ctx.beginPath(); ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath();
+          ctx.arc(obj.x * tile + tile / 2, obj.y * tile + tile / 2, tile / 4, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
     }
@@ -816,10 +833,13 @@ function render() {
   if (G.powerups[key]) {
     for (const pow of G.powerups[key]) {
       if (!pow.taken) {
-        if (G.sprites.powerup.complete) ctx.drawImage(G.sprites.powerup, pow.x*tile+tile/4, pow.y*tile+tile/4, tile/2, tile/2);
+        if (G.sprites.powerup.complete)
+          ctx.drawImage(G.sprites.powerup, pow.x * tile + tile / 4, pow.y * tile + tile / 4, tile / 2, tile / 2);
         else {
           ctx.fillStyle = '#0cf';
-          ctx.beginPath(); ctx.arc(pow.x*tile + tile/2, pow.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath();
+          ctx.arc(pow.x * tile + tile / 2, pow.y * tile + tile / 2, tile / 4, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
     }
@@ -828,7 +848,7 @@ function render() {
   // skulls decor
   for (const s of G.skulls) {
     if (s.roomX === G.petRoom.x && s.roomY === G.petRoom.y) {
-      ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
+      ctx.drawImage(s.img, s.x * tile, s.y * tile, tile, tile);
     }
   }
 
@@ -875,10 +895,11 @@ function render() {
 
   // exit
   if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
-    if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20);
-    else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20); }
+    if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x * tile + 10, G.exitTile.y * tile + 10, tile - 20, tile - 20);
+    else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x * tile + 10, G.exitTile.y * tile + 10, tile - 20, tile - 20); }
   }
 }
+
 
 function isOpening(room, tx, ty) {
   // ritorna true se la cella è vuota e non è muro

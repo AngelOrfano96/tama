@@ -714,7 +714,7 @@ function placeMoleAtRandomSpot() {
   }
 }
 // --- helpers per disegnare i muri ---
-function drawPart(img, x, y) {
+function drawPart(img, x, y, tile) {
   if (img && img.complete) ctx.drawImage(img, x*tile, y*tile, tile, tile);
   else { 
     ctx.fillStyle = '#8c6a2e'; 
@@ -722,7 +722,7 @@ function drawPart(img, x, y) {
   }
 }
 
-function drawCapRot(x, y, angleRad = 0, flipX = false) {
+function drawCapRot(x, y, tile, angleRad = 0, flipX = false) {
   const img = G.sprites.wallParts.cap;
   if (!img) return;
   ctx.save();
@@ -734,6 +734,7 @@ function drawCapRot(x, y, angleRad = 0, flipX = false) {
 }
 
 
+
   // ---------- RENDER ----------
   function render() {
     const room = G.rooms[G.petRoom.y][G.petRoom.x];
@@ -741,6 +742,8 @@ function drawCapRot(x, y, angleRad = 0, flipX = false) {
 
     // bg
     ctx.drawImage(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
+drawPart(G.sprites.wallParts.side1, wallX, wallY, tile);
+drawCapRot(wallX, wallY, tile, Math.PI/2);
 
 for (let y = 0; y < Cfg.roomH; y++) for (let x = 0; x < Cfg.roomW; x++) {
   if (room[y][x] !== 1) continue;

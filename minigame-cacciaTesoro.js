@@ -467,15 +467,23 @@ function movePet(dt) {
   // --- passaggio stanza (porte) ---
   if (G.pet.px < 0 && G.petRoom.x > 0 && room[G.pet.y][0] === 0) {
     G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
+      const newKey = `${G.petRoom.x},${G.petRoom.y}`;
+      (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   if (G.pet.px > (Cfg.roomW - 1) * tile && G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y][Cfg.roomW - 1] === 0) {
     G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`;
+  (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   if (G.pet.py < 0 && G.petRoom.y > 0 && room[0][G.pet.x] === 0) {
     G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`;
+  (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   if (G.pet.py > (Cfg.roomH - 1) * tile && G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1][G.pet.x] === 0) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`;
+  (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
 
   // --- pickup (AABB in pixel) ---

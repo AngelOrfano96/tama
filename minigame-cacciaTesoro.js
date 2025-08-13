@@ -805,25 +805,28 @@ function drawSafe(img, x, y, tile) {
 const CURVE_ROT_PHASE = 1; // <-- prova 1 (cioè +90°). Se serve usa 2 (=180°) o 3 (=270°).
 
 function drawCurve(x, y, tile, orient /* 'TL'|'TR'|'BL'|'BR' */) {
-  const img = G.sprites.wallParts.curve_base;
-  if (!img || !img.complete || img.naturalWidth === 0) return;
+  const base = G.sprites.wallParts.curve_base;
+  if (!base) return; // se manca proprio l’immagine, evita errori
 
-  // Mappatura base delle rotazioni (partendo dall'assunzione "TL" è l'orientamento naturale)
-  let baseRot =
-      orient === 'TR' ?  Math.PI / 2 :
-      orient === 'BR' ?  Math.PI     :
-      orient === 'BL' ? -Math.PI / 2 :
-                         0; // 'TL'
-
-  // Fase globale per allineare il tuo sprite reale
-  baseRot += CURVE_ROT_PHASE * (Math.PI / 2);
+  // Se l’immagine non è ancora caricata, ridisegneremo al prossimo frame.
+  if (!base.complete || base.naturalWidth === 0) return;
 
   ctx.save();
   ctx.translate(x * tile + tile / 2, y * tile + tile / 2);
-  ctx.rotate(baseRot);
-  ctx.drawImage(img, -tile / 2, -tile / 2, tile, tile);
+
+  // Mappa rotazioni: parti da una curva “TL”.
+  // Se la tua curva base NON è “TL”, vedi la nota sotto (Switch di base).
+  const rot =
+    orient === 'TR' ?  Math.PI / 2 :
+    orient === 'BR' ?  Math.PI :
+    orient === 'BL' ? -Math.PI / 2 :
+    0; // 'TL'
+
+  ctx.rotate(rot);
+  ctx.drawImage(base, -tile / 2, -tile / 2, tile, tile);
   ctx.restore();
 }
+
 
 
  // helper locali per il disegno safe
@@ -864,9 +867,10 @@ for (let y = 0; y < Cfg.roomH; y++) {
 
     // lati + curve di chiusura
 // TOP
+// TOP
 if (isTop) {
-  const leftOpen  = (x > 0) && room[0][x-1] === 0;
-  const rightOpen = (x < Cfg.roomW-1) && room[0][x+1] === 0;
+  const leftOpen  = (x > 0)               && room[0][x-1] === 0;
+  const rightOpen = (x < Cfg.roomW - 1)   && room[0][x+1] === 0;
   if (leftOpen)  { drawCurve(x, y, tile, 'TL'); continue; }
   if (rightOpen) { drawCurve(x, y, tile, 'TR'); continue; }
   drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile);
@@ -875,8 +879,8 @@ if (isTop) {
 
 // BOTTOM
 if (isBottom) {
-  const leftOpen  = (x > 0) && room[Cfg.roomH-1][x-1] === 0;
-  const rightOpen = (x < Cfg.roomW-1) && room[Cfg.roomH-1][x+1] === 0;
+  const leftOpen  = (x > 0)                   && room[Cfg.roomH-1][x-1] === 0;
+  const rightOpen = (x < Cfg.roomW - 1)       && room[Cfg.roomH-1][x+1] === 0;
   if (leftOpen)  { drawCurve(x, y, tile, 'BL'); continue; }
   if (rightOpen) { drawCurve(x, y, tile, 'BR'); continue; }
   drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile);
@@ -885,8 +889,8 @@ if (isBottom) {
 
 // LEFT
 if (isLeft) {
-  const topOpen    = (y > 0) && room[y-1][0] === 0;
-  const bottomOpen = (y < Cfg.roomH-1) && room[y+1][0] === 0;
+  const topOpen    = (y > 0)                   && room[y-1][0] === 0;
+  const bottomOpen = (y < Cfg.roomH - 1)       && room[y+1][0] === 0;
   if (topOpen)    { drawCurve(x, y, tile, 'TL'); continue; }
   if (bottomOpen) { drawCurve(x, y, tile, 'BL'); continue; }
   drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile);
@@ -895,13 +899,14 @@ if (isLeft) {
 
 // RIGHT
 if (isRight) {
-  const topOpen    = (y > 0) && room[y-1][Cfg.roomW-1] === 0;
-  const bottomOpen = (y < Cfg.roomH-1) && room[y+1][Cfg.roomW-1] === 0;
+  const topOpen    = (y > 0)                   && room[y-1][Cfg.roomW-1] === 0;
+  const bottomOpen = (y < Cfg.roomH - 1)       && room[y+1][Cfg.roomW-1] === 0;
   if (topOpen)    { drawCurve(x, y, tile, 'TR'); continue; }
   if (bottomOpen) { drawCurve(x, y, tile, 'BR'); continue; }
   drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile);
   continue;
 }
+
 
     // fallback (non dovrebbe capitare)
     drawSafe(G.sprites.wallParts.top[0], x, y, tile);

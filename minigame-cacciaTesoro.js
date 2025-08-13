@@ -295,10 +295,10 @@ G.sprites.wallParts = {
   angleBL:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
   angleBR:  loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),*/
 
- curve_tl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`), // Top Left
-curve_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // Top Right
-curve_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),// Bottom Left
-curve_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),  // Bottom Right
+ curve_base: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
+//curve_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // Top Right
+//curve_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),// Bottom Left
+//curve_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),  // Bottom Right
 
 
   // lati (2 varianti per continuità)
@@ -796,6 +796,27 @@ function drawTile(img, x, y, tile) {
   if (canUse(img)) ctx.drawImage(img, x*tile, y*tile, tile, tile);
   else { ctx.fillStyle = '#8c6a2e'; ctx.fillRect(x*tile, y*tile, tile, tile); }
 }
+function drawSafe(img, x, y, tile) {
+  if (img && img.complete) ctx.drawImage(img, x*tile, y*tile, tile, tile);
+}
+
+function drawCurve(x, y, tile, orient /* 'TL'|'TR'|'BL'|'BR' */) {
+  const img = G.sprites.wallParts.curve_base;
+  if (!img || !img.complete) return;
+  ctx.save();
+  ctx.translate(x*tile + tile/2, y*tile + tile/2);
+  const rot = orient === 'TR' ? Math.PI/2
+            : orient === 'BR' ? Math.PI
+            : orient === 'BL' ? -Math.PI/2
+            : 0; // TL
+  ctx.rotate(rot);
+  ctx.drawImage(img, -tile/2, -tile/2, tile, tile);
+  ctx.restore();
+}
+
+ // helper locali per il disegno safe
+function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
+
 
   // ---------- RENDER ----------
 function render() {
@@ -806,12 +827,6 @@ function render() {
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
 
- // helper locali per il disegno safe
-function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
-function drawSafe(img, x, y, tile){
-  if (canUse(img)) ctx.drawImage(img, x*tile, y*tile, tile, tile);
-  else { ctx.fillStyle = '#8c6a2e'; ctx.fillRect(x*tile, y*tile, tile, tile); }
-}
 
 // === MURI: spigoli veri + lati; vicino alle aperture usa le curve angle* ===
 for (let y = 0; y < Cfg.roomH; y++) {
@@ -836,45 +851,43 @@ for (let y = 0; y < Cfg.roomH; y++) {
     const openRight = (x < Cfg.roomW - 1)   && room[y][x+1] === 0;
 
     // lati + curve di chiusura
-   if (isTop) {
-  if (openRight && !openLeft) { drawPart(G.sprites.wallParts.curve_tr, x, y, tile); continue; }
-  if (openLeft  && !openRight){ drawPart(G.sprites.wallParts.curve_tl, x, y, tile); continue; }
-  drawPart(G.sprites.wallParts.top[x % 2], x, y, tile);
+// TOP
+if (isTop) {
+  const leftOpen  = (x > 0) && room[0][x-1] === 0;
+  const rightOpen = (x < Cfg.roomW-1) && room[0][x+1] === 0;
+  if (leftOpen)  { drawCurve(x, y, tile, 'TL'); continue; }
+  if (rightOpen) { drawCurve(x, y, tile, 'TR'); continue; }
+  drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile);
   continue;
 }
-// --- BORDO BASSO ---
+
+// BOTTOM
 if (isBottom) {
-  const leftOpen  = (x > 0) && room[Cfg.roomH - 1][x - 1] === 0;
-  const rightOpen = (x < Cfg.roomW - 1) && room[Cfg.roomH - 1][x + 1] === 0;
-
-  if (leftOpen)  { drawSafe(G.sprites.wallParts.curve_bl, x, y, tile); continue; } // curva verso sinistra
-  if (rightOpen) { drawSafe(G.sprites.wallParts.curve_br, x, y, tile); continue; } // curva verso destra
-
-  drawSafe(G.sprites.wallParts.bottom[x % 2], x, y, tile);
+  const leftOpen  = (x > 0) && room[Cfg.roomH-1][x-1] === 0;
+  const rightOpen = (x < Cfg.roomW-1) && room[Cfg.roomH-1][x+1] === 0;
+  if (leftOpen)  { drawCurve(x, y, tile, 'BL'); continue; }
+  if (rightOpen) { drawCurve(x, y, tile, 'BR'); continue; }
+  drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile);
   continue;
 }
 
-// --- BORDO SINISTRO ---
+// LEFT
 if (isLeft) {
-  const topOpen    = (y > 0) && room[y - 1][0] === 0;
-  const bottomOpen = (y < Cfg.roomH - 1) && room[y + 1][0] === 0;
-
-  if (topOpen)    { drawSafe(G.sprites.wallParts.curve_tl, x, y, tile); continue; } // curva verso alto
-  if (bottomOpen) { drawSafe(G.sprites.wallParts.curve_bl, x, y, tile); continue; } // curva verso basso
-
-  drawSafe(G.sprites.wallParts.left[y % 2], x, y, tile);
+  const topOpen    = (y > 0) && room[y-1][0] === 0;
+  const bottomOpen = (y < Cfg.roomH-1) && room[y+1][0] === 0;
+  if (topOpen)    { drawCurve(x, y, tile, 'TL'); continue; }
+  if (bottomOpen) { drawCurve(x, y, tile, 'BL'); continue; }
+  drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile);
   continue;
 }
 
-// --- BORDO DESTRO ---
+// RIGHT
 if (isRight) {
-  const topOpen    = (y > 0) && room[y - 1][Cfg.roomW - 1] === 0;
-  const bottomOpen = (y < Cfg.roomH - 1) && room[y + 1][Cfg.roomW - 1] === 0;
-
-  if (topOpen)    { drawSafe(G.sprites.wallParts.curve_tr, x, y, tile); continue; } // curva verso alto
-  if (bottomOpen) { drawSafe(G.sprites.wallParts.curve_br, x, y, tile); continue; } // curva verso basso
-
-  drawSafe(G.sprites.wallParts.right[y % 2], x, y, tile);
+  const topOpen    = (y > 0) && room[y-1][Cfg.roomW-1] === 0;
+  const bottomOpen = (y < Cfg.roomH-1) && room[y+1][Cfg.roomW-1] === 0;
+  if (topOpen)    { drawCurve(x, y, tile, 'TR'); continue; }
+  if (bottomOpen) { drawCurve(x, y, tile, 'BR'); continue; }
+  drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile);
   continue;
 }
 

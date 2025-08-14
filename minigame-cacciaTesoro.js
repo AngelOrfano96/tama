@@ -779,13 +779,13 @@ function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
 function drawTileType(x, y, type, tile) {
   if (!type) {
-    console.log(`[SKIP] Nessun tipo per (${x}, ${y})`);
+    //console.log(`[SKIP] Nessun tipo per (${x}, ${y})`);
     return;
   }
 
   const sprite = G.sprites.decor?.[type];
   if (!sprite) {
-    console.warn(`[MANCANTE] Sprite non trovato per tipo: ${type}`);
+    //console.warn(`[MANCANTE] Sprite non trovato per tipo: ${type}`);
     return;
   }
 
@@ -794,87 +794,87 @@ function drawTileType(x, y, type, tile) {
     : sprite;
 
   if (!img.complete) {
-    console.log(`[WAITING] Immagine non ancora caricata per tipo: ${type}`);
+    //console.log(`[WAITING] Immagine non ancora caricata per tipo: ${type}`);
     return;
   }
 
-  console.log(`[DRAW] Disegno ${type} a (${x}, ${y})`);
+  //console.log(`[DRAW] Disegno ${type} a (${x}, ${y})`);
   ctx.drawImage(img, x * tile, y * tile, tile, tile);
 }
 
 
-function generateRoomTiles(room, doors = {}) {
-  const tiles = [];
+function generateRoomTiles(room) {
+  const H = room.length;
+  const W = room[0].length;
+  const tiles = Array.from({ length: H }, () => Array(W).fill(null));
+
+  const cx = Math.floor(W / 2);
+  const cy = Math.floor(H / 2);
+
+  // Rilevo le porte guardando “buchi” (0) al centro dei bordi
+  const doors = {
+    left:   room[cy]?.[0] === 0,
+    right:  room[cy]?.[W - 1] === 0,
+    top:    room[0]?.[cx] === 0,
+    bottom: room[H - 1]?.[cx] === 0,
+  };
 
   const isEmpty = (x, y) => {
-    if (x < 0 || y < 0 || y >= room.length || x >= room[0].length) return true;
-    if (!room[y][x]) return true;
-
-    // Trattiamo anche le porte come "buchi" nei muri
-    if (doors.left && x === 0 && y === Math.floor(room.length / 2)) return true;
-    if (doors.right && x === room[0].length - 1 && y === Math.floor(room.length / 2)) return true;
-    if (doors.top && y === 0 && x === Math.floor(room[0].length / 2)) return true;
-    if (doors.bottom && y === room.length - 1 && x === Math.floor(room[0].length / 2)) return true;
-
+    if (x < 0 || y < 0 || x >= W || y >= H) return true;
+    if (!room[y][x]) return true; // 0 = vuoto
+    // considera le celle di porta come vuote (aperture larghe 3)
+    if (doors.left   && x === 0      && Math.abs(y - cy) <= 1) return true;
+    if (doors.right  && x === W - 1  && Math.abs(y - cy) <= 1) return true;
+    if (doors.top    && y === 0      && Math.abs(x - cx) <= 1) return true;
+    if (doors.bottom && y === H - 1  && Math.abs(x - cx) <= 1) return true;
     return false;
   };
 
-  for (let y = 0; y < room.length; y++) {
-    tiles[y] = [];
-    for (let x = 0; x < room[0].length; x++) {
-      if (!room[y][x]) {
-        tiles[y][x] = null;
-        continue;
-      }
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!room[y][x]) { tiles[y][x] = null; continue; } // pavimento interno
 
-      const up = !isEmpty(x, y - 1);
-      const down = !isEmpty(x, y + 1);
-      const left = !isEmpty(x - 1, y);
+      const up    = !isEmpty(x, y - 1);
+      const down  = !isEmpty(x, y + 1);
+      const left  = !isEmpty(x - 1, y);
       const right = !isEmpty(x + 1, y);
 
-      let type = null;
+      // ——— ANGOLI VICINO ALLE PORTE (4 coordinate precise) ———
+      // left door: angoli adiacenti sono (1, cy-1) e (1, cy+1)
+      if (doors.left && x === 1 && y === cy - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.left && x === 1 && y === cy + 1) { tiles[y][x] = 'corner_bl_door'; continue; }
 
-      const centerX = Math.floor(room[0].length / 2);
-      const centerY = Math.floor(room.length / 2);
+      // right door: (W-2, cy-1) e (W-2, cy+1)
+      if (doors.right && x === W - 2 && y === cy - 1) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (doors.right && x === W - 2 && y === cy + 1) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // --- ANGOLI con logica porte ---
-      if (!up && !left) {
-        // corner_tl
-        if (doors.left && y === centerY - 1 && x === 1) type = 'corner_tl_door';
-        else if (doors.top && y === 1 && x === centerX - 1) type = 'corner_tl_door';
-        else type = 'corner_tl';
-      }
-      else if (!up && !right) {
-        // corner_tr
-        if (doors.right && y === centerY - 1 && x === room[0].length - 2) type = 'corner_tr_door';
-        else if (doors.top && y === 1 && x === centerX + 1) type = 'corner_tr_door';
-        else type = 'corner_tr';
-      }
-      else if (!down && !left) {
-        // corner_bl
-        if (doors.left && y === centerY + 1 && x === 1) type = 'corner_bl_door';
-        else if (doors.bottom && y === room.length - 2 && x === centerX - 1) type = 'corner_bl_door';
-        else type = 'corner_bl';
-      }
-      else if (!down && !right) {
-        // corner_br
-        if (doors.right && y === centerY + 1 && x === room[0].length - 2) type = 'corner_br_door';
-        else if (doors.bottom && y === room.length - 2 && x === centerX + 1) type = 'corner_br_door';
-        else type = 'corner_br';
-      }
+      // top door: (cx-1, 1) e (cx+1, 1)
+      if (doors.top && y === 1 && x === cx - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.top && y === 1 && x === cx + 1) { tiles[y][x] = 'corner_tr_door'; continue; }
 
-      // --- MURI ---
-      else if (!up) type = 'top';
-      else if (!down) type = 'bottom';
-      else if (!left) type = 'left';
-      else if (!right) type = 'right';
+      // bottom door: (cx-1, H-2) e (cx+1, H-2)
+      if (doors.bottom && y === H - 2 && x === cx - 1) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (doors.bottom && y === H - 2 && x === cx + 1) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      tiles[y][x] = type;
+      // ——— ANGOLI NORMALI ———
+      if (!up && !left)       { tiles[y][x] = 'corner_tl'; continue; }
+      if (!up && !right)      { tiles[y][x] = 'corner_tr'; continue; }
+      if (!down && !left)     { tiles[y][x] = 'corner_bl'; continue; }
+      if (!down && !right)    { tiles[y][x] = 'corner_br'; continue; }
+
+      // ——— MURI DRITTI ———
+      if (!up)                { tiles[y][x] = 'top';    continue; }
+      if (!down)              { tiles[y][x] = 'bottom'; continue; }
+      if (!left)              { tiles[y][x] = 'left';   continue; }
+      if (!right)             { tiles[y][x] = 'right';  continue; }
+
+      // ——— “pieno” interno al muro (se mai capitasse) ———
+      tiles[y][x] = 'center';
     }
   }
-
   return tiles;
 }
+
 
 
 

@@ -821,7 +821,7 @@ function generateRoomTiles(room) {
   const cx = Math.floor(W / 2);
   const cy = Math.floor(H / 2);
 
-  // Rilevo le porte guardando “buchi” (0) al centro dei bordi (larghe 3).
+  // Porte (aperture larghe 3 al centro del bordo)
   const doors = {
     left:   room[cy]?.[0] === 0,
     right:  room[cy]?.[W - 1] === 0,
@@ -842,43 +842,39 @@ function generateRoomTiles(room) {
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!room[y][x]) { tiles[y][x] = null; continue; } // pavimento interno
+      if (!room[y][x]) { tiles[y][x] = null; continue; } // interno
 
       const up    = !isEmpty(x, y - 1);
       const down  = !isEmpty(x, y + 1);
       const left  = !isEmpty(x - 1, y);
       const right = !isEmpty(x + 1, y);
 
-      // --- CORNER VICINI ALLE PORTE: ATTENZIONE AI BORDI (x=0 / x=W-1 / y=0 / y=H-1) ---
-      // Porte a sinistra: i corner “porta” sono sulla colonna x=0, sopra/sotto l’apertura
+      // --- corner "porta" (sul bordo) ---
+      // sinistra: colonna x=0
       if (doors.left && x === 0 && y === cy - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
       if (doors.left && x === 0 && y === cy + 1) { tiles[y][x] = 'corner_bl_door'; continue; }
-
-      // Porte a destra: colonna x=W-1
+      // destra: colonna x=W-1
       if (doors.right && x === W - 1 && y === cy - 1) { tiles[y][x] = 'corner_tr_door'; continue; }
       if (doors.right && x === W - 1 && y === cy + 1) { tiles[y][x] = 'corner_br_door'; continue; }
-
-      // Porte in alto: riga y=0
+      // alto: riga y=0
       if (doors.top && y === 0 && x === cx - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
       if (doors.top && y === 0 && x === cx + 1) { tiles[y][x] = 'corner_tr_door'; continue; }
-
-      // Porte in basso: riga y=H-1
+      // basso: riga y=H-1
       if (doors.bottom && y === H - 1 && x === cx - 1) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.bottom && y === H - 1 && x === cx + 1) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // --- ANGOLI NORMALI ---
+      // --- corner normali ---
       if (!up && !left)       { tiles[y][x] = 'corner_tl'; continue; }
       if (!up && !right)      { tiles[y][x] = 'corner_tr'; continue; }
       if (!down && !left)     { tiles[y][x] = 'corner_bl'; continue; }
       if (!down && !right)    { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- MURI DRITTI ---
+      // --- muri dritti ---
       if (!up)                { tiles[y][x] = 'top';    continue; }
       if (!down)              { tiles[y][x] = 'bottom'; continue; }
       if (!left)              { tiles[y][x] = 'left';   continue; }
       if (!right)             { tiles[y][x] = 'right';  continue; }
 
-      // eventuale pieno
       tiles[y][x] = 'center';
     }
   }
@@ -893,18 +889,19 @@ function generateRoomTiles(room) {
 
 
 
+
 function drawRoom(room) {
   const tile = window.treasureTile || 64;
-
   const tileTypes = generateRoomTiles(room);
 
   for (let y = 0; y < tileTypes.length; y++) {
     for (let x = 0; x < tileTypes[y].length; x++) {
-      const type = tileTypes[y][x]; // NON key
+      const type = tileTypes[y][x];
       drawTileType(x, y, type, tile);
     }
   }
 }
+
 
 
 
@@ -923,8 +920,6 @@ function render() {
   // Sfondo
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // Sfondo
-  drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
   // Muri (cornice + porte + interni)
 drawRoom(room);

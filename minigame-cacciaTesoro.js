@@ -847,15 +847,17 @@ function generateRoomTiles(room) {
         tiles[y][x] = 'corner_br';
       }
       // --- BORDI ---
-      else if (!up && down) {
-        tiles[y][x] = 'top';
-      } else if (!down && up) {
-        tiles[y][x] = 'bottom';
-      } else if (!left && right) {
-        tiles[y][x] = 'left';
-      } else if (!right && left) {
-        tiles[y][x] = 'right';
-      }
+   // --- BORDI ---
+else if (!up && (left || right || down)) {
+  tiles[y][x] = 'top';
+} else if (!down && (left || right || up)) {
+  tiles[y][x] = 'bottom';
+} else if (!left && (up || down || right)) {
+  tiles[y][x] = 'left';
+} else if (!right && (up || down || left)) {
+  tiles[y][x] = 'right';
+}
+
       // --- INTERNO ---
       else {
         tiles[y][x] = 'center';

@@ -800,7 +800,7 @@ function generateRoomTiles(room) {
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (room[y][x] !== 1) continue; // Non è muro, salta
+      if (room[y][x] !== 1) continue;
 
       const up    = y > 0 && room[y - 1][x] === 1;
       const down  = y < h - 1 && room[y + 1][x] === 1;
@@ -812,43 +812,45 @@ function generateRoomTiles(room) {
       const openLeft  = x > 0 && room[y][x - 1] === 0;
       const openRight = x < w - 1 && room[y][x + 1] === 0;
 
-      // --- ANGOLO ---
-      if (!up && !left && down && right) {
-        tiles[y][x] = 'corner_tl';
-        continue;
-      } 
-      else if (!up && !right && down && left) {
-        tiles[y][x] = 'corner_tr';
-        continue;
-      } 
-      else if (!down && !left && up && right) {
-        tiles[y][x] = 'corner_bl';
-        continue;
-      } 
-      else if (!down && !right && up && left) {
-        tiles[y][x] = 'corner_br';
-        continue;
-      }
-
       // --- PORTE ---
       if (!up && openDown)    { tiles[y][x] = 'door_top'; continue; }
       if (!down && openUp)    { tiles[y][x] = 'door_bottom'; continue; }
       if (!left && openRight) { tiles[y][x] = 'door_left'; continue; }
       if (!right && openLeft) { tiles[y][x] = 'door_right'; continue; }
 
-      // --- BORDI ---
-      if (!up && down)    { tiles[y][x] = 'top'; continue; }
-      if (!down && up)    { tiles[y][x] = 'bottom'; continue; }
-      if (!left && right) { tiles[y][x] = 'left'; continue; }
-      if (!right && left) { tiles[y][x] = 'right'; continue; }
+      // --- ANGOLO ---
+      // Solo se 2 adiacenti mancanti, gli altri 2 pieni
+      if (!up && !left && right && down) {
+        tiles[y][x] = 'corner_tl';
+      } else if (!up && !right && left && down) {
+        tiles[y][x] = 'corner_tr';
+      } else if (!down && !left && right && up) {
+        tiles[y][x] = 'corner_bl';
+      } else if (!down && !right && left && up) {
+        tiles[y][x] = 'corner_br';
+      }
+
+      // --- BORDI NORMALI ---
+      else if (!up && down) {
+        tiles[y][x] = 'top';
+      } else if (!down && up) {
+        tiles[y][x] = 'bottom';
+      } else if (!left && right) {
+        tiles[y][x] = 'left';
+      } else if (!right && left) {
+        tiles[y][x] = 'right';
+      }
 
       // --- INTERNO ---
-      tiles[y][x] = 'center';
+      else {
+        tiles[y][x] = 'center';
+      }
     }
   }
 
   return tiles;
 }
+
 
 function drawRoom(room) {
   const tile = window.treasureTile || 64;

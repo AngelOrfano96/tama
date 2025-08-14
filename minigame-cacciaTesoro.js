@@ -858,16 +858,18 @@ function drawCurve(x, y, tile, type) {
 }
 
 
-function drawDecor(x, y, type) {
+function drawDecor(x, y, key) {
   const tile = window.treasureTile || 64;
-  const img = G.sprites.decor?.[type];
+  const img = G.sprites.decor?.[key];
+  if (!img) console.warn('❗ Immagine mancante:', key);
   if (img && img.complete) {
     ctx.drawImage(img, x * tile, y * tile, tile, tile);
   } else {
-    ctx.fillStyle = '#9e7d47'; // fallback decorativo
+    ctx.fillStyle = '#c94';
     ctx.fillRect(x * tile, y * tile, tile, tile);
   }
 }
+
 
 
 

@@ -836,16 +836,11 @@ function drawTile(img, x, y, tile) {
   if (canUse(img)) ctx.drawImage(img, x*tile, y*tile, tile, tile);
   else { ctx.fillStyle = '#8c6a2e'; ctx.fillRect(x*tile, y*tile, tile, tile); }
 }
-function drawSafe(img, x, y, tile) {
-  const px = x * tile;
-  const py = y * tile;
-  if (img && img.complete) {
-    ctx.drawImage(img, px, py, tile, tile);
-  } else {
-    ctx.fillStyle = '#8c6a2e'; // fallback muratura
-    ctx.fillRect(px, py, tile, tile);
-  }
+function drawSafe(img, x, y, size) {
+  if (!img || !img.complete) return;
+  ctx.drawImage(img, x * size, y * size, size, size);
 }
+
 
 
 // Ruota tutta la famiglia di curve di 0..3 quarti di giro
@@ -920,10 +915,21 @@ for (let y = 0; y < Cfg.roomH; y++) {
     if (isLeft && openRight)     { drawDecor(x, y, 'door_left'); continue; }
     if (isRight && openLeft)     { drawDecor(x, y, 'door_right'); continue; }
 
-    // Se nulla è disegnato sopra, disegna un blocco standard di muro
-    drawSafe(G.sprites.wallParts?.top?.[0], x, y, tile);
+    // Muri lineari
+    let part = null;
+    if (isTop)        part = 'top';
+    else if (isBottom) part = 'bottom';
+    else if (isLeft)   part = 'left';
+    else if (isRight)  part = 'right';
+
+    if (part && G.sprites.wallParts?.[part]) {
+      const variants = G.sprites.wallParts[part];
+      const img = Array.isArray(variants) ? variants[(x + y) % variants.length] : variants;
+      drawSafe(img, x, y, tile);
+    }
   }
 }
+
 
   // --- TUTTO IL RESTO IDENTICO ---
   const key = `${G.petRoom.x},${G.petRoom.y}`;

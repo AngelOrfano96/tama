@@ -283,19 +283,15 @@ function resizeTreasureCanvas() {
     // helper
 
 
-const roomTiles = Array.from({ length: Cfg.roomH }, (_, y) =>
-  Array.from({ length: Cfg.roomW }, (_, x) => {
-    if (y === 0 && x === 0) return 'corner_tl';
-    if (y === 0 && x === Cfg.roomW - 1) return 'corner_tr';
-    if (x === 0 && y === Cfg.roomH - 1) return 'corner_bl';
-    if (x === Cfg.roomW - 1 && y === Cfg.roomH - 1) return 'corner_br';
-    if (y === 0) return 'top';
-    if (y === Cfg.roomH - 1) return 'bottom';
-    if (x === 0) return 'left';
-    if (x === Cfg.roomW - 1) return 'right';
-    return null; // interno
-  })
+const room = Array.from({ length: Cfg.roomH }, (_, y) =>
+  Array.from({ length: Cfg.roomW }, (_, x) =>
+    (y === 0 || y === Cfg.roomH - 1 || x === 0 || x === Cfg.roomW - 1) ? 1 : 0
+  )
 );
+
+const tileTypes = generateRoomTiles(room);
+drawRoom(tileTypes);
+
 // Desktop/Mobile
 // Utility per caricare immagini
 const loadImg = (src) => {

@@ -280,19 +280,6 @@ function resizeTreasureCanvas() {
     G.powerupExpiresAt = 0;
     G.slowExpiresAt = 0;
 
-    // helper
-
-
-const room = Array.from({ length: Cfg.roomH }, (_, y) =>
-  Array.from({ length: Cfg.roomW }, (_, x) =>
-    (y === 0 || y === Cfg.roomH - 1 || x === 0 || x === Cfg.roomW - 1) ? 1 : 0
-  )
-);
-
-const doors = { left: true, top: true, right: true, bottom: true };
-
-const tileTypes = generateRoomTiles(room, doors);
-drawRoom(tileTypes);
 
 
 // Desktop/Mobile
@@ -801,6 +788,29 @@ function drawTileType(x, y, type, tile) {
   //console.log(`[DRAW] Disegno ${type} a (${x}, ${y})`);
   ctx.drawImage(img, x * tile, y * tile, tile, tile);
 }
+function debugDrawRoom(room, doors = {}, tileSize = 64) {
+  const tiles = generateRoomTiles(room, doors);
+
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const type = tiles[y][x];
+      if (!type) continue;
+
+      // Disegna il tile reale
+      drawTileType(x, y, type, tileSize);
+
+      // Overlay di debug
+      const ctx = G.ctx;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+      ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+
+      ctx.fillStyle = "white";
+      ctx.font = "10px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(type, x * tileSize + tileSize / 2, y * tileSize + tileSize / 2);
+    }
+  }
+}
 
 
 function generateRoomTiles(room) {
@@ -811,7 +821,7 @@ function generateRoomTiles(room) {
   const cx = Math.floor(W / 2);
   const cy = Math.floor(H / 2);
 
-  // Rilevo le porte guardando “buchi” (0) al centro dei bordi
+  // Rilevo le porte guardando “buchi” (0) al centro dei bordi (larghe 3).
   const doors = {
     left:   room[cy]?.[0] === 0,
     right:  room[cy]?.[W - 1] === 0,
@@ -823,10 +833,10 @@ function generateRoomTiles(room) {
     if (x < 0 || y < 0 || x >= W || y >= H) return true;
     if (!room[y][x]) return true; // 0 = vuoto
     // considera le celle di porta come vuote (aperture larghe 3)
-    if (doors.left   && x === 0      && Math.abs(y - cy) <= 1) return true;
-    if (doors.right  && x === W - 1  && Math.abs(y - cy) <= 1) return true;
-    if (doors.top    && y === 0      && Math.abs(x - cx) <= 1) return true;
-    if (doors.bottom && y === H - 1  && Math.abs(x - cx) <= 1) return true;
+    if (doors.left   && x === 0     && Math.abs(y - cy) <= 1) return true;
+    if (doors.right  && x === W - 1 && Math.abs(y - cy) <= 1) return true;
+    if (doors.top    && y === 0     && Math.abs(x - cx) <= 1) return true;
+    if (doors.bottom && y === H - 1 && Math.abs(x - cx) <= 1) return true;
     return false;
   };
 
@@ -839,41 +849,42 @@ function generateRoomTiles(room) {
       const left  = !isEmpty(x - 1, y);
       const right = !isEmpty(x + 1, y);
 
-      // ——— ANGOLI VICINO ALLE PORTE (4 coordinate precise) ———
-      // left door: angoli adiacenti sono (1, cy-1) e (1, cy+1)
-      if (doors.left && x === 1 && y === cy - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (doors.left && x === 1 && y === cy + 1) { tiles[y][x] = 'corner_bl_door'; continue; }
+      // --- CORNER VICINI ALLE PORTE: ATTENZIONE AI BORDI (x=0 / x=W-1 / y=0 / y=H-1) ---
+      // Porte a sinistra: i corner “porta” sono sulla colonna x=0, sopra/sotto l’apertura
+      if (doors.left && x === 0 && y === cy - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.left && x === 0 && y === cy + 1) { tiles[y][x] = 'corner_bl_door'; continue; }
 
-      // right door: (W-2, cy-1) e (W-2, cy+1)
-      if (doors.right && x === W - 2 && y === cy - 1) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (doors.right && x === W - 2 && y === cy + 1) { tiles[y][x] = 'corner_br_door'; continue; }
+      // Porte a destra: colonna x=W-1
+      if (doors.right && x === W - 1 && y === cy - 1) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (doors.right && x === W - 1 && y === cy + 1) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // top door: (cx-1, 1) e (cx+1, 1)
-      if (doors.top && y === 1 && x === cx - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (doors.top && y === 1 && x === cx + 1) { tiles[y][x] = 'corner_tr_door'; continue; }
+      // Porte in alto: riga y=0
+      if (doors.top && y === 0 && x === cx - 1) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.top && y === 0 && x === cx + 1) { tiles[y][x] = 'corner_tr_door'; continue; }
 
-      // bottom door: (cx-1, H-2) e (cx+1, H-2)
-      if (doors.bottom && y === H - 2 && x === cx - 1) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (doors.bottom && y === H - 2 && x === cx + 1) { tiles[y][x] = 'corner_br_door'; continue; }
+      // Porte in basso: riga y=H-1
+      if (doors.bottom && y === H - 1 && x === cx - 1) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (doors.bottom && y === H - 1 && x === cx + 1) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // ——— ANGOLI NORMALI ———
+      // --- ANGOLI NORMALI ---
       if (!up && !left)       { tiles[y][x] = 'corner_tl'; continue; }
       if (!up && !right)      { tiles[y][x] = 'corner_tr'; continue; }
       if (!down && !left)     { tiles[y][x] = 'corner_bl'; continue; }
       if (!down && !right)    { tiles[y][x] = 'corner_br'; continue; }
 
-      // ——— MURI DRITTI ———
+      // --- MURI DRITTI ---
       if (!up)                { tiles[y][x] = 'top';    continue; }
       if (!down)              { tiles[y][x] = 'bottom'; continue; }
       if (!left)              { tiles[y][x] = 'left';   continue; }
       if (!right)             { tiles[y][x] = 'right';  continue; }
 
-      // ——— “pieno” interno al muro (se mai capitasse) ———
+      // eventuale pieno
       tiles[y][x] = 'center';
     }
   }
   return tiles;
 }
+
 
 
 

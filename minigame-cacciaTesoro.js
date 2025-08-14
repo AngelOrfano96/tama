@@ -320,6 +320,13 @@ G.sprites.decor = {
   door_left: loadImg(`${tileBase}/centrale_sinistro_basso.png`),
   door_right: loadImg(`${tileBase}/centrale_destro_basso.png`),
 
+  // Angoli speciali per porte
+corner_tl_door: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
+corner_tr_door: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
+corner_bl_door: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
+corner_br_door: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+
+
   // Lati normali
   top: loadImg(`${tileBase}/muroDungeon_Alto_1.png`),
   bottom: loadImg(`${tileBase}/muroDungeon_Basso_1.png`),
@@ -796,7 +803,6 @@ function drawTileType(x, y, type, tile) {
 }
 
 
-
 function generateRoomTiles(room, doors = {}) {
   const tiles = [];
 
@@ -828,11 +834,34 @@ function generateRoomTiles(room, doors = {}) {
 
       let type = null;
 
-      // --- ANGOLI ---
-      if (!up && !left) type = 'corner_tl';
-      else if (!up && !right) type = 'corner_tr';
-      else if (!down && !left) type = 'corner_bl';
-      else if (!down && !right) type = 'corner_br';
+      const centerX = Math.floor(room[0].length / 2);
+      const centerY = Math.floor(room.length / 2);
+
+      // --- ANGOLI con logica porte ---
+      if (!up && !left) {
+        // corner_tl
+        if (doors.left && y === centerY - 1 && x === 1) type = 'corner_tl_door';
+        else if (doors.top && y === 1 && x === centerX - 1) type = 'corner_tl_door';
+        else type = 'corner_tl';
+      }
+      else if (!up && !right) {
+        // corner_tr
+        if (doors.right && y === centerY - 1 && x === room[0].length - 2) type = 'corner_tr_door';
+        else if (doors.top && y === 1 && x === centerX + 1) type = 'corner_tr_door';
+        else type = 'corner_tr';
+      }
+      else if (!down && !left) {
+        // corner_bl
+        if (doors.left && y === centerY + 1 && x === 1) type = 'corner_bl_door';
+        else if (doors.bottom && y === room.length - 2 && x === centerX - 1) type = 'corner_bl_door';
+        else type = 'corner_bl';
+      }
+      else if (!down && !right) {
+        // corner_br
+        if (doors.right && y === centerY + 1 && x === room[0].length - 2) type = 'corner_br_door';
+        else if (doors.bottom && y === room.length - 2 && x === centerX + 1) type = 'corner_br_door';
+        else type = 'corner_br';
+      }
 
       // --- MURI ---
       else if (!up) type = 'top';
@@ -846,6 +875,7 @@ function generateRoomTiles(room, doors = {}) {
 
   return tiles;
 }
+
 
 
 

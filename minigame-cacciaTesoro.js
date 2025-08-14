@@ -150,19 +150,20 @@ G.bgm = null;
 
 function ensureBgm() {
   if (!G.bgm) {
-    G.bgm = new Audio('assets/audio/treasure_theme.ogg'); // <-- metti il tuo path
+    G.bgm = new Audio('assets/audio/treasure_theme.ogg'); // <-- tuo path .ogg
     G.bgm.loop = true;
-    G.bgm.volume = 0.35;     // volume iniziale
+    G.bgm.volume = 0.35;
     G.bgm.preload = 'auto';
   }
 }
 function playBgm() {
   ensureBgm();
-  try { G.bgm.currentTime = 0; G.bgm.play(); } catch(_) {}
+  try { G.bgm.currentTime = 0; G.bgm.play(); } catch (_) {}
 }
 function stopBgm() {
-  if (G.bgm) { G.bgm.pause(); }
+  if (G.bgm) G.bgm.pause();
 }
+
 
 
    function checkPickup(pet, powerup) {
@@ -305,6 +306,7 @@ if (G?.pet) {
 
   // ---------- AVVIO ----------
   function startTreasureMinigame() {
+    playBgm();  
     generateDungeon();
     requestLandscape();
 
@@ -1470,7 +1472,7 @@ document.addEventListener('DOMContentLoaded', () => {
     openTreasure.addEventListener('click', () => {
       modal.classList.add('hidden');
 
-      playBgm();  
+      //playBgm();  
 
 
       if (typeof window.startTreasureMinigame === 'function') {

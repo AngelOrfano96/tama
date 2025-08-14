@@ -289,8 +289,11 @@ const room = Array.from({ length: Cfg.roomH }, (_, y) =>
   )
 );
 
-const tileTypes = generateRoomTiles(room);
+const doors = { left: true, top: true, right: true, bottom: true };
+
+const tileTypes = generateRoomTiles(room, doors);
 drawRoom(tileTypes);
+
 
 // Desktop/Mobile
 // Utility per caricare immagini
@@ -326,15 +329,6 @@ G.sprites.decor = {
   // Centro (puoi usare un'immagine oppure lasciare vuoto)
   center: loadImg(`${tileBase}/muroDungeon_Basso_2.png`)
 };
-
-
-const doors = {
-  top: true,
-  bottom: false,
-  left: true,
-  right: false,
-};
-
 
 
     // SPRITES
@@ -803,59 +797,56 @@ function drawTileType(x, y, type, tile) {
 
 
 
-function generateRoomTiles(room) {
+function generateRoomTiles(room, doors = {}) {
   const tiles = [];
+
+  const isEmpty = (x, y) => {
+    if (x < 0 || y < 0 || y >= room.length || x >= room[0].length) return true;
+    if (!room[y][x]) return true;
+
+    // Trattiamo anche le porte come "buchi" nei muri
+    if (doors.left && x === 0 && y === Math.floor(room.length / 2)) return true;
+    if (doors.right && x === room[0].length - 1 && y === Math.floor(room.length / 2)) return true;
+    if (doors.top && y === 0 && x === Math.floor(room[0].length / 2)) return true;
+    if (doors.bottom && y === room.length - 1 && x === Math.floor(room[0].length / 2)) return true;
+
+    return false;
+  };
 
   for (let y = 0; y < room.length; y++) {
     tiles[y] = [];
-
-    for (let x = 0; x < room[y].length; x++) {
+    for (let x = 0; x < room[0].length; x++) {
       if (!room[y][x]) {
         tiles[y][x] = null;
-        console.log(`[SKIP] Nessun tipo per (${x}, ${y}) - Valore: 0`);
         continue;
       }
 
-      const up = y > 0 ? room[y - 1][x] : 0;
-      const down = y < room.length - 1 ? room[y + 1][x] : 0;
-      const left = x > 0 ? room[y][x - 1] : 0;
-      const right = x < room[y].length - 1 ? room[y][x + 1] : 0;
+      const up = !isEmpty(x, y - 1);
+      const down = !isEmpty(x, y + 1);
+      const left = !isEmpty(x - 1, y);
+      const right = !isEmpty(x + 1, y);
 
-      // --- ANGOLO ---
-      if (!up && !left) {
-        tiles[y][x] = 'corner_tl';
-      } else if (!up && !right) {
-        tiles[y][x] = 'corner_tr';
-      } else if (!down && !left) {
-        tiles[y][x] = 'corner_bl';
-      } else if (!down && !right) {
-        tiles[y][x] = 'corner_br';
-      }
+      let type = null;
+
+      // --- ANGOLI ---
+      if (!up && !left) type = 'corner_tl';
+      else if (!up && !right) type = 'corner_tr';
+      else if (!down && !left) type = 'corner_bl';
+      else if (!down && !right) type = 'corner_br';
 
       // --- MURI ---
-      else if (!up) {
-        tiles[y][x] = 'top';
-      } else if (!down) {
-        tiles[y][x] = 'bottom';
-      } else if (!left) {
-        tiles[y][x] = 'left';
-      } else if (!right) {
-        tiles[y][x] = 'right';
-      }
+      else if (!up) type = 'top';
+      else if (!down) type = 'bottom';
+      else if (!left) type = 'left';
+      else if (!right) type = 'right';
 
-      // --- INTERNO ---
-      else {
-        tiles[y][x] = null; // interno o muro pieno
-      }
-
-      if (tiles[y][x]) {
-        console.log(`[DRAW] Disegno ${tiles[y][x]} a (${x}, ${y})`);
-      }
+      tiles[y][x] = type;
     }
   }
 
   return tiles;
 }
+
 
 
 

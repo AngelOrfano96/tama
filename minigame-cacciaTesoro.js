@@ -318,7 +318,24 @@ G.sprites.decor = {
   door_top:     loadImg(`${tileBase}/centrale_sinistro_alto.png`),
   door_bottom:  loadImg(`${tileBase}/centrale_destro_alto.png`),
   door_left:    loadImg(`${tileBase}/centrale_sinistro_basso.png`),
-  door_right:   loadImg(`${tileBase}/centrale_destro_basso.png`)
+  door_right:   loadImg(`${tileBase}/centrale_destro_basso.png`),
+
+    top:    [
+    loadImg(`${tileBase}/muroDungeon_Alto_1.png`),
+    loadImg(`${tileBase}/muroDungeon_Alto_2.png`)
+  ],
+  bottom: [
+    loadImg(`${tileBase}/muroDungeon_Basso_1.png`),
+    loadImg(`${tileBase}/muroDungeon_Basso_2.png`)
+  ],
+  left:   [
+    loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`),
+    loadImg(`${tileBase}/muroDungeon_latoSinistro_2.png`)
+  ],
+  right:  [
+    loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),
+    loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`)
+  ]
 };
 
 console.log('DEBUG decor sprites:', G.sprites.decor);
@@ -839,18 +856,27 @@ const CURVE_ROT_PHASE = 1; // <-- prova 1 (cioè +90°). Se serve usa 2 (=180°)
 
 function drawDecor(x, y, key) {
   const tile = window.treasureTile || 64;
-  const img = G.sprites.decor?.[key];
-  if (!img || !img.complete) {
-    console.warn('❗ Immagine mancante o non ancora caricata:', key);
+  const sprite = G.sprites.decor?.[key];
+
+  if (!sprite) {
+    console.warn('❗ Immagine mancante o chiave errata:', key);
     ctx.fillStyle = '#c94';
     ctx.fillRect(x * tile, y * tile, tile, tile);
     return;
   }
-  ctx.drawImage(img, x * tile, y * tile, tile, tile);
+
+  const img = Array.isArray(sprite)
+    ? sprite[Math.floor(Math.random() * sprite.length)]
+    : sprite;
+
+  if (img?.complete) {
+    ctx.drawImage(img, x * tile, y * tile, tile, tile);
+  } else {
+    console.warn('❗ Immagine non ancora caricata:', key);
+    ctx.fillStyle = '#c94';
+    ctx.fillRect(x * tile, y * tile, tile, tile);
+  }
 }
-
-
-
 
 
 

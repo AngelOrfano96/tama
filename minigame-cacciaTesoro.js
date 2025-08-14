@@ -896,10 +896,10 @@ function render() {
       const isRight  = (x === Cfg.roomW - 1);
 
       // spigoli veri
-      if (isTop && isLeft)     { drawSafe(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
-      if (isTop && isRight)    { drawSafe(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
-      if (isBottom && isRight) { drawSafe(G.sprites.wallParts.corner_br, x, y, tile); continue; }
-      if (isBottom && isLeft)  { drawSafe(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
+      if (isTop && isLeft)     { drawSafe(G.sprites.decor.corner_tl, x, y, tile); continue; }
+      if (isTop && isRight)    { drawSafe(G.sprites.decor.corner_tr, x, y, tile); continue; }
+      if (isBottom && isRight) { drawSafe(G.sprites.decor.corner_br, x, y, tile); continue; }
+      if (isBottom && isLeft)  { drawSafe(G.sprites.decor.corner_bl, x, y, tile); continue; }
 
       // aperture adiacenti
       const openUp    = (y > 0)             && room[y-1][x] === 0;

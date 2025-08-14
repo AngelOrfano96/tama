@@ -15,6 +15,9 @@
     baseTimerMs: 1000,
   };
 
+// ---- Config porte ----
+const DOOR_SPAN = 3;                      // larghezza in celle (3 come ora)
+const HALF_SPAN = Math.floor(DOOR_SPAN/2); // 1 se SPAN=3
 
 
 const MoleCfg = {
@@ -281,14 +284,17 @@ function resizeTreasureCanvas() {
     G.slowExpiresAt = 0;
 
 
+// dentro startTreasureMinigame, PRIMA di G.sprites.decor
+const CACHE_BUSTER = 'v=5'; // aumenta questo numero quando cambi i PNG
+const loadImg = (src) => {
+  const img = new Image();
+  img.src = src + (src.includes('?') ? '&' : '?') + CACHE_BUSTER;
+  return img;
+};
 
 // Desktop/Mobile
 // Utility per caricare immagini
-const loadImg = (src) => {
-  const img = new Image();
-  img.src = src;
-  return img;
-};
+
 
 // Percorso base dinamico in base al device
 const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/tiles';
@@ -800,62 +806,58 @@ function generateRoomTiles(room) {
   const cx = Math.floor(W / 2);
   const cy = Math.floor(H / 2);
 
-  // c'è una porta se al centro del bordo trovi 0
+  // Porte (aperture larghe DOOR_SPAN)
   const doors = {
-    left:   room[cy]?.[0] === 0,
+    left:   room[cy]?.[0]     === 0,
     right:  room[cy]?.[W - 1] === 0,
-    top:    room[0]?.[cx] === 0,
+    top:    room[0]?.[cx]     === 0,
     bottom: room[H - 1]?.[cx] === 0,
   };
 
   const isEmpty = (x, y) => {
     if (x < 0 || y < 0 || x >= W || y >= H) return true;
-    if (!room[y][x]) return true;                 // 0 = vuoto
-    // considera vuote anche le 3 celle di porta su ciascun bordo
-    if (doors.left   && x === 0     && Math.abs(y - cy) <= 1) return true;
-    if (doors.right  && x === W - 1 && Math.abs(y - cy) <= 1) return true;
-    if (doors.top    && y === 0     && Math.abs(x - cx) <= 1) return true;
-    if (doors.bottom && y === H - 1 && Math.abs(x - cx) <= 1) return true;
+    if (!room[y][x]) return true; // 0 = vuoto
+    // considera le celle di porta come vuote (apertura larga DOOR_SPAN)
+    if (doors.left   && x === 0     && Math.abs(y - cy) <= HALF_SPAN) return true;
+    if (doors.right  && x === W - 1 && Math.abs(y - cy) <= HALF_SPAN) return true;
+    if (doors.top    && y === 0     && Math.abs(x - cx) <= HALF_SPAN) return true;
+    if (doors.bottom && y === H - 1 && Math.abs(x - cx) <= HALF_SPAN) return true;
     return false;
   };
 
-  // DEBUG (una volta sola per stanza)
-  // console.log('gen v3', {W,H,cx,cy,doors});
+  // offset della “coppia” di angoli vicino alla porta
+  const off = HALF_SPAN + 1;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!room[y][x]) { tiles[y][x] = null; continue; } // pavimento interno
+      if (!room[y][x]) { tiles[y][x] = null; continue; }
 
       const up    = !isEmpty(x, y - 1);
       const down  = !isEmpty(x, y + 1);
       const left  = !isEmpty(x - 1, y);
       const right = !isEmpty(x + 1, y);
 
-      // --- ANGOLI VICINO ALLE PORTE (coordinate esatte) ---
-      // SINISTRA: x==0 e y==cy±2
-      if (doors.left && x === 0 && y === cy - 2) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (doors.left && x === 0 && y === cy + 2) { tiles[y][x] = 'corner_bl_door'; continue; }
-      // DESTRA: x==W-1 e y==cy±2
-      if (doors.right && x === W - 1 && y === cy - 2) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (doors.right && x === W - 1 && y === cy + 2) { tiles[y][x] = 'corner_br_door'; continue; }
-      // ALTO: y==0 e x==cx±2
-      if (doors.top && y === 0 && x === cx - 2) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (doors.top && y === 0 && x === cx + 2) { tiles[y][x] = 'corner_tr_door'; continue; }
-      // BASSO: y==H-1 e x==cx±2
-      if (doors.bottom && y === H - 1 && x === cx - 2) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (doors.bottom && y === H - 1 && x === cx + 2) { tiles[y][x] = 'corner_br_door'; continue; }
+      // --- angoli “speciali porta” (coincidenze esatte di cella) ---
+      if (doors.left   && x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.left   && x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (doors.right  && x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (doors.right  && x === W - 1 && y === cy + off) { tiles[y][x] = 'corner_br_door'; continue; }
+      if (doors.top    && y === 0     && x === cx - off) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.top    && y === 0     && x === cx + off) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (doors.bottom && y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (doors.bottom && y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // --- ANGOLI NORMALI ---
-      if (!up && !left)     { tiles[y][x] = 'corner_tl'; continue; }
-      if (!up && !right)    { tiles[y][x] = 'corner_tr'; continue; }
-      if (!down && !left)   { tiles[y][x] = 'corner_bl'; continue; }
-      if (!down && !right)  { tiles[y][x] = 'corner_br'; continue; }
+      // --- angoli normali ---
+      if (!up && !left)    { tiles[y][x] = 'corner_tl'; continue; }
+      if (!up && !right)   { tiles[y][x] = 'corner_tr'; continue; }
+      if (!down && !left)  { tiles[y][x] = 'corner_bl'; continue; }
+      if (!down && !right) { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- MURI DRITTI ---
-      if (!up)              { tiles[y][x] = 'top';    continue; }
-      if (!down)            { tiles[y][x] = 'bottom'; continue; }
-      if (!left)            { tiles[y][x] = 'left';   continue; }
-      if (!right)           { tiles[y][x] = 'right';  continue; }
+      // --- lati ---
+      if (!up)    { tiles[y][x] = 'top';    continue; }
+      if (!down)  { tiles[y][x] = 'bottom'; continue; }
+      if (!left)  { tiles[y][x] = 'left';   continue; }
+      if (!right) { tiles[y][x] = 'right';  continue; }
 
       tiles[y][x] = 'center';
     }
@@ -875,10 +877,11 @@ function generateRoomTiles(room) {
 
 
 
+
 function drawRoom(room) {
   const tiles = generateRoomTiles(room);
-  console.table(tiles.map(r => r.map(t => (t||'.').slice(0,3))));
-  console.log(tiles); // 🔍 Vedi i valori che arrivano (ti dirà se compaiono corner_*_door)
+  //console.table(tiles.map(r => r.map(t => (t||'.').slice(0,3))));
+  //console.log(tiles); // 🔍 Vedi i valori che arrivano (ti dirà se compaiono corner_*_door)
 
   const tileSize = window.treasureTile || 64;
   for (let y = 0; y < tiles.length; y++) {
@@ -1246,18 +1249,18 @@ if (G.mole.enabled) {
 
     const fun = 15 + Math.round(G.score * 0.6);
     const exp = Math.round(G.score * 0.5);
-    console.log('[Treasure] endTreasureMinigame:', { reason, score: G.score, fun, exp });
+    //console.log('[Treasure] endTreasureMinigame:', { reason, score: G.score, fun, exp });
 
     setTimeout(async () => {
       try {
         if (typeof window.updateFunAndExpFromMiniGame === 'function') {
           await window.updateFunAndExpFromMiniGame(fun, exp);
         } else {
-          console.warn('[Treasure] updateFunAndExpFromMiniGame non trovato');
+          //console.warn('[Treasure] updateFunAndExpFromMiniGame non trovato');
         }
         if (typeof window.showExpGainLabel === 'function' && exp > 0) window.showExpGainLabel(exp);
       } catch (err) {
-        console.error('[Treasure] errore award EXP/FUN:', err);
+        //console.error('[Treasure] errore award EXP/FUN:', err);
       }
       G.keysStack = [];
       resetJoystick();
@@ -1403,7 +1406,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof window.startTreasureMinigame === 'function') {
         window.startTreasureMinigame();
       } else {
-        console.warn('startTreasureMinigame non trovato');
+        //console.warn('startTreasureMinigame non trovato');
       }
     });
   }

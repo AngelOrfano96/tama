@@ -872,13 +872,22 @@ function generateRoomTiles(room) {
 
 
 function drawRoom(room) {
-  const tile = window.treasureTile || 64;
-  const tileTypes = generateRoomTiles(room);
+  const tiles = generateRoomTiles(room);
+  console.log(tiles); // 🔍 Vedi i valori che arrivano (ti dirà se compaiono corner_*_door)
 
-  for (let y = 0; y < tileTypes.length; y++) {
-    for (let x = 0; x < tileTypes[y].length; x++) {
-      const type = tileTypes[y][x];
-      drawTileType(x, y, type, tile);
+  const tileSize = window.treasureTile || 64;
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const type = tiles[y][x];
+      if (!type) continue;
+
+      const sprite = G.sprites.decor[type];
+      if (sprite && sprite.complete) {
+        ctx.drawImage(sprite, x * tileSize, y * tileSize, tileSize, tileSize);
+      } else {
+        ctx.fillStyle = 'magenta'; // evidenziatore se manca l'asset
+        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+      }
     }
   }
 }

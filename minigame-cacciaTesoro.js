@@ -823,13 +823,13 @@ function generateRoomTiles(room) {
   return tiles;
 }
 
-function drawTileType(x, y, type, tileSize = 64) {
-  const sprite = G.sprites.decor?.[type];
-  if (!sprite || !sprite.complete) {
-    console.warn(`❗ Immagine non ancora caricata: ${type}`);
-    return;
-  }
-  ctx.drawImage(sprite, x * tileSize, y * tileSize, tileSize, tileSize);
+function drawTileType(x, y, key) {
+  const tile = window.treasureTile || 64;
+  const img = G.sprites.decor?.[key];
+  if (!img) return console.warn('❗ Immagine non trovata:', key);
+  if (!img.complete) return console.warn('❗ Immagine non ancora caricata:', key);
+
+  ctx.drawImage(img, x * tile, y * tile, tile, tile);
 }
 
 

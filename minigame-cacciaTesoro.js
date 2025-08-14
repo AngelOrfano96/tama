@@ -326,6 +326,15 @@ G.sprites.decor = {
 };
 
 
+const doors = {
+  top: true,
+  bottom: false,
+  left: true,
+  right: false,
+};
+
+
+
     // SPRITES
     const petSrc = DOM.petImg?.src || '';
     const match = petSrc.match(/pet_(\d+)/);
@@ -832,42 +841,75 @@ function drawTileType(x, y, key) {
   ctx.drawImage(img, x * tile, y * tile, tile, tile);
 }
 
+function drawRoom(room) {
+  const tileSize = G.tileSize; // es: 64
+  const width = G.roomWidth;   // es: 10 tile
+  const height = G.roomHeight; // es: 8 tile
+
+  // Angoli
+  drawTile(G.sprites.decor.corner_tl, 0, 0);
+  drawTile(G.sprites.decor.corner_tr, width - 1, 0);
+  drawTile(G.sprites.decor.corner_bl, 0, height - 1);
+  drawTile(G.sprites.decor.corner_br, width - 1, height - 1);
+
+  // Muri orizzontali (alto e basso)
+  for (let x = 1; x < width - 1; x++) {
+    if (room.doors.top && x === Math.floor(width / 2)) {
+      drawTile(G.sprites.decor.door_top, x, 0); // porta
+    } else {
+      drawTile(G.sprites.decor.top, x, 0); // muro
+    }
+
+    if (room.doors.bottom && x === Math.floor(width / 2)) {
+      drawTile(G.sprites.decor.door_bottom, x, height - 1); // porta
+    } else {
+      drawTile(G.sprites.decor.bottom, x, height - 1); // muro
+    }
+  }
+
+  // Muri verticali (sinistra e destra)
+  for (let y = 1; y < height - 1; y++) {
+    if (room.doors.left && y === Math.floor(height / 2)) {
+      drawTile(G.sprites.decor.door_left, 0, y); // porta
+    } else {
+      drawTile(G.sprites.decor.left, 0, y); // muro
+    }
+
+    if (room.doors.right && y === Math.floor(height / 2)) {
+      drawTile(G.sprites.decor.door_right, width - 1, y); // porta
+    } else {
+      drawTile(G.sprites.decor.right, width - 1, y); // muro
+    }
+  }
+
+  // Centro (opzionale riempimento)
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      drawTile(G.sprites.decor.center, x, y);
+    }
+  }
+}
+
+function drawTile(sprite, tileX, tileY) {
+  const tileSize = G.tileSize;
+  ctx.drawImage(sprite, tileX * tileSize, tileY * tileSize, tileSize, tileSize);
+}
 
 
   // ---------- RENDER ----------
 function render() {
-  const room = G.rooms[G.petRoom.y][G.petRoom.x];
-  const roomTiles = generateRoomTiles(room);
+ const room = G.rooms[G.petRoom.y][G.petRoom.x];
   const tile = window.treasureTile || 64;
 
   // Sfondo
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
+  // Sfondo
+  drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
+
   // Muri (cornice + porte + interni)
-for (let y = 0; y < Cfg.roomH; y++) {
-  for (let x = 0; x < Cfg.roomW; x++) {
-    const isEdge = y === 0 || y === Cfg.roomH - 1 || x === 0 || x === Cfg.roomW - 1;
-    if (!isEdge) continue;
+drawRoom(room);
 
-    let tipo = 'center'; // fallback
-
-    const isTop = y === 0;
-    const isBottom = y === Cfg.roomH - 1;
-    const isLeft = x === 0;
-    const isRight = x === Cfg.roomW - 1;
-
-    if (isTop && isLeft) tipo = 'corner_tl';
-    else if (isTop && isRight) tipo = 'corner_tr';
-    else if (isBottom && isLeft) tipo = 'corner_bl';
-    else if (isBottom && isRight) tipo = 'corner_br';
-    else if (isTop) tipo = 'top';
-    else if (isBottom) tipo = 'bottom';
-    else if (isLeft) tipo = 'left';
-    else if (isRight) tipo = 'right';
-
-    drawTileType(x, y, tipo);
-  }
-}
 
 
   // --- TUTTO IL RESTO IDENTICO ---

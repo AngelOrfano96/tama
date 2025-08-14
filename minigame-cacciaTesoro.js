@@ -813,10 +813,12 @@ function generateRoomTiles(room) {
       const openRight = x < w - 1 && room[y][x + 1] === 0;
 
       // --- ANGOLO ---
-      if (!up && !left)       { tiles[y][x] = 'corner_tl'; continue; }
-      if (!up && !right)      { tiles[y][x] = 'corner_tr'; continue; }
-      if (!down && !left)     { tiles[y][x] = 'corner_bl'; continue; }
-      if (!down && !right)    { tiles[y][x] = 'corner_br'; continue; }
+      // Angolo solo se sono liberi sopra/sinistra e bloccato sugli altri due
+if (!up && !left && down && right)       { tiles[y][x] = 'corner_tl'; continue; }
+if (!up && !right && down && left)       { tiles[y][x] = 'corner_tr'; continue; }
+if (!down && !left && up && right)       { tiles[y][x] = 'corner_bl'; continue; }
+if (!down && !right && up && left)       { tiles[y][x] = 'corner_br'; continue; }
+
 
       // --- PORTE ---
       if (!up && openDown)    { tiles[y][x] = 'door_top'; continue; }

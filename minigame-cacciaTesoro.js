@@ -308,7 +308,7 @@ G.sprites.wallParts = {
   right:  [ loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),   loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`) ],
 };
 
-const decorPrefix = isMobile ? 'assets/mobile/tiles/' : 'assets/desktop/tiles/';
+const decorPrefix = isMobile ? 'assets/mobile/tiles' : 'assets/desktop/tiles';
 
 G.sprites.decor = {
   corner_tl: loadImg(decorPrefix + 'Angolare_AltoSinistra.png'),

@@ -814,13 +814,15 @@ function generateRoomTiles(room) {
   const tiles = Array.from({ length: h }, () => Array(w).fill(null));
 
   for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (room[y][x] !== 1) {
-        // 👉 Imposta tipo vuoto o floor (se vuoi disegnare il pavimento)
-        // Oppure lascia null se non vuoi disegnare niente.
-        tiles[y][x] = null;
-        continue;
-      }
+  for (let x = 0; x < w; x++) {
+    console.log(`room[${y}][${x}] =`, room[y][x]);
+
+   const isWall = room[y][x] === 1;
+
+if (!isWall) {
+  tiles[y][x] = null;
+  continue;
+}
 
       const up    = y > 0 && room[y - 1][x] === 1;
       const down  = y < h - 1 && room[y + 1][x] === 1;

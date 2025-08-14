@@ -846,41 +846,29 @@ function render() {
   // Muri (cornice + porte + interni)
 for (let y = 0; y < Cfg.roomH; y++) {
   for (let x = 0; x < Cfg.roomW; x++) {
-    const val = room[y][x];
-    if (val !== 1) continue; // disegna solo dove room[y][x] === 1
+    const isEdge = y === 0 || y === Cfg.roomH - 1 || x === 0 || x === Cfg.roomW - 1;
+    if (!isEdge) continue;
+
+    let tipo = 'center'; // fallback
 
     const isTop = y === 0;
     const isBottom = y === Cfg.roomH - 1;
     const isLeft = x === 0;
     const isRight = x === Cfg.roomW - 1;
 
-    const openUp = y > 0 && room[y - 1][x] === 0;
-    const openDown = y < Cfg.roomH - 1 && room[y + 1][x] === 0;
-    const openLeft = x > 0 && room[y][x - 1] === 0;
-    const openRight = x < Cfg.roomW - 1 && room[y][x + 1] === 0;
+    if (isTop && isLeft) tipo = 'corner_tl';
+    else if (isTop && isRight) tipo = 'corner_tr';
+    else if (isBottom && isLeft) tipo = 'corner_bl';
+    else if (isBottom && isRight) tipo = 'corner_br';
+    else if (isTop) tipo = 'top';
+    else if (isBottom) tipo = 'bottom';
+    else if (isLeft) tipo = 'left';
+    else if (isRight) tipo = 'right';
 
-    // Angoli
-    if (isTop && isLeft)       { drawTileType(x, y, 'corner_tl'); continue; }
-    if (isTop && isRight)      { drawTileType(x, y, 'corner_tr'); continue; }
-    if (isBottom && isLeft)    { drawTileType(x, y, 'corner_bl'); continue; }
-    if (isBottom && isRight)   { drawTileType(x, y, 'corner_br'); continue; }
-
-    // Porte
-    if (isTop && openDown)     { drawTileType(x, y, 'door_top'); continue; }
-    if (isBottom && openUp)    { drawTileType(x, y, 'door_bottom'); continue; }
-    if (isLeft && openRight)   { drawTileType(x, y, 'door_left'); continue; }
-    if (isRight && openLeft)   { drawTileType(x, y, 'door_right'); continue; }
-
-    // Lati
-    if (isTop)                 { drawTileType(x, y, 'top'); continue; }
-    if (isBottom)              { drawTileType(x, y, 'bottom'); continue; }
-    if (isLeft)                { drawTileType(x, y, 'left'); continue; }
-    if (isRight)               { drawTileType(x, y, 'right'); continue; }
-
-    // Interni (opzionale)
-    drawTileType(x, y, 'center');
+    drawTileType(x, y, tipo);
   }
 }
+
 
   // --- TUTTO IL RESTO IDENTICO ---
   const key = `${G.petRoom.x},${G.petRoom.y}`;

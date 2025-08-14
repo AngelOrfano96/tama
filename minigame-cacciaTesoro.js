@@ -308,18 +308,19 @@ G.sprites.wallParts = {
   right:  [ loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),   loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`) ],
 };
 
-const decorPrefix = isMobile ? 'assets/mobile/tiles' : 'assets/desktop/tiles';
 
+// Pacchetto decorazioni angoli e porte
 G.sprites.decor = {
-  corner_tl: loadImg(decorPrefix + 'Angolare_AltoSinistra.png'),
-  corner_tr: loadImg(decorPrefix + 'Angolare_AltoDestra.png'),
-  corner_bl: loadImg(decorPrefix + 'Angolare_bassoSinistra.png'),
-  corner_br: loadImg(decorPrefix + 'Angolare_bassoDestra.png'),
-  door_top:  loadImg(decorPrefix + 'centrale_sinistro_alto.png'),
-  door_bottom: loadImg(decorPrefix + 'centrale_destro_alto.png'),
-  door_left: loadImg(decorPrefix + 'centrale_sinistro_basso.png'),
-  door_right: loadImg(decorPrefix + 'centrale_destro_basso.png'),
+  corner_tl:    loadImg(`${tileBase}/Angolare_AltoSinistra.png`),
+  corner_tr:    loadImg(`${tileBase}/Angolare_AltoDestra.png`),
+  corner_bl:    loadImg(`${tileBase}/Angolare_bassoSinistra.png`),
+  corner_br:    loadImg(`${tileBase}/Angolare_bassoDestra.png`),
+  door_top:     loadImg(`${tileBase}/centrale_sinistro_alto.png`),
+  door_bottom:  loadImg(`${tileBase}/centrale_destro_alto.png`),
+  door_left:    loadImg(`${tileBase}/centrale_sinistro_basso.png`),
+  door_right:   loadImg(`${tileBase}/centrale_destro_basso.png`)
 };
+
 console.log('DEBUG decor sprites:', G.sprites.decor);
 
 

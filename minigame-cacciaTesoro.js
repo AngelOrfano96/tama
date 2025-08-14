@@ -794,26 +794,26 @@ function drawTileType(x, y, type, tile) {
 function generateRoomTiles(room) {
   const tiles = [];
 
-  const centerX = Math.floor(room[0].length / 2);
-  const centerY = Math.floor(room.length / 2);
+  const W = room[0].length;
+  const H = room.length;
+  const centerX = Math.floor(W / 2);
+  const centerY = Math.floor(H / 2);
 
-  // Funzione per controllare se la cella è vuota
   const isEmpty = (x, y) => {
-    if (x < 0 || y < 0 || y >= room.length || x >= room[0].length) return true;
+    if (x < 0 || y < 0 || y >= H || x >= W) return true;
     return !room[y][x];
   };
 
-  // Calcola se ci sono porte sui 4 lati (buco nel muro al centro)
   const doors = {
     left: isEmpty(0, centerY),
-    right: isEmpty(room[0].length - 1, centerY),
+    right: isEmpty(W - 1, centerY),
     top: isEmpty(centerX, 0),
-    bottom: isEmpty(centerX, room.length - 1)
+    bottom: isEmpty(centerX, H - 1)
   };
 
-  for (let y = 0; y < room.length; y++) {
+  for (let y = 0; y < H; y++) {
     tiles[y] = [];
-    for (let x = 0; x < room[0].length; x++) {
+    for (let x = 0; x < W; x++) {
       if (!room[y][x]) {
         tiles[y][x] = null;
         continue;
@@ -826,25 +826,25 @@ function generateRoomTiles(room) {
 
       let type = null;
 
-      // --- ANGOLI con logica porte ---
+      // --- ANGOLI (con porte a 3 celle) ---
       if (!up && !left) {
-        if (doors.left && y === centerY - 1 && x === 1) type = 'corner_tl_door';
-        else if (doors.top && y === 1 && x === centerX - 1) type = 'corner_tl_door';
+        if (doors.left && x === 0 && y === centerY - 2) type = 'corner_tl_door';
+        else if (doors.top && y === 0 && x === centerX - 2) type = 'corner_tl_door';
         else type = 'corner_tl';
       }
       else if (!up && !right) {
-        if (doors.right && y === centerY - 1 && x === room[0].length - 2) type = 'corner_tr_door';
-        else if (doors.top && y === 1 && x === centerX + 1) type = 'corner_tr_door';
+        if (doors.right && x === W - 1 && y === centerY - 2) type = 'corner_tr_door';
+        else if (doors.top && y === 0 && x === centerX + 2) type = 'corner_tr_door';
         else type = 'corner_tr';
       }
       else if (!down && !left) {
-        if (doors.left && y === centerY + 1 && x === 1) type = 'corner_bl_door';
-        else if (doors.bottom && y === room.length - 2 && x === centerX - 1) type = 'corner_bl_door';
+        if (doors.left && x === 0 && y === centerY + 2) type = 'corner_bl_door';
+        else if (doors.bottom && y === H - 1 && x === centerX - 2) type = 'corner_bl_door';
         else type = 'corner_bl';
       }
       else if (!down && !right) {
-        if (doors.right && y === centerY + 1 && x === room[0].length - 2) type = 'corner_br_door';
-        else if (doors.bottom && y === room.length - 2 && x === centerX + 1) type = 'corner_br_door';
+        if (doors.right && x === W - 1 && y === centerY + 2) type = 'corner_br_door';
+        else if (doors.bottom && y === H - 1 && x === centerX + 2) type = 'corner_br_door';
         else type = 'corner_br';
       }
 
@@ -860,6 +860,7 @@ function generateRoomTiles(room) {
 
   return tiles;
 }
+
 
 
 

@@ -14,6 +14,12 @@
     powerupMs: 3000,
     baseTimerMs: 1000,
   };
+// Tuning collisioni (più permissive)
+const PHYS = {
+  bodyShrink: 28, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
+  skin: 4,        // margine anti-incastro (prima 2). Più alto = più permissivo
+  maxStepFrac: 1/3,
+};
 
 // ---- Config porte ----
 const DOOR_SPAN = 3;                      // larghezza in celle (3 come ora)
@@ -490,18 +496,23 @@ function movePet(dt) {
     dx *= inv; dy *= inv;
   }
 
-  // --- movimento con micro-step (evita “tunneling” ai muri) ---
-  const speed   = getCurrentPetSpeed();
-  const room    = G.rooms[G.petRoom.y][G.petRoom.x];
-  const size    = tile - 20;
+  // --- movimento con micro-step (più permissivo) ---
+  const speed = getCurrentPetSpeed();
+  const room  = G.rooms[G.petRoom.y][G.petRoom.x];
 
+  // hitbox un po' più piccola = passi più vicino ai muri
+  const size = Math.max(12, tile - PHYS.bodyShrink);
+
+  // collisione box->mappa con "skin" (margine anti-incastro)
   const tryMove = (nx, ny) => {
-    const minX = Math.floor((nx + 2)        / tile);
-    const minY = Math.floor((ny + 2)        / tile);
-    const maxX = Math.floor((nx + size - 2) / tile);
-    const maxY = Math.floor((ny + size - 2) / tile);
-    if (minY < 0 || minY >= Cfg.roomH || maxY < 0 || maxY >= Cfg.roomH ||
-        minX < 0 || minX >= Cfg.roomW || maxX < 0 || maxX >= Cfg.roomW) return false;
+    const s = PHYS.skin;
+    const minX = Math.floor((nx + s)        / tile);
+    const minY = Math.floor((ny + s)        / tile);
+    const maxX = Math.floor((nx + size - s) / tile);
+    const maxY = Math.floor((ny + size - s) / tile);
+
+    if (minY < 0 || maxY >= Cfg.roomH || minX < 0 || maxX >= Cfg.roomW) return false;
+
     return (
       room[minY][minX] === 0 && room[minY][maxX] === 0 &&
       room[maxY][minX] === 0 && room[maxY][maxX] === 0
@@ -511,23 +522,29 @@ function movePet(dt) {
   const totalDX = dx * speed * dt;
   const totalDY = dy * speed * dt;
 
-  // substep massimo ~ un terzo di tile (min 8px per sicurezza su tile piccoli)
-  const maxStep = Math.max(8, tile / 3);
+  // substep massimo ~ una frazione del tile (stabile e scorrevole)
+  const maxStep = Math.max(8, tile * PHYS.maxStepFrac);
   const steps   = Math.max(1, Math.ceil(Math.hypot(totalDX, totalDY) / maxStep));
   const stepDX  = totalDX / steps;
   const stepDY  = totalDY / steps;
 
   for (let i = 0; i < steps; i++) {
+    // prova a muovere lungo X
     const tryPX = G.pet.px + stepDX;
-    if (tryMove(tryPX, G.pet.py)) G.pet.px = tryPX;
+    if (tryMove(tryPX, G.pet.py)) {
+      G.pet.px = tryPX;
+    }
 
+    // poi lungo Y (così "scivola" sui muri se una sola direzione è libera)
     const tryPY = G.pet.py + stepDY;
-    if (tryMove(G.pet.px, tryPY)) G.pet.py = tryPY;
+    if (tryMove(G.pet.px, tryPY)) {
+      G.pet.py = tryPY;
+    }
   }
 
-  // aggiorna cella logica
-  G.pet.x = Math.floor((G.pet.px + size/2) / tile);
-  G.pet.y = Math.floor((G.pet.py + size/2) / tile);
+  // aggiorna cella logica usando il centro dell'hitbox
+  G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
+  G.pet.y = Math.floor((G.pet.py + size / 2) / tile);
 
   // animazione
   G.pet.moving = true;
@@ -540,23 +557,23 @@ function movePet(dt) {
   // --- passaggio stanza (porte) ---
   if (G.pet.px < 0 && G.petRoom.x > 0 && room[G.pet.y][0] === 0) {
     G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
-      const newKey = `${G.petRoom.x},${G.petRoom.y}`;
-      (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`;
+    (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   if (G.pet.px > (Cfg.roomW - 1) * tile && G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y][Cfg.roomW - 1] === 0) {
     G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`;
-  (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   if (G.pet.py < 0 && G.petRoom.y > 0 && room[0][G.pet.x] === 0) {
     G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`;
-  (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   if (G.pet.py > (Cfg.roomH - 1) * tile && G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1][G.pet.x] === 0) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`;
-  (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
 
   // --- pickup (AABB in pixel) ---
@@ -624,6 +641,7 @@ function movePet(dt) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 

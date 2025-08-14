@@ -311,14 +311,14 @@ G.sprites.wallParts = {
 const decorPrefix = isMobile ? 'assets/mobile/tiles/' : 'assets/desktop/tiles/';
 
 G.sprites.decor = {
-  corner_tl: loadImage(decorPrefix + 'Angolare_AltoSinistra.png'),
-  corner_tr: loadImage(decorPrefix + 'Angolare_AltoDestra.png'),
-  corner_bl: loadImage(decorPrefix + 'Angolare_bassoSinistra.png'),
-  corner_br: loadImage(decorPrefix + 'Angolare_bassoDestra.png'),
-  door_top:  loadImage(decorPrefix + 'centrale_sinistro_alto.png'),
-  door_bottom: loadImage(decorPrefix + 'centrale_destro_alto.png'),
-  door_left: loadImage(decorPrefix + 'centrale_sinistro_basso.png'),
-  door_right: loadImage(decorPrefix + 'centrale_destro_basso.png'),
+  corner_tl: loadImg(decorPrefix + 'Angolare_AltoSinistra.png'),
+  corner_tr: loadImg(decorPrefix + 'Angolare_AltoDestra.png'),
+  corner_bl: loadImg(decorPrefix + 'Angolare_bassoSinistra.png'),
+  corner_br: loadImg(decorPrefix + 'Angolare_bassoDestra.png'),
+  door_top:  loadImg(decorPrefix + 'centrale_sinistro_alto.png'),
+  door_bottom: loadImg(decorPrefix + 'centrale_destro_alto.png'),
+  door_left: loadImg(decorPrefix + 'centrale_sinistro_basso.png'),
+  door_right: loadImg(decorPrefix + 'centrale_destro_basso.png'),
 };
 console.log('DEBUG decor sprites:', G.sprites.decor);
 

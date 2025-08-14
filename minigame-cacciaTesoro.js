@@ -805,23 +805,6 @@ function drawPart(img, x, y, tile) {
   }
 }
 
-function drawCapRot(x, y, tile, angleRad = 0, flipX = false) {
-  const img = G.sprites.wallParts.cap;
-  // Fallback: se le curve non esistono, usa i corner corrispondenti
-const wp = G.sprites.wallParts;
-wp.angleTL = wp.angleTL || wp.corner_tl;
-wp.angleTR = wp.angleTR || wp.corner_tr;
-wp.angleBL = wp.angleBL || wp.corner_bl;
-wp.angleBR = wp.angleBR || wp.corner_br;
-
-  if (!img) return;
-  ctx.save();
-  ctx.translate(x*tile + tile/2, y*tile + tile/2);
-  ctx.rotate(angleRad);
-  if (flipX) ctx.scale(-1, 1);
-  ctx.drawImage(img, -tile/2, -tile/2, tile, tile);
-  ctx.restore();
-}
 
 // ---- DRAW HELPERS (safe) ----
 function canUse(img) {
@@ -850,25 +833,23 @@ function drawSafe(img, x, y, tile) {
 // Se vedi ancora direzioni sbagliate, cambia questo valore tra 0,1,2,3
 const CURVE_ROT_PHASE = 1; // <-- prova 1 (cioè +90°). Se serve usa 2 (=180°) o 3 (=270°).
 
-function drawCurve(x, y, tile, type) {
-  const img = G.sprites.curves?.[type] || G.sprites.wallParts.cap;
-  if (!img || !img.complete) return;
-
-  ctx.drawImage(img, x * tile, y * tile, tile, tile);
-}
 
 
 function drawDecor(x, y, key) {
   const tile = window.treasureTile || 64;
   const img = G.sprites.decor?.[key];
-  if (!img) console.warn('❗ Immagine mancante:', key);
-  if (img && img.complete) {
+  if (!img) {
+    console.warn('❗ Immagine mancante:', key);
+    return;
+  }
+  if (img.complete) {
     ctx.drawImage(img, x * tile, y * tile, tile, tile);
   } else {
     ctx.fillStyle = '#c94';
     ctx.fillRect(x * tile, y * tile, tile, tile);
   }
 }
+
 
 
 
@@ -886,56 +867,37 @@ function render() {
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
   // MURI + DECOR
-  for (let y = 0; y < Cfg.roomH; y++) {
-    for (let x = 0; x < Cfg.roomW; x++) {
-      if (room[y][x] !== 1) continue;
+// MURI con DECORAZIONI (angoli + aperture)
+for (let y = 0; y < Cfg.roomH; y++) {
+  for (let x = 0; x < Cfg.roomW; x++) {
+    if (room[y][x] !== 1) continue;
 
-      const isTop    = (y === 0);
-      const isBottom = (y === Cfg.roomH - 1);
-      const isLeft   = (x === 0);
-      const isRight  = (x === Cfg.roomW - 1);
+    const isTop = y === 0;
+    const isBottom = y === Cfg.roomH - 1;
+    const isLeft = x === 0;
+    const isRight = x === Cfg.roomW - 1;
 
-      const openUp    = (y > 0)               && room[y - 1][x] === 0;
-      const openDown  = (y < Cfg.roomH - 1)   && room[y + 1][x] === 0;
-      const openLeft  = (x > 0)               && room[y][x - 1] === 0;
-      const openRight = (x < Cfg.roomW - 1)   && room[y][x + 1] === 0;
+    const openUp = y > 0 && room[y - 1][x] === 0;
+    const openDown = y < Cfg.roomH - 1 && room[y + 1][x] === 0;
+    const openLeft = x > 0 && room[y][x - 1] === 0;
+    const openRight = x < Cfg.roomW - 1 && room[y][x + 1] === 0;
 
-      // --- DECOR LOGICA NUOVA ---
-      if (isTop && isLeft)     { drawDecor(x, y, 'corner_tl'); continue; }
-      if (isTop && isRight)    { drawDecor(x, y, 'corner_tr'); continue; }
-      if (isBottom && isLeft)  { drawDecor(x, y, 'corner_bl'); continue; }
-      if (isBottom && isRight) { drawDecor(x, y, 'corner_br'); continue; }
+    // Angoli curvi
+    if (isTop && isLeft)     { drawDecor(x, y, 'corner_tl'); continue; }
+    if (isTop && isRight)    { drawDecor(x, y, 'corner_tr'); continue; }
+    if (isBottom && isLeft)  { drawDecor(x, y, 'corner_bl'); continue; }
+    if (isBottom && isRight) { drawDecor(x, y, 'corner_br'); continue; }
 
-      if (isTop && openDown)     { drawDecor(x, y, 'door_top'); continue; }
-      if (isBottom && openUp)    { drawDecor(x, y, 'door_bottom'); continue; }
-      if (isLeft && openRight)   { drawDecor(x, y, 'door_left'); continue; }
-      if (isRight && openLeft)   { drawDecor(x, y, 'door_right'); continue; }
+    // Porte centrali
+    if (isTop && openDown)       { drawDecor(x, y, 'door_top'); continue; }
+    if (isBottom && openUp)      { drawDecor(x, y, 'door_bottom'); continue; }
+    if (isLeft && openRight)     { drawDecor(x, y, 'door_left'); continue; }
+    if (isRight && openLeft)     { drawDecor(x, y, 'door_right'); continue; }
 
-      // --- MURI CLASSICI (top, bottom, left, right) ---
-      if (isTop) {
-        drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile);
-        continue;
-      }
-
-      if (isBottom) {
-        drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile);
-        continue;
-      }
-
-      if (isLeft) {
-        drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile);
-        continue;
-      }
-
-      if (isRight) {
-        drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile);
-        continue;
-      }
-
-      // fallback
-      drawSafe(G.sprites.wallParts.top[0], x, y, tile);
-    }
+    // Se nulla è disegnato sopra, disegna un blocco standard di muro
+    drawSafe(G.sprites.wallParts?.top?.[0], x, y, tile);
   }
+}
 
   // --- TUTTO IL RESTO IDENTICO ---
   const key = `${G.petRoom.x},${G.petRoom.y}`;

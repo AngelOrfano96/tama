@@ -16,8 +16,8 @@
   };
 // Tuning collisioni (più permissive)
 const PHYS = {
-  bodyShrink: 28, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
-  skin: 4,        // margine anti-incastro (prima 2). Più alto = più permissivo
+  bodyShrink: 36, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
+  skin: 6,        // margine anti-incastro (prima 2). Più alto = più permissivo
   maxStepFrac: 1/3,
 };
 

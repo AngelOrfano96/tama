@@ -835,34 +835,38 @@ function drawTile(img, x, y, tile) {
   else { ctx.fillStyle = '#8c6a2e'; ctx.fillRect(x*tile, y*tile, tile, tile); }
 }
 function drawSafe(img, x, y, tile) {
-  if (img && img.complete) ctx.drawImage(img, x*tile, y*tile, tile, tile);
+  const px = x * tile;
+  const py = y * tile;
+  if (img && img.complete) {
+    ctx.drawImage(img, px, py, tile, tile);
+  } else {
+    ctx.fillStyle = '#8c6a2e'; // fallback muratura
+    ctx.fillRect(px, py, tile, tile);
+  }
 }
+
 
 // Ruota tutta la famiglia di curve di 0..3 quarti di giro
 // Se vedi ancora direzioni sbagliate, cambia questo valore tra 0,1,2,3
 const CURVE_ROT_PHASE = 1; // <-- prova 1 (cioè +90°). Se serve usa 2 (=180°) o 3 (=270°).
 
-function drawCurve(x, y, tile, orient /* 'TL'|'TR'|'BL'|'BR' */) {
-  const base = G.sprites.wallParts.curve_base;
-  if (!base) return; // se manca proprio l’immagine, evita errori
+function drawCurve(x, y, tile, type) {
+  const img = G.sprites.curves?.[type] || G.sprites.wallParts.cap;
+  if (!img || !img.complete) return;
 
-  // Se l’immagine non è ancora caricata, ridisegneremo al prossimo frame.
-  if (!base.complete || base.naturalWidth === 0) return;
+  ctx.drawImage(img, x * tile, y * tile, tile, tile);
+}
 
-  ctx.save();
-  ctx.translate(x * tile + tile / 2, y * tile + tile / 2);
 
-  // Mappa rotazioni: parti da una curva “TL”.
-  // Se la tua curva base NON è “TL”, vedi la nota sotto (Switch di base).
-  const rot =
-    orient === 'TR' ?  -Math.PI / 2 :
-    orient === 'BR' ?  Math.PI / 2 :
-    orient === 'BL' ? Math.PI :
-    0; // 'TL'
-
-  ctx.rotate(rot);
-  ctx.drawImage(base, -tile / 2, -tile / 2, tile, tile);
-  ctx.restore();
+function drawDecor(x, y, type) {
+  const tile = window.treasureTile || 64;
+  const img = G.sprites.decor?.[type];
+  if (img && img.complete) {
+    ctx.drawImage(img, x * tile, y * tile, tile, tile);
+  } else {
+    ctx.fillStyle = '#9e7d47'; // fallback decorativo
+    ctx.fillRect(x * tile, y * tile, tile, tile);
+  }
 }
 
 
@@ -876,71 +880,83 @@ function render() {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
   const tile = window.treasureTile || 64;
 
-  // Sfondo
+  // sfondo
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // Muri + Decorazioni
+  // === MURI ===
   for (let y = 0; y < Cfg.roomH; y++) {
     for (let x = 0; x < Cfg.roomW; x++) {
       if (room[y][x] !== 1) continue;
 
-      const isTop = (y === 0);
+      const isTop    = (y === 0);
       const isBottom = (y === Cfg.roomH - 1);
-      const isLeft = (x === 0);
-      const isRight = (x === Cfg.roomW - 1);
+      const isLeft   = (x === 0);
+      const isRight  = (x === Cfg.roomW - 1);
 
-      // Angoli con asset decor
-      if (isTop && isLeft)     { drawSafe(G.sprites.decor.corner_tl, x, y, tile); continue; }
-      if (isTop && isRight)    { drawSafe(G.sprites.decor.corner_tr, x, y, tile); continue; }
-      if (isBottom && isRight) { drawSafe(G.sprites.decor.corner_br, x, y, tile); continue; }
-      if (isBottom && isLeft)  { drawSafe(G.sprites.decor.corner_bl, x, y, tile); continue; }
+      // spigoli veri
+      if (isTop && isLeft)     { drawSafe(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
+      if (isTop && isRight)    { drawSafe(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
+      if (isBottom && isRight) { drawSafe(G.sprites.wallParts.corner_br, x, y, tile); continue; }
+      if (isBottom && isLeft)  { drawSafe(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
 
-      // Porte centrali
-      if (isTop && room[y + 1][x] === 0)    { drawSafe(G.sprites.decor.door_top, x, y, tile); continue; }
-      if (isBottom && room[y - 1][x] === 0) { drawSafe(G.sprites.decor.door_bottom, x, y, tile); continue; }
-      if (isLeft && room[y][x + 1] === 0)   { drawSafe(G.sprites.decor.door_left, x, y, tile); continue; }
-      if (isRight && room[y][x - 1] === 0)  { drawSafe(G.sprites.decor.door_right, x, y, tile); continue; }
-
-      // Altri muri
-      const openUp = y > 0 && room[y - 1][x] === 0;
-      const openDown = y < Cfg.roomH - 1 && room[y + 1][x] === 0;
-      const openLeft = x > 0 && room[y][x - 1] === 0;
-      const openRight = x < Cfg.roomW - 1 && room[y][x + 1] === 0;
+      // aperture adiacenti
+      const openUp    = (y > 0)             && room[y-1][x] === 0;
+      const openDown  = (y < Cfg.roomH-1)   && room[y+1][x] === 0;
+      const openLeft  = (x > 0)             && room[y][x-1] === 0;
+      const openRight = (x < Cfg.roomW-1)   && room[y][x+1] === 0;
 
       // TOP
       if (isTop) {
-        if (openLeft)  { drawCurve(x, y, tile, 'TL'); continue; }
-        if (openRight) { drawCurve(x, y, tile, 'TR'); continue; }
-        drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile); continue;
+        const leftOpen  = (x > 0)             && room[0][x-1] === 0;
+        const rightOpen = (x < Cfg.roomW-1)   && room[0][x+1] === 0;
+        if (leftOpen)  { drawDecor(x, y, 'corner_tl'); continue; }
+        if (rightOpen) { drawDecor(x, y, 'corner_tr'); continue; }
+        drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile);
+        continue;
       }
 
       // BOTTOM
       if (isBottom) {
-        if (openLeft)  { drawCurve(x, y, tile, 'BL'); continue; }
-        if (openRight) { drawCurve(x, y, tile, 'BR'); continue; }
-        drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile); continue;
+        const leftOpen  = (x > 0)               && room[Cfg.roomH-1][x-1] === 0;
+        const rightOpen = (x < Cfg.roomW-1)     && room[Cfg.roomH-1][x+1] === 0;
+        if (leftOpen)  { drawDecor(x, y, 'corner_bl'); continue; }
+        if (rightOpen) { drawDecor(x, y, 'corner_br'); continue; }
+        drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile);
+        continue;
       }
 
       // LEFT
       if (isLeft) {
-        if (openUp)    { drawCurve(x, y, tile, 'TL'); continue; }
-        if (openDown)  { drawCurve(x, y, tile, 'BL'); continue; }
-        drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile); continue;
+        const topOpen    = (y > 0)             && room[y-1][0] === 0;
+        const bottomOpen = (y < Cfg.roomH-1)   && room[y+1][0] === 0;
+        if (topOpen)    { drawDecor(x, y, 'corner_tl'); continue; }
+        if (bottomOpen) { drawDecor(x, y, 'corner_bl'); continue; }
+        drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile);
+        continue;
       }
 
       // RIGHT
       if (isRight) {
-        if (openUp)    { drawCurve(x, y, tile, 'TR'); continue; }
-        if (openDown)  { drawCurve(x, y, tile, 'BR'); continue; }
-        drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile); continue;
+        const topOpen    = (y > 0)             && room[y-1][Cfg.roomW-1] === 0;
+        const bottomOpen = (y < Cfg.roomH-1)   && room[y+1][Cfg.roomW-1] === 0;
+        if (topOpen)    { drawDecor(x, y, 'corner_tr'); continue; }
+        if (bottomOpen) { drawDecor(x, y, 'corner_br'); continue; }
+        drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile);
+        continue;
       }
 
-      // fallback
+      // centro porta top/bottom/left/right
+      if (openUp)    { drawDecor(x, y, 'door_top');    continue; }
+      if (openDown)  { drawDecor(x, y, 'door_bottom'); continue; }
+      if (openLeft)  { drawDecor(x, y, 'door_left');   continue; }
+      if (openRight) { drawDecor(x, y, 'door_right');  continue; }
+
+      // fallback (non dovrebbe capitare)
       drawSafe(G.sprites.wallParts.top[0], x, y, tile);
     }
   }
 
-  // ======= resto identico al tuo: oggetti, powerup, teschi, talpa, pet, nemici, exit =======
+  // --- TUTTO IL RESTO IDENTICO ---
   const key = `${G.petRoom.x},${G.petRoom.y}`;
 
   // coins
@@ -1008,12 +1024,13 @@ function render() {
     else { ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex + 8, ey + 8, tile - 16, tile - 16); }
   }
 
-  // exit
+  // uscita
   if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
     if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20);
     else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20); }
   }
 }
+
 
 
 document.addEventListener('keydown', (e) => {

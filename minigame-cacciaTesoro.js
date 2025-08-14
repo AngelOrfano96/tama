@@ -876,85 +876,69 @@ function render() {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
   const tile = window.treasureTile || 64;
 
-  // bg
+  // Sfondo
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
+  // Muri + Decorazioni
+  for (let y = 0; y < Cfg.roomH; y++) {
+    for (let x = 0; x < Cfg.roomW; x++) {
+      if (room[y][x] !== 1) continue;
 
+      const isTop = (y === 0);
+      const isBottom = (y === Cfg.roomH - 1);
+      const isLeft = (x === 0);
+      const isRight = (x === Cfg.roomW - 1);
 
-// === MURI: spigoli veri + lati; curve decorative con asset ===
-for (let y = 0; y < Cfg.roomH; y++) {
-  for (let x = 0; x < Cfg.roomW; x++) {
-    if (room[y][x] !== 1) continue;
+      // Angoli con asset decor
+      if (isTop && isLeft)     { drawSafe(G.sprites.decor.corner_tl, x, y, tile); continue; }
+      if (isTop && isRight)    { drawSafe(G.sprites.decor.corner_tr, x, y, tile); continue; }
+      if (isBottom && isRight) { drawSafe(G.sprites.decor.corner_br, x, y, tile); continue; }
+      if (isBottom && isLeft)  { drawSafe(G.sprites.decor.corner_bl, x, y, tile); continue; }
 
-    const isTop    = (y === 0);
-    const isBottom = (y === Cfg.roomH - 1);
-    const isLeft   = (x === 0);
-    const isRight  = (x === Cfg.roomW - 1);
+      // Porte centrali
+      if (isTop && room[y + 1][x] === 0)    { drawSafe(G.sprites.decor.door_top, x, y, tile); continue; }
+      if (isBottom && room[y - 1][x] === 0) { drawSafe(G.sprites.decor.door_bottom, x, y, tile); continue; }
+      if (isLeft && room[y][x + 1] === 0)   { drawSafe(G.sprites.decor.door_left, x, y, tile); continue; }
+      if (isRight && room[y][x - 1] === 0)  { drawSafe(G.sprites.decor.door_right, x, y, tile); continue; }
 
-    // spigoli veri della stanza
-    if (isTop && isLeft)     { drawSafe(G.sprites.wallParts.corner_tl, x, y, tile); continue; }
-    if (isTop && isRight)    { drawSafe(G.sprites.wallParts.corner_tr, x, y, tile); continue; }
-    if (isBottom && isRight) { drawSafe(G.sprites.wallParts.corner_br, x, y, tile); continue; }
-    if (isBottom && isLeft)  { drawSafe(G.sprites.wallParts.corner_bl, x, y, tile); continue; }
+      // Altri muri
+      const openUp = y > 0 && room[y - 1][x] === 0;
+      const openDown = y < Cfg.roomH - 1 && room[y + 1][x] === 0;
+      const openLeft = x > 0 && room[y][x - 1] === 0;
+      const openRight = x < Cfg.roomW - 1 && room[y][x + 1] === 0;
 
-    // aperture adiacenti (0 = vuoto)
-    const openUp    = (y > 0)             && room[y-1][x] === 0;
-    const openDown  = (y < Cfg.roomH-1)   && room[y+1][x] === 0;
-    const openLeft  = (x > 0)             && room[y][x-1] === 0;
-    const openRight = (x < Cfg.roomW-1)   && room[y][x+1] === 0;
+      // TOP
+      if (isTop) {
+        if (openLeft)  { drawCurve(x, y, tile, 'TL'); continue; }
+        if (openRight) { drawCurve(x, y, tile, 'TR'); continue; }
+        drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile); continue;
+      }
 
-    // curva in alto
-    if (isTop) {
-      const leftOpen  = (x > 0)             && room[0][x-1] === 0;
-      const rightOpen = (x < Cfg.roomW-1)   && room[0][x+1] === 0;
-      if (leftOpen && G.sprites.decor.corner_tl)  { ctx.drawImage(G.sprites.decor.corner_tl, x*tile, y*tile, tile, tile); continue; }
-      if (rightOpen && G.sprites.decor.corner_tr) { ctx.drawImage(G.sprites.decor.corner_tr, x*tile, y*tile, tile, tile); continue; }
-      drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile);
-      continue;
+      // BOTTOM
+      if (isBottom) {
+        if (openLeft)  { drawCurve(x, y, tile, 'BL'); continue; }
+        if (openRight) { drawCurve(x, y, tile, 'BR'); continue; }
+        drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile); continue;
+      }
+
+      // LEFT
+      if (isLeft) {
+        if (openUp)    { drawCurve(x, y, tile, 'TL'); continue; }
+        if (openDown)  { drawCurve(x, y, tile, 'BL'); continue; }
+        drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile); continue;
+      }
+
+      // RIGHT
+      if (isRight) {
+        if (openUp)    { drawCurve(x, y, tile, 'TR'); continue; }
+        if (openDown)  { drawCurve(x, y, tile, 'BR'); continue; }
+        drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile); continue;
+      }
+
+      // fallback
+      drawSafe(G.sprites.wallParts.top[0], x, y, tile);
     }
-
-    // curva in basso
-    if (isBottom) {
-      const leftOpen  = (x > 0)               && room[Cfg.roomH-1][x-1] === 0;
-      const rightOpen = (x < Cfg.roomW-1)     && room[Cfg.roomH-1][x+1] === 0;
-      if (leftOpen && G.sprites.decor.corner_bl)  { ctx.drawImage(G.sprites.decor.corner_bl, x*tile, y*tile, tile, tile); continue; }
-      if (rightOpen && G.sprites.decor.corner_br) { ctx.drawImage(G.sprites.decor.corner_br, x*tile, y*tile, tile, tile); continue; }
-      drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile);
-      continue;
-    }
-
-    // curva a sinistra
-    if (isLeft) {
-      const topOpen    = (y > 0)               && room[y-1][0] === 0;
-      const bottomOpen = (y < Cfg.roomH-1)     && room[y+1][0] === 0;
-      if (topOpen && G.sprites.decor.corner_tl)    { ctx.drawImage(G.sprites.decor.corner_tl, x*tile, y*tile, tile, tile); continue; }
-      if (bottomOpen && G.sprites.decor.corner_bl) { ctx.drawImage(G.sprites.decor.corner_bl, x*tile, y*tile, tile, tile); continue; }
-      drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile);
-      continue;
-    }
-
-    // curva a destra
-    if (isRight) {
-      const topOpen    = (y > 0)               && room[y-1][Cfg.roomW-1] === 0;
-      const bottomOpen = (y < Cfg.roomH-1)     && room[y+1][Cfg.roomW-1] === 0;
-      if (topOpen && G.sprites.decor.corner_tr)    { ctx.drawImage(G.sprites.decor.corner_tr, x*tile, y*tile, tile, tile); continue; }
-      if (bottomOpen && G.sprites.decor.corner_br) { ctx.drawImage(G.sprites.decor.corner_br, x*tile, y*tile, tile, tile); continue; }
-      drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile);
-      continue;
-    }
-
-    // decorazioni centrali (porte)
-    if (openUp && openDown && G.sprites.decor.door_left) {
-      ctx.drawImage(G.sprites.decor.door_left, x*tile, y*tile, tile, tile); continue;
-    }
-    if (openLeft && openRight && G.sprites.decor.door_top) {
-      ctx.drawImage(G.sprites.decor.door_top, x*tile, y*tile, tile, tile); continue;
-    }
-
-    // fallback (non dovrebbe capitare)
-    drawSafe(G.sprites.wallParts.top[0], x, y, tile);
   }
-}
 
   // ======= resto identico al tuo: oggetti, powerup, teschi, talpa, pet, nemici, exit =======
   const key = `${G.petRoom.x},${G.petRoom.y}`;

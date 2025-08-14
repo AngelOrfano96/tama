@@ -312,8 +312,8 @@ G.sprites.decor = {
   corner_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
 
   // Porte
-  door_top: loadImg(`${tileBase}/centrale_sinistro_alto.png`),
-  door_bottom: loadImg(`${tileBase}/centrale_destro_alto.png`),
+  door_top: loadImg(`${tileBase}/centrale_destro_alto.png`),
+  door_bottom: loadImg(`${tileBase}/centrale_sinistro_alto.png`),
   door_left: loadImg(`${tileBase}/centrale_sinistro_basso.png`),
   door_right: loadImg(`${tileBase}/centrale_destro_basso.png`),
 

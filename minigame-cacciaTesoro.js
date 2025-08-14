@@ -275,95 +275,55 @@ function resizeTreasureCanvas() {
     G.slowExpiresAt = 0;
 
     // helper
-const loadImg = (src) => { const i = new Image(); i.src = src; return i; };
 
+
+const roomTiles = Array.from({ length: Cfg.roomH }, (_, y) =>
+  Array.from({ length: Cfg.roomW }, (_, x) => {
+    if (y === 0 && x === 0) return 'corner_tl';
+    if (y === 0 && x === Cfg.roomW - 1) return 'corner_tr';
+    if (x === 0 && y === Cfg.roomH - 1) return 'corner_bl';
+    if (x === Cfg.roomW - 1 && y === Cfg.roomH - 1) return 'corner_br';
+    if (y === 0) return 'top';
+    if (y === Cfg.roomH - 1) return 'bottom';
+    if (x === 0) return 'left';
+    if (x === Cfg.roomW - 1) return 'right';
+    return null; // interno
+  })
+);
 // Desktop/Mobile
+// Utility per caricare immagini
+const loadImg = (src) => {
+  const img = new Image();
+  img.src = src;
+  return img;
+};
+
+// Percorso base dinamico in base al device
 const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/tiles';
 
-// Pacchetto muri
-// Pacchetto muri
-G.sprites.wallParts = {
-  // spigoli veri (4 angoli della stanza)
-  corner_tl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
-  corner_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
-  corner_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
-  corner_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
-
-  // curve di chiusura ai bordi vicino alle porte (gli "angoli" che volevi usare)
-/*  angleTL:  loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // metti il nome giusto del tuo asset
-  angleTR:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
-  angleBL:  loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
-  angleBR:  loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),*/
-
- curve_base: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
-//curve_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),   // Top Right
-//curve_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),// Bottom Left
-//curve_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),  // Bottom Right
-
-
-  // lati (2 varianti per continuità)
-  top:    [ loadImg(`${tileBase}/muroDungeon_Alto_1.png`),       loadImg(`${tileBase}/muroDungeon_Alto_2.png`) ],
-  bottom: [ loadImg(`${tileBase}/muroDungeon_Basso_1.png`),      loadImg(`${tileBase}/muroDungeon_Basso_2.png`) ],
-  left:   [ loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`), loadImg(`${tileBase}/muroDungeon_latoSinistro_2.png`) ],
-  right:  [ loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),   loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`) ],
-};
-
-
-// Pacchetto decorazioni angoli e porte
+// Immagini decorative per i muri e angoli
 G.sprites.decor = {
-  corner_tl:    loadImg(`${tileBase}/Angolare_AltoSinistra.png`),
-  corner_tr:    loadImg(`${tileBase}/Angolare_AltoDestra.png`),
-  corner_bl:    loadImg(`${tileBase}/Angolare_bassoSinistra.png`),
-  corner_br:    loadImg(`${tileBase}/Angolare_bassoDestra.png`),
-  door_top:     loadImg(`${tileBase}/centrale_sinistro_alto.png`),
-  door_bottom:  loadImg(`${tileBase}/centrale_destro_alto.png`),
-  door_left:    loadImg(`${tileBase}/centrale_sinistro_basso.png`),
-  door_right:   loadImg(`${tileBase}/centrale_destro_basso.png`),
+  // Angoli
+  corner_tl: loadImg(`${tileBase}/Angolare_AltoSinistra.png`),
+  corner_tr: loadImg(`${tileBase}/Angolare_AltoDestra.png`),
+  corner_bl: loadImg(`${tileBase}/Angolare_bassoSinistra.png`),
+  corner_br: loadImg(`${tileBase}/Angolare_bassoDestra.png`),
 
-    top:    [
-    loadImg(`${tileBase}/muroDungeon_Alto_1.png`),
-    loadImg(`${tileBase}/muroDungeon_Alto_2.png`)
-  ],
-  bottom: [
-    loadImg(`${tileBase}/muroDungeon_Basso_1.png`),
-    loadImg(`${tileBase}/muroDungeon_Basso_2.png`)
-  ],
-  left:   [
-    loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`),
-    loadImg(`${tileBase}/muroDungeon_latoSinistro_2.png`)
-  ],
-  right:  [
-    loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),
-    loadImg(`${tileBase}/muroDungeon_latoDestro_2.png`)
-  ]
+  // Porte
+  door_top: loadImg(`${tileBase}/centrale_sinistro_alto.png`),
+  door_bottom: loadImg(`${tileBase}/centrale_destro_alto.png`),
+  door_left: loadImg(`${tileBase}/centrale_sinistro_basso.png`),
+  door_right: loadImg(`${tileBase}/centrale_destro_basso.png`),
+
+  // Lati normali
+  top: loadImg(`${tileBase}/muroDungeon_Alto_1.png`),
+  bottom: loadImg(`${tileBase}/muroDungeon_Basso_1.png`),
+  left: loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`),
+  right: loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),
+
+  // Centro (puoi usare un'immagine oppure lasciare vuoto)
+  center: loadImg(`${tileBase}/muroDungeon_Basso_2.png`)
 };
-
-console.log('DEBUG decor sprites:', G.sprites.decor);
-
-
-function drawDecorations(room, tile) {
-  const img = G.sprites.decor;
-
-  for (let y = 0; y < room.length; y++) {
-    for (let x = 0; x < room[0].length; x++) {
-      const wall = room[y][x] === 1;
-      const right = room[y]?.[x+1] === 0;
-      const left = room[y]?.[x-1] === 0;
-      const top = room[y-1]?.[x] === 0;
-      const bottom = room[y+1]?.[x] === 0;
-
-      // Angoli (curve)
-      if (wall && right && bottom) ctx.drawImage(img.corner_tl, x*tile, y*tile, tile, tile);
-      if (wall && left && bottom) ctx.drawImage(img.corner_tr, x*tile, y*tile, tile, tile);
-      if (wall && right && top)    ctx.drawImage(img.corner_bl, x*tile, y*tile, tile, tile);
-      if (wall && left && top)    ctx.drawImage(img.corner_br, x*tile, y*tile, tile, tile);
-
-      // Porte centrali
-      if (wall && top && bottom) ctx.drawImage(img.door_left, x*tile, y*tile, tile, tile); // porta verticale
-      if (wall && left && right) ctx.drawImage(img.door_top, x*tile, y*tile, tile, tile); // porta orizzontale
-    }
-  }
-}
 
 
     // SPRITES
@@ -434,35 +394,8 @@ G.sprites.mole = mole;
       direction: 'down',
       stepFrame: 0,
     };
-const wallSprites = {
-  top: [
-    G.sprites.wallParts.top1,
-    G.sprites.wallParts.top2
-  ],
-  bottom: [
-    G.sprites.wallParts.bottom1,
-    G.sprites.wallParts.bottom2
-  ],
-  left: [
-    G.sprites.wallParts.left1,
-    G.sprites.wallParts.left2
-  ],
-  right: [
-    G.sprites.wallParts.right1,
-    G.sprites.wallParts.right2
-  ],
-  angleTL: G.sprites.wallParts.angleTL,
-  angleTR: G.sprites.wallParts.angleTR,
-  angleBL: G.sprites.wallParts.angleBL,
-  angleBR: G.sprites.wallParts.angleBR
-};
-const wp = G.sprites.wallParts;
-wp.angleTL = wp.angleTL || wp.corner_tl;
-wp.angleTR = wp.angleTR || wp.corner_tr;
-wp.angleBL = wp.angleBL || wp.corner_bl;
-wp.angleBR = wp.angleBR || wp.corner_br;
 
-    // Subito dopo aver creato G.petRoom e G.pet in startTreasureMinigame():
+
 
 (function ensureSafeSpawn() {
   const key = `${G.petRoom.x},${G.petRoom.y}`;
@@ -816,13 +749,7 @@ function placeMoleAtRandomSpot() {
   }
 }
 // --- helpers per disegnare i muri ---
-function drawPart(img, x, y, tile) {
-  if (img && img.complete) ctx.drawImage(img, x*tile, y*tile, tile, tile);
-  else { 
-    ctx.fillStyle = '#8c6a2e'; 
-    ctx.fillRect(x*tile, y*tile, tile, tile); 
-  }
-}
+
 
 
 // ---- DRAW HELPERS (safe) ----
@@ -832,67 +759,93 @@ function canUse(img) {
 function drawImg(img, dx, dy, dw, dh) {
   if (canUse(img)) ctx.drawImage(img, dx, dy, dw, dh);
 }
-function drawTile(img, x, y, tile) {
-  if (canUse(img)) ctx.drawImage(img, x*tile, y*tile, tile, tile);
-  else { ctx.fillStyle = '#8c6a2e'; ctx.fillRect(x*tile, y*tile, tile, tile); }
-}
-function drawSafe(img, x, y, size) {
-  if (!img || !img.complete) return;
-  ctx.drawImage(img, x * size, y * size, size, size);
-}
-
-
-
-// Ruota tutta la famiglia di curve di 0..3 quarti di giro
-// Se vedi ancora direzioni sbagliate, cambia questo valore tra 0,1,2,3
-const CURVE_ROT_PHASE = 1; // <-- prova 1 (cioè +90°). Se serve usa 2 (=180°) o 3 (=270°).
-
-
-
-function drawDecor(x, y, key) {
-  const tile = window.treasureTile || 64;
-  const sprite = G.sprites.decor?.[key];
-
-  if (!sprite) {
-    console.warn('❗ Immagine mancante o chiave errata:', key);
-    ctx.fillStyle = '#c94';
-    ctx.fillRect(x * tile, y * tile, tile, tile);
-    return;
-  }
-
-  const img = Array.isArray(sprite)
-    ? sprite[Math.floor(Math.random() * sprite.length)]
-    : sprite;
-
-  if (img?.complete) {
-    ctx.drawImage(img, x * tile, y * tile, tile, tile);
-  } else {
-    console.warn('❗ Immagine non ancora caricata:', key);
-    ctx.fillStyle = '#c94';
-    ctx.fillRect(x * tile, y * tile, tile, tile);
-  }
-}
 
 
 
  // helper locali per il disegno safe
 function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
+function drawTileType(x, y, type, tile) {
+  if (!type) return;
+  const sprite = G.sprites.decor?.[type];
+  if (!sprite) return;
+
+  const img = Array.isArray(sprite)
+    ? sprite[(x + y) % sprite.length]
+    : sprite;
+
+  if (img.complete) ctx.drawImage(img, x * tile, y * tile, tile, tile);
+}
+
+function generateRoomTiles(room) {
+  const h = room.length;
+  const w = room[0].length;
+
+  const tiles = Array.from({ length: h }, () => Array(w).fill(null));
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (room[y][x] !== 1) continue; // Non è muro, salta
+
+      const up    = y > 0 && room[y - 1][x] === 1;
+      const down  = y < h - 1 && room[y + 1][x] === 1;
+      const left  = x > 0 && room[y][x - 1] === 1;
+      const right = x < w - 1 && room[y][x + 1] === 1;
+
+      const openUp    = y > 0 && room[y - 1][x] === 0;
+      const openDown  = y < h - 1 && room[y + 1][x] === 0;
+      const openLeft  = x > 0 && room[y][x - 1] === 0;
+      const openRight = x < w - 1 && room[y][x + 1] === 0;
+
+      // --- ANGOLO ---
+      if (!up && !left)       { tiles[y][x] = 'corner_tl'; continue; }
+      if (!up && !right)      { tiles[y][x] = 'corner_tr'; continue; }
+      if (!down && !left)     { tiles[y][x] = 'corner_bl'; continue; }
+      if (!down && !right)    { tiles[y][x] = 'corner_br'; continue; }
+
+      // --- PORTE ---
+      if (!up && openDown)    { tiles[y][x] = 'door_top'; continue; }
+      if (!down && openUp)    { tiles[y][x] = 'door_bottom'; continue; }
+      if (!left && openRight) { tiles[y][x] = 'door_left'; continue; }
+      if (!right && openLeft) { tiles[y][x] = 'door_right'; continue; }
+
+      // --- BORDI ---
+      if (!up)    { tiles[y][x] = 'top'; continue; }
+      if (!down)  { tiles[y][x] = 'bottom'; continue; }
+      if (!left)  { tiles[y][x] = 'left'; continue; }
+      if (!right) { tiles[y][x] = 'right'; continue; }
+
+      // --- INTERNO ---
+      tiles[y][x] = 'center';
+    }
+  }
+
+  return tiles;
+}
+
+function drawTileType(x, y, type, tileSize = 64) {
+  const sprite = G.sprites.decor?.[type];
+  if (!sprite || !sprite.complete) {
+    console.warn(`❗ Immagine non ancora caricata: ${type}`);
+    return;
+  }
+  ctx.drawImage(sprite, x * tileSize, y * tileSize, tileSize, tileSize);
+}
+
+
 
   // ---------- RENDER ----------
 function render() {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
+  const roomTiles = generateRoomTiles(room);
   const tile = window.treasureTile || 64;
 
   // Sfondo
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // MURI + DECOR
-// MURI con DECORAZIONI (angoli + aperture)
+  // Muri (cornice + porte + interni)
 for (let y = 0; y < Cfg.roomH; y++) {
   for (let x = 0; x < Cfg.roomW; x++) {
-    if (room[y][x] !== 1) continue;
-
     const isTop = y === 0;
     const isBottom = y === Cfg.roomH - 1;
     const isLeft = x === 0;
@@ -903,34 +856,45 @@ for (let y = 0; y < Cfg.roomH; y++) {
     const openLeft = x > 0 && room[y][x - 1] === 0;
     const openRight = x < Cfg.roomW - 1 && room[y][x + 1] === 0;
 
-    // Angoli curvi
-    if (isTop && isLeft)     { drawDecor(x, y, 'corner_tl'); continue; }
-    if (isTop && isRight)    { drawDecor(x, y, 'corner_tr'); continue; }
-    if (isBottom && isLeft)  { drawDecor(x, y, 'corner_bl'); continue; }
-    if (isBottom && isRight) { drawDecor(x, y, 'corner_br'); continue; }
+    // Angoli
+    if (isTop && isLeft) {
+      drawTileType(x, y, 'corner_tl');
+    } else if (isTop && isRight) {
+      drawTileType(x, y, 'corner_tr');
+    } else if (isBottom && isLeft) {
+      drawTileType(x, y, 'corner_bl');
+    } else if (isBottom && isRight) {
+      drawTileType(x, y, 'corner_br');
+    }
 
-    // Porte centrali
-    if (isTop && openDown)       { drawDecor(x, y, 'door_top'); continue; }
-    if (isBottom && openUp)      { drawDecor(x, y, 'door_bottom'); continue; }
-    if (isLeft && openRight)     { drawDecor(x, y, 'door_left'); continue; }
-    if (isRight && openLeft)     { drawDecor(x, y, 'door_right'); continue; }
+    // Porte (sulle pareti)
+    else if (isTop && openDown) {
+      drawTileType(x, y, 'door_top');
+    } else if (isBottom && openUp) {
+      drawTileType(x, y, 'door_bottom');
+    } else if (isLeft && openRight) {
+      drawTileType(x, y, 'door_left');
+    } else if (isRight && openLeft) {
+      drawTileType(x, y, 'door_right');
+    }
 
-    // Muri lineari
-    let part = null;
-    if (isTop)        part = 'top';
-    else if (isBottom) part = 'bottom';
-    else if (isLeft)   part = 'left';
-    else if (isRight)  part = 'right';
+    // Lati semplici (cornice senza porte)
+    else if (isTop) {
+      drawTileType(x, y, 'top');
+    } else if (isBottom) {
+      drawTileType(x, y, 'bottom');
+    } else if (isLeft) {
+      drawTileType(x, y, 'left');
+    } else if (isRight) {
+      drawTileType(x, y, 'right');
+    }
 
-    if (part && G.sprites.wallParts?.[part]) {
-      const variants = G.sprites.wallParts[part];
-      const img = Array.isArray(variants) ? variants[(x + y) % variants.length] : variants;
-      drawSafe(img, x, y, tile);
+    // Centro (opzionale)
+    else {
+      drawTileType(x, y, 'center');
     }
   }
 }
-
-
   // --- TUTTO IL RESTO IDENTICO ---
   const key = `${G.petRoom.x},${G.petRoom.y}`;
 

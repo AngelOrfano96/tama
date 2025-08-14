@@ -304,10 +304,10 @@ const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/ti
 // Immagini decorative per i muri e angoli
 G.sprites.decor = {
   // Angoli
-  corner_tl: loadImg(`${tileBase}/Angolare_AltoSinistra.png`),
-  corner_tr: loadImg(`${tileBase}/Angolare_AltoDestra.png`),
-  corner_bl: loadImg(`${tileBase}/Angolare_bassoSinistra.png`),
-  corner_br: loadImg(`${tileBase}/Angolare_bassoDestra.png`),
+  corner_tl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
+  corner_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
+  corner_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
+  corner_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
 
   // Porte
   door_top: loadImg(`${tileBase}/centrale_sinistro_alto.png`),

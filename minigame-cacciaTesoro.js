@@ -323,8 +323,8 @@ G.sprites.decor = {
   // Angoli speciali per porte
 corner_tl_door: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
 corner_tr_door: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
-corner_bl_door: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
-corner_br_door: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+corner_bl_door: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+corner_br_door: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
 
 
   // Lati normali

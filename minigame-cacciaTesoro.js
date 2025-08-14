@@ -791,73 +791,75 @@ function drawTileType(x, y, type, tile) {
 
 
 
+// v3 - porte larghe 3 celle, angoli a ±2 dal centro del varco
 function generateRoomTiles(room) {
-  const tiles = [];
-
-  const W = room[0].length;
   const H = room.length;
-  const centerX = Math.floor(W / 2);
-  const centerY = Math.floor(H / 2);
+  const W = room[0].length;
+  const tiles = Array.from({ length: H }, () => Array(W).fill(null));
+
+  const cx = Math.floor(W / 2);
+  const cy = Math.floor(H / 2);
+
+  // c'è una porta se al centro del bordo trovi 0
+  const doors = {
+    left:   room[cy]?.[0] === 0,
+    right:  room[cy]?.[W - 1] === 0,
+    top:    room[0]?.[cx] === 0,
+    bottom: room[H - 1]?.[cx] === 0,
+  };
 
   const isEmpty = (x, y) => {
-    if (x < 0 || y < 0 || y >= H || x >= W) return true;
-    return !room[y][x];
+    if (x < 0 || y < 0 || x >= W || y >= H) return true;
+    if (!room[y][x]) return true;                 // 0 = vuoto
+    // considera vuote anche le 3 celle di porta su ciascun bordo
+    if (doors.left   && x === 0     && Math.abs(y - cy) <= 1) return true;
+    if (doors.right  && x === W - 1 && Math.abs(y - cy) <= 1) return true;
+    if (doors.top    && y === 0     && Math.abs(x - cx) <= 1) return true;
+    if (doors.bottom && y === H - 1 && Math.abs(x - cx) <= 1) return true;
+    return false;
   };
 
-  const doors = {
-    left: isEmpty(0, centerY),
-    right: isEmpty(W - 1, centerY),
-    top: isEmpty(centerX, 0),
-    bottom: isEmpty(centerX, H - 1)
-  };
+  // DEBUG (una volta sola per stanza)
+  // console.log('gen v3', {W,H,cx,cy,doors});
 
   for (let y = 0; y < H; y++) {
-    tiles[y] = [];
     for (let x = 0; x < W; x++) {
-      if (!room[y][x]) {
-        tiles[y][x] = null;
-        continue;
-      }
+      if (!room[y][x]) { tiles[y][x] = null; continue; } // pavimento interno
 
-      const up = !isEmpty(x, y - 1);
-      const down = !isEmpty(x, y + 1);
-      const left = !isEmpty(x - 1, y);
+      const up    = !isEmpty(x, y - 1);
+      const down  = !isEmpty(x, y + 1);
+      const left  = !isEmpty(x - 1, y);
       const right = !isEmpty(x + 1, y);
 
-      let type = null;
+      // --- ANGOLI VICINO ALLE PORTE (coordinate esatte) ---
+      // SINISTRA: x==0 e y==cy±2
+      if (doors.left && x === 0 && y === cy - 2) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.left && x === 0 && y === cy + 2) { tiles[y][x] = 'corner_bl_door'; continue; }
+      // DESTRA: x==W-1 e y==cy±2
+      if (doors.right && x === W - 1 && y === cy - 2) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (doors.right && x === W - 1 && y === cy + 2) { tiles[y][x] = 'corner_br_door'; continue; }
+      // ALTO: y==0 e x==cx±2
+      if (doors.top && y === 0 && x === cx - 2) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.top && y === 0 && x === cx + 2) { tiles[y][x] = 'corner_tr_door'; continue; }
+      // BASSO: y==H-1 e x==cx±2
+      if (doors.bottom && y === H - 1 && x === cx - 2) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (doors.bottom && y === H - 1 && x === cx + 2) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // --- ANGOLI (con porte a 3 celle) ---
-      if (!up && !left) {
-        if (doors.left && x === 0 && y === centerY - 2) type = 'corner_tl_door';
-        else if (doors.top && y === 0 && x === centerX - 2) type = 'corner_tl_door';
-        else type = 'corner_tl';
-      }
-      else if (!up && !right) {
-        if (doors.right && x === W - 1 && y === centerY - 2) type = 'corner_tr_door';
-        else if (doors.top && y === 0 && x === centerX + 2) type = 'corner_tr_door';
-        else type = 'corner_tr';
-      }
-      else if (!down && !left) {
-        if (doors.left && x === 0 && y === centerY + 2) type = 'corner_bl_door';
-        else if (doors.bottom && y === H - 1 && x === centerX - 2) type = 'corner_bl_door';
-        else type = 'corner_bl';
-      }
-      else if (!down && !right) {
-        if (doors.right && x === W - 1 && y === centerY + 2) type = 'corner_br_door';
-        else if (doors.bottom && y === H - 1 && x === centerX + 2) type = 'corner_br_door';
-        else type = 'corner_br';
-      }
+      // --- ANGOLI NORMALI ---
+      if (!up && !left)     { tiles[y][x] = 'corner_tl'; continue; }
+      if (!up && !right)    { tiles[y][x] = 'corner_tr'; continue; }
+      if (!down && !left)   { tiles[y][x] = 'corner_bl'; continue; }
+      if (!down && !right)  { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- MURI ---
-      else if (!up) type = 'top';
-      else if (!down) type = 'bottom';
-      else if (!left) type = 'left';
-      else if (!right) type = 'right';
+      // --- MURI DRITTI ---
+      if (!up)              { tiles[y][x] = 'top';    continue; }
+      if (!down)            { tiles[y][x] = 'bottom'; continue; }
+      if (!left)            { tiles[y][x] = 'left';   continue; }
+      if (!right)           { tiles[y][x] = 'right';  continue; }
 
-      tiles[y][x] = type;
+      tiles[y][x] = 'center';
     }
   }
-
   return tiles;
 }
 
@@ -872,8 +874,10 @@ function generateRoomTiles(room) {
 
 
 
+
 function drawRoom(room) {
   const tiles = generateRoomTiles(room);
+  console.table(tiles.map(r => r.map(t => (t||'.').slice(0,3))));
   console.log(tiles); // 🔍 Vedi i valori che arrivano (ti dirà se compaiono corner_*_door)
 
   const tileSize = window.treasureTile || 64;

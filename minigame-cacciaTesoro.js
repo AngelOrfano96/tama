@@ -813,12 +813,22 @@ function generateRoomTiles(room) {
       const openRight = x < w - 1 && room[y][x + 1] === 0;
 
       // --- ANGOLO ---
-      // Angolo solo se sono liberi sopra/sinistra e bloccato sugli altri due
-if (!up && !left && down && right)       { tiles[y][x] = 'corner_tl'; continue; }
-if (!up && !right && down && left)       { tiles[y][x] = 'corner_tr'; continue; }
-if (!down && !left && up && right)       { tiles[y][x] = 'corner_bl'; continue; }
-if (!down && !right && up && left)       { tiles[y][x] = 'corner_br'; continue; }
-
+      if (!up && !left && down && right) {
+        tiles[y][x] = 'corner_tl';
+        continue;
+      } 
+      else if (!up && !right && down && left) {
+        tiles[y][x] = 'corner_tr';
+        continue;
+      } 
+      else if (!down && !left && up && right) {
+        tiles[y][x] = 'corner_bl';
+        continue;
+      } 
+      else if (!down && !right && up && left) {
+        tiles[y][x] = 'corner_br';
+        continue;
+      }
 
       // --- PORTE ---
       if (!up && openDown)    { tiles[y][x] = 'door_top'; continue; }
@@ -827,10 +837,10 @@ if (!down && !right && up && left)       { tiles[y][x] = 'corner_br'; continue; 
       if (!right && openLeft) { tiles[y][x] = 'door_right'; continue; }
 
       // --- BORDI ---
-      if (!up)    { tiles[y][x] = 'top'; continue; }
-      if (!down)  { tiles[y][x] = 'bottom'; continue; }
-      if (!left)  { tiles[y][x] = 'left'; continue; }
-      if (!right) { tiles[y][x] = 'right'; continue; }
+      if (!up && down)    { tiles[y][x] = 'top'; continue; }
+      if (!down && up)    { tiles[y][x] = 'bottom'; continue; }
+      if (!left && right) { tiles[y][x] = 'left'; continue; }
+      if (!right && left) { tiles[y][x] = 'right'; continue; }
 
       // --- INTERNO ---
       tiles[y][x] = 'center';

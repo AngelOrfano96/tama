@@ -781,11 +781,14 @@ function drawImg(img, dx, dy, dw, dh) {
 function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
 function drawTileType(x, y, type, tile) {
-  if (!type) return;
+  if (!type) {
+    console.log(`[SKIP] Nessun tipo per (${x}, ${y})`);
+    return;
+  }
 
   const sprite = G.sprites.decor?.[type];
   if (!sprite) {
-    console.warn(`Sprite mancante per tipo: ${type}`);
+    console.warn(`[MANCANTE] Sprite non trovato per tipo: ${type}`);
     return;
   }
 
@@ -793,10 +796,15 @@ function drawTileType(x, y, type, tile) {
     ? sprite[(x + y) % sprite.length]
     : sprite;
 
-  if (img.complete) {
-    ctx.drawImage(img, x * tile, y * tile, tile, tile);
+  if (!img.complete) {
+    console.log(`[WAITING] Immagine non ancora caricata per tipo: ${type}`);
+    return;
   }
+
+  console.log(`[DRAW] Disegno ${type} a (${x}, ${y})`);
+  ctx.drawImage(img, x * tile, y * tile, tile, tile);
 }
+
 
 
 function generateRoomTiles(room) {
@@ -867,11 +875,12 @@ function drawRoom(room) {
 
   for (let y = 0; y < tileTypes.length; y++) {
     for (let x = 0; x < tileTypes[y].length; x++) {
-      const type = tileTypes[y][x];
-      drawTileType(x, y, type, tile); // usa `type`, non `key`
+      const type = tileTypes[y][x]; // NON key
+      drawTileType(x, y, type, tile);
     }
   }
 }
+
 
 
 

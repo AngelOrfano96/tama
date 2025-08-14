@@ -882,10 +882,10 @@ function render() {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
   const tile = window.treasureTile || 64;
 
-  // sfondo
+  // Sfondo
   drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
-  // === MURI ===
+  // MURI + DECOR
   for (let y = 0; y < Cfg.roomH; y++) {
     for (let x = 0; x < Cfg.roomW; x++) {
       if (room[y][x] !== 1) continue;
@@ -895,65 +895,44 @@ function render() {
       const isLeft   = (x === 0);
       const isRight  = (x === Cfg.roomW - 1);
 
-      // spigoli veri
-      if (isTop && isLeft)     { drawSafe(G.sprites.decor.corner_tl, x, y, tile); continue; }
-      if (isTop && isRight)    { drawSafe(G.sprites.decor.corner_tr, x, y, tile); continue; }
-      if (isBottom && isRight) { drawSafe(G.sprites.decor.corner_br, x, y, tile); continue; }
-      if (isBottom && isLeft)  { drawSafe(G.sprites.decor.corner_bl, x, y, tile); continue; }
+      const openUp    = (y > 0)               && room[y - 1][x] === 0;
+      const openDown  = (y < Cfg.roomH - 1)   && room[y + 1][x] === 0;
+      const openLeft  = (x > 0)               && room[y][x - 1] === 0;
+      const openRight = (x < Cfg.roomW - 1)   && room[y][x + 1] === 0;
 
-      // aperture adiacenti
-      const openUp    = (y > 0)             && room[y-1][x] === 0;
-      const openDown  = (y < Cfg.roomH-1)   && room[y+1][x] === 0;
-      const openLeft  = (x > 0)             && room[y][x-1] === 0;
-      const openRight = (x < Cfg.roomW-1)   && room[y][x+1] === 0;
+      // --- DECOR LOGICA NUOVA ---
+      if (isTop && isLeft)     { drawDecor(x, y, 'corner_tl'); continue; }
+      if (isTop && isRight)    { drawDecor(x, y, 'corner_tr'); continue; }
+      if (isBottom && isLeft)  { drawDecor(x, y, 'corner_bl'); continue; }
+      if (isBottom && isRight) { drawDecor(x, y, 'corner_br'); continue; }
 
-      // TOP
+      if (isTop && openDown)     { drawDecor(x, y, 'door_top'); continue; }
+      if (isBottom && openUp)    { drawDecor(x, y, 'door_bottom'); continue; }
+      if (isLeft && openRight)   { drawDecor(x, y, 'door_left'); continue; }
+      if (isRight && openLeft)   { drawDecor(x, y, 'door_right'); continue; }
+
+      // --- MURI CLASSICI (top, bottom, left, right) ---
       if (isTop) {
-        const leftOpen  = (x > 0)             && room[0][x-1] === 0;
-        const rightOpen = (x < Cfg.roomW-1)   && room[0][x+1] === 0;
-        if (leftOpen)  { drawDecor(x, y, 'corner_tl'); continue; }
-        if (rightOpen) { drawDecor(x, y, 'corner_tr'); continue; }
         drawSafe(G.sprites.wallParts.top[x & 1], x, y, tile);
         continue;
       }
 
-      // BOTTOM
       if (isBottom) {
-        const leftOpen  = (x > 0)               && room[Cfg.roomH-1][x-1] === 0;
-        const rightOpen = (x < Cfg.roomW-1)     && room[Cfg.roomH-1][x+1] === 0;
-        if (leftOpen)  { drawDecor(x, y, 'corner_bl'); continue; }
-        if (rightOpen) { drawDecor(x, y, 'corner_br'); continue; }
         drawSafe(G.sprites.wallParts.bottom[x & 1], x, y, tile);
         continue;
       }
 
-      // LEFT
       if (isLeft) {
-        const topOpen    = (y > 0)             && room[y-1][0] === 0;
-        const bottomOpen = (y < Cfg.roomH-1)   && room[y+1][0] === 0;
-        if (topOpen)    { drawDecor(x, y, 'corner_tl'); continue; }
-        if (bottomOpen) { drawDecor(x, y, 'corner_bl'); continue; }
         drawSafe(G.sprites.wallParts.left[y & 1], x, y, tile);
         continue;
       }
 
-      // RIGHT
       if (isRight) {
-        const topOpen    = (y > 0)             && room[y-1][Cfg.roomW-1] === 0;
-        const bottomOpen = (y < Cfg.roomH-1)   && room[y+1][Cfg.roomW-1] === 0;
-        if (topOpen)    { drawDecor(x, y, 'corner_tr'); continue; }
-        if (bottomOpen) { drawDecor(x, y, 'corner_br'); continue; }
         drawSafe(G.sprites.wallParts.right[y & 1], x, y, tile);
         continue;
       }
 
-      // centro porta top/bottom/left/right
-      if (openUp)    { drawDecor(x, y, 'door_top');    continue; }
-      if (openDown)  { drawDecor(x, y, 'door_bottom'); continue; }
-      if (openLeft)  { drawDecor(x, y, 'door_left');   continue; }
-      if (openRight) { drawDecor(x, y, 'door_right');  continue; }
-
-      // fallback (non dovrebbe capitare)
+      // fallback
       drawSafe(G.sprites.wallParts.top[0], x, y, tile);
     }
   }

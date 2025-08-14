@@ -143,6 +143,28 @@ function setGridForLevel(level) {
     },
   };
 
+
+/////MUSICA
+// --- AUDIO BGM ---
+G.bgm = null;
+
+function ensureBgm() {
+  if (!G.bgm) {
+    G.bgm = new Audio('assets/audio/treasure_theme.ogg'); // <-- metti il tuo path
+    G.bgm.loop = true;
+    G.bgm.volume = 0.35;     // volume iniziale
+    G.bgm.preload = 'auto';
+  }
+}
+function playBgm() {
+  ensureBgm();
+  try { G.bgm.currentTime = 0; G.bgm.play(); } catch(_) {}
+}
+function stopBgm() {
+  if (G.bgm) { G.bgm.pause(); }
+}
+
+
    function checkPickup(pet, powerup) {
   const halfTile = G.tile / 2;
 
@@ -1286,6 +1308,7 @@ if (G.mole.enabled) {
 
   // ---------- END ----------
   function endTreasureMinigame(reason = 'end') {
+    stopBgm();  
     G.playing = false;
     if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
     DOM.modal && DOM.modal.classList.add('hidden');
@@ -1446,6 +1469,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (openTreasure) {
     openTreasure.addEventListener('click', () => {
       modal.classList.add('hidden');
+
+      playBgm();  
+
+
       if (typeof window.startTreasureMinigame === 'function') {
         window.startTreasureMinigame();
       } else {

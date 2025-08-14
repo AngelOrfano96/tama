@@ -262,6 +262,10 @@ function resizeTreasureCanvas() {
     if (isMobileOrTablet()) hudWrap.classList.add('hud-compact');
     else hudWrap.classList.remove('hud-compact');
   }
+if (G?.pet) {
+  resyncPetToGrid();
+}
+
 }
 
 
@@ -395,7 +399,7 @@ G.sprites.mole = mole;
     // PET
     const tile = window.treasureTile || 64;
     G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
-    G.pet = {
+    /*G.pet = {
       x: 1, y: 1,
       px: 1 * tile,
       py: 1 * tile,
@@ -404,8 +408,16 @@ G.sprites.mole = mole;
       moving: false,
       direction: 'down',
       stepFrame: 0,
-    };
-
+    };*/
+G.pet = {
+  x: 1, y: 1,
+  px: 0, py: 0,   // <- verranno sincronizzati dopo il resize
+  animTime: 0,
+  dirX: 0, dirY: 0,
+  moving: false,
+  direction: 'down',
+  stepFrame: 0,
+};
 
 
 (function ensureSafeSpawn() {
@@ -773,6 +785,17 @@ function placeMoleAtRandomSpot() {
 }
 // --- helpers per disegnare i muri ---
 
+function resyncPetToGrid() {
+  const tile = window.treasureTile || 64;
+  // se per qualche motivo è su una cella muro, spostalo in (1,1)
+  const room = G.rooms?.[G.petRoom.y]?.[G.petRoom.x];
+  if (room && room[G.pet.y]?.[G.pet.x] !== 0) {
+    G.pet.x = 1; 
+    G.pet.y = 1;
+  }
+  G.pet.px = G.pet.x * tile;
+  G.pet.py = G.pet.y * tile;
+}
 
 
 // ---- DRAW HELPERS (safe) ----
@@ -1224,6 +1247,8 @@ for (let i = 0; i < nEnemies; i++) {
   function startLevel() {
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
    resizeTreasureCanvas();
+   resyncPetToGrid();
+
     G.timeLeft = 90 + G.level * 3;
     G.playing = false;
 
@@ -1335,7 +1360,7 @@ if (G.mole.enabled) {
 
 
   window.addEventListener('resize', () => {
-    if (G.playing) { resizeTreasureCanvas(); render(); G.hudDirty = true; }
+    if (G.playing) { resizeTreasureCanvas(); render(); resyncPetToGrid(); G.hudDirty = true; }
     showTreasureArrowsIfMobile();
   });
 

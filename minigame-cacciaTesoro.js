@@ -320,6 +320,7 @@ G.sprites.decor = {
   door_left: loadImage(decorPrefix + 'centrale_sinistro_basso.png'),
   door_right: loadImage(decorPrefix + 'centrale_destro_basso.png'),
 };
+console.log('DEBUG decor sprites:', G.sprites.decor);
 
 
 function drawDecorations(room, tile) {
@@ -838,17 +839,15 @@ const CURVE_ROT_PHASE = 1; // <-- prova 1 (cioè +90°). Se serve usa 2 (=180°)
 function drawDecor(x, y, key) {
   const tile = window.treasureTile || 64;
   const img = G.sprites.decor?.[key];
-  if (!img) {
-    console.warn('❗ Immagine mancante:', key);
-    return;
-  }
-  if (img.complete) {
-    ctx.drawImage(img, x * tile, y * tile, tile, tile);
-  } else {
+  if (!img || !img.complete) {
+    console.warn('❗ Immagine mancante o non ancora caricata:', key);
     ctx.fillStyle = '#c94';
     ctx.fillRect(x * tile, y * tile, tile, tile);
+    return;
   }
+  ctx.drawImage(img, x * tile, y * tile, tile, tile);
 }
+
 
 
 

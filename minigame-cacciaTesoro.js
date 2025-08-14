@@ -815,7 +815,12 @@ function generateRoomTiles(room) {
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (room[y][x] !== 1) continue;
+      if (room[y][x] !== 1) {
+        // 👉 Imposta tipo vuoto o floor (se vuoi disegnare il pavimento)
+        // Oppure lascia null se non vuoi disegnare niente.
+        tiles[y][x] = null;
+        continue;
+      }
 
       const up    = y > 0 && room[y - 1][x] === 1;
       const down  = y < h - 1 && room[y + 1][x] === 1;
@@ -834,18 +839,16 @@ function generateRoomTiles(room) {
       if (!right && openLeft) { tiles[y][x] = 'door_right'; continue; }
 
       // --- ANGOLO ---
-      // Solo se 2 adiacenti mancanti, gli altri 2 pieni
-      if (!up && !left && right && down) {
+      if (!up && !left && down && right) {
         tiles[y][x] = 'corner_tl';
-      } else if (!up && !right && left && down) {
+      } else if (!up && !right && down && left) {
         tiles[y][x] = 'corner_tr';
-      } else if (!down && !left && right && up) {
+      } else if (!down && !left && up && right) {
         tiles[y][x] = 'corner_bl';
-      } else if (!down && !right && left && up) {
+      } else if (!down && !right && up && left) {
         tiles[y][x] = 'corner_br';
       }
-
-      // --- BORDI NORMALI ---
+      // --- BORDI ---
       else if (!up && down) {
         tiles[y][x] = 'top';
       } else if (!down && up) {
@@ -855,7 +858,6 @@ function generateRoomTiles(room) {
       } else if (!right && left) {
         tiles[y][x] = 'right';
       }
-
       // --- INTERNO ---
       else {
         tiles[y][x] = 'center';
@@ -864,8 +866,8 @@ function generateRoomTiles(room) {
   }
 
   return tiles;
-  console.table(tiles);
 }
+
 
 
 function drawRoom(room) {

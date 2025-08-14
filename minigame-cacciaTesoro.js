@@ -782,15 +782,22 @@ function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
 function drawTileType(x, y, type, tile) {
   if (!type) return;
+
   const sprite = G.sprites.decor?.[type];
-  if (!sprite) return;
+  if (!sprite) {
+    console.warn(`Sprite mancante per tipo: ${type}`);
+    return;
+  }
 
   const img = Array.isArray(sprite)
     ? sprite[(x + y) % sprite.length]
     : sprite;
 
-  if (img.complete) ctx.drawImage(img, x * tile, y * tile, tile, tile);
+  if (img.complete) {
+    ctx.drawImage(img, x * tile, y * tile, tile, tile);
+  }
 }
+
 
 function generateRoomTiles(room) {
   const h = room.length;
@@ -849,22 +856,23 @@ function generateRoomTiles(room) {
   }
 
   return tiles;
+  console.table(tiles);
 }
 
 
 function drawRoom(room) {
   const tile = window.treasureTile || 64;
 
-  // Genera le tile decorative (top, corner_tl, ecc)
   const tileTypes = generateRoomTiles(room);
 
   for (let y = 0; y < tileTypes.length; y++) {
     for (let x = 0; x < tileTypes[y].length; x++) {
-      const key = tileTypes[y][x];
-      drawTileType(x, y, key, tile);
+      const type = tileTypes[y][x];
+      drawTileType(x, y, type, tile); // usa `type`, non `key`
     }
   }
 }
+
 
 
 function drawTile(sprite, tileX, tileY) {

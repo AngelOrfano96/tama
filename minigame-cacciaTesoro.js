@@ -804,71 +804,59 @@ function drawTileType(x, y, type, tile) {
 
 
 function generateRoomTiles(room) {
-  const h = room.length;
-  const w = room[0].length;
+  const tiles = [];
 
-  const tiles = Array.from({ length: h }, () => Array(w).fill(null));
+  for (let y = 0; y < room.length; y++) {
+    tiles[y] = [];
 
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const value = room[y]?.[x];
-      const isWall = parseInt(value) === 1;
-
-      if (!isWall) {
-        console.log(`[SKIP] Nessun tipo per (${x}, ${y}) - Valore:`, value);
+    for (let x = 0; x < room[y].length; x++) {
+      if (!room[y][x]) {
         tiles[y][x] = null;
+        console.log(`[SKIP] Nessun tipo per (${x}, ${y}) - Valore: 0`);
         continue;
       }
 
-      const up    = y > 0 && parseInt(room[y - 1][x]) === 1;
-      const down  = y < h - 1 && parseInt(room[y + 1][x]) === 1;
-      const left  = x > 0 && parseInt(room[y][x - 1]) === 1;
-      const right = x < w - 1 && parseInt(room[y][x + 1]) === 1;
-
-      const openUp    = y > 0 && parseInt(room[y - 1][x]) === 0;
-      const openDown  = y < h - 1 && parseInt(room[y + 1][x]) === 0;
-      const openLeft  = x > 0 && parseInt(room[y][x - 1]) === 0;
-      const openRight = x < w - 1 && parseInt(room[y][x + 1]) === 0;
-
-      // --- PORTE ---
-      if (!up && openDown)    { tiles[y][x] = 'door_top';    console.log(`[DRAW] Disegno door_top a (${x}, ${y})`); continue; }
-      if (!down && openUp)    { tiles[y][x] = 'door_bottom'; console.log(`[DRAW] Disegno door_bottom a (${x}, ${y})`); continue; }
-      if (!left && openRight) { tiles[y][x] = 'door_left';   console.log(`[DRAW] Disegno door_left a (${x}, ${y})`); continue; }
-      if (!right && openLeft) { tiles[y][x] = 'door_right';  console.log(`[DRAW] Disegno door_right a (${x}, ${y})`); continue; }
+      const up = y > 0 ? room[y - 1][x] : 0;
+      const down = y < room.length - 1 ? room[y + 1][x] : 0;
+      const left = x > 0 ? room[y][x - 1] : 0;
+      const right = x < room[y].length - 1 ? room[y][x + 1] : 0;
 
       // --- ANGOLO ---
-      if (!up && !left && down && right) {
+      if (!up && !left) {
         tiles[y][x] = 'corner_tl';
-      } else if (!up && !right && down && left) {
+      } else if (!up && !right) {
         tiles[y][x] = 'corner_tr';
-      } else if (!down && !left && up && right) {
+      } else if (!down && !left) {
         tiles[y][x] = 'corner_bl';
-      } else if (!down && !right && up && left) {
+      } else if (!down && !right) {
         tiles[y][x] = 'corner_br';
       }
-      // --- BORDI ---
-   // --- BORDI ---
-else if (!up && (left || right || down)) {
-  tiles[y][x] = 'top';
-} else if (!down && (left || right || up)) {
-  tiles[y][x] = 'bottom';
-} else if (!left && (up || down || right)) {
-  tiles[y][x] = 'left';
-} else if (!right && (up || down || left)) {
-  tiles[y][x] = 'right';
-}
+
+      // --- MURI ---
+      else if (!up) {
+        tiles[y][x] = 'top';
+      } else if (!down) {
+        tiles[y][x] = 'bottom';
+      } else if (!left) {
+        tiles[y][x] = 'left';
+      } else if (!right) {
+        tiles[y][x] = 'right';
+      }
 
       // --- INTERNO ---
       else {
-        tiles[y][x] = 'center';
+        tiles[y][x] = null; // interno o muro pieno
       }
 
-      console.log(`[DRAW] Disegno ${tiles[y][x]} a (${x}, ${y})`);
+      if (tiles[y][x]) {
+        console.log(`[DRAW] Disegno ${tiles[y][x]} a (${x}, ${y})`);
+      }
     }
   }
 
   return tiles;
 }
+
 
 
 

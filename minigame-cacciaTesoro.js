@@ -201,6 +201,8 @@ function getCurrentPetSpeed() {
 function resizeTreasureCanvas() {
   const wWin = window.innerWidth;
   const hWin = window.innerHeight;
+
+
   ctx = DOM.canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false; // <- qui
 
@@ -241,6 +243,10 @@ function resizeTreasureCanvas() {
   ctx = DOM.canvas.getContext('2d');
   G.hudDirty = true;
 
+    // ✅ AGGIUNGI QUESTO:
+  G.tileSize = tile;
+  G.roomWidth = Cfg.roomW;
+  G.roomHeight = Cfg.roomH;
   // attiva HUD compatto su mobile
   const hudWrap = document.getElementById('treasure-hud') || DOM.modal;
   if (hudWrap) {
@@ -830,15 +836,6 @@ function generateRoomTiles(room) {
   }
 
   return tiles;
-}
-
-function drawTileType(x, y, key) {
-  const tile = window.treasureTile || 64;
-  const img = G.sprites.decor?.[key];
-  if (!img) return console.warn('❗ Immagine non trovata:', key);
-  if (!img.complete) return console.warn('❗ Immagine non ancora caricata:', key);
-
-  ctx.drawImage(img, x * tile, y * tile, tile, tile);
 }
 
 function drawRoom(room) {

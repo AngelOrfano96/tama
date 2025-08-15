@@ -117,7 +117,7 @@ const DECOR = {
   corner_br_door: pick(8,3),
 
   floor: [
-    pick(0,6), pick(1,6), pick(2,6), pick(3,6) // 4 varianti 16×16
+    pick(11,2), pick(11,3), pick(12,2), pick(12,3) // 4 varianti 16×16
   ],
 };
 

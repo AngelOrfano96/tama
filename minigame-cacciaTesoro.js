@@ -306,62 +306,51 @@ function resizeTreasureCanvas() {
   const wWin = window.innerWidth;
   const hWin = window.innerHeight;
 
-
-  ctx = DOM.canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = false; // <- qui
-
-
-  // spazio effettivo: tolgo l’HUD (circa 70px) e considero il notch
-  const hudH   = 70;
-  const safeB  = (window.visualViewport ? (window.visualViewport.height - hWin) : 0) || 0;
+  // spazio utile (come avevi)
+  const hudH  = 70;
+  const safeB = (window.visualViewport ? (window.visualViewport.height - hWin) : 0) || 0;
   let w = wWin;
   let h = hWin - hudH - safeB;
 
-  // base tile calcolata sul room size logico
+  // base tile
   let tileBase = Math.min(w / Cfg.roomW, h / Cfg.roomH);
-
-  // su mobile zoom-out leggero (mostra più mappa a parità di schermo)
   if (isMobileOrTablet()) tileBase *= 0.82;
 
-  // clamp per evitare tile esagerate
-  const TILE_MIN = 28;   // più piccolo = più mappa visibile
-  const TILE_MAX = 96;   // evita sprite sgranati
-  const tile = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.floor(tileBase)));
+  const TILE_MIN = 28;
+  const TILE_MAX = 96;
 
-  // piccolo padding per non “schiacciare” sugli edge
-  const padX = Math.max(0, Math.floor((w - Cfg.roomW * tile) / 2));
-  const padY = Math.max(0, Math.floor((h - Cfg.roomH * tile) / 2));
+  // 👇 forziamo il TILE ad essere MULTIPLO di 16 (dimensione dell’atlas)
+  const ATLAS_TILE = 16;
+  let tile = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.floor(tileBase)));
+  tile = Math.max(ATLAS_TILE, Math.round(tile / ATLAS_TILE) * ATLAS_TILE);
 
-  DOM.canvas.width  = Cfg.roomW * tile;
-  DOM.canvas.height = Cfg.roomH * tile;
+  // 👇 retina: aumentiamo il backing store e scalamo il contesto
+  const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
 
-  // centra il canvas nell’area disponibile
+  // dimensioni CSS (in px logici)
   DOM.canvas.style.width  = `${Cfg.roomW * tile}px`;
   DOM.canvas.style.height = `${Cfg.roomH * tile}px`;
-  DOM.canvas.style.marginLeft = `${padX}px`;
-  DOM.canvas.style.marginRight = `${padX}px`;
-  DOM.canvas.style.marginTop = `${padY}px`;
-  DOM.canvas.style.marginBottom = `${padY}px`;
 
-  window.treasureTile = tile;  // usato ovunque
+  // dimensioni reali del canvas (px fisici)
+  DOM.canvas.width  = Cfg.roomW * tile * dpr;
+  DOM.canvas.height = Cfg.roomH * tile * dpr;
+
   ctx = DOM.canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // importantissimo
+  ctx.imageSmoothingEnabled = false;
+
+  window.treasureTile = tile;
   G.hudDirty = true;
 
-    // ✅ AGGIUNGI QUESTO:
-  G.tileSize = tile;
-  G.roomWidth = Cfg.roomW;
-  G.roomHeight = Cfg.roomH;
-  // attiva HUD compatto su mobile
-  const hudWrap = document.getElementById('treasure-hud') || DOM.modal;
-  if (hudWrap) {
-    if (isMobileOrTablet()) hudWrap.classList.add('hud-compact');
-    else hudWrap.classList.remove('hud-compact');
-  }
-if (G?.pet) {
-  resyncPetToGrid();
+  // (facoltativo) centra con padding
+  const padX = Math.max(0, Math.floor((w - Cfg.roomW * tile) / 2));
+  const padY = Math.max(0, Math.floor((h - Cfg.roomH * tile) / 2));
+  DOM.canvas.style.margin = `${padY}px ${padX}px`;
+
+  // se vuoi essere super-sicuro, riallinea il pet
+  if (G?.pet) resyncPetToGrid();
 }
 
-}
 
 
   // ---------- HUD ----------

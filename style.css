@@ -1030,3 +1030,7 @@ body {
 #treasure-joystick-base.active { opacity: .9; }
 
 
+#treasure-canvas {
+  image-rendering: pixelated;       /* Chrome/Edge/Firefox */
+  image-rendering: crisp-edges;     /* Safari vecchi */
+}

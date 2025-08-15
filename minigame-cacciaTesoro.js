@@ -24,15 +24,6 @@ const PHYS = {
 const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova 32 se serve)
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
 
-G.sprites.atlas = new Image();
-
-G.sprites.atlas.onload  = () =>
-  console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
-G.sprites.atlas.onerror = () =>
-  console.error('[ATLAS] FAILED to load:', G.sprites.atlas.src);
-
-G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`;
-
 // helper: seleziona un rettangolo (w,h in celle, default 1×1)
 const pick = (c, r, w = 1, h = 1) => ({
   sx: c * ATLAS_TILE,
@@ -41,36 +32,44 @@ const pick = (c, r, w = 1, h = 1) => ({
   sh: h * ATLAS_TILE,
 });
 
-// Mappa nomi → coordinate dentro l’atlas.
+function initAtlasSprites() {
+  // carica l’immagine atlas
+  G.sprites.atlas = new Image();
+  G.sprites.atlas.onload  = () =>
+    console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+  G.sprites.atlas.onerror = (e) =>
+    console.error('[ATLAS] failed', G.sprites.atlas.src, e);
 
-const ATLAS = {
+  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // controlla il path
 
-  decor: {
-    // Muri normali
-    top1:    pick( 11, 1),
-    top2:    pick( 12, 1),
-    bottom: pick( 11, 4),
-    bottom2: pick( 12, 4),
-    left1:   pick( 10, 1),
-    left2:   pick( 10, 2),
-    left3:   pick( 10, 3),
-    right1:  pick( 13, 1),
-    right2:  pick( 13, 2),
-    right3:  pick( 13, 3),
+  // Mappa i tipi decor -> ritagli dell’atlas
+  G.sprites.decor = {
+    // muri (placeholder: aggiusta le coordinate)
+    top1:    pick(11,1),
+    top2:    pick(12,1),
+    bottom:  pick(11,4),
+    bottom2: pick(12,4),
+    left1:   pick(10,1),
+    left2:   pick(10,2),
+    left3:   pick(10,3),
+    right1:  pick(13,1),
+    right2:  pick(13,2),
+    right3:  pick(13,3),
 
-    // Angoli
-    corner_tl: pick(9, 0),
-    corner_tr: pick(12, 0),
-    corner_bl: pick(9, 4),
-    corner_br: pick(12, 4),
+    // angoli
+    corner_tl: pick(9,0),
+    corner_tr: pick(12,0),
+    corner_bl: pick(9,4),
+    corner_br: pick(12,4),
 
-    // Angoli speciali per porte
-    corner_tl_door: pick(9, 0),
-    corner_tr_door: pick(12, 0),
+    // angoli porta (per ora uguali, poi li cambi)
+    corner_tl_door: pick(9,0),
+    corner_tr_door: pick(12,0),
     corner_bl_door: pick(9,4),
     corner_br_door: pick(12,4),
-  }
-};
+  };
+}
+
 
 // ---- Config porte ----
 const DOOR_SPAN = 3;                      // larghezza in celle (3 come ora)
@@ -360,6 +359,7 @@ if (G?.pet) {
     playBgm();  
     generateDungeon();
     requestLandscape();
+    initAtlasSprites(); 
 
     G.level = 1;
     G.score = 0;

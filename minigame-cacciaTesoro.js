@@ -839,18 +839,18 @@ function movePet(dt) {
   // --- movimento con micro-step ---
   const speed = getCurrentPetSpeed();
 
-  // Hitbox più "visiva"
-  const size = Math.max(12, tile - 18);
+  // hitbox più piccola (più vicina al feeling visivo)
+  const size = Math.max(12, tile - 20);
 
-  // margini per lato: nord un po' conservativo, S/E/O permissivi
-  const HIT = { top: 5, right: 1, bottom: 1, left: 1 };
+  // margini asimmetrici (nord un filo più “solido”)
+  const HIT_BASE = { top: 3, right: 1, bottom: 1, left: 1 };
 
   const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
-    // piccolo bias a favore del movimento
-    const mL = Math.max(0, HIT.left   - (dirX < 0 ? 1 : 0));
-    const mR = Math.max(0, HIT.right  - (dirX > 0 ? 1 : 0));
-    const mT = Math.max(0, HIT.top    - 0);
-    const mB = Math.max(0, HIT.bottom - (dirY > 0 ? 1 : 0));
+    // piccolo bias verso la direzione di marcia
+    const mL = Math.max(0, HIT_BASE.left   - (dirX < 0 ? 1 : 0));
+    const mR = Math.max(0, HIT_BASE.right  - (dirX > 0 ? 1 : 0));
+    const mT = Math.max(0, HIT_BASE.top    - (dirY < 0 ? 1 : 0));   // ← riduco se salgo
+    const mB = Math.max(0, HIT_BASE.bottom - (dirY > 0 ? 1 : 0));
 
     const minX = Math.floor((nx + mL)        / tile);
     const maxX = Math.floor((nx + size - mR) / tile);
@@ -892,28 +892,28 @@ function movePet(dt) {
     G.pet.animTime = 0;
   }
 
-  // --- passaggio stanza (porte) con SOGLIA sul centro ---
-  const cx = G.pet.px + size/2;
-  const cy = G.pet.py + size/2;
-  const fas = 0.18 * tile; // “fascia” porta dal bordo (regolabile)
+  // --- passaggio stanza (porte) con soglia sul BORDO dell'hitbox
+  const ENTER_GAP = 8; // px di “fascia porta” (puoi provarlo 6–12)
 
-  // LEFT (ovest)
-  if (cx < fas && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
+  // a Ovest
+  if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
     G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
-  // RIGHT (est)
-  else if (cx > (Cfg.roomW - 1) * tile - fas && G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y]?.[Cfg.roomW - 1] === 0) {
+  // a Est
+  else if (G.pet.px + size >= (Cfg.roomW - 1) * tile - ENTER_GAP &&
+           G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y]?.[Cfg.roomW - 1] === 0) {
     G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
-  // TOP (nord)
-  else if (cy < fas && G.petRoom.y > 0 && room[0]?.[G.pet.x] === 0) {
+  // a Nord
+  else if (G.pet.py <= ENTER_GAP && G.petRoom.y > 0 && room[0]?.[G.pet.x] === 0) {
     G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
-  // BOTTOM (sud)
-  else if (cy > (Cfg.roomH - 1) * tile - fas && G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1]?.[G.pet.x] === 0) {
+  // a Sud
+  else if (G.pet.py + size >= (Cfg.roomH - 1) * tile - ENTER_GAP &&
+           G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1]?.[G.pet.x] === 0) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
@@ -959,9 +959,8 @@ function movePet(dt) {
   if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
       Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1 &&
       coinsLeft === 0) {
-
     G.level++; G.hudDirty = true; setGridForLevel(G.level);
-    G.playing = false;        // evita frame “misti”
+    G.playing = false;
     setTimeout(() => { generateDungeon(); startLevel(); }, 50);
     return;
   }
@@ -975,6 +974,7 @@ function movePet(dt) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 

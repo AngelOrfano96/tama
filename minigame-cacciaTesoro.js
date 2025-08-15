@@ -15,7 +15,7 @@
     baseTimerMs: 1000,
   };
 // Tuning collisioni (più permissive)
-
+////////////////////
   const G = {
     // dinamiche
     hudDirty: true,

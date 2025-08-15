@@ -32,17 +32,6 @@ const pick = (c, r, w = 1, h = 1) => ({
   sh: h * ATLAS_TILE,
 });
 
-function initAtlasSprites() {
-  // carica l’immagine atlas
-  G.sprites.atlas = new Image();
-  G.sprites.atlas.onload  = () =>
-    console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
-  G.sprites.atlas.onerror = (e) =>
-    console.error('[ATLAS] failed', G.sprites.atlas.src, e);
-
-  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // controlla il path
-
-  // Mappa i tipi decor -> ritagli dell’atlas
   G.sprites.decor = {
     // muri (placeholder: aggiusta le coordinate)
     top1:    pick(11,1),
@@ -68,7 +57,21 @@ function initAtlasSprites() {
     corner_bl_door: pick(9,4),
     corner_br_door: pick(12,4),
   };
+
+function initAtlasSprites() {
+  // usa la mappa già definita sopra
+  G.sprites.decor = ATLAS.decor;
+
+  // carica l'immagine atlas
+  G.sprites.atlas = new Image();
+  G.sprites.atlas.onload  = () =>
+    console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+  G.sprites.atlas.onerror = (e) =>
+    console.error('[ATLAS] failed to load', G.sprites.atlas?.src, e);
+
+  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // verifica che il path esista davvero
 }
+
 
 
 // ---- Config porte ----
@@ -884,23 +887,25 @@ function drawTileType(x, y, type, tile) {
 
   const chosen = Array.isArray(entry) ? entry[(x + y) % entry.length] : entry;
 
-  // Caso “ritaglio atlas” = oggetto {sx,sy,sw,sh}
+  // Caso 1: entry è un rettangolo dell'ATLAS
   if (chosen && typeof chosen === 'object' && 'sx' in chosen) {
-    if (!G.sprites.atlas.complete) return;
+    const atlas = G.sprites.atlas;
+    if (!atlas || !atlas.complete) return; // aspetta che l'immagine sia pronta
     ctx.drawImage(
-      G.sprites.atlas,
-      chosen.sx, chosen.sy, chosen.sw, chosen.sh,
-      x * tile, y * tile, tile, tile
+      atlas,
+      chosen.sx, chosen.sy, chosen.sw, chosen.sh,   // sorgente nell'atlas
+      x * tile, y * tile, tile, tile               // destinazione nel canvas
     );
     return;
   }
 
-  // Back-compat: immagine singola
+  // Caso 2: entry è un'Image singola (fallback)
   if (chosen instanceof HTMLImageElement) {
     if (!chosen.complete) return;
     ctx.drawImage(chosen, x * tile, y * tile, tile, tile);
   }
 }
+
 
 
 
@@ -1040,7 +1045,7 @@ drawRoom(room);
   if (G.objects[key]) {
     for (const obj of G.objects[key]) {
       if (obj.type === 'coin' && !obj.taken) {
-        if (G.sprites.coin.complete) ctx.drawImage(G.sprites.coin, obj.x*tile+tile/4, obj.y*tile+tile/4, tile/2, tile/2);
+        if (G.sprites.coin?.complete) ctx.drawImage(G.sprites.coin, obj.x*tile+tile/4, obj.y*tile+tile/4, tile/2, tile/2);
         else { ctx.fillStyle = '#FFA500'; ctx.beginPath(); ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill(); }
       }
     }

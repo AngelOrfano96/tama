@@ -15,6 +15,67 @@
     baseTimerMs: 1000,
   };
 // Tuning collisioni (più permissive)
+
+  const G = {
+    // dinamiche
+    hudDirty: true,
+    playing: false,
+    level: 1,
+    score: 0,
+    timeLeft: 0,
+    speedMul: 1,
+    timerId: null,
+
+    // potenziamenti
+    activePowerup: null,     // 'speed' | 'slow' | null
+    powerupExpiresAt: 0,
+    slowExpiresAt: 0,
+
+    // mondo
+    rooms: [],
+    petRoom: { x: 0, y: 0 },
+    objects: {},
+    enemies: {},
+    powerups: {},
+    exitRoom: { x: 0, y: 0 },
+    exitTile: { x: 0, y: 0 },
+    skulls: [],
+
+    //talpa
+    mole: {
+    enabled: false,
+    roomX: 0, roomY: 0,
+    x: 0, y: 0,            // cella
+    phase: 'emerge1',      // 'emerge1'|'emerge2'|'hold'|'retreat2'|'retreat1'|'gap'
+    t: 0,                  // timer fase corrente
+      },
+
+    // pet
+    pet: {
+      x: 1, y: 1,
+      px: 0, py: 0,
+      animTime: 0,
+      dirX: 0, dirY: 0,
+      moving: false,
+      direction: 'down',
+      stepFrame: 0,
+    },
+
+    // input
+    keysStack: [],
+
+    // sprites
+    sprites: {
+      pet: null,
+      goblin: null,
+      coin: null,
+      enemy: null,
+      exit: null,
+      wall: null,
+      bg: null,
+      powerup: null,
+    },
+  };
 const PHYS = {
   bodyShrink: 36, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
   skin: 6,        // margine anti-incastro (prima 2). Più alto = più permissivo
@@ -135,66 +196,7 @@ function setGridForLevel(level) {
   let ctx = DOM.canvas.getContext('2d');
   const isTouch = window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches;
   // ---------- STATO GIOCO ----------
-  const G = {
-    // dinamiche
-    hudDirty: true,
-    playing: false,
-    level: 1,
-    score: 0,
-    timeLeft: 0,
-    speedMul: 1,
-    timerId: null,
 
-    // potenziamenti
-    activePowerup: null,     // 'speed' | 'slow' | null
-    powerupExpiresAt: 0,
-    slowExpiresAt: 0,
-
-    // mondo
-    rooms: [],
-    petRoom: { x: 0, y: 0 },
-    objects: {},
-    enemies: {},
-    powerups: {},
-    exitRoom: { x: 0, y: 0 },
-    exitTile: { x: 0, y: 0 },
-    skulls: [],
-
-    //talpa
-    mole: {
-    enabled: false,
-    roomX: 0, roomY: 0,
-    x: 0, y: 0,            // cella
-    phase: 'emerge1',      // 'emerge1'|'emerge2'|'hold'|'retreat2'|'retreat1'|'gap'
-    t: 0,                  // timer fase corrente
-      },
-
-    // pet
-    pet: {
-      x: 1, y: 1,
-      px: 0, py: 0,
-      animTime: 0,
-      dirX: 0, dirY: 0,
-      moving: false,
-      direction: 'down',
-      stepFrame: 0,
-    },
-
-    // input
-    keysStack: [],
-
-    // sprites
-    sprites: {
-      pet: null,
-      goblin: null,
-      coin: null,
-      enemy: null,
-      exit: null,
-      wall: null,
-      bg: null,
-      powerup: null,
-    },
-  };
 
 
 /////MUSICA

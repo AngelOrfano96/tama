@@ -1020,7 +1020,7 @@ body {
 /* joystick meno invasivo e safe-area friendly */
 #treasure-joystick-base {
   position: fixed;
-  left: 16px;
+  left: 50px;
   bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   opacity: .45;
   transition: opacity .15s ease;

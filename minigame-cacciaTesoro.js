@@ -112,9 +112,9 @@ const DECOR = {
   corner_br: pick(13,4),
 
   corner_tl_door: pick(9,5),
-  corner_tr_door: pick(13,1),
-  corner_bl_door: pick(10,4),
-  corner_br_door: pick(13,4),
+  corner_tr_door: pick(8,5),
+  corner_bl_door: pick(9,3),
+  corner_br_door: pick(8,3),
 };
 
 // costruisce la tabella usata dal renderer

@@ -56,6 +56,7 @@
     score: 0,
     timeLeft: 0,
     speedMul: 1,
+    exiting: false,
     timerId: null,
 
     // potenziamenti
@@ -399,8 +400,8 @@ function ensureTinyHud() {
   box.innerHTML = `
     <div class="row"><span class="lab">Punteggio</span><span id="hud-score" class="val">0</span></div>
     <div class="row"><span class="lab">Livello</span><span id="hud-level" class="val">1</span></div>
-    <div class="row"><span class="lab">Tempo</span><span id="hud-time" class="val">0:00</span></div>
-    <div class="row"><span class="lab">Monete</span><span id="hud-coins" class="val">0</span></div>
+    <div class="row"><span class="lab">Tempo Rimanente</span><span id="hud-time" class="val">0:00</span></div>
+    <div class="row"><span class="lab">Monete da trovare</span><span id="hud-coins" class="val">0</span></div>
   `;
 
   // stile righe
@@ -955,15 +956,28 @@ function movePet(dt) {
   }
 
   // --- uscita (tutte le monete prese) ---
-  const coinsLeft = countCoinsLeft();
-  if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
-      Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1 &&
-      coinsLeft === 0) {
-    G.level++; G.hudDirty = true; setGridForLevel(G.level);
-    G.playing = false;
-    setTimeout(() => { generateDungeon(); startLevel(); }, 50);
-    return;
-  }
+// scatta una sola volta grazie a G.exiting
+const coinsLeft = countCoinsLeft();
+const onExitTile =
+  G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
+  Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1;
+
+if (!G.exiting && onExitTile && coinsLeft === 0) {
+  G.exiting = true;         // <— blocca trig multipli
+  G.playing = false;        // <— ferma subito l’update
+  G.level += 1;
+  G.hudDirty = true;
+  setGridForLevel(G.level);
+
+  // prepara nuova mappa/level dopo un tick
+  setTimeout(() => {
+    generateDungeon();
+    startLevel();
+  }, 50);
+
+  return; // importantissimo
+}
+
 
   // --- collisione con nemici ---
   const enemies = G.enemies[key] || [];
@@ -974,12 +988,6 @@ function movePet(dt) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
-
-
-
-
-
-
 
 
 function moveEnemies(dt) {
@@ -1560,6 +1568,7 @@ for (let i = 0; i < nEnemies; i++) {
 
   // ---------- START LEVEL ----------
   function startLevel() {
+    G.exiting = false;
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
      G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
   G.pet.x = 1; G.pet.y = 1;
@@ -1604,6 +1613,7 @@ if (G.mole.enabled) {
 
   // ---------- END ----------
   function endTreasureMinigame(reason = 'end') {
+    G.exiting = false;
     stopBgm();  
     G.playing = false;
     if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }

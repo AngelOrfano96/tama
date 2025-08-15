@@ -115,8 +115,18 @@ const DECOR = {
   corner_tr_door: pick(8,5),
   corner_bl_door: pick(9,3),
   corner_br_door: pick(8,3),
+
+  floor: [
+    pick(0,6), pick(1,6), pick(2,6), pick(3,6) // 4 varianti 16×16
+  ],
 };
 
+function variantIndex(x, y, len) {
+  // hash veloce e stabile per (x,y)
+  let h = (x * 73856093) ^ (y * 19349663);
+  h = (h ^ (h >>> 13)) >>> 0;
+  return h % len;
+}
 // costruisce la tabella usata dal renderer
 function buildDecorFromAtlas() {
   G.sprites.decor = {
@@ -135,6 +145,14 @@ function buildDecorFromAtlas() {
     corner_bl_door: DECOR.corner_bl_door,
     corner_br_door: DECOR.corner_br_door,
   };
+}
+function drawFloor(room) {
+  const tile = window.treasureTile || 64;
+  for (let y = 1; y < room.length-1; y++) {
+    for (let x = 1; x < room[0].length-1; x++) {
+      if (room[y][x] === 0) drawTileType(x, y, 'floor', tile);
+    }
+  }
 }
 
 
@@ -312,13 +330,17 @@ function resizeTreasureCanvas() {
   let w = wWin;
   let h = hWin - hudH - safeB;
 
-  // base tile
-  let tileBase = Math.min(w / Cfg.roomW, h / Cfg.roomH);
-  if (isMobileOrTablet()) tileBase *= 0.82;
+// base tile calcolata sul room size logico (snap a multipli di 16)
+let raw = Math.min(w / Cfg.roomW, h / Cfg.roomH);
+if (isMobileOrTablet()) raw *= 0.82;
 
-  const TILE_MIN = 28;
-  const TILE_MAX = 96;
-  let tile = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.floor(tileBase)));
+// usa min/max che siano multipli di 16 per non perdere nitidezza
+const TILE_MIN = 32;   // 2×16
+const TILE_MAX = 128;  // 8×16
+
+let tile = Math.round(raw / ATLAS_TILE) * ATLAS_TILE; // snap a multipli di 16
+tile = Math.max(TILE_MIN, Math.min(TILE_MAX, tile));
+
 
   // 👇 forza multipli dell’ATLAS (16 px)
   const ATLAS_TILE = 16;
@@ -878,17 +900,15 @@ function drawTileType(x, y, type, tile) {
   const entry = G.sprites.decor?.[type];
   if (!entry) return;
 
-  const d = Array.isArray(entry) ? entry[(x + y) % entry.length] : entry;
+  const d = Array.isArray(entry)
+    ? entry[ variantIndex(x, y, entry.length) ]   // <-- qui
+    : entry;
 
-  // se è un ritaglio dell'atlas:
   if (d && typeof d === 'object' && 'sx' in d) {
     const atlas = G.sprites.atlas;
     if (!atlas || !atlas.complete) return;
     ctx.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
-    return;
-  }
-  // se è un'Image:
-  if (d instanceof HTMLImageElement) {
+  } else if (d instanceof HTMLImageElement) {
     if (!d.complete) return;
     ctx.drawImage(d, x * tile, y * tile, tile, tile);
   }
@@ -900,30 +920,28 @@ function drawTileType(x, y, type, tile) {
 
 
 
+
 // v3 - porte larghe 3 celle, angoli a ±2 dal centro del varco
 function generateRoomTiles(room) {
-  const H = room.length;
-  const W = room[0].length;
+  const H = room.length, W = room[0].length;
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
-
-  const cx = Math.floor(W / 2);
-  const cy = Math.floor(H / 2);
+  const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
 
   const doors = {
     left:   room[cy]?.[0]     === 0,
-    right:  room[cy]?.[W - 1] === 0,
+    right:  room[cy]?.[W-1]   === 0,
     top:    room[0]?.[cx]     === 0,
-    bottom: room[H - 1]?.[cx] === 0,
+    bottom: room[H-1]?.[cx]   === 0,
   };
-
-  // quanto distanziare gli angoli speciali della porta (con DOOR_SPAN=3 → off=2)
   const off = HALF_SPAN + 1;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!room[y][x]) { tiles[y][x] = null; continue; } // interno/porta
 
-      // --- angoli "porta" (override precisi) ---
+      // --- PAVIMENTO su tutte le celle interne (0) e sui varchi delle porte ---
+      if (room[y][x] === 0) { tiles[y][x] = 'floor'; continue; }
+
+      // da qui in giù: solo i muri (1)
       if (doors.left   && x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
       if (doors.left   && x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.right  && x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
@@ -933,24 +951,22 @@ function generateRoomTiles(room) {
       if (doors.bottom && y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.bottom && y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // --- angoli normali (ai 4 spigoli della stanza) ---
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
       if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- lati in base al bordo geometrico ---
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
       if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
 
-      // fallback (di norma non serve con le stanze attuali)
       tiles[y][x] = 'center';
     }
   }
   return tiles;
 }
+
 
 
 
@@ -1002,6 +1018,7 @@ function render() {
 
 
   // Muri (cornice + porte + interni)
+  drawFloor(room);
 drawRoom(room);
 
 

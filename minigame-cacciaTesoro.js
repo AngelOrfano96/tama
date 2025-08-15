@@ -670,20 +670,26 @@ function updatePetDirFromKeys() {
 
 
   // ---------- GAME LOOP ----------
-  let lastT = performance.now();
-  function gameLoop() {
-    const now = performance.now();
-    const dt = (now - lastT) / 1000;
-    lastT = now;
+let lastT = performance.now();
+function gameLoop() {
+  const now = performance.now();
+  const dt = (now - lastT) / 1000;
+  lastT = now;
 
+  try {
     if (G.playing) {
       update(dt);
       render();
       if (G.hudDirty) syncHud();
     }
-    requestAnimationFrame(gameLoop);
+  } catch (err) {
+    console.error('[loop]', err);
   }
-  gameLoop();
+
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+
 
   // ---------- LOGICA ----------
 function movePet(dt) {
@@ -1512,33 +1518,60 @@ if (G.mole.enabled) {
     setTimeout(()=> DOM.bonus.style.display='none', 2100);
   }
 
-  // ---------- JOYSTICK ----------
-  let joyCenter = { x: 0, y: 0 };
-  const stickRadius = 32;
+ 
+// ---------- JOYSTICK (bind una sola volta) ----------
+let joyCenter = { x: 0, y: 0 };
+const stickRadius = 32;
 
-  function updatePetDirFromJoystick(dx, dy) {
-    G.pet.dirX = dx; G.pet.dirY = dy;
-    if (dx > 0.2) G.pet.direction = 'right';
-    else if (dx < -0.2) G.pet.direction = 'left';
-    else if (dy < -0.2) G.pet.direction = 'up';
-    else if (dy > 0.2) G.pet.direction = 'down';
-  }
-  function resetJoystick() {
-    if (DOM.joyStick) DOM.joyStick.style.transform = 'translate(-50%,-50%)';
-    updatePetDirFromJoystick(0,0);
-    DOM.joyBase?.classList.remove('active');
-  }
-  function handleJoystickMove(touch) {
-    const x = touch.clientX - joyCenter.x;
-    const y = touch.clientY - joyCenter.y;
-    const dist = Math.sqrt(x*x + y*y);
-    let nx = x, ny = y;
-    if (dist > stickRadius) { nx = x * stickRadius / dist; ny = y * stickRadius / dist; }
-    if (DOM.joyStick) DOM.joyStick.style.transform = `translate(-50%,-50%) translate(${nx}px,${ny}px)`;
-    let dx = nx / stickRadius, dy = ny / stickRadius;
-    const dead = 0.18; if (Math.abs(dx) < dead) dx = 0; if (Math.abs(dy) < dead) dy = 0;
-    updatePetDirFromJoystick(dx, dy);
-  }
+function updatePetDirFromJoystick(dx, dy) {
+  G.pet.dirX = dx; G.pet.dirY = dy;
+  if (dx > 0.2) G.pet.direction = 'right';
+  else if (dx < -0.2) G.pet.direction = 'left';
+  else if (dy < -0.2) G.pet.direction = 'up';
+  else if (dy > 0.2) G.pet.direction = 'down';
+}
+function resetJoystick() {
+  if (DOM.joyStick) DOM.joyStick.style.transform = 'translate(-50%,-50%)';
+  updatePetDirFromJoystick(0,0);
+  DOM.joyBase?.classList.remove('active');
+}
+function handleJoystickMove(touch) {
+  const x = touch.clientX - joyCenter.x;
+  const y = touch.clientY - joyCenter.y;
+  const dist = Math.sqrt(x*x + y*y);
+  let nx = x, ny = y;
+  if (dist > stickRadius) { nx = x * stickRadius / dist; ny = y * stickRadius / dist; }
+  if (DOM.joyStick) DOM.joyStick.style.transform = `translate(-50%,-50%) translate(${nx}px,${ny}px)`;
+  let dx = nx / stickRadius, dy = ny / stickRadius;
+  const dead = 0.18; if (Math.abs(dx) < dead) dx = 0; if (Math.abs(dy) < dead) dy = 0;
+  updatePetDirFromJoystick(dx, dy);
+}
+
+// Handlers bindati UNA volta sola
+function onJoyStart(e){
+  e.preventDefault();
+  DOM.joyBase.classList.add('active');
+  DOM.joyBase.style.opacity = '0.9';
+  DOM.joyBase.style.bottom = `calc(16px + env(safe-area-inset-bottom, 0px))`;
+  const rect = DOM.joyBase.getBoundingClientRect();
+  joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}
+function onJoyMove(e){
+  e.preventDefault();
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}
+function onJoyEnd(e){
+  e.preventDefault();
+  DOM.joyBase.style.opacity = '0.45';
+  resetJoystick();
+}
+
+DOM.joyBase?.addEventListener('touchstart',  onJoyStart, { passive:false });
+DOM.joyBase?.addEventListener('touchmove',   onJoyMove,  { passive:false });
+DOM.joyBase?.addEventListener('touchend',    onJoyEnd,   { passive:false });
+DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
+
 
   // ---------- EVENTI ----------
   function showTreasureArrowsIfMobile() {
@@ -1555,37 +1588,6 @@ if (G.mole.enabled) {
     showTreasureArrowsIfMobile();
   });
 
-  document.addEventListener('keydown', (e) => {
-    if (!G.playing) return;
-    const dir = dirMap[e.key];
-    if (!dir) return;
-    if (!G.keysStack.includes(dir)) G.keysStack.push(dir);
-    updatePetDirFromKeys();
-  });
-  document.addEventListener('keyup', (e) => {
-    const dir = dirMap[e.key];
-    if (!dir) return;
-    G.keysStack = G.keysStack.filter(d => d !== dir);
-    updatePetDirFromKeys();
-  });
-
-  DOM.joyBase?.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    DOM.joyBase.classList.add('active');
-    const rect = DOM.joyBase.getBoundingClientRect();
-    DOM.joyBase.style.bottom = `calc(16px + env(safe-area-inset-bottom, 0px))`;
-    DOM.joyBase?.addEventListener('touchstart', () => { DOM.joyBase.style.opacity = '0.9'; });
-    DOM.joyBase?.addEventListener('touchend',   () => { DOM.joyBase.style.opacity = '0.45'; });
-    DOM.joyBase?.addEventListener('touchcancel',() => { DOM.joyBase.style.opacity = '0.45'; });
-    joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
-    if (e.touches[0]) handleJoystickMove(e.touches[0]);
-  }, { passive: false });
-  DOM.joyBase?.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if (e.touches[0]) handleJoystickMove(e.touches[0]);
-  }, { passive: false });
-  DOM.joyBase?.addEventListener('touchend',   (e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
-  DOM.joyBase?.addEventListener('touchcancel',(e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
 
   // ---------- REVEAL ----------
   function animateRevealCircle(callback) {

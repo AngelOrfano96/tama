@@ -25,6 +25,12 @@ const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
 
 G.sprites.atlas = new Image();
+
+G.sprites.atlas.onload  = () =>
+  console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+G.sprites.atlas.onerror = () =>
+  console.error('[ATLAS] FAILED to load:', G.sprites.atlas.src);
+
 G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`;
 
 // helper: seleziona un rettangolo (w,h in celle, default 1×1)

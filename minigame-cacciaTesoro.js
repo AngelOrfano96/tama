@@ -20,6 +20,51 @@ const PHYS = {
   skin: 6,        // margine anti-incastro (prima 2). Più alto = più permissivo
   maxStepFrac: 1/3,
 };
+// ---- ATLAS ----
+const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova 32 se serve)
+const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
+
+G.sprites.atlas = new Image();
+G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`;
+
+// helper: seleziona un rettangolo (w,h in celle, default 1×1)
+const pick = (c, r, w = 1, h = 1) => ({
+  sx: c * ATLAS_TILE,
+  sy: r * ATLAS_TILE,
+  sw: w * ATLAS_TILE,
+  sh: h * ATLAS_TILE,
+});
+
+// Mappa nomi → coordinate dentro l’atlas.
+
+const ATLAS = {
+
+  decor: {
+    // Muri normali
+    top1:    pick( 11, 1),
+    top2:    pick( 12, 1),
+    bottom: pick( 11, 4),
+    bottom2: pick( 12, 4),
+    left1:   pick( 10, 1),
+    left2:   pick( 10, 2),
+    left3:   pick( 10, 3),
+    right1:  pick( 13, 1),
+    right2:  pick( 13, 2),
+    right3:  pick( 13, 3),
+
+    // Angoli
+    corner_tl: pick(9, 0),
+    corner_tr: pick(12, 0),
+    corner_bl: pick(9, 4),
+    corner_br: pick(12, 4),
+
+    // Angoli speciali per porte
+    corner_tl_door: pick(9, 0),
+    corner_tr_door: pick(12, 0),
+    corner_bl_door: pick(9,4),
+    corner_br_door: pick(12,4),
+  }
+};
 
 // ---- Config porte ----
 const DOOR_SPAN = 3;                      // larghezza in celle (3 come ora)
@@ -335,34 +380,25 @@ const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/ti
 
 // Immagini decorative per i muri e angoli
 G.sprites.decor = {
-  // Angoli
-  corner_tl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto.png`),
-  corner_tr: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto.png`),
-  corner_bl: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso.png`),
-  corner_br: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso.png`),
+  // lati: array = varietà (scegliamo alternando con (x+y)%len)
+  top:    [ATLAS.decor.top1, ATLAS.decor.top2],
+  bottom: [ATLAS.decor.bottom, ATLAS.decor.bottom2],
+  left:   [ATLAS.decor.left1, ATLAS.decor.left2, ATLAS.decor.left3],
+  right:  [ATLAS.decor.right1, ATLAS.decor.right2, ATLAS.decor.right3],
 
-  // Porte
-//  door_top: loadImg(`${tileBase}/centrale_destro_alto.png`),
-  //door_bottom: loadImg(`${tileBase}/centrale_sinistro_alto.png`),
-  //door_left: loadImg(`${tileBase}/centrale_sinistro_basso.png`),
-//  door_right: loadImg(`${tileBase}/centrale_destro_basso.png`),
+  // angoli
+  corner_tl: ATLAS.decor.corner_tl,
+  corner_tr: ATLAS.decor.corner_tr,
+  corner_bl: ATLAS.decor.corner_bl,
+  corner_br: ATLAS.decor.corner_br,
 
-  // Angoli speciali per porte
-corner_tl_door: loadImg(`${tileBase}/muroDungeon_angolodestro_Basso2.png`),
-corner_tr_door: loadImg(`${tileBase}/muroDungeon_angolosinistro_Basso2.png`),
-corner_bl_door: loadImg(`${tileBase}/muroDungeon_angolodestro_Alto2.png`),
-corner_br_door: loadImg(`${tileBase}/muroDungeon_angolosinistro_Alto2.png`),
-
-
-  // Lati normali
-  top: loadImg(`${tileBase}/muroDungeon_Alto_1.png`),
-  bottom: loadImg(`${tileBase}/muroDungeon_Basso_1.png`),
-  left: loadImg(`${tileBase}/muroDungeon_latoSinistro_1.png`),
-  right: loadImg(`${tileBase}/muroDungeon_latoDestro_1.png`),
-
-  // Centro (puoi usare un'immagine oppure lasciare vuoto)
-  center: loadImg(`${tileBase}/muroDungeon_Basso_2.png`)
+  // angoli speciali per porte
+  corner_tl_door: ATLAS.decor.corner_tl_door,
+  corner_tr_door: ATLAS.decor.corner_tr_door,
+  corner_bl_door: ATLAS.decor.corner_bl_door,
+  corner_br_door: ATLAS.decor.corner_br_door,
 };
+
 
 
     // SPRITES
@@ -836,29 +872,31 @@ function drawImg(img, dx, dy, dw, dh) {
 function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
 function drawTileType(x, y, type, tile) {
-  if (!type) {
-    //console.log(`[SKIP] Nessun tipo per (${x}, ${y})`);
+  if (!type) return;
+
+  const entry = G.sprites.decor?.[type];
+  if (!entry) return;
+
+  // scegli variante se è un array
+  const chosen = Array.isArray(entry) ? entry[(x + y) % entry.length] : entry;
+
+  // Caso 1: è una HTMLImage (vecchio sistema)
+  if (chosen instanceof HTMLImageElement) {
+    if (!chosen.complete) return;
+    ctx.drawImage(chosen, x * tile, y * tile, tile, tile);
     return;
   }
 
-  const sprite = G.sprites.decor?.[type];
-  if (!sprite) {
-    //console.warn(`[MANCANTE] Sprite non trovato per tipo: ${type}`);
-    return;
-  }
-
-  const img = Array.isArray(sprite)
-    ? sprite[(x + y) % sprite.length]
-    : sprite;
-
-  if (!img.complete) {
-    //console.log(`[WAITING] Immagine non ancora caricata per tipo: ${type}`);
-    return;
-  }
-
-  //console.log(`[DRAW] Disegno ${type} a (${x}, ${y})`);
-  ctx.drawImage(img, x * tile, y * tile, tile, tile);
+  // Caso 2: è un "ritaglio" dell'atlas {sx,sy,sw,sh}
+  if (!atlasImg.complete) return;
+  ctx.drawImage(
+    atlasImg,
+    chosen.sx, chosen.sy, chosen.sw, chosen.sh, // sorgente nell'atlas
+    x * tile, y * tile,                          // destinazione
+    tile, tile
+  );
 }
+
 
 
 

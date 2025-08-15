@@ -137,9 +137,9 @@ const DECOR_MOBILE = {
   corner_tl: pick(10,1),
   corner_tr: pick(13,1),
   corner_bl: pick(10,4),
-  corner_br: pick(12,4),
+  corner_br: pick(13,4),
 
- corner_tl_door: pick(9,5),
+  corner_tl_door: pick(9,5),
   corner_tr_door: pick(8,5),
   corner_bl_door: pick(9,3),
   corner_br_door: pick(8,3),
@@ -230,8 +230,8 @@ const MoleCfg = {
 
   // Mobile tweaks
   if (isMobileOrTablet() || window.innerWidth < 800) {
-    Cfg.roomW = 7;
-    Cfg.roomH = 6;
+    Cfg.roomW = 8;
+    Cfg.roomH = 7;
   }
 
 

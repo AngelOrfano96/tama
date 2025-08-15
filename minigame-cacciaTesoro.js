@@ -152,6 +152,10 @@ const DECOR_DESKTOP = {
   floor: [
     pick(11,2), pick(11,3), pick(12,2), pick(12,3) // 4 varianti 16×16
   ],
+
+  door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
+  door_h2: pick(7,6),
+
 };
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
@@ -178,6 +182,10 @@ const DECOR_MOBILE = {
   corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
+
+  exitClosed: pick(7,7),  // porta orizzontale (varco su top/bottom)
+  exitOpen: pick(7,6),
+
 };
 const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex
 
@@ -208,6 +216,8 @@ function buildDecorFromAtlas() {
     corner_tr_door: DECOR.corner_tr_door,
     corner_bl_door: DECOR.corner_bl_door,
     corner_br_door: DECOR.corner_br_door,
+
+    door_h: [DECOR.door_h1, DECOR.door_h2],
 
     floor: DECOR.floor,
   };
@@ -1357,11 +1367,13 @@ function render() {
     else { ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex + 8, ey + 8, tile - 16, tile - 16); }
   }
 
-  // uscita
-  if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
-    if (G.sprites.exit.complete) ctx.drawImage(G.sprites.exit, G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20);
-    else { ctx.fillStyle = '#43e673'; ctx.fillRect(G.exitTile.x*tile+10, G.exitTile.y*tile+10, tile-20, tile-20); }
-  }
+  // uscita (botola atlas: chiusa se mancano monete, aperta se finite)
+if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
+  const coinsLeft = countCoinsLeft();
+  const type = (coinsLeft === 0) ? 'exitOpen' : 'exitClosed';
+  drawTileType(G.exitTile.x, G.exitTile.y, type, tile);
+}
+
 }
 
 

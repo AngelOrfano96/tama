@@ -93,31 +93,50 @@ const pick = (c, r, w = 1, h = 1) => ({
   sh: h * ATLAS_TILE,
 });
 
+ // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
+const DECOR = {
+  top1:    pick(11,1),
+  top2:    pick(12,1),
+  bottom:  pick(11,4),
+  bottom2: pick(12,4),
+  left1:   pick(10,1),
+  left2:   pick(10,2),
+  left3:   pick(10,3),
+  right1:  pick(13,1),
+  right2:  pick(13,2),
+  right3:  pick(13,3),
+
+  corner_tl: pick(9,0),
+  corner_tr: pick(12,0),
+  corner_bl: pick(9,4),
+  corner_br: pick(12,4),
+
+  corner_tl_door: pick(9,0),
+  corner_tr_door: pick(12,0),
+  corner_bl_door: pick(9,4),
+  corner_br_door: pick(12,4),
+};
+
+// costruisce la tabella usata dal renderer
+function buildDecorFromAtlas() {
   G.sprites.decor = {
-    // muri (placeholder: aggiusta le coordinate)
-    top1:    pick(11,1),
-    top2:    pick(12,1),
-    bottom:  pick(11,4),
-    bottom2: pick(12,4),
-    left1:   pick(10,1),
-    left2:   pick(10,2),
-    left3:   pick(10,3),
-    right1:  pick(13,1),
-    right2:  pick(13,2),
-    right3:  pick(13,3),
+    top:    [DECOR.top1, DECOR.top2],
+    bottom: [DECOR.bottom, DECOR.bottom2],
+    left:   [DECOR.left1, DECOR.left2, DECOR.left3],
+    right:  [DECOR.right1, DECOR.right2, DECOR.right3],
 
-    // angoli
-    corner_tl: pick(9,0),
-    corner_tr: pick(12,0),
-    corner_bl: pick(9,4),
-    corner_br: pick(12,4),
+    corner_tl: DECOR.corner_tl,
+    corner_tr: DECOR.corner_tr,
+    corner_bl: DECOR.corner_bl,
+    corner_br: DECOR.corner_br,
 
-    // angoli porta (per ora uguali, poi li cambi)
-    corner_tl_door: pick(9,0),
-    corner_tr_door: pick(12,0),
-    corner_bl_door: pick(9,4),
-    corner_br_door: pick(12,4),
+    corner_tl_door: DECOR.corner_tl_door,
+    corner_tr_door: DECOR.corner_tr_door,
+    corner_bl_door: DECOR.corner_bl_door,
+    corner_br_door: DECOR.corner_br_door,
   };
+}
+
 
 function initAtlasSprites() {
 
@@ -363,6 +382,7 @@ if (G?.pet) {
     generateDungeon();
     requestLandscape();
     initAtlasSprites(); 
+    buildDecorFromAtlas();
 
     G.level = 1;
     G.score = 0;
@@ -387,26 +407,6 @@ const loadImg = (src) => {
 // Percorso base dinamico in base al device
 const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/tiles';
 
-// Immagini decorative per i muri e angoli
-G.sprites.decor = {
-  // lati: array = varietà (scegliamo alternando con (x+y)%len)
-  top:    [ATLAS.decor.top1, ATLAS.decor.top2],
-  bottom: [ATLAS.decor.bottom, ATLAS.decor.bottom2],
-  left:   [ATLAS.decor.left1, ATLAS.decor.left2, ATLAS.decor.left3],
-  right:  [ATLAS.decor.right1, ATLAS.decor.right2, ATLAS.decor.right3],
-
-  // angoli
-  corner_tl: ATLAS.decor.corner_tl,
-  corner_tr: ATLAS.decor.corner_tr,
-  corner_bl: ATLAS.decor.corner_bl,
-  corner_br: ATLAS.decor.corner_br,
-
-  // angoli speciali per porte
-  corner_tl_door: ATLAS.decor.corner_tl_door,
-  corner_tr_door: ATLAS.decor.corner_tr_door,
-  corner_bl_door: ATLAS.decor.corner_bl_door,
-  corner_br_door: ATLAS.decor.corner_br_door,
-};
 
 
 
@@ -989,26 +989,16 @@ function generateRoomTiles(room) {
 
 
 function drawRoom(room) {
+  const tile = window.treasureTile || 64;
   const tiles = generateRoomTiles(room);
-  //console.table(tiles.map(r => r.map(t => (t||'.').slice(0,3))));
-  //console.log(tiles); // 🔍 Vedi i valori che arrivano (ti dirà se compaiono corner_*_door)
-
-  const tileSize = window.treasureTile || 64;
   for (let y = 0; y < tiles.length; y++) {
     for (let x = 0; x < tiles[y].length; x++) {
       const type = tiles[y][x];
-      if (!type) continue;
-
-      const sprite = G.sprites.decor[type];
-      if (sprite && sprite.complete) {
-        ctx.drawImage(sprite, x * tileSize, y * tileSize, tileSize, tileSize);
-      } else {
-        ctx.fillStyle = 'magenta'; // evidenziatore se manca l'asset
-        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-      }
+      if (type) drawTileType(x, y, type, tile);
     }
   }
 }
+
 
 
 

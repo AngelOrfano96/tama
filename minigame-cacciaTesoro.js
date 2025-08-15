@@ -180,6 +180,26 @@ function buildDecorFromAtlas() {
   };
 }
 
+function debugAtlas(tag = '') {
+  const d = G?.sprites?.decor;
+  if (!d) {
+    console.warn('[debugAtlas] decor non pronto', tag);
+    return;
+  }
+  const toCR = a =>
+    Array.isArray(a) ? a.map(p => `${p.sx/16},${p.sy/16}`) : `${a.sx/16},${a.sy/16}`;
+
+  console.log('--- DECOR', tag, '---');
+  console.table({
+    left:   toCR(d.left),
+    right:  toCR(d.right),
+    top:    toCR(d.top),
+    bottom: toCR(d.bottom),
+  });
+}
+window.debugAtlas = debugAtlas; // così puoi chiamarla dalla console
+
+
 (function debugAtlas() {
   const toCR = a => (Array.isArray(a) ? a.map(p => `${p.sx/16},${p.sy/16}`) : `${a.sx/16},${a.sy/16}`);
   const d = G.sprites.decor;
@@ -482,6 +502,7 @@ function resizeTreasureCanvas() {
     requestLandscape();
     initAtlasSprites(); 
     buildDecorFromAtlas();
+    debugAtlas('dopo build');
 
     G.level = 1;
     G.score = 0; //

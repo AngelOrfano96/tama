@@ -1021,8 +1021,9 @@ function render() {
 
 
   // Muri (cornice + porte + interni)
+  drawRoom(room);
   drawFloor(room);
-drawRoom(room);
+
 
 
 

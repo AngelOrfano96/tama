@@ -123,7 +123,7 @@ const DECOR_DESKTOP = {
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
   // esempio: su mobile usi una riga diversa per il top1/top2
- top1:    pick(11,1),
+  top1:    pick(11,1),
   top2:    pick(12,1),
   bottom:  pick(11,4),
   bottom2: pick(12,4),
@@ -993,10 +993,10 @@ function generateRoomTiles(room) {
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
 
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
-  const span = getDoorSpan();                         // 3 desktop, 2 mobile, ecc.
-  const ys = doorIndices(cy, span, 1, H - 2);         // righe del varco verticale
-  const xs = doorIndices(cx, span, 1, W - 2);         // colonne del varco orizzontale
-  const off = Math.floor(span / 2) + 1;               // distanza angoli-porto
+  const span = getDoorSpan();
+  const ys = doorIndices(cy, span, 1, H - 2);
+  const xs = doorIndices(cx, span, 1, W - 2);
+  const off = Math.floor(span / 2) + 1;
 
   const isDoorCell = (x, y) =>
     (x === 0     && ys.includes(y)) ||
@@ -1006,7 +1006,7 @@ function generateRoomTiles(room) {
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      // interno o apertura porta → niente muro (il floor copre)
+      // interno o cella porta: nessun muro (lo copre il floor)
       if (room[y][x] === 0 || isDoorCell(x, y)) continue;
 
       // angoli speciali vicino ai varchi
@@ -1015,8 +1015,8 @@ function generateRoomTiles(room) {
       if (x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
       if (x === W - 1 && y === cy + off) { tiles[y][x] = 'corner_br_door'; continue; }
       if (y === 0     && x === cx - off) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (y === 0     && x === cx + off) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
       // angoli stanza
@@ -1025,17 +1025,18 @@ function generateRoomTiles(room) {
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // lati per bordo (impossibile scambiarli)
+      // lati (impossibile scambiarli)
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
       if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
 
-      tiles[y][x] = 'center'; // di solito non serve
+      tiles[y][x] = 'center';
     }
   }
   return tiles;
 }
+
 
 
 function drawRoom(room) {
@@ -1076,10 +1077,6 @@ function render() {
 
   // Muri (cornice + porte + interni)
   drawRoom(room);
-  //drawFloor(room);
-
-
-
 
   // --- TUTTO IL RESTO IDENTICO ---
   const key = `${G.petRoom.x},${G.petRoom.y}`;

@@ -137,29 +137,29 @@ const pick = (c, r, w = 1, h = 1) => ({
 
  // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
 const DECOR_DESKTOP = {
-  top1:    pick(1,0),
-  top2:    pick(1,0),
-  bottom:  pick(1,2),
-  bottom2: pick(1,2),
-  left1:   pick(0,1),
-  left2:   pick(0,1),
-  left3:   pick(0,1),
-  right1:  pick(2,1),
-  right2:  pick(2,1),
-  right3:  pick(2,1),
+  top1:    pick(11,1),
+  top2:    pick(12,1),
+  bottom:  pick(11,4),
+  bottom2: pick(12,4),
+  left1:   pick(10,2),
+  left2:   pick(10,3),
+  left3:   pick(10,2),
+  right1:  pick(13,2),
+  right2:  pick(13,3),
+  right3:  pick(13,2),
 
-  corner_tl: pick(0,0),
-  corner_tr: pick(2,0),
-  corner_bl: pick(0,2),
-  corner_br: pick(2,2),
+  corner_tl: pick(10,1),
+  corner_tr: pick(13,1),
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
 
-  corner_tl_door: pick(0,0),
-  corner_tr_door: pick(2,0),
-  corner_bl_door: pick(0,2),
-  corner_br_door: pick(2,2),
+  corner_tl_door: pick(9,5),
+  corner_tr_door: pick(8,5),
+  corner_bl_door: pick(9,3),
+  corner_br_door: pick(8,3),
 
   floor: [
-    pick(6,0), pick(7,0), pick(6,1), pick(7,1) // 4 varianti 16×16
+    pick(11,2), pick(11,3), pick(12,2), pick(12,3) // 4 varianti 16×16
   ],
 
   door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
@@ -173,30 +173,28 @@ const DECOR_DESKTOP = {
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
   // esempio: su mobile usi una riga diversa per il top1/top2
-  top1:    pick(1,0),
-  top2:    pick(1,0),
-  bottom:  pick(1,2),
-  bottom2: pick(1,2),
-  left1:   pick(0,1),
-  left2:   pick(0,1),
-  left3:   pick(0,1),
-  right1:  pick(2,1),
-  right2:  pick(2,1),
-  right3:  pick(2,1),
+  top1:    pick(11,1),
+  top2:    pick(12,1),
+  bottom:  pick(11,4),
+  bottom2: pick(12,4),
+  left1:   pick(10,2),
+  left2:   pick(10,3),
+  left3:   pick(10,2),
+  right1:  pick(13,2),
+  right2:  pick(13,3),
+  right3:  pick(13,2),
 
-  corner_tl: pick(0,0),
-  corner_tr: pick(2,0),
-  corner_bl: pick(0,2),
-  corner_br: pick(2,2),
+  corner_tl: pick(10,1),
+  corner_tr: pick(13,1),
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
 
-  corner_tl_door: pick(0,0),
-  corner_tr_door: pick(2,0),
-  corner_bl_door: pick(0,2),
-  corner_br_door: pick(2,2),
+  corner_tl_door: pick(9,5),
+  corner_tr_door: pick(8,5),
+  corner_bl_door: pick(9,3),
+  corner_br_door: pick(8,3),
 
-  floor: [
-    pick(6,0), pick(7,0), pick(6,1), pick(7,1) // 4 varianti 16×16
-  ],
+  floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
 
   door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
   door_h2: pick(7,6),
@@ -318,8 +316,8 @@ function initAtlasSprites() {
   G.sprites.atlas.onerror = (e) =>
     console.error('[ATLAS] failed to load', G.sprites.atlas?.src, e);
 
-  //G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // verifica che il path esista davvero
-  G.sprites.atlas.src = `${atlasBase}/Dungeon_1.png`; // verifica che il path esista davvero
+  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // verifica che il path esista davvero
+  //G.sprites.atlas.src = `${atlasBase}/Dungeon_1.png`; // verifica che il path esista davvero
 }
 
 

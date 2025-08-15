@@ -144,6 +144,8 @@ function buildDecorFromAtlas() {
     corner_tr_door: DECOR.corner_tr_door,
     corner_bl_door: DECOR.corner_bl_door,
     corner_br_door: DECOR.corner_br_door,
+
+    floor: [DECOR.floor1, DECOR.floor2, DECOR.floor3, DECOR.floor4],
   };
 }
 function drawFloor(room) {
@@ -330,15 +332,16 @@ function resizeTreasureCanvas() {
   let w = wWin;
   let h = hWin - hudH - safeB;
 
-let tileBase = Math.min(w / Cfg.roomW, h / Cfg.roomH);
+// base tile calcolata sul room size logico (snap a multipli di 16)
+let raw = Math.min(w / Cfg.roomW, h / Cfg.roomH);
+if (isMobileOrTablet()) raw *= 0.82;
 
-// su mobile zoom-out leggero
-if (isMobileOrTablet()) tileBase *= 0.82;
+// usa min/max che siano multipli di 16 per non perdere nitidezza
+const TILE_MIN = 32;   // 2×16
+const TILE_MAX = 128;  // 8×16
 
-// clamp per evitare tile esagerate
-const TILE_MIN = 28;
-const TILE_MAX = 96;
-const tile = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.floor(tileBase)));
+let tile = Math.round(raw / ATLAS_TILE) * ATLAS_TILE; // snap a multipli di 16
+tile = Math.max(TILE_MIN, Math.min(TILE_MAX, tile));
 
 
   // 👇 forza multipli dell’ATLAS (16 px)
@@ -987,12 +990,11 @@ function drawRoom(room) {
   for (let y = 0; y < tiles.length; y++) {
     for (let x = 0; x < tiles[y].length; x++) {
       const type = tiles[y][x];
-      if (!type) continue;
-      // ← usa SEMPRE questo (fa crop dall’atlas o disegna Image se lo è)
-      drawTileType(x, y, type, tile);
+      if (type) drawTileType(x, y, type, tile); // <- questa fa il draw dall’atlas
     }
   }
 }
+
 
 
 

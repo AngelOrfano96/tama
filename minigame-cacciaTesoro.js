@@ -187,6 +187,14 @@ function drawFloor(room) {
   }
 }
 
+function maybeSwapDecorForDevice() {
+  const nowMobile = isMobileOrTablet();
+  const wanted = nowMobile ? DECOR_MOBILE : DECOR_DESKTOP;
+  if (DECOR !== wanted) {
+    DECOR = wanted;
+    buildDecorFromAtlas();
+  }
+}
 
 function initAtlasSprites() {
 
@@ -355,6 +363,8 @@ function getCurrentPetSpeed() {
 function resizeTreasureCanvas() {
   const wWin = window.innerWidth;
   const hWin = window.innerHeight;
+
+  maybeSwapDecorForDevice();
 
   // spazio effettivo: tolgo HUD ecc.
   const hudH  = 70;

@@ -120,8 +120,6 @@ const pick = (c, r, w = 1, h = 1) => ({
   };
 
 function initAtlasSprites() {
-  // usa la mappa già definita sopra
-  G.sprites.decor = ATLAS.decor;
 
   // carica l'immagine atlas
   G.sprites.atlas = new Image();
@@ -887,26 +885,22 @@ function drawTileType(x, y, type, tile) {
   const entry = G.sprites.decor?.[type];
   if (!entry) return;
 
-  const chosen = Array.isArray(entry) ? entry[(x + y) % entry.length] : entry;
+  const d = Array.isArray(entry) ? entry[(x + y) % entry.length] : entry;
 
-  // Caso 1: entry è un rettangolo dell'ATLAS
-  if (chosen && typeof chosen === 'object' && 'sx' in chosen) {
+  // se è un ritaglio dell'atlas:
+  if (d && typeof d === 'object' && 'sx' in d) {
     const atlas = G.sprites.atlas;
-    if (!atlas || !atlas.complete) return; // aspetta che l'immagine sia pronta
-    ctx.drawImage(
-      atlas,
-      chosen.sx, chosen.sy, chosen.sw, chosen.sh,   // sorgente nell'atlas
-      x * tile, y * tile, tile, tile               // destinazione nel canvas
-    );
+    if (!atlas || !atlas.complete) return;
+    ctx.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
     return;
   }
-
-  // Caso 2: entry è un'Image singola (fallback)
-  if (chosen instanceof HTMLImageElement) {
-    if (!chosen.complete) return;
-    ctx.drawImage(chosen, x * tile, y * tile, tile, tile);
+  // se è un'Image:
+  if (d instanceof HTMLImageElement) {
+    if (!d.complete) return;
+    ctx.drawImage(d, x * tile, y * tile, tile, tile);
   }
 }
+
 
 
 

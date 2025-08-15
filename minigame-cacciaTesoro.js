@@ -330,16 +330,15 @@ function resizeTreasureCanvas() {
   let w = wWin;
   let h = hWin - hudH - safeB;
 
-// base tile calcolata sul room size logico (snap a multipli di 16)
-let raw = Math.min(w / Cfg.roomW, h / Cfg.roomH);
-if (isMobileOrTablet()) raw *= 0.82;
+let tileBase = Math.min(w / Cfg.roomW, h / Cfg.roomH);
 
-// usa min/max che siano multipli di 16 per non perdere nitidezza
-const TILE_MIN = 32;   // 2×16
-const TILE_MAX = 128;  // 8×16
+// su mobile zoom-out leggero
+if (isMobileOrTablet()) tileBase *= 0.82;
 
-let tile = Math.round(raw / ATLAS_TILE) * ATLAS_TILE; // snap a multipli di 16
-tile = Math.max(TILE_MIN, Math.min(TILE_MAX, tile));
+// clamp per evitare tile esagerate
+const TILE_MIN = 28;
+const TILE_MAX = 96;
+const tile = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.floor(tileBase)));
 
 
   // 👇 forza multipli dell’ATLAS (16 px)

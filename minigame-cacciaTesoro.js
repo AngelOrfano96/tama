@@ -97,8 +97,8 @@ const pick = (c, r, w = 1, h = 1) => ({
 const DECOR = {
   top1:    pick(11,1),
   top2:    pick(12,1),
-  bottom:  pick(11,4),
-  bottom2: pick(12,4),
+  bottom:  pick(11,5),
+  bottom2: pick(12,5),
   left1:   pick(10,2),
   left2:   pick(10,3),
   left3:   pick(10,2),

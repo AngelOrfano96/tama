@@ -183,8 +183,8 @@ const DECOR_MOBILE = {
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
 
-  exitClosed: pick(7,7),  // porta orizzontale (varco su top/bottom)
-  exitOpen: pick(7,6),
+  door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
+  door_h2: pick(7,6),
 
 };
 const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex
@@ -217,7 +217,8 @@ function buildDecorFromAtlas() {
     corner_bl_door: DECOR.corner_bl_door,
     corner_br_door: DECOR.corner_br_door,
 
-    door_h: [DECOR.door_h1, DECOR.door_h2],
+     exitClosed: DECOR.door_h1,
+    exitOpen:   DECOR.door_h2,
 
     floor: DECOR.floor,
   };

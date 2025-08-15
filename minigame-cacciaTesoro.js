@@ -332,48 +332,49 @@ function resizeTreasureCanvas() {
   let w = wWin;
   let h = hWin - hudH - safeB;
 
-// base tile calcolata sul room size logico (snap a multipli di 16)
-let raw = Math.min(w / Cfg.roomW, h / Cfg.roomH);
-if (isMobileOrTablet()) raw *= 0.82;
+  // base tile calcolata sul room size logico (snap a multipli di 16)
+  let raw = Math.min(w / Cfg.roomW, h / Cfg.roomH);
+  if (isMobileOrTablet()) raw *= 0.82;
 
-// usa min/max che siano multipli di 16 per non perdere nitidezza
-const TILE_MIN = 32;   // 2×16
-const TILE_MAX = 128;  // 8×16
+  // usa min/max che siano multipli di 16 per non perdere nitidezza
+  const TILE_MIN = 32;   // 2×16
+  const TILE_MAX = 128;  // 8×16
 
-let tile = Math.round(raw / ATLAS_TILE) * ATLAS_TILE; // snap a multipli di 16
-tile = Math.max(TILE_MIN, Math.min(TILE_MAX, tile));
+  // usa la costante globale ATLAS_TILE (definita in alto) oppure fallback a 16
+  const step = (typeof ATLAS_TILE !== 'undefined') ? ATLAS_TILE : 16;
+  let tile = Math.round(raw / step) * step; // snap a multipli di 16
+  tile = Math.max(TILE_MIN, Math.min(TILE_MAX, tile));
 
-
-  // 👇 forza multipli dell’ATLAS (16 px)
-  const ATLAS_TILE = 16;
-  tile = Math.max(ATLAS_TILE, Math.round(tile / ATLAS_TILE) * ATLAS_TILE);
-
-  // 👇 retina: backing store ad alta risoluzione
+  // retina: backing store ad alta risoluzione
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const padX = Math.max(0, Math.floor((w - Cfg.roomW * tile) / 2));
+  const padY = Math.max(0, Math.floor((h - Cfg.roomH * tile) / 2));
 
-  // dimensione CSS (px logici)
-  DOM.canvas.style.width  = `${Cfg.roomW * tile}px`;
-  DOM.canvas.style.height = `${Cfg.roomH * tile}px`;
+  const canvas = DOM.canvas;
+  canvas.width  = Cfg.roomW * tile * dpr;
+  canvas.height = Cfg.roomH * tile * dpr;
 
-  // dimensione reale (px fisici)
-  DOM.canvas.width  = Cfg.roomW * tile * dpr;
-  DOM.canvas.height = Cfg.roomH * tile * dpr;
+  canvas.style.width  = `${Cfg.roomW * tile}px`;
+  canvas.style.height = `${Cfg.roomH * tile}px`;
+  canvas.style.marginLeft = `${padX}px`;
+  canvas.style.marginRight = `${padX}px`;
+  canvas.style.marginTop = `${padY}px`;
+  canvas.style.marginBottom = `${padY}px`;
 
-  // contesto e scaling
-  ctx = DOM.canvas.getContext('2d');
+  ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
 
   window.treasureTile = tile;
-  G.tileSize   = tile;
-  G.roomWidth  = Cfg.roomW;
+  G.tileSize = tile;
+  G.roomWidth = Cfg.roomW;
   G.roomHeight = Cfg.roomH;
-  G.hudDirty = true;
 
-  // padding per centrare
-  const padX = Math.max(0, Math.floor((w - Cfg.roomW * tile) / 2));
-  const padY = Math.max(0, Math.floor((h - Cfg.roomH * tile) / 2));
-  DOM.canvas.style.margin = `${padY}px ${padX}px`;
+  const hudWrap = document.getElementById('treasure-hud') || DOM.modal;
+  if (hudWrap) {
+    if (isMobileOrTablet()) hudWrap.classList.add('hud-compact');
+    else hudWrap.classList.remove('hud-compact');
+  }
 
   if (G?.pet) resyncPetToGrid();
 }

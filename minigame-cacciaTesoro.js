@@ -111,6 +111,13 @@
       powerup: null,
     },
   };
+
+  G.renderCache = {
+  rooms: {},   // { "x,y": { canvas, tile } }
+  tile: 0,
+};
+const roomKey = (x, y) => `${x},${y}`;
+
 const PHYS = {
   bodyShrink: 12, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
   skin: 2,        // margine anti-incastro (prima 2). Più alto = più permissivo
@@ -295,6 +302,8 @@ function maybeSwapDecorForDevice() {
   if (DECOR !== wanted) {
     DECOR = wanted;
     buildDecorFromAtlas();
+    G.renderCache.rooms = {}; // cambia l’atlas/DECOR -> invalida i bake
+
   }
 }
 
@@ -597,6 +606,8 @@ function resizeTreasureCanvas() {
   ctx.imageSmoothingEnabled = false;
 
   window.treasureTile = tile;
+  G.renderCache.rooms = {};
+G.renderCache.tile = window.treasureTile || 64;
   G.tileSize = tile;
   G.roomWidth = Cfg.roomW;
   G.roomHeight = Cfg.roomH;
@@ -1195,6 +1206,26 @@ function drawTileType(x, y, type, tile) {
   }
 }
 
+function drawTileTypeOn(ctx2, x, y, type, tile) {
+  const entry = G.sprites.decor?.[type];
+  if (!entry) return;
+
+  let d = entry;
+  if (Array.isArray(entry)) {
+    const idx = (type === 'floor')
+      ? variantIndex(x, y, entry.length)
+      : (x + y) % entry.length;
+    d = entry[idx];
+  }
+
+  const atlas = G.sprites.atlas;
+  if (d && typeof d === 'object' && 'sx' in d) {
+    if (!atlas || !atlas.complete) return;
+    ctx2.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
+  }
+}
+
+
 
 
 function generateRoomTiles(room) {
@@ -1294,6 +1325,41 @@ function drawRoom(room) {
   }
 }
 
+function bakeRoomLayer(key, room) {
+  const tile = window.treasureTile || 64;
+  if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
+
+  const wpx = Cfg.roomW * tile;
+  const hpx = Cfg.roomH * tile;
+
+  const cv = document.createElement('canvas');
+  cv.width = wpx;
+  cv.height = hpx;
+  const bctx = cv.getContext('2d');
+  bctx.imageSmoothingEnabled = false;
+
+  // 1) pavimento
+  for (let y = 0; y < room.length; y++) {
+    for (let x = 0; x < room[0].length; x++) {
+      if (room[y][x] === 0) drawTileTypeOn(bctx, x, y, 'floor', tile);
+    }
+  }
+
+  // 2) muri/angoli una volta sola
+  const tiles = generateRoomTiles(room);
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const t = tiles[y][x];
+      if (!t || t === 'center') continue;
+      drawTileTypeOn(bctx, x, y, t, tile);
+    }
+  }
+
+  const baked = { canvas: cv, tile };
+  G.renderCache.rooms[key] = baked;
+  return baked;
+}
+
 
 function drawTile(sprite, tileX, tileY) {
   const tileSize = G.tileSize;
@@ -1305,18 +1371,24 @@ const ix = v => Math.round(v); // intero “pixel-perfect”
   // ---------- RENDER ----------
 function render() {
  const room = G.rooms[G.petRoom.y][G.petRoom.x];
- if (!room) return;
+if (!room) return;
   const tile = window.treasureTile || 64;
 
-  // Sfondo
-//  drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
+  const key = roomKey(G.petRoom.x, G.petRoom.y);
 
-  // Muri (cornice + porte + interni)
-  drawRoom(room);
+  // --- layer statico (baked) ---
+  let baked = G.renderCache.rooms[key];
+  if (!baked || baked.tile !== tile) {
+    baked = bakeRoomLayer(key, room);
+  }
+  if (baked) {
+    ctx.drawImage(baked.canvas, 0, 0);
+  } else {
+    // fallback (se l'atlas non è ancora pronto)
+    drawRoom(room);
+  }
 
-  // --- TUTTO IL RESTO IDENTICO ---
-  const key = `${G.petRoom.x},${G.petRoom.y}`;
 
   // coins
   if (G.objects[key]) {
@@ -1694,6 +1766,12 @@ for (const { rx, ry } of allRooms) {
   G.pet.px = 0; G.pet.py = 0;
    resizeTreasureCanvas();
    resyncPetToGrid();
+   // Pre-bake del layer statico della stanza corrente (facoltativo)
+{
+  const key = roomKey(G.petRoom.x, G.petRoom.y);
+  bakeRoomLayer(key, G.rooms[G.petRoom.y][G.petRoom.x]);
+}
+
 
     G.timeLeft = 90 + G.level * 3;
     G.playing = false;

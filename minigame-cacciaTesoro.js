@@ -465,7 +465,7 @@ function resizeTreasureCanvas() {
     buildDecorFromAtlas();
 
     G.level = 1;
-    G.score = 0;
+    G.score = 0; //
     G.playing = true;
     G.activePowerup = null;
     G.powerupExpiresAt = 0;

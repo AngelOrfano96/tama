@@ -237,7 +237,7 @@ const MoleCfg = {
       // Mobile tweaks
   if (isMobileOrTablet() || window.innerWidth < 800) {
     Cfg.roomW = 7;
-    Cfg.roomH = 7;
+    Cfg.roomH = 8;
   }
 
   const GRID_POOL_DESKTOP = [[2,2],[3,2],[2,3],[3,3],[4,3],[3,4]];

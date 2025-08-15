@@ -109,8 +109,8 @@
     },
   };
 const PHYS = {
-  bodyShrink: 36, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
-  skin: 6,        // margine anti-incastro (prima 2). Più alto = più permissivo
+  bodyShrink: 12, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
+  skin: 2,        // margine anti-incastro (prima 2). Più alto = più permissivo
   maxStepFrac: 1/3,
 };
 // ---- ATLAS ----
@@ -847,14 +847,30 @@ function movePet(dt) {
   // --- movimento con micro-step ---
   const speed = getCurrentPetSpeed();
 
-  const size = Math.max(12, tile - PHYS.bodyShrink);
+  // Hitbox più "visiva": circa come lo sprite (tile - 12)
+  // (così non ti fermi lontano dal muro)
+  const size = Math.max(12, tile - 12);
 
-  const tryMove = (nx, ny) => {
-    const s = PHYS.skin;
-    const minX = Math.floor((nx + s)        / tile);
-    const minY = Math.floor((ny + s)        / tile);
-    const maxX = Math.floor((nx + size - s) / tile);
-    const maxY = Math.floor((ny + size - s) / tile);
+  // Margini per lato: nord ok, S/E/O più permissivi
+  const HIT = { top: 6, right: 3, bottom: 3, left: 3 };
+
+  // collisione box->mappa con margini asimmetrici + piccolo bias nella direzione
+  const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
+    // se spingi verso destra/giù, riduco ancora un pelo quel margine
+    const biasR = (dirX > 0) ? 1 : 0;
+    const biasL = (dirX < 0) ? 1 : 0;
+    const biasB = (dirY > 0) ? 1 : 0;
+    const biasT = 0; // nord già ok
+
+    const mL = Math.max(0, HIT.left   - biasL);
+    const mR = Math.max(0, HIT.right  - biasR);
+    const mT = Math.max(0, HIT.top    - biasT);
+    const mB = Math.max(0, HIT.bottom - biasB);
+
+    const minX = Math.floor((nx + mL)        / tile);
+    const maxX = Math.floor((nx + size - mR) / tile);
+    const minY = Math.floor((ny + mT)        / tile);
+    const maxY = Math.floor((ny + size - mB) / tile);
 
     if (minY < 0 || maxY >= Cfg.roomH || minX < 0 || maxX >= Cfg.roomW) return false;
 
@@ -867,17 +883,23 @@ function movePet(dt) {
   const totalDX = dx * speed * dt;
   const totalDY = dy * speed * dt;
 
-  const maxStep = Math.max(8, tile * PHYS.maxStepFrac);
+  const maxStep = Math.max(8, tile * (PHYS?.maxStepFrac ?? 1/3));
   const steps   = Math.max(1, Math.ceil(Math.hypot(totalDX, totalDY) / maxStep));
   const stepDX  = totalDX / steps;
   const stepDY  = totalDY / steps;
 
   for (let i = 0; i < steps; i++) {
+    // X prima (passo la direzione sull’asse X)
     const tryPX = G.pet.px + stepDX;
-    if (tryMove(tryPX, G.pet.py)) G.pet.px = tryPX;
+    if (tryMove(tryPX, G.pet.py, Math.sign(stepDX), 0)) {
+      G.pet.px = tryPX;
+    }
 
+    // poi Y (passo la direzione sull’asse Y)
     const tryPY = G.pet.py + stepDY;
-    if (tryMove(G.pet.px, tryPY)) G.pet.py = tryPY;
+    if (tryMove(G.pet.px, tryPY, 0, Math.sign(stepDY))) {
+      G.pet.py = tryPY;
+    }
   }
 
   // aggiorna cella logica usando il centro dell'hitbox
@@ -988,6 +1010,7 @@ function movePet(dt) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 

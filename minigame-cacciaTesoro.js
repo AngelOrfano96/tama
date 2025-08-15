@@ -145,7 +145,7 @@ function buildDecorFromAtlas() {
     corner_bl_door: DECOR.corner_bl_door,
     corner_br_door: DECOR.corner_br_door,
 
-    floor: [DECOR.floor1, DECOR.floor2, DECOR.floor3, DECOR.floor4],
+    floor: DECOR.floor,
   };
 }
 function drawFloor(room) {
@@ -898,23 +898,25 @@ function drawImg(img, dx, dy, dw, dh) {
 function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
 function drawTileType(x, y, type, tile) {
-  if (!type) return;
   const entry = G.sprites.decor?.[type];
   if (!entry) return;
 
-  const d = Array.isArray(entry)
-    ? entry[ variantIndex(x, y, entry.length) ]   // <-- qui
-    : entry;
+  let d = entry;
+  if (Array.isArray(entry)) {
+    // usa hash pseudo-random per il pavimento, alternanza semplice per i muri
+    const idx = (type === 'floor')
+      ? variantIndex(x, y, entry.length)
+      : (x + y) % entry.length;
+    d = entry[idx];
+  }
 
+  const atlas = G.sprites.atlas;
   if (d && typeof d === 'object' && 'sx' in d) {
-    const atlas = G.sprites.atlas;
     if (!atlas || !atlas.complete) return;
     ctx.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
-  } else if (d instanceof HTMLImageElement) {
-    if (!d.complete) return;
-    ctx.drawImage(d, x * tile, y * tile, tile, tile);
   }
 }
+
 
 
 

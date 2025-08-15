@@ -94,7 +94,7 @@ const pick = (c, r, w = 1, h = 1) => ({
 });
 
  // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
-const DECOR = {
+const DECOR_DESKTOP = {
   top1:    pick(11,1),
   top2:    pick(12,1),
   bottom:  pick(11,4),
@@ -120,6 +120,36 @@ const DECOR = {
     pick(11,2), pick(11,3), pick(12,2), pick(12,3) // 4 varianti 16×16
   ],
 };
+// --- mappa mobile (metti qui le coordinate alternative)
+const DECOR_MOBILE = {
+  // esempio: su mobile usi una riga diversa per il top1/top2
+  top1:    pick(11,2),
+  top2:    pick(12,2),
+  bottom:  pick(11,5),
+  bottom2: pick(12,5),
+  left1:   pick(10,2),
+  left2:   pick(10,3),
+  left3:   pick(10,2),
+  right1:  pick(13,2),
+  right2:  pick(13,3),
+  right3:  pick(13,2),
+
+  corner_tl: pick(10,1),
+  corner_tr: pick(13,1),
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
+
+  corner_tl_door: pick(11,2),
+  corner_tr_door: pick(12,2),
+  corner_bl_door: pick(11,5),
+  corner_br_door: pick(12,5),
+
+  floor: [ pick(0,6), pick(1,6), pick(2,6), pick(3,6) ],
+};
+
+// scegli la mappa in base al device
+let DECOR = IS_MOBILE ? DECOR_MOBILE : DECOR_DESKTOP;
+
 
 function variantIndex(x, y, len) {
   // hash veloce e stabile per (x,y)

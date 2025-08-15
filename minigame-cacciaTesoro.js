@@ -428,10 +428,13 @@ function getCurrentPetSpeed() {
 
   // ---------- CANVAS SIZE ----------
 function resizeTreasureCanvas() {
+
+  debugAtlas('resize'); 
+  maybeSwapDecorForDevice();
   const wWin = window.innerWidth;
   const hWin = window.innerHeight;
 
-  maybeSwapDecorForDevice();
+
 
   // spazio effettivo: tolgo HUD ecc.
   const hudH  = 70;
@@ -507,8 +510,11 @@ function resizeTreasureCanvas() {
     generateDungeon();
     requestLandscape();
     initAtlasSprites(); 
-    buildDecorFromAtlas();
-    debugAtlas('dopo build');
+
+
+    maybeSwapDecorForDevice();   // (se la tua versione NON richiama build… qui sotto, allora chiama anche:)
+  buildDecorFromAtlas();       // <-- opzionale se maybeSwap già lo fa
+  debugAtlas('start');
 
     G.level = 1;
     G.score = 0; //
@@ -1083,22 +1089,28 @@ function generateRoomTiles(room) {
 
 
 
-
 function drawRoom(room) {
   const tile = window.treasureTile || 64;
-drawDebugSides(tiles, tile);
 
-  drawFloor(room);                       // 1) pavimento (copre anche le porte)
-  const tiles = generateRoomTiles(room); // 2) muri/angoli
+  // 1) calcola la mappa dei tipi (prima di usarla!)
+  const tiles = generateRoomTiles(room);
 
+  // 2) pavimento (prima dei muri, così i muri coprono il bordo)
+  drawFloor(room);
+
+  // 3) overlay debug opzionale
+  drawDebugSides(tiles, tile);   // <-- ora è DOPO la definizione di tiles
+
+  // 4) disegna i muri/angoli dall’atlas
   for (let y = 0; y < tiles.length; y++) {
     for (let x = 0; x < tiles[y].length; x++) {
       const type = tiles[y][x];
       if (!type || type === 'center') continue;
-      drawTileType(x, y, type, tile);   // ritagli {sx,sy,sw,sh} dall’atlas
+      drawTileType(x, y, type, tile);
     }
   }
 }
+
 
 
 
@@ -1118,7 +1130,7 @@ function render() {
   const tile = window.treasureTile || 64;
 
   // Sfondo
-  drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
+//  drawImg(G.sprites.bg, 0, 0, Cfg.roomW * tile, Cfg.roomH * tile);
 
 
   // Muri (cornice + porte + interni)

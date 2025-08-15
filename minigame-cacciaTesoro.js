@@ -1,3 +1,35 @@
+// --- Mobile error overlay (debug) ---
+// Incolla questo blocco in cima al file, fuori dalla tua IIFE
+(function mobileErrorOverlay(){
+  function install(){
+    const box = document.createElement('div');
+    box.id = '__errbox';
+    box.style.cssText =
+      'position:fixed;left:8px;bottom:8px;right:8px;max-height:40vh;overflow:auto;' +
+      'background:rgba(0,0,0,.8);color:#fff;font:12px/1.4 monospace;padding:8px;' +
+      'z-index:999999;border-radius:8px;display:none';
+    box.title = 'Tocca per nascondere';
+    box.addEventListener('click', ()=> box.style.display='none');
+    document.body.appendChild(box);
+
+    function show(msg){
+      box.style.display = 'block';
+      box.textContent = String(msg);
+    }
+
+    // intercetta errori JS e Promise rifiutate
+    window.onerror = (m, s, l, c) => { show(`[ERR] ${m} @ ${s}:${l}:${c}`); };
+    window.onunhandledrejection = (ev) => { show(`[Promise] ${ev.reason}`); };
+
+    // opzionale: per mostrare messaggi manualmente da console
+    window._showMobileError = show;
+  }
+
+  if (document.body) install();
+  else document.addEventListener('DOMContentLoaded', install, { once:true });
+})();
+
+
 // === MINI GIOCO CACCIA AL TESORO — versione “no-globals” (modulo IIFE) ===
 (() => {
   // ---------- CONFIG ----------
@@ -690,20 +722,7 @@ function gameLoop() {
 }
 gameLoop();
 
-// --- Mobile error overlay (debug) ---
-(function mobileErrorOverlay(){
-  const box = document.createElement('div');
-  box.style.cssText =
-    'position:fixed;left:8px;bottom:8px;right:8px;max-height:40vh;overflow:auto;' +
-    'background:rgba(0,0,0,.7);color:#fff;font:12px/1.4 monospace;padding:8px;z-index:99999;display:none;border-radius:8px';
-  document.body.appendChild(box);
-  function show(msg){
-    box.style.display = 'block';
-    box.textContent = String(msg);
-  }
-  window.onerror = (m, s, l, c) => { show(`[ERR] ${m} @${s}:${l}:${c}`); };
-  window.onunhandledrejection = (ev) => { show(`[Promise] ${ev.reason}`); };
-})();
+
 
 
   // ---------- LOGICA ----------

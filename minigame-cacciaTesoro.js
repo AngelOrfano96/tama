@@ -179,17 +179,30 @@ function buildDecorFromAtlas() {
     floor: DECOR.floor,
   };
 }
+
+(function debugAtlas() {
+  const toCR = a => (Array.isArray(a) ? a.map(p => `${p.sx/16},${p.sy/16}`) : `${a.sx/16},${a.sy/16}`);
+  const d = G.sprites.decor;
+  console.table({
+    left:   toCR(d.left),
+    right:  toCR(d.right),
+    top:    toCR(d.top),
+    bottom: toCR(d.bottom),
+  });
+})();
+
+
 function drawFloor(room) {
   const tile = window.treasureTile || 64;
-  const H = room.length, W = room[0].length;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      if (room[y][x] === 0) {           // interno + porte = 0
+  for (let y = 0; y < room.length; y++) {
+    for (let x = 0; x < room[0].length; x++) {
+      if (room[y][x] === 0) {                 // include anche le celle-bordo delle porte
         drawTileType(x, y, 'floor', tile);
       }
     }
   }
 }
+
 
 
 
@@ -996,46 +1009,51 @@ function generateRoomTiles(room) {
   const span = getDoorSpan();
   const ys = doorIndices(cy, span, 1, H - 2);
   const xs = doorIndices(cx, span, 1, W - 2);
-  const off = Math.floor(span / 2) + 1;
 
-  const isDoorCell = (x, y) =>
-    (x === 0     && ys.includes(y)) ||
-    (x === W - 1 && ys.includes(y)) ||
-    (y === 0     && xs.includes(x)) ||
-    (y === H - 1 && xs.includes(x));
+  const doorCell = (x, y) =>
+    (x === 0     && ys.includes(y) && room[y][0]     === 0) ||
+    (x === W - 1 && ys.includes(y) && room[y][W - 1] === 0) ||
+    (y === 0     && xs.includes(x) && room[0][x]     === 0) ||
+    (y === H - 1 && xs.includes(x) && room[H - 1][x] === 0);
+
+  // cella “muro” = bordo che NON è una porta
+  const isWall = (x, y) =>
+    (x === 0 || x === W - 1 || y === 0 || y === H - 1) && !doorCell(x, y);
+
+  const off = Math.floor(span / 2) + 1;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      // interno o cella porta: nessun muro (lo copre il floor)
-      if (room[y][x] === 0 || isDoorCell(x, y)) continue;
+      if (!isWall(x, y)) { tiles[y][x] = null; continue; }
 
-      // angoli speciali vicino ai varchi
-      if (x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (x === W - 1 && y === cy + off) { tiles[y][x] = 'corner_br_door'; continue; }
-      if (y === 0     && x === cx - off) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (y === 0     && x === cx + off) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
+      // --- angoli porta (override) ---
+      if (x === 0     && ys.includes(cy - off) && y === cy - off && room[y][0]     === 0) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (x === 0     && ys.includes(cy + off) && y === cy + off && room[y][0]     === 0) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (x === W - 1 && ys.includes(cy - off) && y === cy - off && room[y][W - 1] === 0) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (x === W - 1 && ys.includes(cy + off) && y === cy + off && room[y][W - 1] === 0) { tiles[y][x] = 'corner_br_door'; continue; }
+      if (y === 0     && xs.includes(cx - off) && x === cx - off && room[0][x]     === 0) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (y === 0     && xs.includes(cx + off) && x === cx + off && room[0][x]     === 0) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (y === H - 1 && xs.includes(cx - off) && x === cx - off && room[H - 1][x] === 0) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (y === H - 1 && xs.includes(cx + off) && x === cx + off && room[H - 1][x] === 0) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // angoli stanza
+      // --- angoli normali ---
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
       if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // lati (impossibile scambiarli)
+      // --- lati per geometria del bordo (qui non può “sbagliare”) ---
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
       if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
 
-      tiles[y][x] = 'center';
+      tiles[y][x] = 'center'; // non dovrebbe capitare con bordi solidi
     }
   }
   return tiles;
 }
+
 
 
 

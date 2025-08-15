@@ -182,12 +182,11 @@ function buildDecorFromAtlas() {
 
 function debugAtlas(tag = '') {
   const d = G?.sprites?.decor;
-  if (!d) {
-    console.warn('[debugAtlas] decor non pronto', tag);
-    return;
-  }
-  const toCR = a =>
-    Array.isArray(a) ? a.map(p => `${p.sx/16},${p.sy/16}`) : `${a.sx/16},${a.sy/16}`;
+  if (!d) { console.warn('[debugAtlas] decor non pronto', tag); return; }
+
+  const toCR = a => Array.isArray(a)
+    ? a.map(p => `${p.sx/16},${p.sy/16}`)
+    : `${a.sx/16},${a.sy/16}`;
 
   console.log('--- DECOR', tag, '---');
   console.table({
@@ -197,19 +196,26 @@ function debugAtlas(tag = '') {
     bottom: toCR(d.bottom),
   });
 }
-window.debugAtlas = debugAtlas; // così puoi chiamarla dalla console
+window.debugAtlas = debugAtlas; // comodo da console
 
 
-(function debugAtlas() {
-  const toCR = a => (Array.isArray(a) ? a.map(p => `${p.sx/16},${p.sy/16}`) : `${a.sx/16},${a.sy/16}`);
-  const d = G.sprites.decor;
-  console.table({
-    left:   toCR(d.left),
-    right:  toCR(d.right),
-    top:    toCR(d.top),
-    bottom: toCR(d.bottom),
-  });
-})();
+const DEBUG_SIDES = false; // metti true per provare
+function drawDebugSides(tiles, tile) {
+  if (!DEBUG_SIDES) return;
+  ctx.save(); ctx.globalAlpha = 0.25;
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const t = tiles[y][x];
+      if      (t === 'left')   ctx.fillStyle = '#00f';
+      else if (t === 'right')  ctx.fillStyle = '#f00';
+      else if (t === 'top')    ctx.fillStyle = '#0f0';
+      else if (t === 'bottom') ctx.fillStyle = '#ff0';
+      else continue;
+      ctx.fillRect(x*tile, y*tile, tile, tile);
+    }
+  }
+  ctx.restore();
+}
 
 
 function drawFloor(room) {
@@ -1080,6 +1086,7 @@ function generateRoomTiles(room) {
 
 function drawRoom(room) {
   const tile = window.treasureTile || 64;
+drawDebugSides(tiles, tile);
 
   drawFloor(room);                       // 1) pavimento (copre anche le porte)
   const tiles = generateRoomTiles(room); // 2) muri/angoli

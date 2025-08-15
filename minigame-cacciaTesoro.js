@@ -184,10 +184,11 @@ function drawFloor(room) {
   const H = room.length, W = room[0].length;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (room[y][x] === 0) drawTileType(x, y, 'floor', tile);
+      if (room[y][x] === 0) drawTileType(x, y, 'floor', tile); // 0 = interno o porta
     }
   }
 }
+
 
 
 function maybeSwapDecorForDevice() {
@@ -989,64 +990,45 @@ function generateRoomTiles(room) {
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
 
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
-  const span = getDoorSpan();
-  const ys = doorIndices(cy, span, 1, H - 2);
-  const xs = doorIndices(cx, span, 1, W - 2);
-
-  const doors = {
-    left:   ys.some(r => room[r]?.[0]     === 0),
-    right:  ys.some(r => room[r]?.[W - 1] === 0),
-    top:    xs.some(c => room[0]?.[c]     === 0),
-    bottom: xs.some(c => room[H - 1]?.[c] === 0),
-  };
+  const span = getDoorSpan();                        // 3 desktop, 2 mobile…
+  const ys = doorIndices(cy, span, 1, H - 2);       // indici riga del varco verticale
+  const xs = doorIndices(cx, span, 1, W - 2);       // indici colonna del varco orizzontale
+  const off = Math.floor(span / 2) + 1;             // distanza angoli-porto
 
   const isDoorCell = (x, y) =>
-    (x === 0     && doors.left   && ys.includes(y)) ||
-    (x === W - 1 && doors.right  && ys.includes(y)) ||
-    (y === 0     && doors.top    && xs.includes(x)) ||
-    (y === H - 1 && doors.bottom && xs.includes(x));
-
-  const isSolid = (x, y) => {
-    if (x < 0 || y < 0 || x >= W || y >= H) return false;
-    if (room[y][x] === 0) return false; // interno
-    if (isDoorCell(x, y)) return false; // apertura porta
-    return true;                         // muro
-  };
-
-  // quanto “staccare” gli angoli speciali dalla porta
-  const off = Math.floor(span / 2) + 1;
+    (x === 0     && ys.includes(y)) ||
+    (x === W - 1 && ys.includes(y)) ||
+    (y === 0     && xs.includes(x)) ||
+    (y === H - 1 && xs.includes(x));
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
+      // interno o apertura porta: niente muro (ci pensa drawFloor)
+      if (room[y][x] === 0 || isDoorCell(x, y)) continue;
 
-      const up    = isSolid(x, y - 1);
-      const down  = isSolid(x, y + 1);
-      const left  = isSolid(x - 1, y);
-      const right = isSolid(x + 1, y);
+      // --- angoli speciali vicino ai varchi ---
+      if (x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (x === W - 1 && y === cy + off) { tiles[y][x] = 'corner_br_door'; continue; }
+      if (y === 0     && x === cx - off) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (y === 0     && x === cx + off) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // angoli speciali vicino alle porte
-      if (doors.left   && x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (doors.left   && x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (doors.right  && x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (doors.right  && x === W - 1 && y === cy + off) { tiles[y][x] = 'corner_br_door'; continue; }
-      if (doors.top    && y === 0     && x === cx - off) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (doors.top    && y === 0     && x === cx + off) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (doors.bottom && y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (doors.bottom && y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
+      // --- angoli stanza ---
+      if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
+      if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
+      if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
+      if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // angoli normali
-      if (!up && !left)    { tiles[y][x] = 'corner_tl'; continue; }
-      if (!up && !right)   { tiles[y][x] = 'corner_tr'; continue; }
-      if (!down && !left)  { tiles[y][x] = 'corner_bl'; continue; }
-      if (!down && !right) { tiles[y][x] = 'corner_br'; continue; }
+      // --- lati per bordo (qui non si può sbagliare) ---
+      if (y === 0)        { tiles[y][x] = 'top';    continue; }
+      if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
+      if (x === 0)        { tiles[y][x] = 'left';   continue; }
+      if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
 
-      // lati
-      if (!up)    { tiles[y][x] = 'top';    continue; }
-      if (!down)  { tiles[y][x] = 'bottom'; continue; }
-      if (!left)  { tiles[y][x] = 'left';   continue; }
-      if (!right) { tiles[y][x] = 'right';  continue; }
-
+      // fallback (non dovrebbe servire)
       tiles[y][x] = 'center';
     }
   }
@@ -1055,23 +1037,20 @@ function generateRoomTiles(room) {
 
 
 
+
 function drawRoom(room) {
   const tile = window.treasureTile || 64;
-
-  // 1) pavimento prima (variante pseudo-random)
-  drawFloor(room);
-
-  // 2) muri/angoli calcolati
-  const tiles = generateRoomTiles(room);
+  drawFloor(room);                              // 1) pavimento
+  const tiles = generateRoomTiles(room);        // 2) muri/angoli
   for (let y = 0; y < tiles.length; y++) {
     for (let x = 0; x < tiles[y].length; x++) {
       const type = tiles[y][x];
       if (!type || type === 'center') continue;
-      // <-- questo è il punto chiave: usa il drawer che supporta atlas
-      drawTileType(x, y, type, tile);
+      drawTileType(x, y, type, tile);          // usa i ritagli {sx,sy,sw,sh}
     }
   }
 }
+
 
 
 

@@ -982,33 +982,48 @@ function drawTileType(x, y, type, tile) {
 
 
 
-
-
-
-
-
-
-// v3 - porte larghe 3 celle, angoli a ±2 dal centro del varco
 function generateRoomTiles(room) {
   const H = room.length, W = room[0].length;
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
+
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
+  const span = getDoorSpan();
+  const ys = doorIndices(cy, span, 1, H - 2);
+  const xs = doorIndices(cx, span, 1, W - 2);
 
   const doors = {
-    left:   room[cy]?.[0]     === 0,
-    right:  room[cy]?.[W-1]   === 0,
-    top:    room[0]?.[cx]     === 0,
-    bottom: room[H-1]?.[cx]   === 0,
+    left:   ys.some(r => room[r]?.[0]     === 0),
+    right:  ys.some(r => room[r]?.[W - 1] === 0),
+    top:    xs.some(c => room[0]?.[c]     === 0),
+    bottom: xs.some(c => room[H - 1]?.[c] === 0),
   };
-  const off = HALF_SPAN + 1;
+
+  const isDoorCell = (x, y) =>
+    (x === 0     && doors.left   && ys.includes(y)) ||
+    (x === W - 1 && doors.right  && ys.includes(y)) ||
+    (y === 0     && doors.top    && xs.includes(x)) ||
+    (y === H - 1 && doors.bottom && xs.includes(x));
+
+  const isSolid = (x, y) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return false;
+    if (room[y][x] === 0) return false; // interno
+    if (isDoorCell(x, y)) return false; // apertura porta
+    return true;                         // muro
+  };
+
+  // quanto “staccare” gli angoli speciali dalla porta
+  const off = Math.floor(span / 2) + 1;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
+      if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
-      // --- PAVIMENTO su tutte le celle interne (0) e sui varchi delle porte ---
-      if (room[y][x] === 0) { tiles[y][x] = 'floor'; continue; }
+      const up    = isSolid(x, y - 1);
+      const down  = isSolid(x, y + 1);
+      const left  = isSolid(x - 1, y);
+      const right = isSolid(x + 1, y);
 
-      // da qui in giù: solo i muri (1)
+      // angoli speciali vicino alle porte
       if (doors.left   && x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
       if (doors.left   && x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.right  && x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
@@ -1018,15 +1033,17 @@ function generateRoomTiles(room) {
       if (doors.bottom && y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.bottom && y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
-      if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
-      if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
-      if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
+      // angoli normali
+      if (!up && !left)    { tiles[y][x] = 'corner_tl'; continue; }
+      if (!up && !right)   { tiles[y][x] = 'corner_tr'; continue; }
+      if (!down && !left)  { tiles[y][x] = 'corner_bl'; continue; }
+      if (!down && !right) { tiles[y][x] = 'corner_br'; continue; }
 
-      if (y === 0)        { tiles[y][x] = 'top';    continue; }
-      if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
-      if (x === 0)        { tiles[y][x] = 'left';   continue; }
-      if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
+      // lati
+      if (!up)    { tiles[y][x] = 'top';    continue; }
+      if (!down)  { tiles[y][x] = 'bottom'; continue; }
+      if (!left)  { tiles[y][x] = 'left';   continue; }
+      if (!right) { tiles[y][x] = 'right';  continue; }
 
       tiles[y][x] = 'center';
     }
@@ -1035,17 +1052,25 @@ function generateRoomTiles(room) {
 }
 
 
+
 function drawRoom(room) {
   const tile = window.treasureTile || 64;
-  const tileTypes = generateRoomTiles(room);
-  for (let y = 0; y < tileTypes.length; y++) {
-    for (let x = 0; x < tileTypes[y].length; x++) {
-      const type = tileTypes[y][x];
-      if (!type) continue;
-      drawTileType(x, y, type, tile); // <-- usa il renderer che supporta l'atlas
+
+  // 1) pavimento prima (variante pseudo-random)
+  drawFloor(room);
+
+  // 2) muri/angoli calcolati
+  const tiles = generateRoomTiles(room);
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const type = tiles[y][x];
+      if (!type || type === 'center') continue;
+      // <-- questo è il punto chiave: usa il drawer che supporta atlas
+      drawTileType(x, y, type, tile);
     }
   }
 }
+
 
 
 

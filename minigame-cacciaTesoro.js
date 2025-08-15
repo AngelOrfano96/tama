@@ -184,10 +184,13 @@ function drawFloor(room) {
   const H = room.length, W = room[0].length;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (room[y][x] === 0) drawTileType(x, y, 'floor', tile); // 0 = interno o porta
+      if (room[y][x] === 0) {           // interno + porte = 0
+        drawTileType(x, y, 'floor', tile);
+      }
     }
   }
 }
+
 
 
 
@@ -990,10 +993,10 @@ function generateRoomTiles(room) {
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
 
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
-  const span = getDoorSpan();                        // 3 desktop, 2 mobile…
-  const ys = doorIndices(cy, span, 1, H - 2);       // indici riga del varco verticale
-  const xs = doorIndices(cx, span, 1, W - 2);       // indici colonna del varco orizzontale
-  const off = Math.floor(span / 2) + 1;             // distanza angoli-porto
+  const span = getDoorSpan();                         // 3 desktop, 2 mobile, ecc.
+  const ys = doorIndices(cy, span, 1, H - 2);         // righe del varco verticale
+  const xs = doorIndices(cx, span, 1, W - 2);         // colonne del varco orizzontale
+  const off = Math.floor(span / 2) + 1;               // distanza angoli-porto
 
   const isDoorCell = (x, y) =>
     (x === 0     && ys.includes(y)) ||
@@ -1003,10 +1006,10 @@ function generateRoomTiles(room) {
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      // interno o apertura porta: niente muro (ci pensa drawFloor)
+      // interno o apertura porta → niente muro (il floor copre)
       if (room[y][x] === 0 || isDoorCell(x, y)) continue;
 
-      // --- angoli speciali vicino ai varchi ---
+      // angoli speciali vicino ai varchi
       if (x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
       if (x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
@@ -1016,40 +1019,40 @@ function generateRoomTiles(room) {
       if (y === 0     && x === cx + off) { tiles[y][x] = 'corner_tr_door'; continue; }
       if (y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // --- angoli stanza ---
+      // angoli stanza
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
       if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- lati per bordo (qui non si può sbagliare) ---
+      // lati per bordo (impossibile scambiarli)
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
       if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
 
-      // fallback (non dovrebbe servire)
-      tiles[y][x] = 'center';
+      tiles[y][x] = 'center'; // di solito non serve
     }
   }
   return tiles;
 }
 
 
-
-
 function drawRoom(room) {
   const tile = window.treasureTile || 64;
-  drawFloor(room);                              // 1) pavimento
-  const tiles = generateRoomTiles(room);        // 2) muri/angoli
+
+  drawFloor(room);                       // 1) pavimento (copre anche le porte)
+  const tiles = generateRoomTiles(room); // 2) muri/angoli
+
   for (let y = 0; y < tiles.length; y++) {
     for (let x = 0; x < tiles[y].length; x++) {
       const type = tiles[y][x];
       if (!type || type === 'center') continue;
-      drawTileType(x, y, type, tile);          // usa i ritagli {sx,sy,sw,sh}
+      drawTileType(x, y, type, tile);   // ritagli {sx,sy,sw,sh} dall’atlas
     }
   }
 }
+
 
 
 

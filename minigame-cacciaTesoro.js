@@ -94,6 +94,8 @@
       stepFrame: 0,
     },
 
+    fires: {},   // { "x,y": { x, y, offset } }  max 1 per stanza
+
     // input
     keysStack: [],
 
@@ -156,6 +158,10 @@ const DECOR_DESKTOP = {
   door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
   door_h2: pick(7,6),
 
+  fire1: pick(4, 8),
+  fire2: pick(5, 9),
+  fire3: pick(6, 10),
+
 };
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
@@ -185,6 +191,10 @@ const DECOR_MOBILE = {
 
   door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
   door_h2: pick(7,6),
+
+  fire1: pick(4, 8),
+  fire2: pick(5, 9),
+  fire3: pick(6, 10),
 
 };
 const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex
@@ -219,6 +229,8 @@ function buildDecorFromAtlas() {
 
      exitClosed: DECOR.door_h1,
     exitOpen:   DECOR.door_h2,
+
+    bonfire: [DECOR.fire1, DECOR.fire2, DECOR.fire3],
 
     floor: DECOR.floor,
   };
@@ -1155,6 +1167,14 @@ function drawImg(img, dx, dy, dw, dh) {
  // helper locali per il disegno safe
 function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
+
+function drawAtlasClip(clip, x, y, tile) {
+  const atlas = G.sprites.atlas;
+  if (!atlas || !atlas.complete || !clip) return;
+  ctx.drawImage(atlas, clip.sx, clip.sy, clip.sw, clip.sh, x * tile, y * tile, tile, tile);
+}
+
+
 function drawTileType(x, y, type, tile) {
   const entry = G.sprites.decor?.[type];
   if (!entry) return;
@@ -1362,6 +1382,31 @@ if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
   }
 }
 
+// --- Falò (animati) ---
+{
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  const fire = G.fires[key];
+  const frames = G.sprites.decor?.bonfire;
+
+  if (fire && frames && frames.length >= 3) {
+    const tile = window.treasureTile || 64;
+    const frameMs = 180; // durata di ogni frame
+    const t = performance.now();
+    const idx = (Math.floor(t / frameMs) + (fire.offset || 0)) % frames.length;
+    drawAtlasClip(frames[idx], fire.x, fire.y, tile);
+
+    // (opzionale) bagliore: piccolo alone sopra il pavimento
+     ctx.save();
+     ctx.globalAlpha = 0.10;
+     ctx.fillStyle = '#fbbf24';
+     ctx.beginPath();
+     ctx.ellipse(fire.x * tile + tile/2, fire.y * tile + tile*0.78, tile*0.42, tile*0.18, 0, 0, Math.PI*2);
+     ctx.fill();
+     ctx.restore();
+  }
+}
+
+
   // pet
   const px = G.pet.px, py = G.pet.py, sz = tile - 12;
   let sPet = !G.pet.moving ? G.sprites.pet.idle : G.sprites.pet[G.pet.direction][G.pet.stepFrame];
@@ -1566,8 +1611,59 @@ for (let i = 0; i < nEnemies; i++) {
       }
     }
 
-    G.hudDirty = true;
+    // ---- Falò random per livello (max 3, max 1 per stanza) ----
+G.fires = {};
+const maxFires = 3;
+const wantFires = Math.floor(Math.random() * (maxFires + 1)); // 0..3
+
+// lista di tutte le stanze
+const allRooms = [];
+for (let ry = 0; ry < Cfg.gridH; ry++) {
+  for (let rx = 0; rx < Cfg.gridW; rx++) {
+    allRooms.push({ rx, ry });
   }
+}
+// shuffle semplice
+for (let i = allRooms.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [allRooms[i], allRooms[j]] = [allRooms[j], allRooms[i]];
+}
+
+let placed = 0;
+for (const { rx, ry } of allRooms) {
+  if (placed >= wantFires) break;
+
+  const key = `${rx},${ry}`;
+  const room = G.rooms[ry][rx];
+
+  // scegli una cella interna, evitando exit/monete/powerup
+  let tries = 0, x, y, bad;
+  do {
+    x = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+    y = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+
+    bad = false;
+
+    // evita la botola (se questa è la stanza dell'uscita)
+    if (rx === G.exitRoom.x && ry === G.exitRoom.y &&
+        x === G.exitTile.x && y === G.exitTile.y) bad = true;
+
+    // evita monete e powerup
+    if (!bad && (G.objects[key]?.some(o => !o.taken && o.x === x && o.y === y))) bad = true;
+    if (!bad && (G.powerups[key]?.some(p => !p.taken && p.x === x && p.y === y))) bad = true;
+
+    tries++;
+  } while (bad && tries < 80);
+
+  if (!bad) {
+    G.fires[key] = { x, y, offset: Math.floor(Math.random() * 3) }; // offset per desincronizzare l'animazione
+    placed++;
+  }
+}
+
+
+    G.hudDirty = true;
+}
 
   async function requestLandscape() {
   const el = document.documentElement; // o DOM.canvas

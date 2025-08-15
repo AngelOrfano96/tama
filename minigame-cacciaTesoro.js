@@ -4,8 +4,8 @@
   const Cfg = {
     gridW: 3,
     gridH: 3,
-    roomW: 9,
-    roomH: 8,
+    roomW: 8,
+    roomH: 7,
     petSpeedDesktop: 180,
     petSpeedMobile: 120,
     enemySpeedDesktop: 100,
@@ -236,7 +236,7 @@ const MoleCfg = {
 
       // Mobile tweaks
   if (isMobileOrTablet() || window.innerWidth < 800) {
-    Cfg.roomW = 6;
+    Cfg.roomW = 7;
     Cfg.roomH = 7;
   }
 

@@ -139,10 +139,10 @@ const DECOR_MOBILE = {
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
 
-  corner_tl_door: pick(9,5),
-  corner_tr_door: pick(8,5),
-  corner_bl_door: pick(9,3),
-  corner_br_door: pick(8,3),
+  corner_tl_door: pick(11,1),
+  corner_tr_door: pick(12,1),
+  corner_bl_door: pick(11,4),
+  corner_br_door: pick(12,4),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
 };

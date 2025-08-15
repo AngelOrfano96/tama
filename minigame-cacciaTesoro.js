@@ -371,6 +371,71 @@ function setGridForLevel(level) {
   const isTouch = window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches;
   // ---------- STATO GIOCO ----------
 
+// --- HUD compatto in alto a sinistra ---
+function ensureTinyHud() {
+  if (DOM.hudBox) return;
+
+  const box = document.createElement('div');
+  box.id = 'treasure-hud';
+  box.style.cssText = [
+    'position:absolute',
+    'top:10px',
+    'left:10px',
+    'z-index:50',
+    'min-width:160px',
+    'padding:10px 12px',
+    'color:#fff',
+    'background:rgba(0,0,0,.55)',
+    'backdrop-filter:blur(4px)',
+    '-webkit-backdrop-filter:blur(4px)',
+    'border-radius:12px',
+    'box-shadow:0 6px 20px rgba(0,0,0,.25)',
+    'font:600 12px/1.25 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+    'letter-spacing:.2px',
+    'user-select:none',
+    'pointer-events:none' // non blocca tocchi/click sul gioco
+  ].join(';');
+
+  box.innerHTML = `
+    <div class="row"><span class="lab">Punteggio</span><span id="hud-score" class="val">0</span></div>
+    <div class="row"><span class="lab">Livello</span><span id="hud-level" class="val">1</span></div>
+    <div class="row"><span class="lab">Tempo</span><span id="hud-time" class="val">0:00</span></div>
+    <div class="row"><span class="lab">Monete</span><span id="hud-coins" class="val">0</span></div>
+  `;
+
+  // stile righe
+  [...box.querySelectorAll('.row')].forEach(r => {
+    r.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin:2px 0;gap:12px';
+  });
+  // stile label e value (piccolo tocco estetico)
+  [...box.querySelectorAll('.lab')].forEach(l => l.style.cssText = 'opacity:.9');
+  [...box.querySelectorAll('.val')].forEach(v => v.style.cssText = 'font-weight:800');
+
+  // su mobile più compatto
+  if (isMobileOrTablet()) {
+    box.style.fontSize = '11px';
+    box.style.padding = '8px 10px';
+    box.style.borderRadius = '10px';
+  }
+
+  // monta dentro il modal del minigioco (così sta sopra al canvas)
+  (DOM.modal || document.body).appendChild(box);
+
+  // salva riferimenti
+  DOM.hudBox   = box;
+  DOM.hudScore = box.querySelector('#hud-score');
+  DOM.hudLvl   = box.querySelector('#hud-level');
+  DOM.hudTime  = box.querySelector('#hud-time');
+  DOM.hudCoins = box.querySelector('#hud-coins');
+}
+
+// utilità: formatta secondi in mm:ss
+function fmtTime(sec) {
+  sec = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
 
 
 /////MUSICA
@@ -528,13 +593,32 @@ function resizeTreasureCanvas() {
   function countCoinsLeft() {
     return Object.values(G.objects).flat().filter(o => o.type === 'coin' && !o.taken).length;
   }
-  function syncHud() {
-    DOM.coins && (DOM.coins.textContent = String(countCoinsLeft()));
-    DOM.score && (DOM.score.textContent = String(G.score));
-    DOM.level && (DOM.level.textContent = String(G.level));
-    DOM.timer && (DOM.timer.textContent = String(G.timeLeft));
-    G.hudDirty = false;
+function syncHud() {
+  // assicura l'HUD creato
+  ensureTinyHud();
+
+  // calcola monete rimaste
+  const coinsLeft = Object.values(G.objects)
+    .flat()
+    .filter(o => o.type === 'coin' && !o.taken).length;
+
+  // aggiorna il vecchio HUD se presente
+  DOM.coins && (DOM.coins.textContent = String(coinsLeft));
+  DOM.score && (DOM.score.textContent = String(G.score));
+  DOM.level && (DOM.level.textContent = String(G.level));
+  DOM.timer && (DOM.timer.textContent = String(G.timeLeft));
+
+  // aggiorna il nuovo HUD compatto
+  if (DOM.hudBox) {
+    if (DOM.hudScore) DOM.hudScore.textContent = String(G.score);
+    if (DOM.hudLvl)   DOM.hudLvl.textContent   = String(G.level);
+    if (DOM.hudTime)  DOM.hudTime.textContent  = fmtTime(G.timeLeft);
+    if (DOM.hudCoins) DOM.hudCoins.textContent = String(coinsLeft);
   }
+
+  G.hudDirty = false;
+}
+
 
   // ---------- AVVIO ----------
   function startTreasureMinigame() {
@@ -554,6 +638,10 @@ function resizeTreasureCanvas() {
     G.activePowerup = null;
     G.powerupExpiresAt = 0;
     G.slowExpiresAt = 0;
+
+    // crea il mini HUD e (opzionale) nascondi la vecchia topbar
+ensureTinyHud();
+document.querySelector('.treasure-info-bar')?.classList.add('hidden');
 
 
 // dentro startTreasureMinigame, PRIMA di G.sprites.decor

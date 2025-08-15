@@ -123,10 +123,10 @@ const DECOR_DESKTOP = {
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
   // esempio: su mobile usi una riga diversa per il top1/top2
-  top1:    pick(11,2),
-  top2:    pick(12,2),
-  bottom:  pick(11,5),
-  bottom2: pick(12,5),
+ top1:    pick(11,1),
+  top2:    pick(12,1),
+  bottom:  pick(11,4),
+  bottom2: pick(12,4),
   left1:   pick(10,2),
   left2:   pick(10,3),
   left3:   pick(10,2),
@@ -139,10 +139,10 @@ const DECOR_MOBILE = {
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
 
-  corner_tl_door: pick(11,2),
-  corner_tr_door: pick(12,2),
-  corner_bl_door: pick(11,5),
-  corner_br_door: pick(12,5),
+  corner_tl_door: pick(9,5),
+  corner_tr_door: pick(8,5),
+  corner_bl_door: pick(9,3),
+  corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
 };

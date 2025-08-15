@@ -227,13 +227,18 @@ const MoleCfg = {
   function isMobileOrTablet() {
     return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
   }
-
+/*
   // Mobile tweaks
   if (isMobileOrTablet() || window.innerWidth < 800) {
-    Cfg.roomW = 8;
-    Cfg.roomH = 7;
-  }
+    Cfg.roomW = 7;
+    Cfg.roomH = 6;
+  } */
 
+      // Mobile tweaks
+  if (isMobileOrTablet() || window.innerWidth < 800) {
+    Cfg.roomW = 6;
+    Cfg.roomH = 5;
+  }
 
   const GRID_POOL_DESKTOP = [[2,2],[3,2],[2,3],[3,3],[4,3],[3,4]];
 const GRID_POOL_MOBILE  = [[2,2],[3,2],[2,3],[3,3]];

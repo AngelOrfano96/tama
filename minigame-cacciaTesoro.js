@@ -111,7 +111,7 @@ const DECOR = {
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
 
-  corner_tl_door: pick(10,1),
+  corner_tl_door: pick(9,5),
   corner_tr_door: pick(13,1),
   corner_bl_door: pick(10,4),
   corner_br_door: pick(13,4),

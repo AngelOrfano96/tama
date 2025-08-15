@@ -144,7 +144,7 @@ const DECOR_MOBILE = {
   corner_bl_door: pick(11,5),
   corner_br_door: pick(12,5),
 
-  floor: [ pick(0,6), pick(1,6), pick(2,6), pick(3,6) ],
+  floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
 };
 const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex
 

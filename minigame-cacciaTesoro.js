@@ -97,8 +97,8 @@ const pick = (c, r, w = 1, h = 1) => ({
 const DECOR = {
   top1:    pick(11,1),
   top2:    pick(12,1),
-  bottom:  pick(11,5),
-  bottom2: pick(12,5),
+  bottom:  pick(11,4),
+  bottom2: pick(12,4),
   left1:   pick(10,2),
   left2:   pick(10,3),
   left3:   pick(10,2),
@@ -909,7 +909,6 @@ function generateRoomTiles(room) {
   const cx = Math.floor(W / 2);
   const cy = Math.floor(H / 2);
 
-  // Porte (aperture larghe DOOR_SPAN)
   const doors = {
     left:   room[cy]?.[0]     === 0,
     right:  room[cy]?.[W - 1] === 0,
@@ -917,30 +916,14 @@ function generateRoomTiles(room) {
     bottom: room[H - 1]?.[cx] === 0,
   };
 
-  const isEmpty = (x, y) => {
-    if (x < 0 || y < 0 || x >= W || y >= H) return true;
-    if (!room[y][x]) return true; // 0 = vuoto
-    // considera le celle di porta come vuote (apertura larga DOOR_SPAN)
-    if (doors.left   && x === 0     && Math.abs(y - cy) <= HALF_SPAN) return true;
-    if (doors.right  && x === W - 1 && Math.abs(y - cy) <= HALF_SPAN) return true;
-    if (doors.top    && y === 0     && Math.abs(x - cx) <= HALF_SPAN) return true;
-    if (doors.bottom && y === H - 1 && Math.abs(x - cx) <= HALF_SPAN) return true;
-    return false;
-  };
-
-  // offset della “coppia” di angoli vicino alla porta
+  // quanto distanziare gli angoli speciali della porta (con DOOR_SPAN=3 → off=2)
   const off = HALF_SPAN + 1;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!room[y][x]) { tiles[y][x] = null; continue; }
+      if (!room[y][x]) { tiles[y][x] = null; continue; } // interno/porta
 
-      const up    = !isEmpty(x, y - 1);
-      const down  = !isEmpty(x, y + 1);
-      const left  = !isEmpty(x - 1, y);
-      const right = !isEmpty(x + 1, y);
-
-      // --- angoli “speciali porta” (coincidenze esatte di cella) ---
+      // --- angoli "porta" (override precisi) ---
       if (doors.left   && x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
       if (doors.left   && x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.right  && x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
@@ -950,18 +933,19 @@ function generateRoomTiles(room) {
       if (doors.bottom && y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.bottom && y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      // --- angoli normali ---
-      if (!up && !left)    { tiles[y][x] = 'corner_tl'; continue; }
-      if (!up && !right)   { tiles[y][x] = 'corner_tr'; continue; }
-      if (!down && !left)  { tiles[y][x] = 'corner_bl'; continue; }
-      if (!down && !right) { tiles[y][x] = 'corner_br'; continue; }
+      // --- angoli normali (ai 4 spigoli della stanza) ---
+      if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
+      if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
+      if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
+      if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- lati ---
-      if (!up)    { tiles[y][x] = 'top';    continue; }
-      if (!down)  { tiles[y][x] = 'bottom'; continue; }
-      if (!left)  { tiles[y][x] = 'left';   continue; }
-      if (!right) { tiles[y][x] = 'right';  continue; }
+      // --- lati in base al bordo geometrico ---
+      if (y === 0)        { tiles[y][x] = 'top';    continue; }
+      if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
+      if (x === 0)        { tiles[y][x] = 'left';   continue; }
+      if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
 
+      // fallback (di norma non serve con le stanze attuali)
       tiles[y][x] = 'center';
     }
   }
@@ -981,16 +965,20 @@ function generateRoomTiles(room) {
 
 
 
+
 function drawRoom(room) {
-  const tile = window.treasureTile || 64;
   const tiles = generateRoomTiles(room);
+  const tile = window.treasureTile || 64;
   for (let y = 0; y < tiles.length; y++) {
     for (let x = 0; x < tiles[y].length; x++) {
       const type = tiles[y][x];
-      if (type) drawTileType(x, y, type, tile);
+      if (!type) continue;
+      // ← usa SEMPRE questo (fa crop dall’atlas o disegna Image se lo è)
+      drawTileType(x, y, type, tile);
     }
   }
 }
+
 
 
 

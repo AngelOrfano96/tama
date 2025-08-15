@@ -1035,39 +1035,69 @@ function drawTileType(x, y, type, tile) {
 
 
 function generateRoomTiles(room) {
-  const H = room.length, W = room[0].length;
+  const H = room.length;
+  const W = room[0].length;
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
 
-  const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
-  const span = getDoorSpan();
-  const ys = doorIndices(cy, span, 1, H - 2);
-  const xs = doorIndices(cx, span, 1, W - 2);
+  // --- scan reale delle aperture sui 4 bordi (indipendente da span corrente) ---
+  const openL = []; // y dove x=0 è 0
+  const openR = []; // y dove x=W-1 è 0
+  const openT = []; // x dove y=0 è 0
+  const openB = []; // x dove y=H-1 è 0
+  for (let y = 1; y <= H - 2; y++) {
+    if (room[y][0] === 0)       openL.push(y);
+    if (room[y][W - 1] === 0)   openR.push(y);
+  }
+  for (let x = 1; x <= W - 2; x++) {
+    if (room[0][x] === 0)       openT.push(x);
+    if (room[H - 1][x] === 0)   openB.push(x);
+  }
 
-  const doorCell = (x, y) =>
-    (x === 0     && ys.includes(y) && room[y][0]     === 0) ||
-    (x === W - 1 && ys.includes(y) && room[y][W - 1] === 0) ||
-    (y === 0     && xs.includes(x) && room[0][x]     === 0) ||
-    (y === H - 1 && xs.includes(x) && room[H - 1][x] === 0);
+  const doors = {
+    left:   openL.length > 0,
+    right:  openR.length > 0,
+    top:    openT.length > 0,
+    bottom: openB.length > 0,
+  };
 
-  // cella “muro” = bordo che NON è una porta
-  const isWall = (x, y) =>
-    (x === 0 || x === W - 1 || y === 0 || y === H - 1) && !doorCell(x, y);
+  // centro reale dell’apertura e offset per i corner_*_door
+  const cyL = doors.left   ? Math.round((openL[0] + openL[openL.length - 1]) / 2) : null;
+  const cyR = doors.right  ? Math.round((openR[0] + openR[openR.length - 1]) / 2) : null;
+  const cxT = doors.top    ? Math.round((openT[0] + openT[openT.length - 1]) / 2) : null;
+  const cxB = doors.bottom ? Math.round((openB[0] + openB[openB.length - 1]) / 2) : null;
 
-  const off = Math.floor(span / 2) + 1;
+  // distanza degli angoli porta dal centro: 1 oltre il semispan reale
+  const offL = doors.left   ? Math.floor(openL.length / 2) + 1 : 0;
+  const offR = doors.right  ? Math.floor(openR.length / 2) + 1 : 0;
+  const offT = doors.top    ? Math.floor(openT.length / 2) + 1 : 0;
+  const offB = doors.bottom ? Math.floor(openB.length / 2) + 1 : 0;
+
+  const isDoorCell = (x, y) =>
+    (doors.left   && x === 0     && openL.includes(y)) ||
+    (doors.right  && x === W - 1 && openR.includes(y)) ||
+    (doors.top    && y === 0     && openT.includes(x)) ||
+    (doors.bottom && y === H - 1 && openB.includes(x));
+
+  const isSolid = (x, y) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return false;
+    if (room[y][x] === 0) return false; // interno
+    if (isDoorCell(x, y)) return false; // apertura
+    return true;                         // muro
+  };
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!isWall(x, y)) { tiles[y][x] = null; continue; }
+      if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
-      // --- angoli porta (override) ---
-      if (x === 0     && ys.includes(cy - off) && y === cy - off && room[y][0]     === 0) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (x === 0     && ys.includes(cy + off) && y === cy + off && room[y][0]     === 0) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (x === W - 1 && ys.includes(cy - off) && y === cy - off && room[y][W - 1] === 0) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (x === W - 1 && ys.includes(cy + off) && y === cy + off && room[y][W - 1] === 0) { tiles[y][x] = 'corner_br_door'; continue; }
-      if (y === 0     && xs.includes(cx - off) && x === cx - off && room[0][x]     === 0) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (y === 0     && xs.includes(cx + off) && x === cx + off && room[0][x]     === 0) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (y === H - 1 && xs.includes(cx - off) && x === cx - off && room[H - 1][x] === 0) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (y === H - 1 && xs.includes(cx + off) && x === cx + off && room[H - 1][x] === 0) { tiles[y][x] = 'corner_br_door'; continue; }
+      // --- angoli porta (usano centro/offset reali) ---
+      if (doors.left   && x === 0     && y === cyL - offL) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.left   && x === 0     && y === cyL + offL) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (doors.right  && x === W - 1 && y === cyR - offR) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (doors.right  && x === W - 1 && y === cyR + offR) { tiles[y][x] = 'corner_br_door'; continue; }
+      if (doors.top    && y === 0     && x === cxT - offT) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (doors.top    && y === 0     && x === cxT + offT) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (doors.bottom && y === H - 1 && x === cxB - offB) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (doors.bottom && y === H - 1 && x === cxB + offB) { tiles[y][x] = 'corner_br_door'; continue; }
 
       // --- angoli normali ---
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
@@ -1075,17 +1105,18 @@ function generateRoomTiles(room) {
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- lati per geometria del bordo (qui non può “sbagliare”) ---
+      // --- lati (per posizione geometrica) ---
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
       if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
 
-      tiles[y][x] = 'center'; // non dovrebbe capitare con bordi solidi
+      tiles[y][x] = 'center';
     }
   }
   return tiles;
 }
+
 
 
 

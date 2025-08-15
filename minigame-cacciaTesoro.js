@@ -1275,11 +1275,6 @@ function drawRoom(room) {
 }
 
 
-
-
-
-
-
 function drawTile(sprite, tileX, tileY) {
   const tileSize = G.tileSize;
   ctx.drawImage(sprite, tileX * tileSize, tileY * tileSize, tileSize, tileSize);
@@ -1348,6 +1343,25 @@ function render() {
     }
   }
 
+    // uscita (botola atlas: chiusa se mancano monete, aperta se finite)
+// === Uscita (botola) ===
+if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
+  const coinsLeft = countCoinsLeft();
+  const type = (coinsLeft === 0) ? 'exitOpen' : 'exitClosed';
+
+  // prova con l'atlas
+  if (G.sprites.decor?.[type]) {
+    drawTileType(G.exitTile.x, G.exitTile.y, type, tile);
+  } else {
+    // Fallback visivo (se i pick mancano): rettangolo colorato
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = (coinsLeft === 0) ? '#22c55e' : '#6b7280'; // verde=open, grigio=closed
+    ctx.fillRect(G.exitTile.x * tile + 6, G.exitTile.y * tile + 6, tile - 12, tile - 12);
+    ctx.restore();
+  }
+}
+
   // pet
   const px = G.pet.px, py = G.pet.py, sz = tile - 12;
   let sPet = !G.pet.moving ? G.sprites.pet.idle : G.sprites.pet[G.pet.direction][G.pet.stepFrame];
@@ -1368,12 +1382,8 @@ function render() {
     else { ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex + 8, ey + 8, tile - 16, tile - 16); }
   }
 
-  // uscita (botola atlas: chiusa se mancano monete, aperta se finite)
-if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
-  const coinsLeft = countCoinsLeft();
-  const type = (coinsLeft === 0) ? 'exitOpen' : 'exitClosed';
-  drawTileType(G.exitTile.x, G.exitTile.y, type, tile);
-}
+
+
 
 }
 

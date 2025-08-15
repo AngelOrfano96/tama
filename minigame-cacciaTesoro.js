@@ -306,7 +306,7 @@ function resizeTreasureCanvas() {
   const wWin = window.innerWidth;
   const hWin = window.innerHeight;
 
-  // spazio utile (come avevi)
+  // spazio effettivo: tolgo HUD ecc.
   const hudH  = 70;
   const safeB = (window.visualViewport ? (window.visualViewport.height - hWin) : 0) || 0;
   let w = wWin;
@@ -318,38 +318,42 @@ function resizeTreasureCanvas() {
 
   const TILE_MIN = 28;
   const TILE_MAX = 96;
-
-  // 👇 forziamo il TILE ad essere MULTIPLO di 16 (dimensione dell’atlas)
-  const ATLAS_TILE = 16;
   let tile = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.floor(tileBase)));
+
+  // 👇 forza multipli dell’ATLAS (16 px)
+  const ATLAS_TILE = 16;
   tile = Math.max(ATLAS_TILE, Math.round(tile / ATLAS_TILE) * ATLAS_TILE);
 
-  // 👇 retina: aumentiamo il backing store e scalamo il contesto
+  // 👇 retina: backing store ad alta risoluzione
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
 
-  // dimensioni CSS (in px logici)
+  // dimensione CSS (px logici)
   DOM.canvas.style.width  = `${Cfg.roomW * tile}px`;
   DOM.canvas.style.height = `${Cfg.roomH * tile}px`;
 
-  // dimensioni reali del canvas (px fisici)
+  // dimensione reale (px fisici)
   DOM.canvas.width  = Cfg.roomW * tile * dpr;
   DOM.canvas.height = Cfg.roomH * tile * dpr;
 
+  // contesto e scaling
   ctx = DOM.canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // importantissimo
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
 
   window.treasureTile = tile;
+  G.tileSize   = tile;
+  G.roomWidth  = Cfg.roomW;
+  G.roomHeight = Cfg.roomH;
   G.hudDirty = true;
 
-  // (facoltativo) centra con padding
+  // padding per centrare
   const padX = Math.max(0, Math.floor((w - Cfg.roomW * tile) / 2));
   const padY = Math.max(0, Math.floor((h - Cfg.roomH * tile) / 2));
   DOM.canvas.style.margin = `${padY}px ${padX}px`;
 
-  // se vuoi essere super-sicuro, riallinea il pet
   if (G?.pet) resyncPetToGrid();
 }
+
 
 
 
@@ -998,6 +1002,7 @@ function drawTile(sprite, tileX, tileY) {
   ctx.drawImage(sprite, tileX * tileSize, tileY * tileSize, tileSize, tileSize);
 }
 
+const ix = v => Math.round(v); // intero “pixel-perfect”
 
   // ---------- RENDER ----------
 function render() {

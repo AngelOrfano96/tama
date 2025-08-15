@@ -211,10 +211,26 @@ function initAtlasSprites() {
 
 
 
-// ---- Config porte ----
-const DOOR_SPAN = 3;                      // larghezza in celle (3 come ora)
-const HALF_SPAN = Math.floor(DOOR_SPAN/2); // 1 se SPAN=3
+// ---- Door width per device ----
+const DOOR_SPAN_DESKTOP = 3;   // desktop: 3 celle
+const DOOR_SPAN_MOBILE  = 2;   // mobile: 2 celle (più strette)
+const getDoorSpan = () => (isMobileOrTablet() ? DOOR_SPAN_MOBILE : DOOR_SPAN_DESKTOP);
 
+// indice dell’apertura centrata (supporta span pari e dispari)
+function doorIndices(mid, span, min, max) {
+  const k = Math.floor(span / 2);
+  let start, end;
+  if (span % 2) {           // dispari: es. 3 → mid-1..mid+1
+    start = mid - k; end = mid + k;
+  } else {                  // pari: es. 2 → mid..mid+1
+    start = mid - (k - 1); end = mid + k;
+  }
+  start = Math.max(min, start);
+  end   = Math.min(max, end);
+  const arr = [];
+  for (let i = start; i <= end; i++) arr.push(i);
+  return arr;
+}
 
 const MoleCfg = {
   emerge1: 0.5,   // terriccio
@@ -965,34 +981,48 @@ function drawTileType(x, y, type, tile) {
 }
 
 
-
-
-
-
-
-
-
-// v3 - porte larghe 3 celle, angoli a ±2 dal centro del varco
 function generateRoomTiles(room) {
   const H = room.length, W = room[0].length;
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
+
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
+  const span = getDoorSpan();
+  const ys = doorIndices(cy, span, 1, H - 2);
+  const xs = doorIndices(cx, span, 1, W - 2);
 
   const doors = {
-    left:   room[cy]?.[0]     === 0,
-    right:  room[cy]?.[W-1]   === 0,
-    top:    room[0]?.[cx]     === 0,
-    bottom: room[H-1]?.[cx]   === 0,
+    left:   ys.some(r => room[r]?.[0]     === 0),
+    right:  ys.some(r => room[r]?.[W - 1] === 0),
+    top:    xs.some(c => room[0]?.[c]     === 0),
+    bottom: xs.some(c => room[H - 1]?.[c] === 0),
   };
-  const off = HALF_SPAN + 1;
+
+  const isDoorCell = (x, y) =>
+    (x === 0     && doors.left   && ys.includes(y)) ||
+    (x === W - 1 && doors.right  && ys.includes(y)) ||
+    (y === 0     && doors.top    && xs.includes(x)) ||
+    (y === H - 1 && doors.bottom && xs.includes(x));
+
+  const isSolid = (x, y) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return false;
+    if (room[y][x] === 0) return false; // interno
+    if (isDoorCell(x, y)) return false; // apertura porta
+    return true;                         // muro
+  };
+
+  // quanto “staccare” gli angoli speciali dalla porta
+  const off = Math.floor(span / 2) + 1;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
+      if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
-      // --- PAVIMENTO su tutte le celle interne (0) e sui varchi delle porte ---
-      if (room[y][x] === 0) { tiles[y][x] = 'floor'; continue; }
+      const up    = isSolid(x, y - 1);
+      const down  = isSolid(x, y + 1);
+      const left  = isSolid(x - 1, y);
+      const right = isSolid(x + 1, y);
 
-      // da qui in giù: solo i muri (1)
+      // angoli speciali vicino alle porte
       if (doors.left   && x === 0     && y === cy - off) { tiles[y][x] = 'corner_tl_door'; continue; }
       if (doors.left   && x === 0     && y === cy + off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.right  && x === W - 1 && y === cy - off) { tiles[y][x] = 'corner_tr_door'; continue; }
@@ -1002,21 +1032,24 @@ function generateRoomTiles(room) {
       if (doors.bottom && y === H - 1 && x === cx - off) { tiles[y][x] = 'corner_bl_door'; continue; }
       if (doors.bottom && y === H - 1 && x === cx + off) { tiles[y][x] = 'corner_br_door'; continue; }
 
-      if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
-      if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
-      if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
-      if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
+      // angoli normali
+      if (!up && !left)    { tiles[y][x] = 'corner_tl'; continue; }
+      if (!up && !right)   { tiles[y][x] = 'corner_tr'; continue; }
+      if (!down && !left)  { tiles[y][x] = 'corner_bl'; continue; }
+      if (!down && !right) { tiles[y][x] = 'corner_br'; continue; }
 
-      if (y === 0)        { tiles[y][x] = 'top';    continue; }
-      if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
-      if (x === 0)        { tiles[y][x] = 'left';   continue; }
-      if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
+      // lati
+      if (!up)    { tiles[y][x] = 'top';    continue; }
+      if (!down)  { tiles[y][x] = 'bottom'; continue; }
+      if (!left)  { tiles[y][x] = 'left';   continue; }
+      if (!right) { tiles[y][x] = 'right';  continue; }
 
       tiles[y][x] = 'center';
     }
   }
   return tiles;
 }
+
 
 
 function drawRoom(room) {
@@ -1178,31 +1211,30 @@ function isOpening(room, tx, ty) {
       G.rooms.push(row);
     }
 
-    // porte larghe 3
-    for (let y = 0; y < Cfg.gridH; y++) {
-      for (let x = 0; x < Cfg.gridW; x++) {
-        if (x < Cfg.gridW-1) {
-          const mid = Math.floor(Cfg.roomH/2);
-          for (let dy = -1; dy <= 1; dy++) {
-            const r = mid + dy;
-            if (r >= 1 && r < Cfg.roomH-1) {
-              G.rooms[y][x][r][Cfg.roomW-1] = 0;
-              G.rooms[y][x+1][r][0] = 0;
-            }
-          }
-        }
-        if (y < Cfg.gridH-1) {
-          const mid = Math.floor(Cfg.roomW/2);
-          for (let dx = -1; dx <= 1; dx++) {
-            const c = mid + dx;
-            if (c >= 1 && c < Cfg.roomW-1) {
-              G.rooms[y][x][Cfg.roomH-1][c] = 0;
-              G.rooms[y+1][x][0][c] = 0;
-            }
-          }
-        }
+// porte (larghezza variabile per device)
+for (let y = 0; y < Cfg.gridH; y++) {
+  for (let x = 0; x < Cfg.gridW; x++) {
+    const span   = getDoorSpan();
+    const midRow = Math.floor(Cfg.roomH / 2);
+    const midCol = Math.floor(Cfg.roomW / 2);
+    const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2);
+    const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2);
+
+    if (x < Cfg.gridW - 1) { // collega stanza a destra
+      for (const r of ys) {
+        G.rooms[y][x][r][Cfg.roomW - 1] = 0;
+        G.rooms[y][x + 1][r][0] = 0;
       }
     }
+    if (y < Cfg.gridH - 1) { // collega stanza sotto
+      for (const c of xs) {
+        G.rooms[y][x][Cfg.roomH - 1][c] = 0;
+        G.rooms[y + 1][x][0][c] = 0;
+      }
+    }
+  }
+}
+
 
     // uscita random (non centrale)
     do {

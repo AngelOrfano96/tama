@@ -159,8 +159,8 @@ const DECOR_DESKTOP = {
   door_h2: pick(7,6),
 
   fire1: pick(4, 8),
-  fire2: pick(5, 9),
-  fire3: pick(6, 10),
+  fire2: pick(5, 8),
+  fire3: pick(6, 8),
 
 };
 // --- mappa mobile (metti qui le coordinate alternative)
@@ -193,8 +193,8 @@ const DECOR_MOBILE = {
   door_h2: pick(7,6),
 
   fire1: pick(4, 8),
-  fire2: pick(5, 9),
-  fire3: pick(6, 10),
+  fire2: pick(5, 8),
+  fire3: pick(6, 8),
 
 };
 const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex

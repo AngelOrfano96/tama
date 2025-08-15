@@ -318,7 +318,8 @@ function initAtlasSprites() {
   G.sprites.atlas.onerror = (e) =>
     console.error('[ATLAS] failed to load', G.sprites.atlas?.src, e);
 
-  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // verifica che il path esista davvero
+  //G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // verifica che il path esista davvero
+  G.sprites.atlas.src = `${atlasBase}/Dungeon_1.png`; // verifica che il path esista davvero
 }
 
 

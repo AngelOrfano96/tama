@@ -879,29 +879,29 @@ function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
 
 function drawTileType(x, y, type, tile) {
   if (!type) return;
-
   const entry = G.sprites.decor?.[type];
   if (!entry) return;
 
-  // scegli variante se è un array
   const chosen = Array.isArray(entry) ? entry[(x + y) % entry.length] : entry;
 
-  // Caso 1: è una HTMLImage (vecchio sistema)
-  if (chosen instanceof HTMLImageElement) {
-    if (!chosen.complete) return;
-    ctx.drawImage(chosen, x * tile, y * tile, tile, tile);
+  // Caso “ritaglio atlas” = oggetto {sx,sy,sw,sh}
+  if (chosen && typeof chosen === 'object' && 'sx' in chosen) {
+    if (!G.sprites.atlas.complete) return;
+    ctx.drawImage(
+      G.sprites.atlas,
+      chosen.sx, chosen.sy, chosen.sw, chosen.sh,
+      x * tile, y * tile, tile, tile
+    );
     return;
   }
 
-  // Caso 2: è un "ritaglio" dell'atlas {sx,sy,sw,sh}
-  if (!atlasImg.complete) return;
-  ctx.drawImage(
-    atlasImg,
-    chosen.sx, chosen.sy, chosen.sw, chosen.sh, // sorgente nell'atlas
-    x * tile, y * tile,                          // destinazione
-    tile, tile
-  );
+  // Back-compat: immagine singola
+  if (chosen instanceof HTMLImageElement) {
+    if (!chosen.complete) return;
+    ctx.drawImage(chosen, x * tile, y * tile, tile, tile);
+  }
 }
+
 
 
 

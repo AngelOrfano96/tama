@@ -181,12 +181,14 @@ function buildDecorFromAtlas() {
 }
 function drawFloor(room) {
   const tile = window.treasureTile || 64;
-  for (let y = 1; y < room.length-1; y++) {
-    for (let x = 1; x < room[0].length-1; x++) {
+  const H = room.length, W = room[0].length;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
       if (room[y][x] === 0) drawTileType(x, y, 'floor', tile);
     }
   }
 }
+
 
 function maybeSwapDecorForDevice() {
   const nowMobile = isMobileOrTablet();
@@ -1092,7 +1094,7 @@ function render() {
 
   // Muri (cornice + porte + interni)
   drawRoom(room);
-  drawFloor(room);
+  //drawFloor(room);
 
 
 

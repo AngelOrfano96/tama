@@ -146,6 +146,7 @@ const DECOR_MOBILE = {
 
   floor: [ pick(0,6), pick(1,6), pick(2,6), pick(3,6) ],
 };
+const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex
 
 // scegli la mappa in base al device
 let DECOR = IS_MOBILE ? DECOR_MOBILE : DECOR_DESKTOP;
@@ -1013,35 +1014,17 @@ function generateRoomTiles(room) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function drawRoom(room) {
-  const tiles = generateRoomTiles(room);
   const tile = window.treasureTile || 64;
-  for (let y = 0; y < tiles.length; y++) {
-    for (let x = 0; x < tiles[y].length; x++) {
-      const type = tiles[y][x];
-      if (type) drawTileType(x, y, type, tile); // <- questa fa il draw dall’atlas
+  const tileTypes = generateRoomTiles(room);
+  for (let y = 0; y < tileTypes.length; y++) {
+    for (let x = 0; x < tileTypes[y].length; x++) {
+      const type = tileTypes[y][x];
+      if (!type) continue;
+      drawTileType(x, y, type, tile); // <-- usa il renderer che supporta l'atlas
     }
   }
 }
-
-
-
-
-
 
 
 

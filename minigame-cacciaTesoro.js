@@ -852,7 +852,7 @@ function movePet(dt) {
   const size = Math.max(12, tile - 12);
 
   // Margini per lato: nord ok, S/E/O più permissivi
-  const HIT = { top: 2, right: 1, bottom: 1, left: 1 };
+  const HIT = { top: 6, right: 3, bottom: 3, left: 3 };
 
   // collisione box->mappa con margini asimmetrici + piccolo bias nella direzione
   const tryMove = (nx, ny, dirX = 0, dirY = 0) => {

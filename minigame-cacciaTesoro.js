@@ -824,27 +824,31 @@ function movePet(dt) {
   }
   if (G.activePowerup === 'speed' && performance.now() >= G.powerupExpiresAt) {
     G.activePowerup = null;
-    G.speedMul = 1; // ritorna alla velocità normale
+    G.speedMul = 1;
   }
 
   // --- input / direzione ---
   let dx = G.pet.dirX, dy = G.pet.dirY;
   if (dx === 0 && dy === 0) { G.pet.moving = false; return; }
 
-  // normalizza la diagonale per avere stessa velocità in tutte le direzioni
+  // normalizza la diagonale
   if (dx !== 0 && dy !== 0) {
     const inv = 1 / Math.sqrt(2);
     dx *= inv; dy *= inv;
   }
 
-  // --- movimento con micro-step (più permissivo) ---
-  const speed = getCurrentPetSpeed();
-  const room  = G.rooms[G.petRoom.y][G.petRoom.x];
+  // --- stanza corrente (SAFE) ---
+  const room = G.rooms?.[G.petRoom.y]?.[G.petRoom.x];
+  if (!room) {                 // può capitare per 1 frame durante il cambio livello
+    G.pet.moving = false;
+    return;
+  }
 
-  // hitbox un po' più piccola = passi più vicino ai muri
+  // --- movimento con micro-step ---
+  const speed = getCurrentPetSpeed();
+
   const size = Math.max(12, tile - PHYS.bodyShrink);
 
-  // collisione box->mappa con "skin" (margine anti-incastro)
   const tryMove = (nx, ny) => {
     const s = PHYS.skin;
     const minX = Math.floor((nx + s)        / tile);
@@ -863,24 +867,17 @@ function movePet(dt) {
   const totalDX = dx * speed * dt;
   const totalDY = dy * speed * dt;
 
-  // substep massimo ~ una frazione del tile (stabile e scorrevole)
   const maxStep = Math.max(8, tile * PHYS.maxStepFrac);
   const steps   = Math.max(1, Math.ceil(Math.hypot(totalDX, totalDY) / maxStep));
   const stepDX  = totalDX / steps;
   const stepDY  = totalDY / steps;
 
   for (let i = 0; i < steps; i++) {
-    // prova a muovere lungo X
     const tryPX = G.pet.px + stepDX;
-    if (tryMove(tryPX, G.pet.py)) {
-      G.pet.px = tryPX;
-    }
+    if (tryMove(tryPX, G.pet.py)) G.pet.px = tryPX;
 
-    // poi lungo Y (così "scivola" sui muri se una sola direzione è libera)
     const tryPY = G.pet.py + stepDY;
-    if (tryMove(G.pet.px, tryPY)) {
-      G.pet.py = tryPY;
-    }
+    if (tryMove(G.pet.px, tryPY)) G.pet.py = tryPY;
   }
 
   // aggiorna cella logica usando il centro dell'hitbox
@@ -966,10 +963,19 @@ function movePet(dt) {
   if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
       Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1 &&
       coinsLeft === 0) {
+
     G.level++;
     G.hudDirty = true;
     setGridForLevel(G.level);
-    setTimeout(() => { generateDungeon(); startLevel(); }, 550);
+
+    // STOP temporaneo per evitare frame con G.rooms "nuove" e petRoom "vecchia"
+    G.playing = false;
+
+    setTimeout(() => {
+      generateDungeon();
+      startLevel();   // dentro rimetti petRoom al centro e fai resync
+    }, 50);
+
     return;
   }
 
@@ -982,6 +988,7 @@ function movePet(dt) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 
@@ -1275,6 +1282,7 @@ const ix = v => Math.round(v); // intero “pixel-perfect”
   // ---------- RENDER ----------
 function render() {
  const room = G.rooms[G.petRoom.y][G.petRoom.x];
+ if (!room) return;
   const tile = window.treasureTile || 64;
 
   // Sfondo
@@ -1564,6 +1572,9 @@ for (let i = 0; i < nEnemies; i++) {
   // ---------- START LEVEL ----------
   function startLevel() {
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
+     G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
+  G.pet.x = 1; G.pet.y = 1;
+  G.pet.px = 0; G.pet.py = 0;
    resizeTreasureCanvas();
    resyncPetToGrid();
 

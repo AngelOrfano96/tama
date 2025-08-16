@@ -63,14 +63,14 @@
 
     <!-- Gioco -->
     <div id="game" class="fullscreen center hidden">
-      <button id="logout-btn" type="button">Logout</button>
-      <div class="form-box">
-   <div id="level-container" class="level-box">
-          <div id="username-pill" style="display:inline-flex;align-items:center;gap:6px;margin-left:8px;
+                <div id="username-pill" style="display:inline-flex;align-items:center;gap:6px;margin-left:8px;
   padding:3px 8px;border-radius:999px;background:#111827;color:#e5e7eb;font-weight:600;
   font-size:.9em;vertical-align:middle;">
   👤 <span id="username-label">—</span>
 </div>
+      <button id="logout-btn" type="button">Logout</button>
+      <div class="form-box">
+   <div id="level-container" class="level-box">
   <div class="level-top-row">
     <span id="level-label">Livello 1</span>
 
@@ -170,26 +170,28 @@
 
   </div>
 
-  <!-- MODALE USERNAME -->
-<div id="username-modal" class="hidden">
-  <div class="username-card" id="username-card">
-    <h3 class="username-title">Scegli il tuo username</h3>
+<!-- MODALE USERNAME -->
+<div id="username-modal" class="username-modal hidden">
+  <div class="username-modal__card">
+    <h3>Completa il profilo</h3>
+    <p class="hint">Scegli un <strong>username</strong> univoco (3–20, lettere/numeri/_).</p>
 
-    <p class="username-sub">Sarà visibile agli altri giocatori.</p>
+    <input id="username-input"
+           class="username-input"
+           type="text"
+           placeholder="es. drago_rosso"
+           maxlength="20"
+           autocomplete="off">
 
-    <label class="input-wrap">
-      <span class="prefix">@</span>
-      <input id="username-input" class="username-input" type="text" placeholder="nome_utente" />
-    </label>
+    <div id="username-error" class="error-text" aria-live="polite"></div>
 
-    <div id="username-error" class="error-text"></div>
-
-    <div class="username-actions">
-      <button id="username-logout-btn" class="btn btn-ghost">Esci</button>
-      <button id="username-save-btn" class="btn btn-primary">Salva</button>
+    <div class="actions">
+      <button id="username-save-btn" class="ui-btn">Salva</button>
+      <button id="username-logout-btn" class="ui-btn secondary">Esci</button>
     </div>
   </div>
 </div>
+
 
 
   <!-- Supabase JS -->

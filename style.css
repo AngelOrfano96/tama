@@ -1214,3 +1214,30 @@ body {
 .lb-item.top1 .rank{ background:#fde68a; }
 .lb-item.top2 .rank{ background:#e5e7eb; }
 .lb-item.top3 .rank{ background:#fcd34d; }
+
+.lb-self {
+  display:flex;
+  justify-content:center;
+  margin: 8px 0 10px;
+}
+
+.lb-chip {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(0,0,0,.06);
+  font-weight:600;
+  font-size:.95rem;
+}
+
+.lb-chip.muted { opacity:.7; font-weight:500; }
+
+/* evidenzia la riga dell'utente se è in Top 20 */
+#leaderboard-body tr.is-me {
+  background: rgba(34,197,94,.08);
+}
+#leaderboard-body tr.is-me td {
+  font-weight: 600;
+}

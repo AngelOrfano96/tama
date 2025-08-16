@@ -193,16 +193,30 @@
   </div>
 </div>
 
-<!-- MODALE CLASSIFICA -->
+<!-- 
 <div id="leaderboard-modal" class="modal hidden">
+
   <div class="modal-content leaderboard">
     <div class="lb-header">
       <h2>🏆 Classifica – Caccia al Tesoro</h2>
       <button id="leaderboard-close" class="btn-ghost">Chiudi</button>
     </div>
+      <div class="lb-self">
+  <span id="leaderboard-self-rank" class="lb-chip">La tua posizione: —</span>
+</div>
     <ul id="leaderboard-body" class="leaderboard-list">
-      <!-- righe generate da JS -->
+       righe generate da JS 
     </ul>
+  </div>
+</div>   MODALE CLASSIFICA -->
+<div id="leaderboard-modal" class="modal hidden">
+  <div class="modal-content">
+    <div id="leaderboard-self-rank" class="self-rank muted">—</div>
+    <table class="lb-table">
+      <thead><tr><th>#</th><th>Giocatore</th><th>Punti</th><th>Livello</th></tr></thead>
+      <tbody id="leaderboard-body"></tbody>
+    </table>
+    <button id="leaderboard-close" class="btn">Chiudi</button>
   </div>
 </div>
 

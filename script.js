@@ -238,31 +238,89 @@ async function loadLeaderboardTop(limit = 20) {
   }
 }
 
-window.openLeaderboardModal = async function() {
-  const modal = document.getElementById('leaderboard-modal');
-  const body  = document.getElementById('leaderboard-body');
-  if (!modal || !body) return;
 
-  modal.classList.remove('hidden');
-  body.innerHTML = '<li class="lb-item">Caricamento…</li>';
+const TOP_N = 20;
 
-  const rows = await loadLeaderboardTop(20);
-  if (!rows.length) {
-    body.innerHTML = '<li class="lb-item">Ancora nessun punteggio.</li>';
-    return;
+async function fetchLeaderboardTopN(n = TOP_N) {
+  // prendi i top N (con username se lo hai in tabella o con join/view)
+  const { data, error } = await supabaseClient
+    .from('leaderboard_tesoro')
+    .select('user_id, username, best_score, best_level')
+    .order('best_score', { ascending: false })
+    .order('best_level', { ascending: false })
+    .limit(n);
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchMyRank() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return null;
+
+  // usa la RPC creata sopra
+  const { data, error } = await supabaseClient.rpc('get_treasure_rank', { p_user: user.id });
+  if (error) {
+    console.error('[get_treasure_rank]', error);
+    return null;
   }
+  // supabase per le table-functions restituisce un array
+  return Array.isArray(data) ? data[0] || null : data;
+}
 
-  body.innerHTML = rows.map((r, i) => {
-    const rank = i + 1;
-    const name = r.username_snapshot || 'Anon';
-    return `
-      <li class="lb-item ${rank<=3 ? 'top'+rank : ''}">
-        <span class="rank">${rank}</span>
-        <span class="name">@${name}</span>
-        <span class="score">${r.best_score}</span>
-        <span class="level">L${r.best_level}</span>
-      </li>`;
-  }).join('');
+window.openLeaderboardModal = async function () {
+  const modal = document.getElementById('leaderboard-modal');
+  const tbody = document.getElementById('leaderboard-body');
+  const chip  = document.getElementById('leaderboard-self-rank');
+
+  modal?.classList.remove('hidden');
+
+  try {
+    // 1) carica top 20
+    const top = await fetchLeaderboardTopN(TOP_N);
+    tbody.innerHTML = '';
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    top.forEach((row, i) => {
+      const tr = document.createElement('tr');
+      tr.dataset.user = row.user_id;
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${row.username ? '@' + row.username : '—'}</td>
+        <td>${row.best_score ?? 0}</td>
+        <td>${row.best_level ?? 1}</td>
+      `;
+      if (user && row.user_id === user.id) tr.classList.add('is-me');
+      tbody.appendChild(tr);
+    });
+
+    // 2) carica/ricalcola il rank dell'utente
+    const me = await fetchMyRank();
+
+    if (!me || me.rank == null) {
+      chip.textContent = 'Nessun punteggio registrato';
+      chip.classList.add('muted');
+      return;
+    }
+
+    chip.classList.remove('muted');
+    chip.textContent = `La tua posizione: #${me.rank} su ${me.total}`;
+
+    // se sei in top 20 ma non evidenziato (es. username diverso), prova a marcarlo
+    if (me.rank <= TOP_N && user) {
+      const myRow = tbody.querySelector(`tr[data-user="${user.id}"]`);
+      myRow?.classList.add('is-me');
+    }
+  } catch (err) {
+    console.error('[openLeaderboardModal]', err);
+    if (chip) {
+      chip.textContent = 'Impossibile caricare la classifica';
+      chip.classList.add('muted');
+    }
+  }
+};
+
+window.closeLeaderboardModal = function () {
+  document.getElementById('leaderboard-modal')?.classList.add('hidden');
 };
 
 window.closeLeaderboardModal = function() {
@@ -582,7 +640,8 @@ logoutBtn.addEventListener('click', async () => {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
   };
-
+const u = document.getElementById('username-label');
+if (u) u.textContent = '—';
   setText('wallet-gettoni', '0');
   setText('wallet-ottoni', '0');
   setText('totale-gettoni', '0');

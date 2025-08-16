@@ -1857,6 +1857,18 @@ function isOpening(room, tx, ty) {
   // ritorna true se la cella è vuota e non è muro
   return room[ty] && room[ty][tx] === 0;
 }
+function pickRandomWallCell(room) {
+  const spots = [];
+  const H = room.length, W = room[0].length;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      // muro = 1 (le porte sono 0 e quindi escluse)
+      if (room[y][x] !== 0) spots.push({ x, y });
+    }
+  }
+  if (!spots.length) return null;
+  return spots[Math.floor(Math.random() * spots.length)];
+}
 
   // ---------- GENERAZIONE ----------
 function generateDungeon() {
@@ -1978,29 +1990,31 @@ function generateDungeon() {
           attacking: false,
         });
       }
+   // --- BAT: 40% solo se la stanza NON ha altri nemici ---
+// spawn SEMPRE su una cella di MURO (sopra i muri)
+if (enemies.length === 0 && Math.random() < 0.40) {
+  const roomRef = G.rooms[ry][rx];
+  const wallSpot = pickRandomWallCell(roomRef);
+  if (wallSpot) {
+    const tile = window.treasureTile || 64;
+    enemies.push({
+      type: 'bat',
+      x: wallSpot.x,
+      y: wallSpot.y,
+      px: wallSpot.x * tile,
+      py: wallSpot.y * tile,
+      direction: 'down',
+      stepFrame: 0,
+      animTime: 0,
+      isMoving: true,     // il bat “vola”, quindi lo consideriamo in movimento
+      attacking: false,
+      reactDelay: 0,      // niente attesa iniziale
+      slow: false,
+      sPhase: Math.random() * Math.PI * 2 // fase per il moto a spirale (se lo usi)
+    });
+  }
+}
 
-      // --- BAT: 40% se NON ci sono altri nemici in stanza ---
-      if (enemies.length === 0 && Math.random() < 0.40) {
-        // il bat può nascere ovunque (anche sui muri/porte)
-        const bx = Math.floor(Math.random() * Cfg.roomW);  // 0..W-1
-        const by = Math.floor(Math.random() * Cfg.roomH);  // 0..H-1
-        enemies.push({
-          type: 'bat',
-          x: bx, y: by,
-          px: bx * tile,
-          py: by * tile,
-          slow: false,
-          direction: 'down',
-          stepFrame: 0,
-          isMoving: true,
-          animTime: 0,
-          reactDelay: 0.3 + Math.random() * 0.4, // piccola attesa
-          attacking: false,
-          // parametri per il moto "a spirale"
-          waveT: Math.random() * Math.PI * 2,
-          waveFreq: 5.5 + Math.random() * 1.5,   // 5.5–7.0 Hz
-        });
-      }
 
       // powerup (speed)
       if (Math.random() < 0.35) {

@@ -1069,4 +1069,152 @@ body {
   .resources-pill{ padding:6px 12px; }
   .resources-pill .coin-icon{ width:20px; height:20px; }
 }
+  /*modale username*/
+/* ============ Username Modal ============ */
+:root{
+  --ui-bg: #0f1220;
+  --ui-card: #171a2b;
+  --ui-border: #262b45;
+  --ui-text: #e6e7ef;
+  --ui-muted: #a7acc4;
+  --ui-primary: #7c3aed;       /* viola */
+  --ui-primary-600: #6d28d9;
+  --ui-primary-700: #5b21b6;
+  --ui-danger: #ef4444;
+  --ui-success: #22c55e;
+}
 
+#username-modal{
+  position: fixed;
+  inset: 0;
+  display: none;                  /* hidden di default */
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9999;
+}
+#username-modal:not(.hidden){ display:flex; }
+
+.username-card{
+  width: min(440px, calc(100% - 32px));
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)) , var(--ui-card);
+  border: 1px solid var(--ui-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  padding: 18px 18px 16px;
+  color: var(--ui-text);
+  animation: popin .16s ease-out;
+}
+@keyframes popin {
+  from { transform: scale(.96); opacity: .0; }
+  to   { transform: scale(1);   opacity: 1;  }
+}
+
+.username-title{
+  margin: 4px 0 6px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+.username-sub{
+  margin: 0 0 10px;
+  color: var(--ui-muted);
+  font-size: .92rem;
+}
+
+/* input con prefisso @ */
+.input-wrap{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0c0f1c;
+  border: 1.5px solid var(--ui-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.input-wrap .prefix{
+  color: var(--ui-muted);
+  font-weight: 700;
+  user-select: none;
+}
+.username-input{
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--ui-text);
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+.username-input::placeholder{ color: #646a86; }
+
+/* errori */
+.error-text{
+  min-height: 18px;
+  margin-top: 8px;
+  color: var(--ui-danger);
+  font-size: .88rem;
+  font-weight: 600;
+}
+
+/* pulsanti */
+.username-actions{
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.btn{
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .12s ease, opacity .12s ease, background .12s ease, color .12s ease;
+  user-select: none;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled{ opacity: .55; cursor: not-allowed; }
+
+.btn-primary{
+  color: #fff;
+  background: linear-gradient(180deg, var(--ui-primary), var(--ui-primary-600));
+  box-shadow: 0 6px 16px rgba(124,58,237,.35);
+}
+.btn-primary:hover{ background: linear-gradient(180deg, var(--ui-primary-600), var(--ui-primary-700)); }
+
+.btn-ghost{
+  color: var(--ui-muted);
+  background: transparent;
+  border: 1px solid var(--ui-border);
+}
+.btn-ghost:hover{
+  color: var(--ui-text);
+  background: rgba(255,255,255,.03);
+}
+
+/* responsive */
+@media (max-width: 420px){
+  .username-card{ padding: 16px; border-radius: 14px; }
+  .username-actions{ gap: 8px; }
+  .btn{ padding: 9px 12px; border-radius: 10px; }
+}
+
+/* (opzionale) stato invalid che puoi aggiungere via JS: input.classList.add('is-invalid') */
+.username-input.is-invalid { color: var(--ui-danger); }
+.input-wrap:has(.username-input.is-invalid) { border-color: rgba(239,68,68,.7); }
+
+/* (opzionale) micro shake sull'errore */
+@keyframes shakeX {
+  0%,100%{ transform: translateX(0); }
+  20%{ transform: translateX(-4px); }
+  40%{ transform: translateX(4px); }
+  60%{ transform: translateX(-3px); }
+  80%{ transform: translateX(3px); }
+}
+.error-text.shake { animation: shakeX .25s linear; }

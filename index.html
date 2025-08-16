@@ -171,19 +171,26 @@
   </div>
 
   <!-- MODALE USERNAME -->
-<div id="username-modal" class="modal hidden">
-  <div class="modal-content" style="text-align:center; max-width:420px;">
-    <h3 style="margin-top:0">Completa il profilo</h3>
-    <p>Scegli un <b>username</b> univoco (3–20, lettere/numeri/_).</p>
-    <input id="username-input" type="text" placeholder="es. drago_rosso"
-           style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #ddd;margin:10px 0;">
-    <div id="username-error" class="error" style="min-height:20px;color:#ef4444;"></div>
-    <div class="buttons" style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
-      <button id="username-save-btn">Salva</button>
-      <button id="username-logout-btn" type="button" class="minigame-btn" style="background:#374151">Esci</button>
+<div id="username-modal" class="hidden">
+  <div class="username-card" id="username-card">
+    <h3 class="username-title">Scegli il tuo username</h3>
+
+    <p class="username-sub">Sarà visibile agli altri giocatori.</p>
+
+    <label class="input-wrap">
+      <span class="prefix">@</span>
+      <input id="username-input" class="username-input" type="text" placeholder="nome_utente" />
+    </label>
+
+    <div id="username-error" class="error-text"></div>
+
+    <div class="username-actions">
+      <button id="username-logout-btn" class="btn btn-ghost">Esci</button>
+      <button id="username-save-btn" class="btn btn-primary">Salva</button>
     </div>
   </div>
 </div>
+
 
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>

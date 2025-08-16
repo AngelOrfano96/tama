@@ -125,39 +125,51 @@ async function promptUsernameIfMissing() {
 
   // handler "Salva"
   const onSave = async () => {
-    let v = (input.value || '').trim();
-    const rx = /^[a-zA-Z0-9_]{3,20}$/;
-    if (!rx.test(v)) {
-      errEl.textContent = 'Formato non valido. Usa 3–20 caratteri: lettere, numeri e underscore.';
+  let v = (input.value || '').trim();
+  const rx = /^[a-zA-Z0-9_]{3,20}$/;
+
+  // formato non valido → evidenzia input + piccolo shake
+  if (!rx.test(v)) {
+    errEl.textContent = 'Formato non valido. Usa 3–20 caratteri: lettere, numeri e underscore.';
+    errEl.classList.remove('shake'); void errEl.offsetWidth; errEl.classList.add('shake');
+    input.classList.add('is-invalid');
+    return;
+  }
+
+  btnSave.disabled = true;
+  errEl.textContent = '';
+  input.classList.remove('is-invalid');
+
+  try {
+    const { error: upErr } = await supabaseClient
+      .from('profiles')
+      .upsert({ user_id: user.id, username: v }, { onConflict: 'user_id' });
+
+    if (upErr) {
+      if (upErr.code === '23505') {
+        // username già in uso → evidenzia + shake
+        errEl.textContent = 'Username già in uso. Riprova con un altro.';
+        errEl.classList.remove('shake'); void errEl.offsetWidth; errEl.classList.add('shake');
+        input.classList.add('is-invalid');
+      } else {
+        errEl.textContent = upErr.message || 'Errore imprevisto.';
+      }
       return;
     }
-    btnSave.disabled = true;
+
+    // ok → pulisci stato, chiudi, aggiorna badge
+    input.classList.remove('is-invalid');
     errEl.textContent = '';
-    try {
-      const { error: upErr } = await supabaseClient
-        .from('profiles')
-        .upsert({ user_id: user.id, username: v }, { onConflict: 'user_id' });
+    await refreshUsernameBadge();
+    modal.classList.add('hidden');
+  } catch (e) {
+    errEl.textContent = 'Errore imprevisto.';
+    console.error('[save username]', e);
+  } finally {
+    btnSave.disabled = false;
+  }
+};
 
-      if (upErr) {
-        // 23505 = unique_violation
-        if (upErr.code === '23505') {
-          errEl.textContent = 'Username già in uso. Riprova con un altro.';
-        } else {
-          errEl.textContent = upErr.message || 'Errore imprevisto.';
-        }
-        return;
-      }
-
-      // ok
-      await refreshUsernameBadge();
-      modal.classList.add('hidden');
-    } catch (e) {
-      errEl.textContent = 'Errore imprevisto.';
-      console.error('[save username]', e);
-    } finally {
-      btnSave.disabled = false;
-    }
-  };
 
   // handler "Esci" (logout)
   const onLogout = async () => {
@@ -183,6 +195,15 @@ async function promptUsernameIfMissing() {
     });
     input._bound = true;
   }
+
+  if (!input._boundClear) {
+  input.addEventListener('input', () => {
+    input.classList.remove('is-invalid');
+    errEl.textContent = '';
+  });
+  input._boundClear = true;
+}
+
 }
 
 

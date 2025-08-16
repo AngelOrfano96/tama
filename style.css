@@ -1346,3 +1346,31 @@ body {
   }
   #leaderboard-modal .self-rank{ margin-bottom:10px; }
 }
+/* riga con gioco + icona classifica */
+.minigame-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin:8px 0 6px;
+}
+
+/* bottone tondo con il trofeo */
+.lb-icon-btn{
+  width:44px; height:44px;
+  border:0; border-radius:999px;
+  font-size:20px; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer; user-select:none;
+
+  background: linear-gradient(180deg, #ffe17d 0%, #ffb36b 100%);
+  box-shadow: 0 3px 0 #d49a55, 0 8px 18px rgba(0,0,0,.12);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.lb-icon-btn:hover{ transform: translateY(-1px) scale(1.05); filter:brightness(1.03); }
+.lb-icon-btn:active{ transform: translateY(1px) scale(.98); box-shadow: 0 1px 0 #d49a55, 0 4px 10px rgba(0,0,0,.12); }
+
+/* su schermi piccoli stringiamo un filo */
+@media (max-width: 420px){
+  .lb-icon-btn{ width:40px; height:40px; font-size:18px; }
+}

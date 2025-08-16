@@ -1417,12 +1417,6 @@ function drawImg(img, dx, dy, dw, dh) {
   if (canUse(img)) ctx.drawImage(img, dx, dy, dw, dh);
 }
 
-
-
- // helper locali per il disegno safe
-function canUse(img){ return !!(img && img.complete && img.naturalWidth > 0); }
-
-
 function drawAtlasClip(clip, x, y, tile) {
   const atlas = G.sprites.atlas;
   if (!atlas || !atlas.complete || !clip) return;
@@ -2212,23 +2206,6 @@ if (G.mole.enabled) {
     });
   }
 
-  async function addGettoniSupabase(amount) {
-  try {
-    if (!window.supabase) return;
-    // assicurati che l’utente sia loggato
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return; // non loggato -> non salvo niente
-
-    const { data, error } = await supabase.rpc('add_gettoni', { inc: amount|0 });
-    if (error) throw error;
-
-    // opzionale: mostra feedback, es: console.log('Totale gettoni:', data.gettoni);
-    return data;
-  } catch (err) {
-    console.error('[addGettoniSupabase]', err);
-  }
-}
-
 
   // ---------- END ----------
 function endTreasureMinigame(reason = 'end') {
@@ -2252,20 +2229,12 @@ function endTreasureMinigame(reason = 'end') {
       }
 
       // GETTONI: prova vari helper globali (definiti in script.js)
-      if (coinsThisRun > 0) {
-        if (typeof window.addGettoniSupabase === 'function') {
-          await window.addGettoniSupabase(coinsThisRun);
-        } else if (typeof window.addGettoni === 'function') {
-          await window.addGettoni(coinsThisRun);
-        } else if (typeof window.saveCoinsToSupabase === 'function') {
-          await window.saveCoinsToSupabase(coinsThisRun);
-        } else {
-          console.warn('[Treasure] nessuna funzione per salvare i gettoni trovata');
-        }
+// GETTONI: usa la RPC corretta esposta da script.js
+if (coinsThisRun > 0) {
+  await window.addGettoniSupabase?.(coinsThisRun);
+  await window.refreshResourcesWidget?.();
+}
 
-        // aggiorna subito il widget in home se presente
-        window.refreshResourcesWidget?.();
-      }
 
       // feedback exp (opzionale)
       if (typeof window.showExpGainLabel === 'function' && exp > 0) {

@@ -1,5 +1,53 @@
 const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
+// === RESOURCES (Gettoni/Ottoni) =============================================
+
+// Aggiorna il mini-widget in home (vicino al livello)
+window.refreshResourcesWidget = async function () {
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    let gettoni = 0, ottoni = 0;
+
+    if (user) {
+      const { data, error } = await supabaseClient
+        .from('resources')
+        .select('gettoni, ottoni')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!error && data) {
+        gettoni = data.gettoni ?? 0;
+        ottoni  = data.ottoni  ?? 0;
+      }
+    }
+
+    const g = document.getElementById('wallet-gettoni');
+    const o = document.getElementById('wallet-ottoni');
+    if (g) g.textContent = gettoni;
+    if (o) o.textContent = ottoni;
+  } catch (err) {
+    console.error('[refreshResourcesWidget]', err);
+  }
+};
+
+// Somma "delta" ai Gettoni sul DB tramite la RPC increment_resources
+window.addGettoniSupabase = async function (delta) {
+  if (!delta || delta <= 0) return;
+  try {
+    const { error } = await supabaseClient.rpc('increment_resources', {
+      p_gettoni_delta: delta,
+      p_ottoni_delta: 0
+    });
+    if (error) throw error;
+
+    // aggiorna il badge in UI
+    await window.refreshResourcesWidget?.();
+  } catch (err) {
+    console.error('[addGettoniSupabase]', err);
+  }
+};
+
+
 let user = null;
 let petId = null;
 let eggType = null;
@@ -53,72 +101,6 @@ window.updateFunAndExpFromMiniGame = async function(funDelta = 0, expDelta = 0) 
     }
   } catch (err) {
     console.error('[Treasure] errore updateFunAndExpFromMiniGame:', err);
-  }
-};
-
-// ---- RESOURCES (gettoni/ottoni) ----
-async function loadResourcesForHome() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) return { gettoni: 0, ottoni: 0 };
-
-  const { data, error } = await supabaseClient
-    .from('resources')
-    .select('gettoni, ottoni')
-    .eq('user_id', user.id)
-    .maybeSingle(); // evita errore se la riga non esiste ancora
-
-  if (error) {
-    console.error('[loadResourcesForHome]', error);
-    return { gettoni: 0, ottoni: 0 };
-  }
-  return data || { gettoni: 0, ottoni: 0 };
-}
-
-async function refreshResourcesWidget() {
-  const { gettoni } = await loadResourcesForHome();
-  const slot = document.querySelector('#totale-gettoni');
-  if (slot) slot.textContent = gettoni;
-}
-// opzionale: lo espongo così il minigioco può richiamarlo a fine partita
-window.refreshResourcesWidget = refreshResourcesWidget;
-
-window.addGettoniSupabase = async function(delta) {
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) return;
-
-  // assicura la riga e aggiorna in modo atomico
-  await supabaseClient.from('resources')
-    .upsert({ user_id: user.id, gettoni: 0 }, { onConflict: 'user_id' });
-
-  const { error } = await supabaseClient.rpc('increment_resources',
-    { p_user_id: user.id, p_gettoni_delta: delta, p_ottoni_delta: 0 });
-  if (error) console.error('[addGettoniSupabase]', error);
-};
-// --- RESOURCES (Gettoni/Ottoni) ---
-async function loadResourcesForHome() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) return { gettoni: 0, ottoni: 0 };
-
-  const { data, error } = await supabaseClient
-    .from('resources')
-    .select('gettoni, ottoni')
-    .eq('user_id', user.id)
-    .single();
-
-  if (error && error.code !== 'PGRST116') {
-    console.error('[loadResourcesForHome]', error);
-  }
-  return data || { gettoni: 0, ottoni: 0 };
-}
-
-// Aggiorna la pill in alto (chiamata dopo login, e dopo il minigioco)
-window.refreshResourcesWidget = async function(){
-  try{
-    const { gettoni } = await loadResourcesForHome();
-    const el = document.getElementById('totale-gettoni');
-    if (el) el.textContent = gettoni;
-  }catch(err){
-    console.error('[refreshResourcesWidget]', err);
   }
 };
 
@@ -193,7 +175,7 @@ async function initFlow() {
   await getStateFromDb();
   startAutoRefresh();
 
-  window.refreshResourcesWidget?.();
+ await window.refreshResourcesWidget?.();
 }
 
 // ---- EXP + LEVELUP

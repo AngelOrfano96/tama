@@ -572,6 +572,27 @@ function fmtTime(sec) {
   return `${m}:${s}`;
 }
 
+// Carica tutti i frame del PET (idle + 2 frame per direzione)
+function buildPetSprites(petNum, assetBase) {
+  const base = `${assetBase}/pets`;
+  const CB = 'v=7'; // cache buster per forzare il refresh dei PNG
+
+  const mk = (path) => {
+    const img = new Image();
+    img.onload  = () => console.log('[PET] ok:', path);
+    img.onerror = (e) => console.error('[PET] fail:', path, e);
+    img.src = `${base}/${path}?${CB}`;
+    return img;
+  };
+
+  return {
+    idle: mk(`pet_${petNum}.png`),
+    right: [ mk(`pet_${petNum}_right1.png`), mk(`pet_${petNum}_right2.png`) ],
+    left:  [ mk(`pet_${petNum}_left1.png`),  mk(`pet_${petNum}_left2.png`)  ],
+    down:  [ mk(`pet_${petNum}_down1.png`),  mk(`pet_${petNum}_down2.png`)  ],
+    up:    [ mk(`pet_${petNum}_up1.png`),    mk(`pet_${petNum}_up2.png`)    ],
+  };
+}
 
 /////MUSICA
 // --- AUDIO BGM ---
@@ -758,112 +779,100 @@ function syncHud() {
 
 
   // ---------- AVVIO ----------
-  function startTreasureMinigame() {
-    playBgm();  
-    generateDungeon();
-    requestLandscape();
-    initAtlasSprites(); 
+function startTreasureMinigame() {
+  playBgm();
+  generateDungeon();
+  requestLandscape();
+  initAtlasSprites();
 
-
-    maybeSwapDecorForDevice();   // (se la tua versione NON richiama build… qui sotto, allora chiama anche:)
-  buildDecorFromAtlas();       // <-- opzionale se maybeSwap già lo fa
+  // atlas (muri/decor) + bake
+  maybeSwapDecorForDevice();
+  buildDecorFromAtlas();
   debugAtlas('start');
 
-    G.level = 1;
-    G.score = 0; //
-    G.playing = true;
-    G.activePowerup = null;
-    G.powerupExpiresAt = 0;
-    G.slowExpiresAt = 0;
+  // stato base
+  G.level = 1;
+  G.score = 0;
+  G.playing = true;
+  G.activePowerup = null;
+  G.powerupExpiresAt = 0;
+  G.slowExpiresAt = 0;
 
-    // crea il mini HUD e (opzionale) nascondi la vecchia topbar
-ensureTinyHud();
-document.querySelector('.treasure-info-bar')?.classList.add('hidden');
+  // HUD
+  ensureTinyHud();
+  document.querySelector('.treasure-info-bar')?.classList.add('hidden');
 
+  // ── helpers loader (con cache-buster) ───────────────────────────
+  const CB = 'v=7';
+  const mkImg = (src) => {
+    const img = new Image();
+    img.onload  = () => {/* console.log('[IMG ok]', src) */};
+    img.onerror = (e) => console.error('[IMG fail]', src, e);
+    img.src = src + (src.includes('?') ? '&' : '?') + CB;
+    return img;
+  };
 
-// dentro startTreasureMinigame, PRIMA di G.sprites.decor
-const CACHE_BUSTER = 'v=5'; // aumenta questo numero quando cambi i PNG
-const loadImg = (src) => {
-  const img = new Image();
-  img.src = src + (src.includes('?') ? '&' : '?') + CACHE_BUSTER;
-  return img;
-};
+  // base path per device
+  const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
 
-// Desktop/Mobile
-// Utility per caricare immagini
+  // ── ENEMY: atlas goblin + fallback singolo ─────────────────────
+  buildGoblinFromAtlas(); // usa enemyAtlasBase già definito sopra
 
+  // fallback singolo (se l'atlas non è pronto/404)
+  G.sprites.enemy = mkImg(`${assetBase}/enemies/goblin.png`);
 
-// Percorso base dinamico in base al device
-const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/tiles';
+  // ── SPRITES comuni ─────────────────────────────────────────────
+  G.sprites.coin    = mkImg('assets/collectibles/coin.png');
+  G.sprites.exit    = mkImg('assets/icons/door.png');
+  G.sprites.wall    = mkImg('assets/tiles/wall2.png');
+  G.sprites.bg      = mkImg(`${assetBase}/backgrounds/dungeon3.png`);
+  G.sprites.powerup = mkImg('assets/bonus/powerup.png');
 
+  // talpa
+  G.sprites.mole = [
+    mkImg(`${assetBase}/enemies/talpa_1.png`),
+    mkImg(`${assetBase}/enemies/talpa_2.png`),
+    mkImg(`${assetBase}/enemies/talpa_3.png`),
+  ];
 
+  // ── PET: carica davvero i PNG (idle + due frame per direzione) ─
+  const petSrc = DOM.petImg?.src || '';
+  const m = petSrc.match(/pet_(\d+)/);
+  const petNum = m ? m[1] : '1';
 
+  const mkPet = (file) => mkImg(`${assetBase}/pets/${file}`);
+  G.sprites.pet = {
+    idle:  mkPet(`pet_${petNum}.png`),
+    right: [ mkPet(`pet_${petNum}_right1.png`), mkPet(`pet_${petNum}_right2.png`) ],
+    left:  [ mkPet(`pet_${petNum}_left1.png`),  mkPet(`pet_${petNum}_left2.png`)  ],
+    down:  [ mkPet(`pet_${petNum}_down1.png`),  mkPet(`pet_${petNum}_down2.png`)  ],
+    up:    [ mkPet(`pet_${petNum}_up1.png`),    mkPet(`pet_${petNum}_up2.png`)    ],
+  };
 
-    // SPRITES
-    const petSrc = DOM.petImg?.src || '';
-    const match = petSrc.match(/pet_(\d+)/);
-    const petNum = match ? match[1] : '1';
-    const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
+  // ── PET stato iniziale ─────────────────────────────────────────
+  const tile = window.treasureTile || 64;
+  G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
+  G.pet = {
+    x: 1, y: 1,
+    px: 0, py: 0,          // verranno riallineati dopo il resize
+    animTime: 0,
+    dirX: 0, dirY: 0,
+    moving: false,
+    direction: 'down',
+    stepFrame: 0,
+  };
 
+  // evita spawn nemico sulla cella del pet
+  (function ensureSafeSpawn() {
+    const key = `${G.petRoom.x},${G.petRoom.y}`;
+    const list = G.enemies[key] || [];
+    G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
+  })();
 
+  // via!
+  startLevel();
+}
 
-// === GOBLIN via ATLAS ===
-buildGoblinFromAtlas();
-
-// opzionale: fallback singolo per debug se l'atlas non carica
-G.sprites.enemy = new Image();
-G.sprites.enemy.src = `${assetBase}/enemies/goblin.png`;
-
-
-
-    G.sprites.pet = pet;
-    G.sprites.coin = new Image();    G.sprites.coin.src = 'assets/collectibles/coin.png';
-    G.sprites.enemy = new Image();   G.sprites.enemy.src = 'assets/enemies/goblin.png';
-    G.sprites.exit = new Image();    G.sprites.exit.src = 'assets/icons/door.png';
-    G.sprites.wall = new Image();    G.sprites.wall.src = 'assets/tiles/wall2.png';
-    G.sprites.bg   = new Image();    G.sprites.bg.src   = `${assetBase}/backgrounds/dungeon3.png`;
-    G.sprites.powerup = new Image(); G.sprites.powerup.src = 'assets/bonus/powerup.png';
-
-    const mole = [new Image(), new Image(), new Image()];
-mole[0].src = `${assetBase}/enemies/talpa_1.png`;
-mole[1].src = `${assetBase}/enemies/talpa_2.png`;
-mole[2].src = `${assetBase}/enemies/talpa_3.png`;
-G.sprites.mole = mole;
-
-    // PET
-    const tile = window.treasureTile || 64;
-    G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
-    /*G.pet = {
-      x: 1, y: 1,
-      px: 1 * tile,
-      py: 1 * tile,
-      animTime: 0,
-      dirX: 0, dirY: 0,
-      moving: false,
-      direction: 'down',
-      stepFrame: 0,
-    };*/
-G.pet = {
-  x: 1, y: 1,
-  px: 0, py: 0,   // <- verranno sincronizzati dopo il resize
-  animTime: 0,
-  dirX: 0, dirY: 0,
-  moving: false,
-  direction: 'down',
-  stepFrame: 0,
-};
-
-
-(function ensureSafeSpawn() {
-  const key = `${G.petRoom.x},${G.petRoom.y}`;
-  const list = G.enemies[key] || [];
-  // rimuovi eventuali nemici sulla stessa cella del pet
-  G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
-})();
-
-
-    startLevel();
-  }
   // *** NUOVO: scegli griglia e poi genera ***
   //setGridForLevel(G.level);
   //generateDungeon();

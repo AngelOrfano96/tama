@@ -194,34 +194,31 @@ function buildGoblinFromAtlas() {
     ],
   };
 
-  if (!G.sprites.goblinSheet) {
+    if (!G.sprites.goblinSheet) {
     G.sprites.goblinSheet = new Image();
     G.sprites.goblinSheet.onload  = () => console.log('[GOBLIN] atlas ready');
     G.sprites.goblinSheet.onerror = (e) => console.error('[GOBLIN] atlas load fail', e);
     G.sprites.goblinSheet.src = cfg.sheetSrc;
   }
 
-  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+    const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
   const mkPairs = (pairs)     => pairs.map(([c, r]) => gPick(c, r));
 
-  G.sprites.goblinFrames = {
-    // Idle: usa la lista di coppie (col, row)
-    idle: mkPairs(cfg.idleMap),
+   const idleFrames = mkPairs(cfg.idleMap);
+  // fallback di sicurezza: se idle vuoto, prendi il primo frame di walkDown
+  const safeIdle = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
 
-    // Walk: 4 frame per direzione
+  G.sprites.goblinFrames = {
+    idle: safeIdle,
     walk: {
       down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
       right: mkRow(cfg.rows.walkRight, cfg.walkCols),
       up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
-      // left = mirroring di right in render()
     },
-
-    // Attack: 4 frame per direzione
     attack: {
       down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
       right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
       up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
-      // left = mirroring di right in render()
     },
   };
 }
@@ -1510,54 +1507,61 @@ const ix = v => Math.round(v); // intero “pixel-perfect”
 
   // ---------- RENDER ----------
 function render() {
- const room = G.rooms[G.petRoom.y][G.petRoom.x];
-if (!room) return;
+  // stanza corrente (safe guards)
+  const row = G.rooms?.[G.petRoom.y];
+  if (!row) return;
+  const room = row?.[G.petRoom.x];
+  if (!room) return;
+
   const tile = window.treasureTile || 64;
-
-
-  const key = roomKey(G.petRoom.x, G.petRoom.y);
+  const rk = roomKey(G.petRoom.x, G.petRoom.y);
 
   // --- layer statico (baked) ---
-  let baked = G.renderCache.rooms[key];
-  if (!baked || baked.tile !== tile) {
-    baked = bakeRoomLayer(key, room);
-  }
-  if (baked) {
-    ctx.drawImage(baked.canvas, 0, 0);
-  } else {
-    // fallback (se l'atlas non è ancora pronto)
-    drawRoom(room);
-  }
+  let baked = G.renderCache.rooms[rk];
+  if (!baked || baked.tile !== tile) baked = bakeRoomLayer(rk, room);
+  if (baked) ctx.drawImage(baked.canvas, 0, 0);
+  else drawRoom(room); // fallback (atlas non pronto)
 
-
-  // coins
-  if (G.objects[key]) {
-    for (const obj of G.objects[key]) {
+  // --- COINS ---
+  if (G.objects[rk]) {
+    for (const obj of G.objects[rk]) {
       if (obj.type === 'coin' && !obj.taken) {
-        if (G.sprites.coin?.complete) ctx.drawImage(G.sprites.coin, obj.x*tile+tile/4, obj.y*tile+tile/4, tile/2, tile/2);
-        else { ctx.fillStyle = '#FFA500'; ctx.beginPath(); ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill(); }
+        if (G.sprites.coin?.complete) {
+          ctx.drawImage(G.sprites.coin, obj.x*tile + tile/4, obj.y*tile + tile/4, tile/2, tile/2);
+        } else {
+          ctx.fillStyle = '#FFA500';
+          ctx.beginPath();
+          ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2);
+          ctx.fill();
+        }
       }
     }
   }
 
-  // powerups
-  if (G.powerups[key]) {
-    for (const pow of G.powerups[key]) {
+  // --- POWERUPS ---
+  if (G.powerups[rk]) {
+    for (const pow of G.powerups[rk]) {
       if (!pow.taken) {
-        if (G.sprites.powerup.complete) ctx.drawImage(G.sprites.powerup, pow.x*tile+tile/4, pow.y*tile+tile/4, tile/2, tile/2);
-        else { ctx.fillStyle = '#0cf'; ctx.beginPath(); ctx.arc(pow.x*tile + tile/2, pow.y*tile + tile/2, tile/4, 0, Math.PI*2); ctx.fill(); }
+        if (G.sprites.powerup?.complete) {
+          ctx.drawImage(G.sprites.powerup, pow.x*tile + tile/4, pow.y*tile + tile/4, tile/2, tile/2);
+        } else {
+          ctx.fillStyle = '#0cf';
+          ctx.beginPath();
+          ctx.arc(pow.x*tile + tile/2, pow.y*tile + tile/2, tile/4, 0, Math.PI*2);
+          ctx.fill();
+        }
       }
     }
   }
 
-  // skulls
-  for (const s of G.skulls) {
+  // --- SKULLS ---
+  for (const s of (G.skulls || [])) {
     if (s.roomX === G.petRoom.x && s.roomY === G.petRoom.y) {
-      ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
+      if (s.img?.complete) ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
     }
   }
 
-  // talpa
+  // --- TALPA ---
   if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
     const mx = G.mole.x * tile, my = G.mole.y * tile;
     let frame = null;
@@ -1575,102 +1579,134 @@ if (!room) return;
     }
   }
 
-    // uscita (botola atlas: chiusa se mancano monete, aperta se finite)
-// === Uscita (botola) ===
-if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
-  const coinsLeft = countCoinsLeft();
-  const type = (coinsLeft === 0) ? 'exitOpen' : 'exitClosed';
-
-  // prova con l'atlas
-  if (G.sprites.decor?.[type]) {
-    drawTileType(G.exitTile.x, G.exitTile.y, type, tile);
-  } else {
-    // Fallback visivo (se i pick mancano): rettangolo colorato
-    ctx.save();
-    ctx.globalAlpha = 0.95;
-    ctx.fillStyle = (coinsLeft === 0) ? '#22c55e' : '#6b7280'; // verde=open, grigio=closed
-    ctx.fillRect(G.exitTile.x * tile + 6, G.exitTile.y * tile + 6, tile - 12, tile - 12);
-    ctx.restore();
-  }
-}
-
-// --- Falò (animati) ---
-{
-  const key = `${G.petRoom.x},${G.petRoom.y}`;
-  const fire = G.fires[key];
-  const frames = G.sprites.decor?.bonfire;
-
-  if (fire && frames && frames.length >= 3) {
-    const tile = window.treasureTile || 64;
-    const frameMs = 180; // durata di ogni frame
-    const t = performance.now();
-    const idx = (Math.floor(t / frameMs) + (fire.offset || 0)) % frames.length;
-    drawAtlasClip(frames[idx], fire.x, fire.y, tile);
-
-    // (opzionale) bagliore: piccolo alone sopra il pavimento
-     ctx.save();
-     ctx.globalAlpha = 0.10;
-     ctx.fillStyle = '#fbbf24';
-     ctx.beginPath();
-     ctx.ellipse(fire.x * tile + tile/2, fire.y * tile + tile*0.78, tile*0.42, tile*0.18, 0, 0, Math.PI*2);
-     ctx.fill();
-     ctx.restore();
-  }
-}
-
-
-  // pet
-  const px = G.pet.px, py = G.pet.py, sz = tile - 12;
-  let sPet = !G.pet.moving ? G.sprites.pet.idle : G.sprites.pet[G.pet.direction][G.pet.stepFrame];
-  if (sPet && sPet.complete) ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
-  else { ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4); }
-
-  // enemies
-// enemies
-for (const e of (G.enemies[key] || [])) {
-  const ex = e.px, ey = e.py;
-  const drawW = tile - 12, drawH = tile - 12;
-
-  const gf = G.sprites.goblinFrames;
-  const sheet = G.sprites.goblinSheet;
-
-  if (gf && sheet && sheet.complete) {
-    const dir = e.direction || 'down';
-    const mode = e.attacking ? 'attack' : (e.isMoving ? 'walk' : 'idle');
-
-    let frames = null;
-    let flip = false;
-
-    if (mode === 'idle') {
-      frames = gf.idle;                // 6 frame idle
+  // --- USCITA (botola) ---
+  if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
+    const coinsLeft = countCoinsLeft();
+    const type = (coinsLeft === 0) ? 'exitOpen' : 'exitClosed';
+    if (G.sprites.decor?.[type]) {
+      drawTileType(G.exitTile.x, G.exitTile.y, type, tile);
     } else {
-      if (dir === 'left') {
-        frames = gf[mode]?.right;      // usa right e flippa
-        flip = true;
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = (coinsLeft === 0) ? '#22c55e' : '#6b7280';
+      ctx.fillRect(G.exitTile.x * tile + 6, G.exitTile.y * tile + 6, tile - 12, tile - 12);
+      ctx.restore();
+    }
+  }
+
+  // --- FALÒ (animati) ---
+  {
+    const fireKey = `${G.petRoom.x},${G.petRoom.y}`; // evita shadowing di rk
+    const fire = G.fires[fireKey];
+    const frames = G.sprites.decor?.bonfire;
+    if (fire && frames && frames.length >= 3) {
+      const frameMs = 180;
+      const t = performance.now();
+      const idx = (Math.floor(t / frameMs) + (fire.offset || 0)) % frames.length;
+      drawAtlasClip(frames[idx], fire.x, fire.y, tile);
+
+      ctx.save();
+      ctx.globalAlpha = 0.10;
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.ellipse(fire.x * tile + tile/2, fire.y * tile + tile*0.78, tile*0.42, tile*0.18, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // --- PET (SAFE PICK) ---
+  {
+    const px = G.pet.px, py = G.pet.py, sz = tile - 12;
+    const PET = G.sprites.pet;
+    let sPet = null;
+
+    if (PET) {
+      if (!G.pet.moving) {
+        sPet = PET.idle || null;
       } else {
-        frames = gf[mode]?.[dir];      // down/right/up
+        const dirArr = PET[G.pet.direction];
+        if (Array.isArray(dirArr) && dirArr.length) {
+          const idx = Math.abs(G.pet.stepFrame | 0) % dirArr.length;
+          sPet = dirArr[idx] || dirArr[0] || PET.idle || null;
+        } else {
+          sPet = PET.idle || null;
+        }
       }
     }
 
-    const arr = (frames && frames.length) ? frames : gf.idle;
-    const idx = (e.stepFrame || 0) % arr.length;
-    const clip = arr[idx];
-
-    drawSheetClipMaybeFlip(sheet, clip, ex + 6, ey + 6, drawW, drawH, flip);
-    continue;
+    if (sPet && sPet.complete) {
+      ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
+    } else {
+      // fallback visivo mentre i PNG non sono ancora pronti
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4);
+    }
   }
 
-  // fallback se atlas non caricato
-  if (G.sprites.enemy && G.sprites.enemy.complete) {
-    ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
-  } else {
-    ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(ex + 8, ey + 8, drawW - 4, drawH - 4);
+  // --- ENEMIES (atlas + safe + mirroring left) ---
+  {
+    const gf = G.sprites.goblinFrames;
+    const sheet = G.sprites.goblinSheet;
+
+    for (const e of (G.enemies[rk] || [])) {
+      const ex = e.px, ey = e.py;
+      const drawW = tile - 12, drawH = tile - 12;
+
+      if (gf && sheet && sheet.complete) {
+        const mode = e.attacking ? 'attack' : (e.isMoving ? 'walk' : 'idle');
+        const dir  = e.direction || 'down';
+
+        let frames = null;
+        let flip = false;
+
+        if (mode === 'idle') {
+          frames = gf.idle;
+        } else {
+          if (dir === 'left') {
+            frames = gf[mode]?.right; // usa right e flippa
+            flip = true;
+          } else {
+            frames = gf[mode]?.[dir]; // down/right/up
+          }
+        }
+
+        const arr = (frames && frames.length) ? frames : (gf.idle || []);
+        const len = Math.max(1, arr.length);
+        const idx = Math.abs((e.stepFrame | 0) % len);
+        const clip = arr[idx];
+
+        if (clip) {
+          // draw con flip opzionale
+          if (typeof drawSheetClipMaybeFlip === 'function') {
+            drawSheetClipMaybeFlip(sheet, clip, ex + 6, ey + 6, drawW, drawH, flip);
+          } else {
+            // fallback senza helper flip
+            ctx.save();
+            if (flip) {
+              ctx.translate(ex + 6 + drawW, ey + 6);
+              ctx.scale(-1, 1);
+              ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, 0, 0, drawW, drawH);
+            } else {
+              ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, ex + 6, ey + 6, drawW, drawH);
+            }
+            ctx.restore();
+          }
+          continue;
+        }
+      }
+
+      // fallback se atlas non caricato
+      if (G.sprites.enemy?.complete) {
+        ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
+      } else {
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(ex + 8, ey + 8, drawW - 4, drawH - 4);
+      }
+    }
   }
 }
 
-
-}
 
 
 

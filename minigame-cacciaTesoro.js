@@ -189,8 +189,8 @@ function buildGoblinFromAtlas() {
     // Esempio tipico: 3 frame in riga 0 + 3 frame in riga 1
     // Se hai un layout diverso, basta cambiare queste coppie:
     idleMap: [
-      [0,0],[1,0],[2,0],  // primi 3 frame in riga 0
-      [0,1],[1,1],[2,1],  // altri 3 frame in riga 1
+      [1,1],[1,5],[1,8],  // primi 3 frame in riga 0
+      [4,1],[4,5],[4,8],  // altri 3 frame in riga 1
     ],
   };
 

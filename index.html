@@ -65,16 +65,26 @@
     <div id="game" class="fullscreen center hidden">
       <button id="logout-btn" type="button">Logout</button>
       <div class="form-box">
-        <div id="level-container" class="level-box">
-          <span id="level-label">Livello 1</span>
-          <div id="exp-bar-bg" style="display:flex;align-items:center;gap:7px;">
-            <span id="exp-label" style="font-size:0.95em;color:#888;font-weight:600;">exp</span>
-            <div style="flex:1; position:relative;">
-              <div id="exp-bar" style="height:16px;"></div>
-              <span id="exp-gain-label" class="exp-gain-label" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);display:none;"></span>
-            </div>
-          </div>
-        </div>
+   <div id="level-container" class="level-box">
+  <div class="level-top-row">
+    <span id="level-label">Livello 1</span>
+
+    <!-- Pill risorse (Gettoni) -->
+    <div id="resources-pill" class="resources-pill" title="I tuoi gettoni">
+      <img src="assets/collectibles/coin.png" alt="Gettoni" class="coin-icon" />
+      <span id="totale-gettoni">0</span>
+    </div>
+  </div>
+
+  <div id="exp-bar-bg" style="display:flex;align-items:center;gap:7px;">
+    <span id="exp-label" style="font-size:0.95em;color:#888;font-weight:600;">exp</span>
+    <div style="flex:1; position:relative;">
+      <div id="exp-bar" style="height:16px;"></div>
+      <span id="exp-gain-label" class="exp-gain-label" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);display:none;"></span>
+    </div>
+  </div>
+</div>
+
         <img id="pet" alt="Il tuo pet" />
         <div class="bars">
           <div class="bar-label">Fame</div>

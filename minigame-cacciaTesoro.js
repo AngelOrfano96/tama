@@ -58,6 +58,7 @@
     speedMul: 1,
     exiting: false,
     timerId: null,
+    coinsCollected: 0,
 
     // potenziamenti
     activePowerup: null,     // 'speed' | 'slow' | null
@@ -856,6 +857,7 @@ function startTreasureMinigame() {
   // stato base
   G.level = 1;
   G.score = 0;
+  G.coinsCollected = 0;
   G.playing = true;
   G.activePowerup = null;
   G.powerupExpiresAt = 0;
@@ -1117,7 +1119,7 @@ function movePet(dt) {
     const bx = o.x * tile + tile / 4;
     const by = o.y * tile + tile / 4;
     if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
-      o.taken = true; G.score += 1; G.hudDirty = true;
+      o.taken = true; G.score += 1; G.coinsCollected += 1; G.hudDirty = true;
     }
   }
 
@@ -2210,33 +2212,77 @@ if (G.mole.enabled) {
     });
   }
 
+  async function addGettoniSupabase(amount) {
+  try {
+    if (!window.supabase) return;
+    // assicurati che l’utente sia loggato
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return; // non loggato -> non salvo niente
+
+    const { data, error } = await supabase.rpc('add_gettoni', { inc: amount|0 });
+    if (error) throw error;
+
+    // opzionale: mostra feedback, es: console.log('Totale gettoni:', data.gettoni);
+    return data;
+  } catch (err) {
+    console.error('[addGettoniSupabase]', err);
+  }
+}
+
+
   // ---------- END ----------
-  function endTreasureMinigame(reason = 'end') {
-    G.exiting = false;
-    stopBgm();  
-    G.playing = false;
-    if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
-    DOM.modal && DOM.modal.classList.add('hidden');
+function endTreasureMinigame(reason = 'end') {
+  G.exiting = false;
+  stopBgm();
+  G.playing = false;
+  if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
+  DOM.modal && DOM.modal.classList.add('hidden');
 
-    const fun = 15 + Math.round(G.score * 0.6);
-    const exp = Math.round(G.score * 0.5);
-    //console.log('[Treasure] endTreasureMinigame:', { reason, score: G.score, fun, exp });
+  const fun = 15 + Math.round(G.score * 0.6);
+  const exp = Math.round(G.score * 0.5);
 
-    setTimeout(async () => {
-      try {
-        if (typeof window.updateFunAndExpFromMiniGame === 'function') {
-          await window.updateFunAndExpFromMiniGame(fun, exp);
-        } else {
-          //console.warn('[Treasure] updateFunAndExpFromMiniGame non trovato');
-        }
-        if (typeof window.showExpGainLabel === 'function' && exp > 0) window.showExpGainLabel(exp);
-      } catch (err) {
-        //console.error('[Treasure] errore award EXP/FUN:', err);
+  // salva quante monete hai preso in questa run prima di resettare
+  const coinsThisRun = (G.coinsCollected | 0);
+
+  setTimeout(async () => {
+    try {
+      // FUN/EXP al pet
+      if (typeof window.updateFunAndExpFromMiniGame === 'function') {
+        await window.updateFunAndExpFromMiniGame(fun, exp);
       }
+
+      // GETTONI: prova vari helper globali (definiti in script.js)
+      if (coinsThisRun > 0) {
+        if (typeof window.addGettoniSupabase === 'function') {
+          await window.addGettoniSupabase(coinsThisRun);
+        } else if (typeof window.addGettoni === 'function') {
+          await window.addGettoni(coinsThisRun);
+        } else if (typeof window.saveCoinsToSupabase === 'function') {
+          await window.saveCoinsToSupabase(coinsThisRun);
+        } else {
+          console.warn('[Treasure] nessuna funzione per salvare i gettoni trovata');
+        }
+
+        // aggiorna subito il widget in home se presente
+        window.refreshResourcesWidget?.();
+      }
+
+      // feedback exp (opzionale)
+      if (typeof window.showExpGainLabel === 'function' && exp > 0) {
+        window.showExpGainLabel(exp);
+      }
+    } catch (err) {
+      console.error('[Treasure] errore award EXP/FUN/coins:', err);
+    } finally {
+      // reset per la prossima partita
+      G.coinsCollected = 0;
       G.keysStack = [];
       resetJoystick();
-    }, 180);
-  }
+    }
+  }, 180);
+}
+
+
 
   // ---------- BONUS ----------
   function showTreasureBonus(msg, color = '#e67e22') {

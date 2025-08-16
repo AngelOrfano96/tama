@@ -56,6 +56,71 @@ window.updateFunAndExpFromMiniGame = async function(funDelta = 0, expDelta = 0) 
   }
 };
 
+// ---- RESOURCES (gettoni/ottoni) ----
+async function loadResourcesForHome() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { gettoni: 0, ottoni: 0 };
+
+  const { data, error } = await supabaseClient
+    .from('resources')
+    .select('gettoni, ottoni')
+    .eq('user_id', user.id)
+    .maybeSingle(); // evita errore se la riga non esiste ancora
+
+  if (error) {
+    console.error('[loadResourcesForHome]', error);
+    return { gettoni: 0, ottoni: 0 };
+  }
+  return data || { gettoni: 0, ottoni: 0 };
+}
+
+async function refreshResourcesWidget() {
+  const { gettoni } = await loadResourcesForHome();
+  const slot = document.querySelector('#totale-gettoni');
+  if (slot) slot.textContent = gettoni;
+}
+// opzionale: lo espongo così il minigioco può richiamarlo a fine partita
+window.refreshResourcesWidget = refreshResourcesWidget;
+
+window.addGettoniSupabase = async function(delta) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
+
+  // assicura la riga e aggiorna in modo atomico
+  await supabaseClient.from('resources')
+    .upsert({ user_id: user.id, gettoni: 0 }, { onConflict: 'user_id' });
+
+  const { error } = await supabaseClient.rpc('increment_resources',
+    { p_user_id: user.id, p_gettoni_delta: delta, p_ottoni_delta: 0 });
+  if (error) console.error('[addGettoniSupabase]', error);
+};
+// --- RESOURCES (Gettoni/Ottoni) ---
+async function loadResourcesForHome() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { gettoni: 0, ottoni: 0 };
+
+  const { data, error } = await supabaseClient
+    .from('resources')
+    .select('gettoni, ottoni')
+    .eq('user_id', user.id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('[loadResourcesForHome]', error);
+  }
+  return data || { gettoni: 0, ottoni: 0 };
+}
+
+// Aggiorna la pill in alto (chiamata dopo login, e dopo il minigioco)
+window.refreshResourcesWidget = async function(){
+  try{
+    const { gettoni } = await loadResourcesForHome();
+    const el = document.getElementById('totale-gettoni');
+    if (el) el.textContent = gettoni;
+  }catch(err){
+    console.error('[refreshResourcesWidget]', err);
+  }
+};
 
 // Aggiorna le barre
 function updateBars(hunger, fun, clean, level, exp) {
@@ -122,10 +187,13 @@ async function initFlow() {
   eggType = pet.egg_type;
   showOnly('game');
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
+  await refreshResourcesWidget();
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
   await getStateFromDb();
   startAutoRefresh();
+
+  window.refreshResourcesWidget?.();
 }
 
 // ---- EXP + LEVELUP

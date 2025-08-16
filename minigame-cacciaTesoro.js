@@ -125,7 +125,7 @@ const PHYS = {
 };
 // === GOBLIN ATLAS (enemy sprites) ===
 // Imposta alla cella del tuo foglio (16/24/32...). Se il tuo atlas è 32px, usa 32.
-const GOB_TILE = 16;
+const GOB_TILE = 48;
 
 const GOB_MARGIN_X = 0, GOB_MARGIN_Y = 0;
 const GOB_SPACING_X = 0, GOB_SPACING_Y = 0;
@@ -189,24 +189,22 @@ function buildGoblinFromAtlas() {
     // Esempio tipico: 3 frame in riga 0 + 3 frame in riga 1
     // Se hai un layout diverso, basta cambiare queste coppie:
     idleMap: [
-      [1,1],[1,5],[1,8],  // primi 3 frame in riga 0
-      [4,1],[4,5],[4,8],  // altri 3 frame in riga 1
+      [0,0],[1,0],[2,0],  // primi 3 frame in riga 0
+      [0,1],[1,1],[2,1],  // altri 3 frame in riga 1
     ],
   };
-
-    if (!G.sprites.goblinSheet) {
+  if (!G.sprites.goblinSheet) {
     G.sprites.goblinSheet = new Image();
     G.sprites.goblinSheet.onload  = () => console.log('[GOBLIN] atlas ready');
     G.sprites.goblinSheet.onerror = (e) => console.error('[GOBLIN] atlas load fail', e);
     G.sprites.goblinSheet.src = cfg.sheetSrc;
   }
 
-    const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+  const mkRow  = (row, cols)  => cols.map(c => gPick(c, row));
   const mkPairs = (pairs)     => pairs.map(([c, r]) => gPick(c, r));
 
-   const idleFrames = mkPairs(cfg.idleMap);
-  // fallback di sicurezza: se idle vuoto, prendi il primo frame di walkDown
-  const safeIdle = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
+  const idleFrames = mkPairs(cfg.idleMap);
+  const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
 
   G.sprites.goblinFrames = {
     idle: safeIdle,
@@ -214,11 +212,13 @@ function buildGoblinFromAtlas() {
       down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
       right: mkRow(cfg.rows.walkRight, cfg.walkCols),
       up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+      // left = flip orizzontale di right (già gestito nel render)
     },
     attack: {
       down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
       right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
       up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+      // left = flip orizzontale di right
     },
   };
 }
@@ -1120,9 +1120,9 @@ function moveEnemies(dt) {
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
 
   // tempi animazioni (puoi ritoccarli)
-  const ENEMY_ANIM_STEP_IDLE   = 0.20;
-  const ENEMY_ANIM_STEP_WALK   = 0.14;
-  const ENEMY_ANIM_STEP_ATTACK = 0.10;
+  const ENEMY_ANIM_STEP_IDLE   = 0.22;
+  const ENEMY_ANIM_STEP_WALK   = 0.16;
+  const ENEMY_ANIM_STEP_ATTACK = 0.12;
 
   for (const e of enemies) {
     // init campi nuovi/sicurezza

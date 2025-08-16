@@ -123,6 +123,110 @@ const PHYS = {
   skin: 2,        // margine anti-incastro (prima 2). Più alto = più permissivo
   maxStepFrac: 1/3,
 };
+// === GOBLIN ATLAS (enemy sprites) ===
+// Imposta alla cella del tuo foglio (16/24/32...). Se il tuo atlas è 32px, usa 32.
+const GOB_TILE = 16;
+
+const GOB_MARGIN_X = 0, GOB_MARGIN_Y = 0;
+const GOB_SPACING_X = 0, GOB_SPACING_Y = 0;
+
+// Base path per device (desktop/mobile)
+const enemyAtlasBase = isMobileOrTablet()
+  ? 'assets/mobile/enemies'
+  : 'assets/desktop/enemies';
+
+// pick per il foglio del goblin
+const gPick = (c, r, w=1, h=1) => ({
+  sx: GOB_MARGIN_X + c * (GOB_TILE + GOB_SPACING_X),
+  sy: GOB_MARGIN_Y + r * (GOB_TILE + GOB_SPACING_Y),
+  sw: w * GOB_TILE,
+  sh: h * GOB_TILE,
+});
+
+// draw con flip orizzontale (per "left")
+function drawSheetClipMaybeFlip(sheet, clip, dx, dy, dw, dh, flipH=false) {
+  if (!sheet || !sheet.complete || !clip) return;
+  if (!flipH) {
+    ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, dx, dy, dw, dh);
+    return;
+  }
+  ctx.save();
+  ctx.translate(dx + dw, dy);
+  ctx.scale(-1, 1);
+  ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, 0, 0, dw, dh);
+  ctx.restore();
+}
+
+/**
+ * Costruisce tutti i frame a partire dalla POSIZIONE delle righe/colonne del tuo atlas.
+ * Sotto trovi un mapping "tipico":
+ *   riga 0: idle (6 col)         riga 3: walk up (4 col)         riga 6: attack up (4 col)
+ *   riga 1: walk down (4 col)    riga 4: attack down (4 col)
+ *   riga 2: walk right (4 col)   riga 5: attack right (4 col)
+ *
+ * Se il tuo sheet è diverso, cambia SOLO gli indici riga/colonne nel cfg.
+ */
+function buildGoblinFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/goblin_atlas.png`,
+
+    // RIGHE (lascia come sono se ti tornano)
+    rows: {
+      walkDown:  2,
+      walkRight: 3,
+      walkUp:    4,
+      atkDown:   5,
+      atkRight:  6,
+      atkUp:     7,
+    },
+
+    // Colonne standard per walk/attack
+    walkCols:   [0,1,2,3],
+    attackCols: [0,1,2,3],
+
+    // --- IDLE SU DUE RIGHE ---
+    // Metti l’ordine ESATTO dei frame che vuoi ciclare (colonna, riga)
+    // Esempio tipico: 3 frame in riga 0 + 3 frame in riga 1
+    // Se hai un layout diverso, basta cambiare queste coppie:
+    idleMap: [
+      [0,0],[1,0],[2,0],  // primi 3 frame in riga 0
+      [0,1],[1,1],[2,1],  // altri 3 frame in riga 1
+    ],
+  };
+
+  if (!G.sprites.goblinSheet) {
+    G.sprites.goblinSheet = new Image();
+    G.sprites.goblinSheet.onload  = () => console.log('[GOBLIN] atlas ready');
+    G.sprites.goblinSheet.onerror = (e) => console.error('[GOBLIN] atlas load fail', e);
+    G.sprites.goblinSheet.src = cfg.sheetSrc;
+  }
+
+  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+  const mkPairs = (pairs)     => pairs.map(([c, r]) => gPick(c, r));
+
+  G.sprites.goblinFrames = {
+    // Idle: usa la lista di coppie (col, row)
+    idle: mkPairs(cfg.idleMap),
+
+    // Walk: 4 frame per direzione
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+      // left = mirroring di right in render()
+    },
+
+    // Attack: 4 frame per direzione
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+      // left = mirroring di right in render()
+    },
+  };
+}
+
+
 // ---- ATLAS ----
 const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova 32 se serve)
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
@@ -704,41 +808,17 @@ const tileBase = isMobileOrTablet() ? 'assets/mobile/tiles' : 'assets/desktop/ti
     const petNum = match ? match[1] : '1';
     const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
 
-    const goblin = {
-      idle: new Image(),
-      right: [new Image(), new Image()],
-      left:  [new Image(), new Image()],
-      up:    [new Image(), new Image()],
-      down:  [new Image(), new Image()],
-    };
-    goblin.idle.src       = `${assetBase}/enemies/goblin.png`;
-    goblin.right[0].src   = `${assetBase}/enemies/goblin_right_1.png`;
-    goblin.right[1].src   = `${assetBase}/enemies/goblin_right_2.png`;
-    goblin.left[0].src    = `${assetBase}/enemies/goblin_left_1.png`;
-    goblin.left[1].src    = `${assetBase}/enemies/goblin_left_2.png`;
-    goblin.up[0].src      = `${assetBase}/enemies/goblin_up_1.png`;
-    goblin.up[1].src      = `${assetBase}/enemies/goblin_up_2.png`;
-    goblin.down[0].src    = `${assetBase}/enemies/goblin_down_1.png`;
-    goblin.down[1].src    = `${assetBase}/enemies/goblin_down_2.png`;
 
-    const pet = {
-      idle: new Image(),
-      right: [new Image(), new Image()],
-      left:  [new Image(), new Image()],
-      up:    [new Image(), new Image()],
-      down:  [new Image(), new Image()],
-    };
-    pet.idle.src       = `${assetBase}/pets/pet_${petNum}.png`;
-    pet.right[0].src   = `${assetBase}/pets/pet_${petNum}_right1.png`;
-    pet.right[1].src   = `${assetBase}/pets/pet_${petNum}_right2.png`;
-    pet.left[0].src    = `${assetBase}/pets/pet_${petNum}_left1.png`;
-    pet.left[1].src    = `${assetBase}/pets/pet_${petNum}_left2.png`;
-    pet.down[0].src    = `${assetBase}/pets/pet_${petNum}_down1.png`;
-    pet.down[1].src    = `${assetBase}/pets/pet_${petNum}_down2.png`;
-    pet.up[0].src      = `${assetBase}/pets/pet_${petNum}_up1.png`;
-    pet.up[1].src      = `${assetBase}/pets/pet_${petNum}_up2.png`;
 
-    G.sprites.goblin = goblin;
+// === GOBLIN via ATLAS ===
+buildGoblinFromAtlas();
+
+// opzionale: fallback singolo per debug se l'atlas non carica
+G.sprites.enemy = new Image();
+G.sprites.enemy.src = `${assetBase}/enemies/goblin.png`;
+
+
+
     G.sprites.pet = pet;
     G.sprites.coin = new Image();    G.sprites.coin.src = 'assets/collectibles/coin.png';
     G.sprites.enemy = new Image();   G.sprites.enemy.src = 'assets/enemies/goblin.png';
@@ -1033,14 +1113,32 @@ function moveEnemies(dt) {
   const tile = window.treasureTile || 64;
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
 
+  // tempi animazioni (puoi ritoccarli)
+  const ENEMY_ANIM_STEP_IDLE   = 0.20;
+  const ENEMY_ANIM_STEP_WALK   = 0.14;
+  const ENEMY_ANIM_STEP_ATTACK = 0.10;
+
   for (const e of enemies) {
+    // init campi nuovi/sicurezza
+    if (e.reactDelay === undefined) e.reactDelay = 2;
+    if (e.attacking  === undefined) e.attacking  = false;
+    if (e.stepFrame  === undefined) e.stepFrame  = 0;
+    if (e.animTime   === undefined) e.animTime   = 0;
+
     // --- attesa iniziale per ogni goblin (2s) ---
-    if (e.reactDelay === undefined) e.reactDelay = 2; // inizializza una volta
     if (e.reactDelay > 0) {
       e.reactDelay -= dt;
-      e.isMoving = false; // resta fermo durante l'attesa
-      // puoi opzionalmente aggiornare un'animazione idle qui
-      continue; // salta l'inseguimento finché non scade
+      e.isMoving = false;
+
+      // fai scorrere l'idle anche durante la pausa
+      const gf = G.sprites.goblinFrames;
+      const idleLen = (gf?.idle?.length) || 2;
+      e.animTime += dt;
+      if (e.animTime > ENEMY_ANIM_STEP_IDLE) {
+        e.stepFrame = (e.stepFrame + 1) % idleLen;
+        e.animTime = 0;
+      }
+      continue;
     }
 
     const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
@@ -1051,27 +1149,67 @@ function moveEnemies(dt) {
       dx /= dist; dy /= dist;
       const newPX = e.px + dx * spd * dt;
       const newPY = e.py + dy * spd * dt;
+
       const size = tile - 18;
       const minX = Math.floor((newPX + 6) / tile);
       const minY = Math.floor((newPY + 6) / tile);
       const maxX = Math.floor((newPX + size - 6) / tile);
       const maxY = Math.floor((newPY + size - 6) / tile);
 
-      if (room[minY][minX] === 0 && room[minY][maxX] === 0 && room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
+      if (room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+          room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
         e.px = newPX; e.py = newPY;
         e.x = Math.floor((e.px + size/2) / tile);
         e.y = Math.floor((e.py + size/2) / tile);
-        e.direction = (Math.abs(dx) > Math.abs(dy)) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+
+        // direzione attuale (serve per scegliere i frame)
+        e.direction = (Math.abs(dx) > Math.abs(dy))
+          ? (dx > 0 ? 'right' : 'left')
+          : (dy > 0 ? 'down' : 'up');
+
         e.isMoving = true;
-        e.animTime = (e.animTime || 0) + dt;
-        const ENEMY_ANIM_STEP = 0.22;
-        if (e.animTime > ENEMY_ANIM_STEP) { e.stepFrame = 1 - (e.stepFrame || 0); e.animTime = 0; }
       } else {
         e.isMoving = false;
       }
+    } else {
+      // troppo vicino per muoversi “in sicurezza”: resta fermo/attacca
+      e.isMoving = false;
     }
 
-    if (distCenter(e, G.pet) < 0.5) {
+    // stato di "attacco" cosmetico se molto vicino al pet
+    e.attacking = (distCenter(e, G.pet) < 1.1);
+
+    // --- avanzamento animazione in base allo stato ---
+    const gf = G.sprites.goblinFrames;
+
+    // scegli quante frame ha il set corrente
+    let framesLen = 2;
+    if (gf) {
+      if (e.attacking) {
+        // per 'left' usiamo i frame di 'right' (il flip avviene in render)
+        const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+        framesLen = (gf.attack?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
+      } else if (e.isMoving) {
+        const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+        framesLen = (gf.walk?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
+      } else {
+        framesLen = (gf.idle?.length) || 2;
+      }
+    }
+
+    const stepDur =
+      e.attacking ? ENEMY_ANIM_STEP_ATTACK :
+      e.isMoving  ? ENEMY_ANIM_STEP_WALK   :
+                    ENEMY_ANIM_STEP_IDLE;
+
+    e.animTime += dt;
+    if (e.animTime > stepDur) {
+      e.stepFrame = (e.stepFrame + 1) % framesLen;
+      e.animTime = 0;
+    }
+
+    // --- collisione “game over” come prima ---
+       if (distCenter(e, G.pet) < 0.5) {
       G.playing = false;
       showTreasureBonus('Game Over!', '#e74c3c');
       setTimeout(() => endTreasureMinigame(), 1500);
@@ -1079,6 +1217,7 @@ function moveEnemies(dt) {
     }
   }
 }
+
 
 function placeMoleAtRandomSpot() {
   const room = G.rooms[G.mole.roomY][G.mole.roomX];
@@ -1487,20 +1626,48 @@ if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
   else { ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4); }
 
   // enemies
-  for (const e of (G.enemies[key] || [])) {
-    let sprite = null;
-    const frame = e.stepFrame || 0;
+// enemies
+for (const e of (G.enemies[key] || [])) {
+  const ex = e.px, ey = e.py;
+  const drawW = tile - 12, drawH = tile - 12;
+
+  const gf = G.sprites.goblinFrames;
+  const sheet = G.sprites.goblinSheet;
+
+  if (gf && sheet && sheet.complete) {
     const dir = e.direction || 'down';
-    if (G.sprites.goblin && G.sprites.goblin.idle) {
-      sprite = e.isMoving ? (G.sprites.goblin[dir] && G.sprites.goblin[dir][frame]) : G.sprites.goblin.idle;
+    const mode = e.attacking ? 'attack' : (e.isMoving ? 'walk' : 'idle');
+
+    let frames = null;
+    let flip = false;
+
+    if (mode === 'idle') {
+      frames = gf.idle;                // 6 frame idle
+    } else {
+      if (dir === 'left') {
+        frames = gf[mode]?.right;      // usa right e flippa
+        flip = true;
+      } else {
+        frames = gf[mode]?.[dir];      // down/right/up
+      }
     }
-    const ex = e.px, ey = e.py;
-    if (sprite && sprite.complete) ctx.drawImage(sprite, ex + 6, ey + 6, tile - 12, tile - 12);
-    else if (G.sprites.enemy && G.sprites.enemy.complete) ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, tile - 12, tile - 12);
-    else { ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex + 8, ey + 8, tile - 16, tile - 16); }
+
+    const arr = (frames && frames.length) ? frames : gf.idle;
+    const idx = (e.stepFrame || 0) % arr.length;
+    const clip = arr[idx];
+
+    drawSheetClipMaybeFlip(sheet, clip, ex + 6, ey + 6, drawW, drawH, flip);
+    continue;
   }
 
-
+  // fallback se atlas non caricato
+  if (G.sprites.enemy && G.sprites.enemy.complete) {
+    ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
+  } else {
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(ex + 8, ey + 8, drawW - 4, drawH - 4);
+  }
+}
 
 
 }
@@ -1641,6 +1808,7 @@ for (let i = 0; i < nEnemies; i++) {
             isMoving: false,
             animTime: 0,
             reactDelay: 2,
+            attacking: false,
           });
         }
 

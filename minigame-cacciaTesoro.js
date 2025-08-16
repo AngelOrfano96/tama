@@ -39,11 +39,11 @@
     roomW: 8,
     roomH: 7,
     petSpeedDesktop: 180,
-    petSpeedMobile: 120,
+    petSpeedMobile: 95,
     enemySpeedDesktop: 100,
-    enemySpeedMobile: 60,
+    enemySpeedMobile: 35,
     revealMs: 900,
-    powerupMs: 3000,
+    powerupMs: 2000,
     baseTimerMs: 1000,
   };
 // Tuning collisioni (più permissive)
@@ -1987,7 +1987,7 @@ for (const { rx, ry } of allRooms) {
 }
 
 
-    G.timeLeft = 90 + G.level * 3;
+    G.timeLeft = 90 + G.level * 2;
     G.playing = false;
 
     animateRevealCircle(() => {

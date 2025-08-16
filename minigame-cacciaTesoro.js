@@ -1857,18 +1857,48 @@ function isOpening(room, tx, ty) {
   // ritorna true se la cella è vuota e non è muro
   return room[ty] && room[ty][tx] === 0;
 }
-function pickRandomWallCell(room) {
-  const spots = [];
+
+
+function pickRandomWallCellNoDoor(room) {
   const H = room.length, W = room[0].length;
+  const spots = [];
+
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      // muro = 1 (le porte sono 0 e quindi escluse)
-      if (room[y][x] !== 0) spots.push({ x, y });
+      // deve stare sul bordo
+      const onEdge = (x === 0 || x === W-1 || y === 0 || y === H-1);
+      if (!onEdge) continue;
+
+      // deve essere muro pieno
+      if (room[y][x] === 0) continue;
+
+      // escludi le celle muro ADIACENTI a un'apertura sullo stesso bordo
+      // (quindi non spawna sulle "spallette" della porta)
+      const isLeftOrRight = (x === 0 || x === W-1);
+      const isTopOrBottom = (y === 0 || y === H-1);
+
+      // se siamo sul bordo verticale, guardo su/giù lungo lo stesso bordo
+      if (isLeftOrRight) {
+        const upIsDoor   = (y > 0     && room[y-1][x] === 0);
+        const downIsDoor = (y < H - 1 && room[y+1][x] === 0);
+        if (upIsDoor || downIsDoor) continue;
+      }
+
+      // se siamo sul bordo orizzontale, guardo sin/dx lungo lo stesso bordo
+      if (isTopOrBottom) {
+        const leftIsDoor  = (x > 0     && room[y][x-1] === 0);
+        const rightIsDoor = (x < W - 1 && room[y][x+1] === 0);
+        if (leftIsDoor || rightIsDoor) continue;
+      }
+
+      spots.push({ x, y });
     }
   }
+
   if (!spots.length) return null;
   return spots[Math.floor(Math.random() * spots.length)];
 }
+
 
   // ---------- GENERAZIONE ----------
 function generateDungeon() {
@@ -1992,28 +2022,31 @@ function generateDungeon() {
       }
    // --- BAT: 40% solo se la stanza NON ha altri nemici ---
 // spawn SEMPRE su una cella di MURO (sopra i muri)
+// --- BAT: 40% solo se la stanza NON ha altri nemici ---
+// spawn su muro pieno, mai su porte né spallette vicino alla porta
 if (enemies.length === 0 && Math.random() < 0.40) {
   const roomRef = G.rooms[ry][rx];
-  const wallSpot = pickRandomWallCell(roomRef);
-  if (wallSpot) {
+  const spot = pickRandomWallCellNoDoor(roomRef);
+  if (spot) {
     const tile = window.treasureTile || 64;
     enemies.push({
       type: 'bat',
-      x: wallSpot.x,
-      y: wallSpot.y,
-      px: wallSpot.x * tile,
-      py: wallSpot.y * tile,
+      x: spot.x,
+      y: spot.y,
+      px: spot.x * tile,
+      py: spot.y * tile,
       direction: 'down',
       stepFrame: 0,
       animTime: 0,
-      isMoving: true,     // il bat “vola”, quindi lo consideriamo in movimento
+      isMoving: true,
       attacking: false,
-      reactDelay: 0,      // niente attesa iniziale
+      reactDelay: 0,
       slow: false,
-      sPhase: Math.random() * Math.PI * 2 // fase per il moto a spirale (se lo usi)
+      sPhase: Math.random() * Math.PI * 2
     });
   }
 }
+
 
 
       // powerup (speed)

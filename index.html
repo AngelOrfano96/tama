@@ -68,6 +68,11 @@
    <div id="level-container" class="level-box">
   <div class="level-top-row">
     <span id="level-label">Livello 1</span>
+      <div id="username-pill" style="display:inline-flex;align-items:center;gap:6px;margin-left:8px;
+  padding:3px 8px;border-radius:999px;background:#111827;color:#e5e7eb;font-weight:600;
+  font-size:.9em;vertical-align:middle;">
+  👤 <span id="username-label">—</span>
+</div>
 
     <!-- Pill risorse (Gettoni) -->
     <div id="resources-pill" class="resources-pill" title="I tuoi gettoni">
@@ -164,6 +169,21 @@
     </div>
 
   </div>
+
+  <!-- MODALE USERNAME -->
+<div id="username-modal" class="modal hidden">
+  <div class="modal-content" style="text-align:center; max-width:420px;">
+    <h3 style="margin-top:0">Completa il profilo</h3>
+    <p>Scegli un <b>username</b> univoco (3–20, lettere/numeri/_).</p>
+    <input id="username-input" type="text" placeholder="es. drago_rosso"
+           style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #ddd;margin:10px 0;">
+    <div id="username-error" class="error" style="min-height:20px;color:#ef4444;"></div>
+    <div class="buttons" style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
+      <button id="username-save-btn">Salva</button>
+      <button id="username-logout-btn" type="button" class="minigame-btn" style="background:#374151">Esci</button>
+    </div>
+  </div>
+</div>
 
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>

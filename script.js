@@ -63,6 +63,127 @@ window.addGettoniSupabase = async function (delta) {
   }
 };
 
+// ===== USERNAME (profiles) =======================================
+
+// Assicura che esista la riga del profilo per l’utente corrente
+async function ensureProfileRow(userId) {
+  // crea la riga se non c'è (senza username)
+  await supabaseClient.from('profiles')
+    .upsert({ user_id: userId }, { onConflict: 'user_id' });
+}
+
+// Aggiorna il badge vicino al livello
+async function refreshUsernameBadge() {
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('username')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const el = document.getElementById('username-label');
+    if (el) el.textContent = (data && data.username) ? '@' + data.username : '—';
+  } catch(e) {
+    console.error('[refreshUsernameBadge]', e);
+  }
+}
+
+// Mostra la modal se manca l'username
+async function promptUsernameIfMissing() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
+
+  await ensureProfileRow(user.id);
+
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .select('username')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  // se già presente, solo aggiorna il badge
+  if (data && data.username) {
+    await refreshUsernameBadge();
+    return;
+  }
+
+  // altrimenti apri la modal
+  const modal = document.getElementById('username-modal');
+  const input = document.getElementById('username-input');
+  const errEl = document.getElementById('username-error');
+  const btnSave = document.getElementById('username-save-btn');
+  const btnLogout = document.getElementById('username-logout-btn');
+
+  if (!modal || !input || !btnSave) return;
+
+  errEl.textContent = '';
+  input.value = '';
+  modal.classList.remove('hidden');
+  setTimeout(() => input.focus(), 50);
+
+  // handler "Salva"
+  const onSave = async () => {
+    let v = (input.value || '').trim();
+    const rx = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!rx.test(v)) {
+      errEl.textContent = 'Formato non valido. Usa 3–20 caratteri: lettere, numeri e underscore.';
+      return;
+    }
+    btnSave.disabled = true;
+    errEl.textContent = '';
+    try {
+      const { error: upErr } = await supabaseClient
+        .from('profiles')
+        .upsert({ user_id: user.id, username: v }, { onConflict: 'user_id' });
+
+      if (upErr) {
+        // 23505 = unique_violation
+        if (upErr.code === '23505') {
+          errEl.textContent = 'Username già in uso. Riprova con un altro.';
+        } else {
+          errEl.textContent = upErr.message || 'Errore imprevisto.';
+        }
+        return;
+      }
+
+      // ok
+      await refreshUsernameBadge();
+      modal.classList.add('hidden');
+    } catch (e) {
+      errEl.textContent = 'Errore imprevisto.';
+      console.error('[save username]', e);
+    } finally {
+      btnSave.disabled = false;
+    }
+  };
+
+  // handler "Esci" (logout)
+  const onLogout = async () => {
+    await supabaseClient.auth.signOut();
+    showOnly('login-container');
+    modal.classList.add('hidden');
+  };
+
+  // bind una sola volta
+  if (!btnSave._bound) {
+    btnSave.addEventListener('click', onSave);
+    btnSave._bound = true;
+  }
+  if (!btnLogout._bound) {
+    btnLogout.addEventListener('click', onLogout);
+    btnLogout._bound = true;
+  }
+
+  // invio con Enter
+  if (!input._bound) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') onSave();
+    });
+    input._bound = true;
+  }
+}
 
 
 let user = null;
@@ -193,6 +314,9 @@ async function initFlow() {
   startAutoRefresh();
 
  await window.refreshResourcesWidget?.();
+ await refreshUsernameBadge();      // mostra nel badge se già presente
+ await promptUsernameIfMissing();   // se manca, chiedilo con la modal
+
 }
 
 // ---- EXP + LEVELUP
@@ -356,6 +480,9 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   document.getElementById('game-over').classList.add('hidden');
   await getStateFromDb();
   startAutoRefresh();
+
+  await refreshUsernameBadge();
+  await promptUsernameIfMissing();
 });
 
 // --- LOGOUT ---
@@ -363,6 +490,9 @@ const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async () => {
     await supabaseClient.auth.signOut();
+    document.getElementById('wallet-gettoni')?.textContent = '0';
+document.getElementById('wallet-ottoni')?.textContent = '0';
+document.getElementById('totale-gettoni')?.textContent = '0';
     showOnly('login-container');
   });
 }

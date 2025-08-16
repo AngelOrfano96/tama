@@ -947,7 +947,7 @@ body {
 /* Overlay che occupa parte bassa a sinistra, solo su mobile */
 .treasure-joystick-overlay {
   position: absolute;
-  left: 100px;
+  left: 140px;
   bottom: 150px;
   width: 120px;
   height: 120px;
@@ -1173,3 +1173,44 @@ body {
 }
 .ui-btn.secondary:hover { filter: none; }
 
+/* Leaderboard modal */
+.modal .leaderboard {
+  max-width: 640px;
+  width: 92vw;
+}
+.lb-header{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px;
+}
+.btn-ghost{
+  background:transparent; border:1px solid rgba(0,0,0,.15);
+  padding:6px 10px; border-radius:8px; cursor:pointer;
+}
+.btn-ghost:hover{ background:rgba(0,0,0,.06); }
+
+.leaderboard-list{
+  list-style:none; margin:0; padding:0;
+  display:flex; flex-direction:column; gap:8px;
+  max-height: 60vh; overflow:auto;
+}
+.lb-item{
+  display:grid; grid-template-columns: 48px 1fr 100px 70px;
+  align-items:center; gap:12px;
+  background: rgba(255,255,255,.65);
+  backdrop-filter: blur(2px);
+  border:1px solid rgba(0,0,0,.05);
+  border-radius:10px; padding:10px 12px;
+  font-weight:600;
+}
+.lb-item .rank{
+  width:36px; height:36px; line-height:36px; text-align:center;
+  border-radius:9px; background:#f3f4f6;
+}
+.lb-item .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lb-item .score{ text-align:right; font-variant-numeric: tabular-nums; }
+.lb-item .level{ text-align:right; color:#6b7280; }
+
+/* top 3 highlight */
+.lb-item.top1 .rank{ background:#fde68a; }
+.lb-item.top2 .rank{ background:#e5e7eb; }
+.lb-item.top3 .rank{ background:#fcd34d; }

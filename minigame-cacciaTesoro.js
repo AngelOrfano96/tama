@@ -2228,6 +2228,12 @@ function endTreasureMinigame(reason = 'end') {
         await window.updateFunAndExpFromMiniGame(fun, exp);
       }
 
+      // Leaderboard: salva best score/level (la RPC ignora se level < 2)
+if (typeof window.submitTreasureScoreSupabase === 'function') {
+  await window.submitTreasureScoreSupabase(G.score|0, G.level|0);
+}
+
+
       // GETTONI: prova vari helper globali (definiti in script.js)
 // GETTONI: usa la RPC corretta esposta da script.js
 if (coinsThisRun > 0) {
@@ -2250,7 +2256,6 @@ if (coinsThisRun > 0) {
     }
   }, 180);
 }
-
 
 
   // ---------- BONUS ----------

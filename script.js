@@ -206,6 +206,68 @@ async function promptUsernameIfMissing() {
 
 }
 
+// ===== LEADERBOARD: submit + fetch =====
+window.submitTreasureScoreSupabase = async function(score, level) {
+  try {
+    // la RPC filtra già p_level < 2, qui è solo ulteriore guard
+    if (!Number.isFinite(score) || !Number.isFinite(level)) return;
+    const { error } = await supabaseClient.rpc('submit_treasure_score', {
+      p_score: Math.max(0, score|0),
+      p_level: Math.max(0, level|0),
+    });
+    if (error) console.error('[submitTreasureScoreSupabase]', error);
+  } catch (e) {
+    console.error('[submitTreasureScoreSupabase]', e);
+  }
+};
+
+async function loadLeaderboardTop(limit = 20) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('leaderboard_tesoro')
+      .select('username_snapshot, best_score, best_level, best_at')
+      .order('best_score', { ascending: false })
+      .order('best_level', { ascending: false })
+      .order('best_at', { ascending: true })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.error('[loadLeaderboardTop]', e);
+    return [];
+  }
+}
+
+window.openLeaderboardModal = async function() {
+  const modal = document.getElementById('leaderboard-modal');
+  const body  = document.getElementById('leaderboard-body');
+  if (!modal || !body) return;
+
+  modal.classList.remove('hidden');
+  body.innerHTML = '<li class="lb-item">Caricamento…</li>';
+
+  const rows = await loadLeaderboardTop(20);
+  if (!rows.length) {
+    body.innerHTML = '<li class="lb-item">Ancora nessun punteggio.</li>';
+    return;
+  }
+
+  body.innerHTML = rows.map((r, i) => {
+    const rank = i + 1;
+    const name = r.username_snapshot || 'Anon';
+    return `
+      <li class="lb-item ${rank<=3 ? 'top'+rank : ''}">
+        <span class="rank">${rank}</span>
+        <span class="name">@${name}</span>
+        <span class="score">${r.best_score}</span>
+        <span class="level">L${r.best_level}</span>
+      </li>`;
+  }).join('');
+};
+
+window.closeLeaderboardModal = function() {
+  document.getElementById('leaderboard-modal')?.classList.add('hidden');
+};
 
 let user = null;
 let petId = null;
@@ -587,6 +649,33 @@ window.addEventListener('DOMContentLoaded', async () => {
   const startTreasure = document.getElementById('btn-minigame-treasure');
   const cancelBtn     = document.getElementById('btn-minigame-cancel');
   //await requestLandscape();
+
+  // --- CLASSIFICA: bind bottoni/apertura/chiusura ---
+const lbOpenBtn  = document.getElementById('btn-open-leaderboard');
+const lbCloseBtn = document.getElementById('leaderboard-close');
+const lbModal    = document.getElementById('leaderboard-modal');
+
+lbOpenBtn?.addEventListener('click', () => {
+  // window.openLeaderboardModal è definita sopra in script.js
+  window.openLeaderboardModal();
+});
+
+lbCloseBtn?.addEventListener('click', () => {
+  window.closeLeaderboardModal();
+});
+
+// chiusura cliccando fuori dal pannello
+lbModal?.addEventListener('click', (e) => {
+  if (e.target === lbModal) window.closeLeaderboardModal();
+});
+
+// chiusura con ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !lbModal.classList.contains('hidden')) {
+    window.closeLeaderboardModal();
+  }
+});
+
 
   // Apri selettore
   playBtn?.addEventListener('click', () => {

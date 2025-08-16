@@ -161,6 +161,7 @@
       <div class="modal-content" style="text-align:center;">
         <h2>Scegli un mini gioco</h2>
         <button id="btn-minigame-treasure" class="minigame-btn">Caccia al Tesoro</button>
+        <button id="btn-open-leaderboard" class="minigame-btn">🏆 Classifica</button>
 
         <!-- Qui in futuro puoi aggiungere altri bottoni/mini giochi -->
         <br>
@@ -192,6 +193,18 @@
   </div>
 </div>
 
+<!-- MODALE CLASSIFICA -->
+<div id="leaderboard-modal" class="modal hidden">
+  <div class="modal-content leaderboard">
+    <div class="lb-header">
+      <h2>🏆 Classifica – Caccia al Tesoro</h2>
+      <button id="leaderboard-close" class="btn-ghost">Chiudi</button>
+    </div>
+    <ul id="leaderboard-body" class="leaderboard-list">
+      <!-- righe generate da JS -->
+    </ul>
+  </div>
+</div>
 
 
   <!-- Supabase JS -->

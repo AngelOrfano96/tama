@@ -124,7 +124,7 @@ const PHYS = {
   maxStepFrac: 1/3,
 };
 // ---- ATLAS ----
-const ATLAS_TILE = 32;                     // <— 16 px ciascun tassello (prova 32 se serve)
+const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova 32 se serve)
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
 
 // helper: seleziona un rettangolo (w,h in celle, default 1×1)

@@ -168,7 +168,7 @@ function drawSheetClipMaybeFlip(sheet, clip, dx, dy, dw, dh, flipH=false) {
  */
 function buildGoblinFromAtlas() {
   const cfg = {
-    sheetSrc: `${enemyAtlasBase}/goblin_atlas.png`,
+    sheetSrc: `${enemyAtlasBase}/chara_orc.png`,
 
     // RIGHE (lascia come sono se ti tornano)
     rows: {

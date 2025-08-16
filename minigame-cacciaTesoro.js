@@ -123,6 +123,68 @@ const PHYS = {
   skin: 2,        // margine anti-incastro (prima 2). Più alto = più permissivo
   maxStepFrac: 1/3,
 };
+
+// === BAT ATLAS (enemy sprites) ===
+const BAT_TILE = 48;
+const BAT_MARGIN_X = 0, BAT_MARGIN_Y = 0;
+const BAT_SPACING_X = 0, BAT_SPACING_Y = 0;
+
+const bPick = (c, r, w=1, h=1) => ({
+  sx: BAT_MARGIN_X + c * (BAT_TILE + BAT_SPACING_X),
+  sy: BAT_MARGIN_Y + r * (BAT_TILE + BAT_SPACING_Y),
+  sw: w * BAT_TILE,
+  sh: h * BAT_TILE,
+});
+
+function buildBatFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_bat.png`,
+    // stesse righe del goblin, sheet 48×48
+    rows: {
+      walkDown:  2,
+      walkRight: 3,
+      walkUp:    4,
+      atkDown:   5,
+      atkRight:  6,
+      atkUp:     7,
+    },
+    walkCols:   [0,1,2,3],
+    attackCols: [0,1,2,3],
+    // idle su due righe: 0 e 1 (3+3 frame)
+    idleMap: [
+      [0,0],[1,0],[2,0],
+      [0,1],[1,1],[2,1],
+    ],
+  };
+
+  if (!G.sprites.batSheet) {
+    G.sprites.batSheet = new Image();
+    G.sprites.batSheet.onload  = () => console.log('[BAT] atlas ready');
+    G.sprites.batSheet.onerror = (e) => console.error('[BAT] atlas load fail', e);
+    G.sprites.batSheet.src = cfg.sheetSrc;
+  }
+
+  const mkRow   = (row, cols)   => cols.map(c => bPick(c, row));
+  const mkPairs = (pairs)       => pairs.map(([c, r]) => bPick(c, r));
+  const idle    = mkPairs(cfg.idleMap);
+
+  G.sprites.batFrames = {
+    idle: idle.length ? idle : mkRow(cfg.rows.walkDown, [0]),
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+    },
+  };
+}
+
+
+
 // === GOBLIN ATLAS (enemy sprites) ===
 // Imposta alla cella del tuo foglio (16/24/32...). Se il tuo atlas è 32px, usa 32.
 const GOB_TILE = 48;
@@ -788,6 +850,7 @@ function startTreasureMinigame() {
   // atlas (muri/decor) + bake
   maybeSwapDecorForDevice();
   buildDecorFromAtlas();
+  buildBatFromAtlas();
   debugAtlas('start');
 
   // stato base
@@ -1119,103 +1182,135 @@ function moveEnemies(dt) {
   const tile = window.treasureTile || 64;
   const room = G.rooms[G.petRoom.y][G.petRoom.x];
 
-  // tempi animazioni (puoi ritoccarli)
-  const ENEMY_ANIM_STEP_IDLE   = 0.22;
-  const ENEMY_ANIM_STEP_WALK   = 0.16;
-  const ENEMY_ANIM_STEP_ATTACK = 0.12;
+  // tempi animazioni
+  const ENEMY_ANIM_STEP_IDLE   = 0.20;
+  const ENEMY_ANIM_STEP_WALK   = 0.14;
+  const ENEMY_ANIM_STEP_ATTACK = 0.10;
+  const BAT_STEP_IDLE          = 0.18;
+  const BAT_STEP_WALK          = 0.10;
+  const BAT_STEP_ATTACK        = 0.09;
 
   for (const e of enemies) {
-    // init campi nuovi/sicurezza
     if (e.reactDelay === undefined) e.reactDelay = 2;
     if (e.attacking  === undefined) e.attacking  = false;
     if (e.stepFrame  === undefined) e.stepFrame  = 0;
     if (e.animTime   === undefined) e.animTime   = 0;
 
-    // --- attesa iniziale per ogni goblin (2s) ---
+    // pausa iniziale
     if (e.reactDelay > 0) {
       e.reactDelay -= dt;
       e.isMoving = false;
 
-      // fai scorrere l'idle anche durante la pausa
-      const gf = G.sprites.goblinFrames;
-      const idleLen = (gf?.idle?.length) || 2;
+      // scrolla l'idle
+      const idleLen =
+        (e.type === 'bat' ? (G.sprites.batFrames?.idle?.length)
+                          : (G.sprites.goblinFrames?.idle?.length)) || 2;
       e.animTime += dt;
-      if (e.animTime > ENEMY_ANIM_STEP_IDLE) {
+      const step = (e.type === 'bat') ? BAT_STEP_IDLE : ENEMY_ANIM_STEP_IDLE;
+      if (e.animTime > step) {
         e.stepFrame = (e.stepFrame + 1) % idleLen;
         e.animTime = 0;
       }
       continue;
     }
 
-    const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
-    let dx = G.pet.px - e.px, dy = G.pet.py - e.py;
-    const dist = Math.sqrt(dx*dx + dy*dy);
+    // vettore verso il pet
+    let vx = G.pet.px - e.px, vy = G.pet.py - e.py;
+    const dist = Math.hypot(vx, vy) || 1;
+    vx /= dist; vy /= dist;
 
-    if (dist > 2) {
-      dx /= dist; dy /= dist;
-      const newPX = e.px + dx * spd * dt;
-      const newPY = e.py + dy * spd * dt;
+    if (e.type === 'bat') {
+      // --- BAT: niente collisioni; movimento a spirale verso il pet
+      const base = (e.slow ? enemyBaseSpeed * 0.6 : enemyBaseSpeed * 1.2);
+      e.waveT = (e.waveT || 0) + dt * (e.waveFreq || 6.0);
+      const sideSpeed = base * 0.45 * Math.sin(e.waveT); // componente laterale
 
+      // perpendicolare (ruotato +90°): (-vy, vx)
+      const pxv = -vy, pyv = vx;
+
+      e.px += (vx * base + pxv * sideSpeed) * dt;
+      e.py += (vy * base + pyv * sideSpeed) * dt;
+
+      // aggiorna cella/direzione
       const size = tile - 18;
-      const minX = Math.floor((newPX + 6) / tile);
-      const minY = Math.floor((newPY + 6) / tile);
-      const maxX = Math.floor((newPX + size - 6) / tile);
-      const maxY = Math.floor((newPY + size - 6) / tile);
+      e.x = Math.floor((e.px + size/2) / tile);
+      e.y = Math.floor((e.py + size/2) / tile);
+      e.direction = (Math.abs(vx) > Math.abs(vy)) ? (vx > 0 ? 'right' : 'left')
+                                                  : (vy > 0 ? 'down' : 'up');
+      e.isMoving = true;
 
-      if (room[minY][minX] === 0 && room[minY][maxX] === 0 &&
-          room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
-        e.px = newPX; e.py = newPY;
-        e.x = Math.floor((e.px + size/2) / tile);
-        e.y = Math.floor((e.py + size/2) / tile);
+      // stato “attacco” se molto vicino
+      e.attacking = (distCenter(e, G.pet) < 1.1);
 
-        // direzione attuale (serve per scegliere i frame)
-        e.direction = (Math.abs(dx) > Math.abs(dy))
-          ? (dx > 0 ? 'right' : 'left')
-          : (dy > 0 ? 'down' : 'up');
+      // animazione bat
+      const bf = G.sprites.batFrames;
+      let framesLen = 2;
+      if (bf) {
+        if (e.attacking) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (bf.attack?.[dirAlias]?.length) || (bf.walk?.right?.length) || (bf.idle?.length) || 2;
+        } else if (e.isMoving) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (bf.walk?.[dirAlias]?.length) || (bf.walk?.right?.length) || (bf.idle?.length) || 2;
+        } else {
+          framesLen = (bf.idle?.length) || 2;
+        }
+      }
+      const stepDur = e.attacking ? BAT_STEP_ATTACK : (e.isMoving ? BAT_STEP_WALK : BAT_STEP_IDLE);
+      e.animTime += dt;
+      if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
+    } else {
+      // --- GOBLIN: come prima, con collisioni sui muri
+      const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
+      if (dist > 2) {
+        const newPX = e.px + vx * spd * dt;
+        const newPY = e.py + vy * spd * dt;
 
-        e.isMoving = true;
+        const size = tile - 18;
+        const minX = Math.floor((newPX + 6) / tile);
+        const minY = Math.floor((newPY + 6) / tile);
+        const maxX = Math.floor((newPX + size - 6) / tile);
+        const maxY = Math.floor((newPY + size - 6) / tile);
+
+        if (room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+            room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
+          e.px = newPX; e.py = newPY;
+          e.x = Math.floor((e.px + size/2) / tile);
+          e.y = Math.floor((e.py + size/2) / tile);
+          e.direction = (Math.abs(vx) > Math.abs(vy)) ? (vx > 0 ? 'right' : 'left')
+                                                      : (vy > 0 ? 'down' : 'up');
+          e.isMoving = true;
+        } else {
+          e.isMoving = false;
+        }
       } else {
         e.isMoving = false;
       }
-    } else {
-      // troppo vicino per muoversi “in sicurezza”: resta fermo/attacca
-      e.isMoving = false;
-    }
 
-    // stato di "attacco" cosmetico se molto vicino al pet
-    e.attacking = (distCenter(e, G.pet) < 1.1);
+      e.attacking = (distCenter(e, G.pet) < 1.1);
 
-    // --- avanzamento animazione in base allo stato ---
-    const gf = G.sprites.goblinFrames;
-
-    // scegli quante frame ha il set corrente
-    let framesLen = 2;
-    if (gf) {
-      if (e.attacking) {
-        // per 'left' usiamo i frame di 'right' (il flip avviene in render)
-        const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
-        framesLen = (gf.attack?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
-      } else if (e.isMoving) {
-        const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
-        framesLen = (gf.walk?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
-      } else {
-        framesLen = (gf.idle?.length) || 2;
+      const gf = G.sprites.goblinFrames;
+      let framesLen = 2;
+      if (gf) {
+        if (e.attacking) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (gf.attack?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
+        } else if (e.isMoving) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (gf.walk?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
+        } else {
+          framesLen = (gf.idle?.length) || 2;
+        }
       }
+      const stepDur = e.attacking ? ENEMY_ANIM_STEP_ATTACK
+                    : e.isMoving  ? ENEMY_ANIM_STEP_WALK
+                                  : ENEMY_ANIM_STEP_IDLE;
+      e.animTime += dt;
+      if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
     }
 
-    const stepDur =
-      e.attacking ? ENEMY_ANIM_STEP_ATTACK :
-      e.isMoving  ? ENEMY_ANIM_STEP_WALK   :
-                    ENEMY_ANIM_STEP_IDLE;
-
-    e.animTime += dt;
-    if (e.animTime > stepDur) {
-      e.stepFrame = (e.stepFrame + 1) % framesLen;
-      e.animTime = 0;
-    }
-
-    // --- collisione “game over” come prima ---
-       if (distCenter(e, G.pet) < 0.5) {
+    // hit col pet = game over
+    if (distCenter(e, G.pet) < 0.5) {
       G.playing = false;
       showTreasureBonus('Game Over!', '#e74c3c');
       setTimeout(() => endTreasureMinigame(), 1500);
@@ -1223,6 +1318,7 @@ function moveEnemies(dt) {
     }
   }
 }
+
 
 
 function placeMoleAtRandomSpot() {
@@ -1605,7 +1701,7 @@ function render() {
 
   // --- FALÒ (animati) ---
   {
-    const fireKey = `${G.petRoom.x},${G.petRoom.y}`; // evita shadowing di rk
+    const fireKey = `${G.petRoom.x},${G.petRoom.y}`;
     const fire = G.fires[fireKey];
     const frames = G.sprites.decor?.bonfire;
     if (fire && frames && frames.length >= 3) {
@@ -1618,7 +1714,7 @@ function render() {
       ctx.globalAlpha = 0.10;
       ctx.fillStyle = '#fbbf24';
       ctx.beginPath();
-      ctx.ellipse(fire.x * tile + tile/2, fire.y * tile + tile*0.78, tile*0.42, tile*0.18, 0, 0, Math.PI*2);
+      ctx.ellipse(fire.x * tile + tile/2, fire.y * tile*0.78, tile*0.42, tile*0.18, 0, 0, Math.PI*2);
       ctx.fill();
       ctx.restore();
     }
@@ -1647,74 +1743,96 @@ function render() {
     if (sPet && sPet.complete) {
       ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
     } else {
-      // fallback visivo mentre i PNG non sono ancora pronti
       ctx.fillStyle = '#FFD700';
       ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4);
     }
   }
 
-  // --- ENEMIES (atlas + safe + mirroring left) ---
+  // --- ENEMIES (goblin + bat, con mirroring per 'left') ---
   {
     const gf = G.sprites.goblinFrames;
-    const sheet = G.sprites.goblinSheet;
+    const gsheet = G.sprites.goblinSheet;
+
+    const bf = G.sprites.batFrames;     // <- serve buildBatFromAtlas()
+    const bsheet = G.sprites.batSheet;
 
     for (const e of (G.enemies[rk] || [])) {
       const ex = e.px, ey = e.py;
       const drawW = tile - 12, drawH = tile - 12;
 
-      if (gf && sheet && sheet.complete) {
+      // seleziona atlas/frames in base al tipo
+      const type = e.type || 'goblin';
+      let framesRoot = null;
+      let sheet = null;
+
+      if (type === 'bat') {
+        framesRoot = bf;
+        sheet = bsheet;
+      } else {
+        framesRoot = gf;
+        sheet = gsheet;
+      }
+
+      // se abbiamo un atlas valido, scegli frames + flip
+      if (framesRoot && sheet && sheet.complete) {
         const mode = e.attacking ? 'attack' : (e.isMoving ? 'walk' : 'idle');
         const dir  = e.direction || 'down';
 
         let frames = null;
         let flip = false;
 
-        if (mode === 'idle') {
-          frames = gf.idle;
+        if (mode === 'idle' || !framesRoot[mode]) {
+          // per il bat, se non hai definito idle/attack, cadrà qui e userà idle se presente
+          frames = framesRoot.idle || null;
         } else {
           if (dir === 'left') {
-            frames = gf[mode]?.right; // usa right e flippa
+            frames = framesRoot[mode]?.right || null; // usa right e flippa
             flip = true;
           } else {
-            frames = gf[mode]?.[dir]; // down/right/up
+            frames = framesRoot[mode]?.[dir] || null; // down/right/up
           }
         }
 
-        const arr = (frames && frames.length) ? frames : (gf.idle || []);
-        const len = Math.max(1, arr.length);
-        const idx = Math.abs((e.stepFrame | 0) % len);
-        const clip = arr[idx];
+        // fallback: se ancora nulla, prova idle ⇒ walk.right ⇒ qualunque
+        let arr =
+          (frames && frames.length) ? frames :
+          (framesRoot.idle && framesRoot.idle.length ? framesRoot.idle : null);
 
-        if (clip) {
-          // draw con flip opzionale
-          if (typeof drawSheetClipMaybeFlip === 'function') {
-            drawSheetClipMaybeFlip(sheet, clip, ex + 6, ey + 6, drawW, drawH, flip);
-          } else {
-            // fallback senza helper flip
-            ctx.save();
-            if (flip) {
-              ctx.translate(ex + 6 + drawW, ey + 6);
-              ctx.scale(-1, 1);
-              ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, 0, 0, drawW, drawH);
-            } else {
-              ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, ex + 6, ey + 6, drawW, drawH);
-            }
-            ctx.restore();
+        if (!arr) {
+          const wr = framesRoot.walk;
+          if (wr) {
+            arr = wr.right || wr.down || wr.up || null;
           }
-          continue;
+        }
+
+        if (arr && arr.length) {
+          const len = Math.max(1, arr.length);
+          const idx = Math.abs((e.stepFrame | 0) % len);
+          const clip = arr[idx];
+
+          if (clip) {
+            drawSheetClipMaybeFlip(sheet, clip, ex + 6, ey + 6, drawW, drawH, flip);
+            continue; // disegnato con atlas
+          }
         }
       }
 
-      // fallback se atlas non caricato
-      if (G.sprites.enemy?.complete) {
-        ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
+      // --- fallback se atlas non pronto ---
+      if (type === 'bat') {
+        ctx.fillStyle = '#a78bfa'; // lilla
+        ctx.fillRect(ex + 10, ey + 10, drawW - 8, drawH - 8);
       } else {
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(ex + 8, ey + 8, drawW - 4, drawH - 4);
+        if (G.sprites.enemy?.complete) {
+          ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
+        } else {
+          ctx.fillStyle = '#e74c3c';
+          ctx.fillRect(ex + 8, ey + 8, drawW - 4, drawH - 4);
+        }
       }
     }
   }
 }
+
 
 
 
@@ -1741,215 +1859,238 @@ function isOpening(room, tx, ty) {
 }
 
   // ---------- GENERAZIONE ----------
-  function generateDungeon() {
-    G.rooms = [];
-    G.objects = {};
-    G.enemies = {};
-    G.powerups = {};
+function generateDungeon() {
+  G.rooms = [];
+  G.objects = {};
+  G.enemies = {};
+  G.powerups = {};
 
-    // stanze base con muri
-    for (let y = 0; y < Cfg.gridH; y++) {
-      const row = [];
-      for (let x = 0; x < Cfg.gridW; x++) {
-        const room = [];
-        for (let ty = 0; ty < Cfg.roomH; ty++) {
-          const rrow = [];
-          for (let tx = 0; tx < Cfg.roomW; tx++) {
-            rrow.push((tx === 0 || ty === 0 || tx === Cfg.roomW-1 || ty === Cfg.roomH-1) ? 1 : 0);
-          }
-          room.push(rrow);
+  // --- stanze base con muri ---
+  for (let y = 0; y < Cfg.gridH; y++) {
+    const row = [];
+    for (let x = 0; x < Cfg.gridW; x++) {
+      const room = [];
+      for (let ty = 0; ty < Cfg.roomH; ty++) {
+        const rrow = [];
+        for (let tx = 0; tx < Cfg.roomW; tx++) {
+          rrow.push((tx === 0 || ty === 0 || tx === Cfg.roomW - 1 || ty === Cfg.roomH - 1) ? 1 : 0);
         }
-        row.push(room);
+        room.push(rrow);
       }
-      G.rooms.push(row);
+      row.push(room);
     }
+    G.rooms.push(row);
+  }
 
-// porte (larghezza variabile per device)
-for (let y = 0; y < Cfg.gridH; y++) {
-  for (let x = 0; x < Cfg.gridW; x++) {
-    const span   = getDoorSpan();
-    const midRow = Math.floor(Cfg.roomH / 2);
-    const midCol = Math.floor(Cfg.roomW / 2);
-    const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2);
-    const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2);
+  // --- porte (larghezza variabile per device) ---
+  for (let y = 0; y < Cfg.gridH; y++) {
+    for (let x = 0; x < Cfg.gridW; x++) {
+      const span   = getDoorSpan();
+      const midRow = Math.floor(Cfg.roomH / 2);
+      const midCol = Math.floor(Cfg.roomW / 2);
+      const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2);
+      const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2);
 
-    if (x < Cfg.gridW - 1) { // collega stanza a destra
-      for (const r of ys) {
-        G.rooms[y][x][r][Cfg.roomW - 1] = 0;
-        G.rooms[y][x + 1][r][0] = 0;
+      if (x < Cfg.gridW - 1) {
+        for (const r of ys) {
+          G.rooms[y][x][r][Cfg.roomW - 1] = 0;
+          G.rooms[y][x + 1][r][0] = 0;
+        }
       }
-    }
-    if (y < Cfg.gridH - 1) { // collega stanza sotto
-      for (const c of xs) {
-        G.rooms[y][x][Cfg.roomH - 1][c] = 0;
-        G.rooms[y + 1][x][0][c] = 0;
+      if (y < Cfg.gridH - 1) {
+        for (const c of xs) {
+          G.rooms[y][x][Cfg.roomH - 1][c] = 0;
+          G.rooms[y + 1][x][0][c] = 0;
+        }
       }
     }
   }
-}
 
+  // --- uscita random (non centrale) ---
+  do {
+    G.exitRoom.x = Math.floor(Math.random() * Cfg.gridW);
+    G.exitRoom.y = Math.floor(Math.random() * Cfg.gridH);
+  } while (G.exitRoom.x === Math.floor(Cfg.gridW/2) && G.exitRoom.y === Math.floor(Cfg.gridH/2));
+  G.exitTile.x = Cfg.roomW - 2;
+  G.exitTile.y = Cfg.roomH - 2;
 
-    // uscita random (non centrale)
+  // --- popola stanze ---
+  for (let ry = 0; ry < Cfg.gridH; ry++) {
+    for (let rx = 0; rx < Cfg.gridW; rx++) {
+      const key = `${rx},${ry}`;
+      const objects  = [];
+      const enemies  = [];
+      const powerups = [];
+
+      // monete
+      const nCoins = (rx === G.exitRoom.x && ry === G.exitRoom.y) ? 1 : (2 + Math.floor(Math.random() * 2));
+      for (let i = 0; i < nCoins; i++) {
+        let px, py;
+        do {
+          px = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+          py = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+        } while (rx === G.exitRoom.x && ry === G.exitRoom.y && px === G.exitTile.x && py === G.exitTile.y);
+        objects.push({ x: px, y: py, type: 'coin', taken: false });
+      }
+
+      // posizioni delle porte (per evitare spawn goblin lì)
+      const doorPositions = [];
+      if (rx > 0)               doorPositions.push({ x: 0,            y: Math.floor(Cfg.roomH/2) });
+      if (rx < Cfg.gridW - 1)   doorPositions.push({ x: Cfg.roomW-1,  y: Math.floor(Cfg.roomH/2) });
+      if (ry > 0)               doorPositions.push({ x: Math.floor(Cfg.roomW/2), y: 0 });
+      if (ry < Cfg.gridH - 1)   doorPositions.push({ x: Math.floor(Cfg.roomW/2), y: Cfg.roomH-1 });
+
+      // --- nemici base (goblin) ---
+      const nEnemies = Math.floor(Math.random() * 2); // 0..1
+      const tile = window.treasureTile || 64;
+
+      const centerRoomX = Math.floor(Cfg.gridW / 2);
+      const centerRoomY = Math.floor(Cfg.gridH / 2);
+      const spawnCellX = 1, spawnCellY = 1;
+
+      for (let i = 0; i < nEnemies; i++) {
+        let ex, ey, isDoor, overlapsSpawn, overlapsOther, tries = 0;
+        do {
+          ex = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+          ey = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+
+          isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
+
+          const isCenterRoom = (rx === centerRoomX && ry === centerRoomY);
+          overlapsSpawn = isCenterRoom && ex === spawnCellX && ey === spawnCellY;
+
+          overlapsOther = enemies.some(en => en.x === ex && en.y === ey);
+
+          tries++;
+        } while ((isDoor || overlapsSpawn || overlapsOther) && tries < 60);
+
+        enemies.push({
+          type: 'goblin',
+          x: ex, y: ey,
+          px: ex * tile,
+          py: ey * tile,
+          slow: false,
+          direction: 'down',
+          stepFrame: 0,
+          isMoving: false,
+          animTime: 0,
+          reactDelay: 2,
+          attacking: false,
+        });
+      }
+
+      // --- BAT: 40% se NON ci sono altri nemici in stanza ---
+      if (enemies.length === 0 && Math.random() < 0.40) {
+        // il bat può nascere ovunque (anche sui muri/porte)
+        const bx = Math.floor(Math.random() * Cfg.roomW);  // 0..W-1
+        const by = Math.floor(Math.random() * Cfg.roomH);  // 0..H-1
+        enemies.push({
+          type: 'bat',
+          x: bx, y: by,
+          px: bx * tile,
+          py: by * tile,
+          slow: false,
+          direction: 'down',
+          stepFrame: 0,
+          isMoving: true,
+          animTime: 0,
+          reactDelay: 0.3 + Math.random() * 0.4, // piccola attesa
+          attacking: false,
+          // parametri per il moto "a spirale"
+          waveT: Math.random() * Math.PI * 2,
+          waveFreq: 5.5 + Math.random() * 1.5,   // 5.5–7.0 Hz
+        });
+      }
+
+      // powerup (speed)
+      if (Math.random() < 0.35) {
+        let ptx, pty;
+        let tries = 0;
+        do {
+          ptx = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+          pty = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+          tries++;
+        } while (tries < 50 && objects.some(o => !o.taken && o.x === ptx && o.y === pty));
+        powerups.push({ x: ptx, y: pty, type: 'speed', taken: false });
+      }
+
+      G.objects[key]  = objects;
+      G.enemies[key]  = enemies;
+      G.powerups[key] = powerups;
+    }
+  }
+
+  // --- skulls decorativi ---
+  G.skulls = [];
+  const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
+  const skullSources = [
+    `${assetBase}/backgrounds/teschio_1.png`,
+    `${assetBase}/backgrounds/teschio_2.png`,
+    `${assetBase}/backgrounds/teschio_3.png`,
+  ];
+  for (const src of skullSources) {
+    let placed = false, attempts = 0;
+    const img = new Image(); img.src = src;
+    while (!placed && attempts < 100) {
+      attempts++;
+      const roomX = Math.floor(Math.random() * Cfg.gridW);
+      const roomY = Math.floor(Math.random() * Cfg.gridH);
+      const room = G.rooms[roomY][roomX];
+      const cellX = Math.floor(Math.random() * Cfg.roomW);
+      const cellY = Math.floor(Math.random() * Cfg.roomH);
+      if (room[cellY][cellX] === 0) {
+        G.skulls.push({ img, roomX, roomY, x: cellX, y: cellY });
+        placed = true;
+      }
+    }
+  }
+
+  // --- Falò random per livello (max 3, max 1 per stanza) ---
+  G.fires = {};
+  const maxFires = 3;
+  const wantFires = Math.floor(Math.random() * (maxFires + 1)); // 0..3
+
+  const allRooms = [];
+  for (let ry = 0; ry < Cfg.gridH; ry++) {
+    for (let rx = 0; rx < Cfg.gridW; rx++) {
+      allRooms.push({ rx, ry });
+    }
+  }
+  for (let i = allRooms.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allRooms[i], allRooms[j]] = [allRooms[j], allRooms[i]];
+  }
+
+  let placed = 0;
+  for (const { rx, ry } of allRooms) {
+    if (placed >= wantFires) break;
+
+    const key = `${rx},${ry}`;
+
+    let tries = 0, x, y, bad;
     do {
-      G.exitRoom.x = Math.floor(Math.random() * Cfg.gridW);
-      G.exitRoom.y = Math.floor(Math.random() * Cfg.gridH);
-    } while (G.exitRoom.x === Math.floor(Cfg.gridW/2) && G.exitRoom.y === Math.floor(Cfg.gridH/2));
-    G.exitTile.x = Cfg.roomW-2; G.exitTile.y = Cfg.roomH-2;
+      x = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+      y = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
 
-    // popola
-    for (let ry = 0; ry < Cfg.gridH; ry++) {
-      for (let rx = 0; rx < Cfg.gridW; rx++) {
-        const key = `${rx},${ry}`;
-        const objects = [];
-        const enemies = [];
-        const powerups = [];
+      bad = false;
+      if (rx === G.exitRoom.x && ry === G.exitRoom.y &&
+          x === G.exitTile.x && y === G.exitTile.y) bad = true;
 
-        const nCoins = (rx === G.exitRoom.x && ry === G.exitRoom.y) ? 1 : (2 + Math.floor(Math.random()*2));
-        for (let i = 0; i < nCoins; i++) {
-          let px, py;
-          do {
-            px = 1 + Math.floor(Math.random() * (Cfg.roomW-2));
-            py = 1 + Math.floor(Math.random() * (Cfg.roomH-2));
-          } while (rx === G.exitRoom.x && ry === G.exitRoom.y && px === G.exitTile.x && py === G.exitTile.y);
-          objects.push({ x: px, y: py, type: 'coin', taken: false });
-        }
+      if (!bad && (G.objects[key]?.some(o => !o.taken && o.x === x && o.y === y))) bad = true;
+      if (!bad && (G.powerups[key]?.some(p => !p.taken && p.x === x && p.y === y))) bad = true;
 
-        const doorPositions = [];
-        if (rx > 0)               doorPositions.push({x: 0, y: Math.floor(Cfg.roomH/2)});
-        if (rx < Cfg.gridW-1)     doorPositions.push({x: Cfg.roomW-1, y: Math.floor(Cfg.roomH/2)});
-        if (ry > 0)               doorPositions.push({x: Math.floor(Cfg.roomW/2), y: 0});
-        if (ry < Cfg.gridH-1)     doorPositions.push({x: Math.floor(Cfg.roomW/2), y: Cfg.roomH-1});
+      tries++;
+    } while (bad && tries < 80);
 
-        const nEnemies = Math.floor(Math.random()*2);
-        const tile = window.treasureTile || 64;
-        const centerRoomX = Math.floor(Cfg.gridW / 2);
-const centerRoomY = Math.floor(Cfg.gridH / 2);
-const spawnCellX = 1, spawnCellY = 1;
-
-for (let i = 0; i < nEnemies; i++) {
-  let ex, ey, isDoor, overlapsSpawn, overlapsOther, tries = 0;
-  do {
-    ex = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
-    ey = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
-
-    isDoor = doorPositions.some(p => p.x === ex && p.y === ey);
-
-    // evita la cella di spawn del pet nella stanza centrale
-    const isCenterRoom = (rx === centerRoomX && ry === centerRoomY);
-    overlapsSpawn = isCenterRoom && ex === spawnCellX && ey === spawnCellY;
-
-    // evita sovrapposizioni con altri nemici già messi in questa stanza
-    overlapsOther = enemies.some(en => en.x === ex && en.y === ey);
-
-    tries++;
-  } while ((isDoor || overlapsSpawn || overlapsOther) && tries < 60);
-          enemies.push({
-            x: ex, y: ey,
-            px: ex * tile,
-            py: ey * tile,
-            slow: false,
-            direction: 'down',
-            stepFrame: 0,
-            isMoving: false,
-            animTime: 0,
-            reactDelay: 2,
-            attacking: false,
-          });
-        }
-
-        if (Math.random() < 0.35) {
-          let ptx, pty;
-          do {
-            ptx = 1 + Math.floor(Math.random() * (Cfg.roomW-2));
-            pty = 1 + Math.floor(Math.random() * (Cfg.roomH-2));
-          } while (objects.some(o => o.x===ptx && o.y===pty));
-          powerups.push({ x: ptx, y: pty, type: 'speed', taken: false });
-        }
-
-        G.objects[key]  = objects;
-        G.enemies[key]  = enemies;
-        G.powerups[key] = powerups;
-      }
+    if (!bad) {
+      G.fires[key] = { x, y, offset: Math.floor(Math.random() * 3) };
+      placed++;
     }
-
-    // skulls
-    G.skulls = [];
-    const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
-    const skullSources = [
-      `${assetBase}/backgrounds/teschio_1.png`,
-      `${assetBase}/backgrounds/teschio_2.png`,
-      `${assetBase}/backgrounds/teschio_3.png`,
-    ];
-    for (const src of skullSources) {
-      let placed = false, attempts = 0;
-      const img = new Image(); img.src = src;
-      while (!placed && attempts < 100) {
-        attempts++;
-        const roomX = Math.floor(Math.random() * Cfg.gridW);
-        const roomY = Math.floor(Math.random() * Cfg.gridH);
-        const room = G.rooms[roomY][roomX];
-        const cellX = Math.floor(Math.random() * Cfg.roomW);
-        const cellY = Math.floor(Math.random() * Cfg.roomH);
-        if (room[cellY][cellX] === 0) {
-          G.skulls.push({ img, roomX, roomY, x: cellX, y: cellY });
-          placed = true;
-        }
-      }
-    }
-
-    // ---- Falò random per livello (max 3, max 1 per stanza) ----
-G.fires = {};
-const maxFires = 3;
-const wantFires = Math.floor(Math.random() * (maxFires + 1)); // 0..3
-
-// lista di tutte le stanze
-const allRooms = [];
-for (let ry = 0; ry < Cfg.gridH; ry++) {
-  for (let rx = 0; rx < Cfg.gridW; rx++) {
-    allRooms.push({ rx, ry });
   }
-}
-// shuffle semplice
-for (let i = allRooms.length - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
-  [allRooms[i], allRooms[j]] = [allRooms[j], allRooms[i]];
+
+  G.hudDirty = true;
 }
 
-let placed = 0;
-for (const { rx, ry } of allRooms) {
-  if (placed >= wantFires) break;
-
-  const key = `${rx},${ry}`;
-  const room = G.rooms[ry][rx];
-
-  // scegli una cella interna, evitando exit/monete/powerup
-  let tries = 0, x, y, bad;
-  do {
-    x = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
-    y = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
-
-    bad = false;
-
-    // evita la botola (se questa è la stanza dell'uscita)
-    if (rx === G.exitRoom.x && ry === G.exitRoom.y &&
-        x === G.exitTile.x && y === G.exitTile.y) bad = true;
-
-    // evita monete e powerup
-    if (!bad && (G.objects[key]?.some(o => !o.taken && o.x === x && o.y === y))) bad = true;
-    if (!bad && (G.powerups[key]?.some(p => !p.taken && p.x === x && p.y === y))) bad = true;
-
-    tries++;
-  } while (bad && tries < 80);
-
-  if (!bad) {
-    G.fires[key] = { x, y, offset: Math.floor(Math.random() * 3) }; // offset per desincronizzare l'animazione
-    placed++;
-  }
-}
-
-
-    G.hudDirty = true;
-}
 
   async function requestLandscape() {
   const el = document.documentElement; // o DOM.canvas

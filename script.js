@@ -3,34 +3,51 @@ const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABAS
 // === RESOURCES (Gettoni/Ottoni) =============================================
 
 // Aggiorna il mini-widget in home (vicino al livello)
-window.refreshResourcesWidget = async function () {
+// === RESOURCES (Gettoni/Ottoni) — Single Source of Truth ===
+
+// Legge il totale dal DB (gestisce anche il caso "nessuna riga")
+async function loadResourcesForHome() {
   try {
     const { data: { user } } = await supabaseClient.auth.getUser();
-    let gettoni = 0, ottoni = 0;
+    if (!user) return { gettoni: 0, ottoni: 0 };
 
-    if (user) {
-      const { data, error } = await supabaseClient
-        .from('resources')
-        .select('gettoni, ottoni')
-        .eq('user_id', user.id)
-        .single();
+    const { data, error } = await supabaseClient
+      .from('resources')
+      .select('gettoni, ottoni')
+      .eq('user_id', user.id)
+      .maybeSingle(); // evita errore se la riga ancora non esiste
 
-      if (!error && data) {
-        gettoni = data.gettoni ?? 0;
-        ottoni  = data.ottoni  ?? 0;
-      }
+    if (error) {
+      console.error('[loadResourcesForHome]', error);
+      return { gettoni: 0, ottoni: 0 };
     }
+    return data || { gettoni: 0, ottoni: 0 };
+  } catch (e) {
+    console.error('[loadResourcesForHome]', e);
+    return { gettoni: 0, ottoni: 0 };
+  }
+}
 
-    const g = document.getElementById('wallet-gettoni');
-    const o = document.getElementById('wallet-ottoni');
-    if (g) g.textContent = gettoni;
-    if (o) o.textContent = ottoni;
-  } catch (err) {
-    console.error('[refreshResourcesWidget]', err);
+// Aggiorna TUTTI i possibili slot UI
+window.refreshResourcesWidget = async function () {
+  try {
+    const { gettoni, ottoni } = await loadResourcesForHome();
+
+    // pill nuova vicino al livello
+    const g1 = document.getElementById('wallet-gettoni');
+    const o1 = document.getElementById('wallet-ottoni');
+    if (g1) g1.textContent = gettoni;
+    if (o1) o1.textContent = ottoni;
+
+    // slot legacy usato in passato
+    const g2 = document.getElementById('totale-gettoni');
+    if (g2) g2.textContent = gettoni;
+  } catch (e) {
+    console.error('[refreshResourcesWidget]', e);
   }
 };
 
-// Somma "delta" ai Gettoni sul DB tramite la RPC increment_resources
+// Somma gettoni con la RPC giusta e aggiorna la UI
 window.addGettoniSupabase = async function (delta) {
   if (!delta || delta <= 0) return;
   try {
@@ -40,12 +57,12 @@ window.addGettoniSupabase = async function (delta) {
     });
     if (error) throw error;
 
-    // aggiorna il badge in UI
     await window.refreshResourcesWidget?.();
-  } catch (err) {
-    console.error('[addGettoniSupabase]', err);
+  } catch (e) {
+    console.error('[addGettoniSupabase]', e);
   }
 };
+
 
 
 let user = null;

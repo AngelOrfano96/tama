@@ -492,13 +492,21 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
 // --- LOGOUT ---
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', async () => {
-    await supabaseClient.auth.signOut();
-    document.getElementById('wallet-gettoni')?.textContent = '0';
-document.getElementById('wallet-ottoni')?.textContent = '0';
-document.getElementById('totale-gettoni')?.textContent = '0';
-    showOnly('login-container');
-  });
+logoutBtn.addEventListener('click', async () => {
+  await supabaseClient.auth.signOut();
+
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  setText('wallet-gettoni', '0');
+  setText('wallet-ottoni', '0');
+  setText('totale-gettoni', '0');
+
+  showOnly('login-container');
+});
+
 }
 
 // --- LOGIN/SIGNUP ---

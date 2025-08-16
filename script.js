@@ -242,16 +242,17 @@ async function loadLeaderboardTop(limit = 20) {
 const TOP_N = 20;
 
 async function fetchLeaderboardTopN(n = TOP_N) {
-  // prendi i top N (con username se lo hai in tabella o con join/view)
   const { data, error } = await supabaseClient
     .from('leaderboard_tesoro')
-    .select('user_id, username, best_score, best_level')
+    // alias: username <- username_snapshot
+    .select('user_id, username:username_snapshot, best_score, best_level')
     .order('best_score', { ascending: false })
     .order('best_level', { ascending: false })
     .limit(n);
   if (error) throw error;
   return data || [];
 }
+
 
 async function fetchMyRank() {
   const { data: { user } } = await supabaseClient.auth.getUser();
@@ -272,52 +273,63 @@ window.openLeaderboardModal = async function () {
   const tbody = document.getElementById('leaderboard-body');
   const chip  = document.getElementById('leaderboard-self-rank');
 
-  modal?.classList.remove('hidden');
+  if (!modal || !tbody || !chip) return;
+
+  modal.classList.remove('hidden');
+  // stato "caricamento"
+  tbody.innerHTML = `<tr><td colspan="4" class="muted">Caricamento…</td></tr>`;
 
   try {
-    // 1) carica top 20
+    // 1) carica top N
     const top = await fetchLeaderboardTopN(TOP_N);
-    tbody.innerHTML = '';
+    tbody.innerHTML = ''; // pulisci
+
     const { data: { user } } = await supabaseClient.auth.getUser();
 
-    top.forEach((row, i) => {
-      const tr = document.createElement('tr');
-      tr.dataset.user = row.user_id;
-      tr.innerHTML = `
-        <td>${i + 1}</td>
-        <td>${row.username ? '@' + row.username : '—'}</td>
-        <td>${row.best_score ?? 0}</td>
-        <td>${row.best_level ?? 1}</td>
-      `;
-      if (user && row.user_id === user.id) tr.classList.add('is-me');
-      tbody.appendChild(tr);
-    });
+    if (!top.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="muted">Ancora nessun punteggio.</td></tr>`;
+    } else {
+      top.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        tr.dataset.user = row.user_id;
 
-    // 2) carica/ricalcola il rank dell'utente
+        // usa alias (username) se presente, altrimenti la colonna originale (username_snapshot)
+        const unameRaw = (row.username ?? row.username_snapshot ?? '').trim();
+        const unameCell = unameRaw ? '@' + unameRaw : '—';
+
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${unameCell}</td>
+          <td>${row.best_score ?? 0}</td>
+          <td>${row.best_level ?? 1}</td>
+        `;
+        if (user && row.user_id === user.id) tr.classList.add('is-me');
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 2) rank personale
     const me = await fetchMyRank();
-
     if (!me || me.rank == null) {
       chip.textContent = 'Nessun punteggio registrato';
       chip.classList.add('muted');
-      return;
-    }
+    } else {
+      chip.classList.remove('muted');
+      chip.textContent = `La tua posizione: #${me.rank} su ${me.total}`;
 
-    chip.classList.remove('muted');
-    chip.textContent = `La tua posizione: #${me.rank} su ${me.total}`;
-
-    // se sei in top 20 ma non evidenziato (es. username diverso), prova a marcarlo
-    if (me.rank <= TOP_N && user) {
-      const myRow = tbody.querySelector(`tr[data-user="${user.id}"]`);
-      myRow?.classList.add('is-me');
+      // se sei in top N, evidenzia la tua riga (se non già fatto)
+      if (me.rank <= TOP_N && user) {
+        tbody.querySelector(`tr[data-user="${user.id}"]`)?.classList.add('is-me');
+      }
     }
   } catch (err) {
     console.error('[openLeaderboardModal]', err);
-    if (chip) {
-      chip.textContent = 'Impossibile caricare la classifica';
-      chip.classList.add('muted');
-    }
+    tbody.innerHTML = `<tr><td colspan="4" class="muted">Errore nel caricamento.</td></tr>`;
+    chip.textContent = 'Impossibile caricare la classifica';
+    chip.classList.add('muted');
   }
 };
+
 
 window.closeLeaderboardModal = function () {
   document.getElementById('leaderboard-modal')?.classList.add('hidden');

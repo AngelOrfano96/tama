@@ -305,17 +305,21 @@ async function initFlow() {
   }
   petId = pet.id;
   eggType = pet.egg_type;
-  showOnly('game');
-  document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
-  await refreshResourcesWidget();
-  alive = true;
-  document.getElementById('game-over').classList.add('hidden');
-  await getStateFromDb();
-  startAutoRefresh();
+showOnly('game');
+document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
 
- await window.refreshResourcesWidget?.();
- await refreshUsernameBadge();      // mostra nel badge se già presente
- await promptUsernameIfMissing();   // se manca, chiedilo con la modal
+// questa basta
+await refreshResourcesWidget();
+
+alive = true;
+document.getElementById('game-over').classList.add('hidden');
+await getStateFromDb();
+startAutoRefresh();
+
+// niente optional-chaining in call:
+await refreshUsernameBadge();      // mostra il badge se c'è
+await promptUsernameIfMissing();   // se manca, mostra la modal
+
 
 }
 

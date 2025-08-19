@@ -1441,40 +1441,58 @@ function drawTileType(x, y, type, tile) {
   }
 }
 
-// flip verticale generico su un contesto a scelta (serve al bake)
+// --- flip verticale su un contesto generico (serve al bake)
 function drawAtlasClipFlipYOn(ctx2, clip, x, y, tile){
   const atlas = G.sprites.atlas; if(!atlas || !atlas.complete) return;
   ctx2.save();
-  ctx2.translate((x+1)*tile, (y+1)*tile); // porta l'origine in basso a destra della cella
-  ctx2.scale(1, -1);
+  ctx2.translate((x+1)*tile, (y+1)*tile);
+  ctx2.scale(1,-1);
   ctx2.drawImage(atlas, clip.sx, clip.sy, clip.sw, clip.sh, -tile, 0, tile, tile);
   ctx2.restore();
 }
 
-// Tipi che vogliamo flippare verticalmente (quelli del bordo SUD + angoli inferiori)
-const FLIP_Y = new Set(['bottom','corner_bl','corner_br','corner_bl_door','corner_br_door']);
+// --- flip verticale sul ctx principale
+function drawAtlasClipFlipY(clip, x, y, tile){
+  const atlas = G.sprites.atlas; if(!atlas || !atlas.complete) return;
+  ctx.save();
+  ctx.translate((x+1)*tile, (y+1)*tile);
+  ctx.scale(1,-1);
+  ctx.drawImage(atlas, clip.sx, clip.sy, clip.sw, clip.sh, -tile, 0, tile, tile);
+  ctx.restore();
+}
 
-// --- versione per il canvas principale (già ce l’hai) ---
-// function drawTileType(x, y, type, tile) { ... usa FLIP_Y e drawAtlasClipFlipY(...) }
+// Flippiamo i TIPI "a nord": top + angoli in alto (porte incluse).
+// NB: qui vanno i TIPI logici generati da generateRoomTiles, non "top2" ecc.
+const FLIP_Y = new Set(['top','corner_tl','corner_tr','corner_tl_door','corner_tr_door']);
 
-// --- versione usata dal BAKING: va aggiornata così ---
-function drawTileTypeOn(ctx2, x, y, type, tile) {
+// --- versione runtime (ctx principale) ---
+function drawTileType(x, y, type, tile) {
   const entry = G.sprites.decor?.[type]; if (!entry) return;
 
-  // scegli la variante (pavimento pseudo-random, muri alternati)
   let d = Array.isArray(entry)
-    ? (type === 'floor' ? entry[variantIndex(x, y, entry.length)]
-                        : entry[(x + y) % entry.length])
+    ? (type==='floor' ? entry[variantIndex(x,y,entry.length)]
+                      : entry[(x+y)%entry.length])
     : entry;
 
   const atlas = G.sprites.atlas; if (!atlas || !atlas.complete || !d) return;
-
-  if (FLIP_Y.has(type)) {
-    drawAtlasClipFlipYOn(ctx2, d, x, y, tile);
-  } else {
-    ctx2.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
-  }
+  if (FLIP_Y.has(type)) drawAtlasClipFlipY(d, x, y, tile);
+  else ctx.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
 }
+
+// --- versione usata dal BAKING (ctx2 del bake) ---
+function drawTileTypeOn(ctx2, x, y, type, tile) {
+  const entry = G.sprites.decor?.[type]; if (!entry) return;
+
+  let d = Array.isArray(entry)
+    ? (type==='floor' ? entry[variantIndex(x,y,entry.length)]
+                      : entry[(x+y)%entry.length])
+    : entry;
+
+  const atlas = G.sprites.atlas; if (!atlas || !atlas.complete || !d) return;
+  if (FLIP_Y.has(type)) drawAtlasClipFlipYOn(ctx2, d, x, y, tile);
+  else ctx2.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
+}
+
 
 
 

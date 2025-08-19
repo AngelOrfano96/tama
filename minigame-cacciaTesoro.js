@@ -309,8 +309,8 @@ const pick = (c, r, w = 1, h = 1) => ({
 const DECOR_DESKTOP = {
   top1:    pick(11,1),
   top2:    pick(12,1),
-  bottom:  pick(11,4),
-  bottom2: pick(12,4),
+  bottom:  pick(11,1),
+  bottom2: pick(12,1),
   left1:   pick(10,2),
   left2:   pick(10,3),
   left3:   pick(10,2),
@@ -320,13 +320,13 @@ const DECOR_DESKTOP = {
 
   corner_tl: pick(10,1),
   corner_tr: pick(13,1),
-  corner_bl: pick(10,4),
-  corner_br: pick(13,4),
+  corner_bl: pick(10,1),
+  corner_br: pick(13,1),
 
   corner_tl_door: pick(9,5),
   corner_tr_door: pick(8,5),
-  corner_bl_door: pick(9,3),
-  corner_br_door: pick(8,3),
+  corner_bl_door: pick(9,5),
+  corner_br_door: pick(8,5),
 
   floor: [
     pick(11,2), pick(11,3), pick(12,2), pick(12,3) // 4 varianti 16×16
@@ -341,8 +341,8 @@ const DECOR_MOBILE = {
   // esempio: su mobile usi una riga diversa per il top1/top2
   top1:    pick(11,1),
   top2:    pick(12,1),
-  bottom:  pick(11,4),
-  bottom2: pick(12,4),
+  bottom:  pick(11,1),
+  bottom2: pick(12,1),
   left1:   pick(10,2),
   left2:   pick(10,3),
   left3:   pick(10,2),
@@ -352,13 +352,13 @@ const DECOR_MOBILE = {
 
   corner_tl: pick(10,1),
   corner_tr: pick(13,1),
-  corner_bl: pick(10,4),
-  corner_br: pick(13,4),
+  corner_bl: pick(10,1),
+  corner_br: pick(13,1),
 
   corner_tl_door: pick(9,5),
   corner_tr_door: pick(8,5),
-  corner_bl_door: pick(9,3),
-  corner_br_door: pick(8,3),
+  corner_bl_door: pick(9,5),
+  corner_br_door: pick(8,5),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
 
@@ -404,6 +404,7 @@ function buildDecorFromAtlas() {
     floor: DECOR.floor,
   };
 }
+
 
 function debugAtlas(tag = '') {
   const d = G?.sprites?.decor;
@@ -1440,24 +1441,41 @@ function drawTileType(x, y, type, tile) {
   }
 }
 
+// flip verticale generico su un contesto a scelta (serve al bake)
+function drawAtlasClipFlipYOn(ctx2, clip, x, y, tile){
+  const atlas = G.sprites.atlas; if(!atlas || !atlas.complete) return;
+  ctx2.save();
+  ctx2.translate((x+1)*tile, (y+1)*tile); // porta l'origine in basso a destra della cella
+  ctx2.scale(1, -1);
+  ctx2.drawImage(atlas, clip.sx, clip.sy, clip.sw, clip.sh, -tile, 0, tile, tile);
+  ctx2.restore();
+}
+
+// Tipi che vogliamo flippare verticalmente (quelli del bordo SUD + angoli inferiori)
+const FLIP_Y = new Set(['bottom','corner_bl','corner_br','corner_bl_door','corner_br_door']);
+
+// --- versione per il canvas principale (già ce l’hai) ---
+// function drawTileType(x, y, type, tile) { ... usa FLIP_Y e drawAtlasClipFlipY(...) }
+
+// --- versione usata dal BAKING: va aggiornata così ---
 function drawTileTypeOn(ctx2, x, y, type, tile) {
-  const entry = G.sprites.decor?.[type];
-  if (!entry) return;
+  const entry = G.sprites.decor?.[type]; if (!entry) return;
 
-  let d = entry;
-  if (Array.isArray(entry)) {
-    const idx = (type === 'floor')
-      ? variantIndex(x, y, entry.length)
-      : (x + y) % entry.length;
-    d = entry[idx];
-  }
+  // scegli la variante (pavimento pseudo-random, muri alternati)
+  let d = Array.isArray(entry)
+    ? (type === 'floor' ? entry[variantIndex(x, y, entry.length)]
+                        : entry[(x + y) % entry.length])
+    : entry;
 
-  const atlas = G.sprites.atlas;
-  if (d && typeof d === 'object' && 'sx' in d) {
-    if (!atlas || !atlas.complete) return;
+  const atlas = G.sprites.atlas; if (!atlas || !atlas.complete || !d) return;
+
+  if (FLIP_Y.has(type)) {
+    drawAtlasClipFlipYOn(ctx2, d, x, y, tile);
+  } else {
     ctx2.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
   }
 }
+
 
 
 

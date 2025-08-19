@@ -47,6 +47,10 @@
     baseTimerMs: 1000,
   };
 // Tuning collisioni (più permissive)
+// in alto vicino alle costanti
+const SPRITE_MARGIN = 6;
+
+
 ////////////////////
   const G = {
     // dinamiche
@@ -1018,11 +1022,9 @@ function movePet(dt) {
   // --- movimento con micro-step ---
   const speed = getCurrentPetSpeed();
 
-  // hitbox più piccola (più vicina al feeling visivo)
-  const size = Math.max(12, tile - 20);
+const size = tile - SPRITE_MARGIN * 2;                 // = tile - 12
+const HIT_BASE = { top: SPRITE_MARGIN, right: SPRITE_MARGIN, bottom: SPRITE_MARGIN, left: SPRITE_MARGIN };
 
-  // margini asimmetrici (nord un filo più “solido”)
-  const HIT_BASE = { top: 3, right: 1, bottom: 1, left: 1 };
 
   const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
     // piccolo bias verso la direzione di marcia
@@ -1689,7 +1691,7 @@ function render() {
 
   // --- PET (SAFE PICK) ---
   {
-    const px = G.pet.px, py = G.pet.py, sz = tile - 12;
+    const px = G.pet.px, py = G.pet.py, sz = tile - SPRITE_MARGIN * 2;
     const PET = G.sprites.pet;
     let sPet = null;
 
@@ -1708,7 +1710,7 @@ function render() {
     }
 
     if (sPet && sPet.complete) {
-      ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
+      ctx.drawImage(sPet, px + SPRITE_MARGIN, py + SPRITE_MARGIN, sz, sz);
     } else {
       ctx.fillStyle = '#FFD700';
       ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4);

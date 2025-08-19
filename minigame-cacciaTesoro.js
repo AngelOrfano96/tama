@@ -30,8 +30,6 @@
 })();
 
 
-// chiama debugGrid() dentro render(), alla fine.
-
 // === MINI GIOCO CACCIA AL TESORO — versione “no-globals” (modulo IIFE) ===
 (() => {
   // ---------- CONFIG ----------
@@ -49,10 +47,6 @@
     baseTimerMs: 1000,
   };
 // Tuning collisioni (più permissive)
-// in alto vicino alle costanti
-const SPRITE_MARGIN = 6;
-
-
 ////////////////////
   const G = {
     // dinamiche
@@ -101,7 +95,7 @@ const SPRITE_MARGIN = 6;
       stepFrame: 0,
     },
 
-   
+    fires: {},   // { "x,y": { x, y, offset } }  max 1 per stanza
 
     // input
     keysStack: [],
@@ -309,8 +303,8 @@ const pick = (c, r, w = 1, h = 1) => ({
 const DECOR_DESKTOP = {
   top1:    pick(11,1),
   top2:    pick(12,1),
-  bottom:  pick(11,1),
-  bottom2: pick(12,1),
+  bottom:  pick(11,4),
+  bottom2: pick(12,4),
   left1:   pick(10,2),
   left2:   pick(10,3),
   left3:   pick(10,2),
@@ -320,13 +314,13 @@ const DECOR_DESKTOP = {
 
   corner_tl: pick(10,1),
   corner_tr: pick(13,1),
-  corner_bl: pick(10,1),
-  corner_br: pick(13,1),
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
 
   corner_tl_door: pick(9,5),
   corner_tr_door: pick(8,5),
-  corner_bl_door: pick(9,5),
-  corner_br_door: pick(8,5),
+  corner_bl_door: pick(9,3),
+  corner_br_door: pick(8,3),
 
   floor: [
     pick(11,2), pick(11,3), pick(12,2), pick(12,3) // 4 varianti 16×16
@@ -335,14 +329,18 @@ const DECOR_DESKTOP = {
   door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
   door_h2: pick(7,6),
 
+  fire1: pick(4, 8),
+  fire2: pick(5, 8),
+  fire3: pick(6, 8),
+
 };
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
   // esempio: su mobile usi una riga diversa per il top1/top2
   top1:    pick(11,1),
   top2:    pick(12,1),
-  bottom:  pick(11,1),
-  bottom2: pick(12,1),
+  bottom:  pick(11,4),
+  bottom2: pick(12,4),
   left1:   pick(10,2),
   left2:   pick(10,3),
   left3:   pick(10,2),
@@ -352,18 +350,22 @@ const DECOR_MOBILE = {
 
   corner_tl: pick(10,1),
   corner_tr: pick(13,1),
-  corner_bl: pick(10,1),
-  corner_br: pick(13,1),
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
 
   corner_tl_door: pick(9,5),
   corner_tr_door: pick(8,5),
-  corner_bl_door: pick(9,5),
-  corner_br_door: pick(8,5),
+  corner_bl_door: pick(9,3),
+  corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
 
   door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
   door_h2: pick(7,6),
+
+  fire1: pick(4, 8),
+  fire2: pick(5, 8),
+  fire3: pick(6, 8),
 
 };
 const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex
@@ -399,12 +401,11 @@ function buildDecorFromAtlas() {
      exitClosed: DECOR.door_h1,
     exitOpen:   DECOR.door_h2,
 
-
+    bonfire: [DECOR.fire1, DECOR.fire2, DECOR.fire3],
 
     floor: DECOR.floor,
   };
 }
-
 
 function debugAtlas(tag = '') {
   const d = G?.sprites?.decor;
@@ -1025,9 +1026,11 @@ function movePet(dt) {
   // --- movimento con micro-step ---
   const speed = getCurrentPetSpeed();
 
-const size = tile - SPRITE_MARGIN * 2;                 // = tile - 12
-const HIT_BASE = { top: SPRITE_MARGIN, right: SPRITE_MARGIN, bottom: SPRITE_MARGIN, left: SPRITE_MARGIN };
+  // hitbox più piccola (più vicina al feeling visivo)
+  const size = Math.max(12, tile - 20);
 
+  // margini asimmetrici (nord un filo più “solido”)
+  const HIT_BASE = { top: 3, right: 1, bottom: 1, left: 1 };
 
   const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
     // piccolo bias verso la direzione di marcia
@@ -1441,59 +1444,24 @@ function drawTileType(x, y, type, tile) {
   }
 }
 
-// --- flip verticale su un contesto generico (serve al bake)
-function drawAtlasClipFlipYOn(ctx2, clip, x, y, tile){
-  const atlas = G.sprites.atlas; if(!atlas || !atlas.complete) return;
-  ctx2.save();
-  ctx2.translate((x+1)*tile, (y+1)*tile);
-  ctx2.scale(1,-1);
-  ctx2.drawImage(atlas, clip.sx, clip.sy, clip.sw, clip.sh, -tile, 0, tile, tile);
-  ctx2.restore();
-}
-
-// --- flip verticale sul ctx principale
-function drawAtlasClipFlipY(clip, x, y, tile){
-  const atlas = G.sprites.atlas; if(!atlas || !atlas.complete) return;
-  ctx.save();
-  ctx.translate((x+1)*tile, (y+1)*tile);
-  ctx.scale(1,-1);
-  ctx.drawImage(atlas, clip.sx, clip.sy, clip.sw, clip.sh, -tile, 0, tile, tile);
-  ctx.restore();
-}
-
-// Flippiamo i TIPI "a nord": top + angoli in alto (porte incluse).
-// NB: qui vanno i TIPI logici generati da generateRoomTiles, non "top2" ecc.
-const FLIP_Y = new Set(['top','corner_tl','corner_tr','corner_tl_door','corner_tr_door']);
-
-// --- versione runtime (ctx principale) ---
-function drawTileType(x, y, type, tile) {
-  const entry = G.sprites.decor?.[type]; if (!entry) return;
-
-  let d = Array.isArray(entry)
-    ? (type==='floor' ? entry[variantIndex(x,y,entry.length)]
-                      : entry[(x+y)%entry.length])
-    : entry;
-
-  const atlas = G.sprites.atlas; if (!atlas || !atlas.complete || !d) return;
-  if (FLIP_Y.has(type)) drawAtlasClipFlipY(d, x, y, tile);
-  else ctx.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
-}
-
-// --- versione usata dal BAKING (ctx2 del bake) ---
 function drawTileTypeOn(ctx2, x, y, type, tile) {
-  const entry = G.sprites.decor?.[type]; if (!entry) return;
+  const entry = G.sprites.decor?.[type];
+  if (!entry) return;
 
-  let d = Array.isArray(entry)
-    ? (type==='floor' ? entry[variantIndex(x,y,entry.length)]
-                      : entry[(x+y)%entry.length])
-    : entry;
+  let d = entry;
+  if (Array.isArray(entry)) {
+    const idx = (type === 'floor')
+      ? variantIndex(x, y, entry.length)
+      : (x + y) % entry.length;
+    d = entry[idx];
+  }
 
-  const atlas = G.sprites.atlas; if (!atlas || !atlas.complete || !d) return;
-  if (FLIP_Y.has(type)) drawAtlasClipFlipYOn(ctx2, d, x, y, tile);
-  else ctx2.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
+  const atlas = G.sprites.atlas;
+  if (d && typeof d === 'object' && 'sx' in d) {
+    if (!atlas || !atlas.complete) return;
+    ctx2.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
+  }
 }
-
-
 
 
 
@@ -1727,9 +1695,30 @@ function render() {
     }
   }
 
+  // --- FALÒ (animati) ---
+  {
+    const fireKey = `${G.petRoom.x},${G.petRoom.y}`;
+    const fire = G.fires[fireKey];
+    const frames = G.sprites.decor?.bonfire;
+    if (fire && frames && frames.length >= 3) {
+      const frameMs = 180;
+      const t = performance.now();
+      const idx = (Math.floor(t / frameMs) + (fire.offset || 0)) % frames.length;
+      drawAtlasClip(frames[idx], fire.x, fire.y, tile);
+
+      ctx.save();
+      ctx.globalAlpha = 0.10;
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.ellipse(fire.x * tile + tile/2, fire.y * tile*0.78, tile*0.42, tile*0.18, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
   // --- PET (SAFE PICK) ---
   {
-    const px = G.pet.px, py = G.pet.py, sz = tile - SPRITE_MARGIN * 2;
+    const px = G.pet.px, py = G.pet.py, sz = tile - 12;
     const PET = G.sprites.pet;
     let sPet = null;
 
@@ -1748,7 +1737,7 @@ function render() {
     }
 
     if (sPet && sPet.complete) {
-      ctx.drawImage(sPet, px + SPRITE_MARGIN, py + SPRITE_MARGIN, sz, sz);
+      ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
     } else {
       ctx.fillStyle = '#FFD700';
       ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4);
@@ -1838,7 +1827,6 @@ function render() {
       }
     }
   }
-
 }
 
 
@@ -2097,6 +2085,49 @@ if (enemies.length === 0 && Math.random() < 0.40) {
         G.skulls.push({ img, roomX, roomY, x: cellX, y: cellY });
         placed = true;
       }
+    }
+  }
+
+  // --- Falò random per livello (max 3, max 1 per stanza) ---
+  G.fires = {};
+  const maxFires = 3;
+  const wantFires = Math.floor(Math.random() * (maxFires + 1)); // 0..3
+
+  const allRooms = [];
+  for (let ry = 0; ry < Cfg.gridH; ry++) {
+    for (let rx = 0; rx < Cfg.gridW; rx++) {
+      allRooms.push({ rx, ry });
+    }
+  }
+  for (let i = allRooms.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allRooms[i], allRooms[j]] = [allRooms[j], allRooms[i]];
+  }
+
+  let placed = 0;
+  for (const { rx, ry } of allRooms) {
+    if (placed >= wantFires) break;
+
+    const key = `${rx},${ry}`;
+
+    let tries = 0, x, y, bad;
+    do {
+      x = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+      y = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+
+      bad = false;
+      if (rx === G.exitRoom.x && ry === G.exitRoom.y &&
+          x === G.exitTile.x && y === G.exitTile.y) bad = true;
+
+      if (!bad && (G.objects[key]?.some(o => !o.taken && o.x === x && o.y === y))) bad = true;
+      if (!bad && (G.powerups[key]?.some(p => !p.taken && p.x === x && p.y === y))) bad = true;
+
+      tries++;
+    } while (bad && tries < 80);
+
+    if (!bad) {
+      G.fires[key] = { x, y, offset: Math.floor(Math.random() * 3) };
+      placed++;
     }
   }
 

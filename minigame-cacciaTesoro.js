@@ -1727,7 +1727,7 @@ function render() {
 
     for (const e of (G.enemies[rk] || [])) {
       const ex = e.px, ey = e.py;
-      const drawW = tile , drawH = tile ;
+      const drawW = tile - 12, drawH = tile - 12;
 
       // seleziona atlas/frames in base al tipo
       const type = e.type || 'goblin';

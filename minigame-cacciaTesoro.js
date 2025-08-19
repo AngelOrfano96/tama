@@ -29,13 +29,7 @@
   else document.addEventListener('DOMContentLoaded', install, { once:true });
 })();
 
-function debugGrid() {
-  const t = window.treasureTile||64;
-  ctx.save(); ctx.globalAlpha=.25; ctx.strokeStyle='#f00';
-  for (let y=0; y<=Cfg.roomH; y++){ ctx.beginPath(); ctx.moveTo(0,y*t); ctx.lineTo(Cfg.roomW*t,y*t); ctx.stroke(); }
-  for (let x=0; x<=Cfg.roomW; x++){ ctx.beginPath(); ctx.moveTo(x*t,0); ctx.lineTo(x*t,Cfg.roomH*t); ctx.stroke(); }
-  ctx.restore();
-}
+
 // chiama debugGrid() dentro render(), alla fine.
 
 // === MINI GIOCO CACCIA AL TESORO — versione “no-globals” (modulo IIFE) ===
@@ -1808,7 +1802,7 @@ function render() {
       }
     }
   }
-  debugGrid();
+
 }
 
 

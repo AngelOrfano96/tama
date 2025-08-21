@@ -1020,11 +1020,11 @@ function movePet(dt) {
   // --- movimento con micro-step ---
   const speed = getCurrentPetSpeed();
 
-  // hitbox più piccola (più vicina al feeling visivo)
-  const size = Math.max(12, tile - 20);
+  // hitbox più piccola (feeling più permissivo)
+  const size = Math.max(10, tile - 24);
 
-  // margini asimmetrici (nord un filo più “solido”)
-  const HIT_BASE = { top: 3, right: 1, bottom: 1, left: 1 };
+  // margini asimmetrici
+  const HIT_BASE = { top: 2, right: 1, bottom: 1, left: 1 };
 
   const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
     // piccolo bias verso la direzione di marcia
@@ -1061,6 +1061,37 @@ function movePet(dt) {
     if (tryMove(G.pet.px, tryPY, 0, Math.sign(stepDY))) G.pet.py = tryPY;
   }
 
+  // --- DOOR FUNNEL ASSIST (auto-allineamento dolce verso la porta) ---
+  {
+    const span   = getDoorSpan();
+    const midRow = Math.floor(Cfg.roomH / 2);
+    const midCol = Math.floor(Cfg.roomW / 2);
+    const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2); // righe porta per lati sx/dx
+    const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2); // colonne porta per alto/basso
+
+    const slide = tile * 0.25; // quanto "scivola" verso la bocca della porta
+
+    // vicino ai bordi verticali → guida Y
+    const nearLeft  = (G.pet.px < tile * 1.2 && G.pet.dirX < 0);
+    const nearRight = (G.pet.px + size > (Cfg.roomW - 1) * tile - tile * 1.2 && G.pet.dirX > 0);
+    if (nearLeft || nearRight) {
+      const minYPx = ys[0] * tile;
+      const maxYPx = (ys[ys.length - 1] + 1) * tile - size;
+      if (G.pet.py < minYPx) G.pet.py = Math.min(minYPx, G.pet.py + slide);
+      if (G.pet.py > maxYPx) G.pet.py = Math.max(maxYPx, G.pet.py - slide);
+    }
+
+    // vicino ai bordi orizzontali → guida X
+    const nearTop    = (G.pet.py < tile * 1.2 && G.pet.dirY < 0);
+    const nearBottom = (G.pet.py + size > (Cfg.roomH - 1) * tile - tile * 1.2 && G.pet.dirY > 0);
+    if (nearTop || nearBottom) {
+      const minXPx = xs[0] * tile;
+      const maxXPx = (xs[xs.length - 1] + 1) * tile - size;
+      if (G.pet.px < minXPx) G.pet.px = Math.min(minXPx, G.pet.px + slide);
+      if (G.pet.px > maxXPx) G.pet.px = Math.max(maxXPx, G.pet.px - slide);
+    }
+  }
+
   // aggiorna cella logica usando il centro dell'hitbox
   G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
   G.pet.y = Math.floor((G.pet.py + size / 2) / tile);
@@ -1074,7 +1105,7 @@ function movePet(dt) {
   }
 
   // --- passaggio stanza (porte) con soglia sul BORDO dell'hitbox
-  const ENTER_GAP = 12; // px di “fascia porta” (puoi provarlo 6–12)
+  const ENTER_GAP = 14; // fascia "magnetica" della porta
 
   // a Ovest
   if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
@@ -1136,28 +1167,20 @@ function movePet(dt) {
   }
 
   // --- uscita (tutte le monete prese) ---
-// scatta una sola volta grazie a G.exiting
-const coinsLeft = countCoinsLeft();
-const onExitTile =
-  G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
-  Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1;
+  const coinsLeft = countCoinsLeft();
+  const onExitTile =
+    G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
+    Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1;
 
-if (!G.exiting && onExitTile && coinsLeft === 0) {
-  G.exiting = true;         // <— blocca trig multipli
-  G.playing = false;        // <— ferma subito l’update
-  G.level += 1;
-  G.hudDirty = true;
-  setGridForLevel(G.level);
-
-  // prepara nuova mappa/level dopo un tick
-  setTimeout(() => {
-    generateDungeon();
-    startLevel();
-  }, 50);
-
-  return; // importantissimo
-}
-
+  if (!G.exiting && onExitTile && coinsLeft === 0) {
+    G.exiting = true;
+    G.playing = false;
+    G.level += 1;
+    G.hudDirty = true;
+    setGridForLevel(G.level);
+    setTimeout(() => { generateDungeon(); startLevel(); }, 50);
+    return;
+  }
 
   // --- collisione con nemici ---
   const enemies = G.enemies[key] || [];
@@ -1168,6 +1191,7 @@ if (!G.exiting && onExitTile && coinsLeft === 0) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 function moveEnemies(dt) {

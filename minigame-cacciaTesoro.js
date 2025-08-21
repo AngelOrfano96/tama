@@ -1030,7 +1030,7 @@ function movePet(dt) {
     // piccolo bias verso la direzione di marcia
     const mL = Math.max(0, HIT_BASE.left   - (dirX < 0 ? 1 : 0));
     const mR = Math.max(0, HIT_BASE.right  - (dirX > 0 ? 1 : 0));
-    const mT = Math.max(0, HIT_BASE.top    - (dirY < 0 ? 1 : 0));   // ← riduco se salgo
+    const mT = Math.max(0, HIT_BASE.top    - (dirY < 0 ? 1 : 0));
     const mB = Math.max(0, HIT_BASE.bottom - (dirY > 0 ? 1 : 0));
 
     const minX = Math.floor((nx + mL)        / tile);
@@ -1061,36 +1061,50 @@ function movePet(dt) {
     if (tryMove(G.pet.px, tryPY, 0, Math.sign(stepDY))) G.pet.py = tryPY;
   }
 
-  // --- DOOR FUNNEL ASSIST (auto-allineamento dolce verso la porta) ---
+  // --- SOFT DOOR ALIGN (senza scatti) ---------------------------------
+  // guida solo quando:
+  // - sei vicino al bordo verso cui ti muovi
+  // - la tua hitbox è fuori dal corridoio della porta
+  // - applica un lerp piccolo proporzionale alla vicinanza
   {
     const span   = getDoorSpan();
     const midRow = Math.floor(Cfg.roomH / 2);
     const midCol = Math.floor(Cfg.roomW / 2);
-    const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2); // righe porta per lati sx/dx
-    const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2); // colonne porta per alto/basso
+    const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2); // aperture verticali (sx/dx)
+    const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2); // aperture orizzontali (alto/basso)
 
-    const slide = tile * 0.25; // quanto "scivola" verso la bocca della porta
+    // fattore lerp: più vicino al bordo ⇒ più “magnete”, ma molto morbido
+    const baseFactor = Math.min(0.16, 0.06 + dt * 4); // 0.06..0.16
 
-    // vicino ai bordi verticali → guida Y
-    const nearLeft  = (G.pet.px < tile * 1.2 && G.pet.dirX < 0);
-    const nearRight = (G.pet.px + size > (Cfg.roomW - 1) * tile - tile * 1.2 && G.pet.dirX > 0);
+    // helper: allinea dolcemente pos → dentro [min,max]
+    const softClamp = (pos, min, max, factor) => {
+      if (pos < min) return pos + (min - pos) * factor;
+      if (pos > max) return pos + (max - pos) * factor;
+      return pos;
+    };
+
+    // soglie “vicino al bordo”
+    const nearBand = tile * 1.0;
+
+    // verso SINISTRA o DESTRA → guida Y nel range della porta
+    const nearLeft  = (G.pet.px < nearBand && G.pet.dirX < 0);
+    const nearRight = (G.pet.px + size > (Cfg.roomW - 1) * tile - nearBand && G.pet.dirX > 0);
     if (nearLeft || nearRight) {
       const minYPx = ys[0] * tile;
       const maxYPx = (ys[ys.length - 1] + 1) * tile - size;
-      if (G.pet.py < minYPx) G.pet.py = Math.min(minYPx, G.pet.py + slide);
-      if (G.pet.py > maxYPx) G.pet.py = Math.max(maxYPx, G.pet.py - slide);
+      G.pet.py = softClamp(G.pet.py, minYPx, maxYPx, baseFactor);
     }
 
-    // vicino ai bordi orizzontali → guida X
-    const nearTop    = (G.pet.py < tile * 1.2 && G.pet.dirY < 0);
-    const nearBottom = (G.pet.py + size > (Cfg.roomH - 1) * tile - tile * 1.2 && G.pet.dirY > 0);
+    // verso SU o GIÙ → guida X nel range della porta
+    const nearTop    = (G.pet.py < nearBand && G.pet.dirY < 0);
+    const nearBottom = (G.pet.py + size > (Cfg.roomH - 1) * tile - nearBand && G.pet.dirY > 0);
     if (nearTop || nearBottom) {
       const minXPx = xs[0] * tile;
       const maxXPx = (xs[xs.length - 1] + 1) * tile - size;
-      if (G.pet.px < minXPx) G.pet.px = Math.min(minXPx, G.pet.px + slide);
-      if (G.pet.px > maxXPx) G.pet.px = Math.max(maxXPx, G.pet.px - slide);
+      G.pet.px = softClamp(G.pet.px, minXPx, maxXPx, baseFactor);
     }
   }
+  // --------------------------------------------------------------------
 
   // aggiorna cella logica usando il centro dell'hitbox
   G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
@@ -1105,7 +1119,7 @@ function movePet(dt) {
   }
 
   // --- passaggio stanza (porte) con soglia sul BORDO dell'hitbox
-  const ENTER_GAP = 14; // fascia "magnetica" della porta
+  const ENTER_GAP = 14;
 
   // a Ovest
   if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
@@ -1191,6 +1205,7 @@ function movePet(dt) {
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 

@@ -481,7 +481,7 @@ function initAtlasSprites() {
 
 
 // ---- Door width per device ----
-const DOOR_SPAN_DESKTOP = 3;   // desktop: 3 celle
+const DOOR_SPAN_DESKTOP = 2;   // desktop: 3 celle
 const DOOR_SPAN_MOBILE  = 2;   // mobile: 2 celle (più strette)
 const getDoorSpan = () => (isMobileOrTablet() ? DOOR_SPAN_MOBILE : DOOR_SPAN_DESKTOP);
 

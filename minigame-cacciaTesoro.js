@@ -1074,7 +1074,7 @@ function movePet(dt) {
   }
 
   // --- passaggio stanza (porte) con soglia sul BORDO dell'hitbox
-  const ENTER_GAP = 8; // px di “fascia porta” (puoi provarlo 6–12)
+  const ENTER_GAP = 12; // px di “fascia porta” (puoi provarlo 6–12)
 
   // a Ovest
   if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {

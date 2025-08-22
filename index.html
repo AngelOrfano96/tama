@@ -103,6 +103,8 @@
           <button id="feed-btn" type="button">🍖 Feed</button>
           <button id="play-btn" type="button">🎮 Play</button>
           <button id="clean-btn" type="button">🧼 Clean</button>
+          <button id="stats-btn" type="button">📊 Stats</button>
+
         </div>
 <!-- === INVENTARIO PET =================================================== -->
 <section class="inv-card">
@@ -110,33 +112,33 @@
 
   <div class="inv-stat-row" data-stat="hp">
     <span class="inv-stat-name">HP</span>
-    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <button class="stat-btn" data-delta="-1" type="button">−</button>
     <div class="inv-stat-bar"><div id="bar-hp"></div></div>
-    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <button class="stat-btn" data-delta="1" type="button">+</button>
     <span class="inv-stat-val" id="val-hp">0</span>
   </div>
 
   <div class="inv-stat-row" data-stat="attack">
     <span class="inv-stat-name">Attacco</span>
-    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <button class="stat-btn" data-delta="-1" type="button">−</button>
     <div class="inv-stat-bar"><div id="bar-attack"></div></div>
-    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <button class="stat-btn" data-delta="1" type="button">+</button>
     <span class="inv-stat-val" id="val-attack">0</span>
   </div>
 
   <div class="inv-stat-row" data-stat="defense">
     <span class="inv-stat-name">Difesa</span>
-    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <button class="stat-btn" data-delta="-1" type="button">−</button>
     <div class="inv-stat-bar"><div id="bar-defense"></div></div>
-    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <button class="stat-btn" data-delta="1" type="button">+</button>
     <span class="inv-stat-val" id="val-defense">0</span>
   </div>
 
   <div class="inv-stat-row" data-stat="speed">
     <span class="inv-stat-name">Velocità</span>
-    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <button class="stat-btn" data-delta="-1" type="button">−</button>
     <div class="inv-stat-bar"><div id="bar-speed"></div></div>
-    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <button class="stat-btn" data-delta="1" type="button">+</button>
     <span class="inv-stat-val" id="val-speed">0</span>
   </div>
 </section>
@@ -165,6 +167,16 @@
         </div>
       </div>
     </div>
+
+    <div id="stats-modal" class="hidden stats-modal">
+  <div class="stats-modal-content">
+    <button id="stats-close" class="close-btn">✖</button>
+    <!-- qui dentro incolla il blocco inventario -->
+    <section class="inv-card"> … </section>
+    <section class="inv-card"> … </section>
+    <section class="inv-card"> … </section>
+  </div>
+</div>
 
 <!-- ===== MODALE MINIGIOCO CACCIA AL TESORO ===== -->
 <div id="treasure-minigame-modal" class="treasure-minigame-modal hidden">

@@ -699,6 +699,22 @@ bindItemUIOnce();
 await refreshUsernameBadge();      // mostra il badge se c'è
 await promptUsernameIfMissing();   // se manca, mostra la modal
 
+// === STATS MODAL OPEN/CLOSE ===
+document.getElementById('stats-btn')?.addEventListener('click', () => {
+  document.getElementById('stats-modal').classList.remove('hidden');
+});
+
+document.getElementById('stats-close')?.addEventListener('click', () => {
+  document.getElementById('stats-modal').classList.add('hidden');
+});
+
+// chiudi cliccando fuori
+document.getElementById('stats-modal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'stats-modal') {
+    document.getElementById('stats-modal').classList.add('hidden');
+  }
+});
+
 
 }
 

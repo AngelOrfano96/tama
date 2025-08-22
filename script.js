@@ -467,22 +467,25 @@ function bindStatButtonsOnce(){
     if (!STAT_FIELDS.includes(stat) || !petId) return;
 
     try {
-      // ✅ usa la nuova RPC che solo incrementa e consuma 1 punto
-      const { data, error } = await supabaseClient.rpc('allocate_stat_point', {
-        p_pet_id: petId,
-        p_field: stat
-      });
-      if (error) throw error;
+  const { data, error } = await supabaseClient.rpc('allocate_stat_point', {
+    p_pet_id: petId,
+    p_field: stat
+  });
+  if (error) throw error;
 
-      const row0 = Array.isArray(data) ? data[0] : data;
-      if (!row0) return; // nessun update (0 punti o stat al max)
+  // Se la RPC non ha fatto nulla (0 punti o stat al max) esci
+  const row0 = Array.isArray(data) ? data[0] : data;
+  if (!row0) {
+    // opzionale: mostra un toast "Nessun punto disponibile"
+    return;
+  }
 
-      updateCombatBars(row0);
-      updateStatPointsBadge(row0.stat_points);
-      togglePlusButtons(row0.stat_points <= 0);
-    } catch (err) {
-      console.error('[allocate_stat_point]', err);
-    }
+  // 🔁 Ricarica lo stato dal DB: così aggiorni UI in modo certo
+  await loadCombatStats();
+
+} catch (err) {
+  console.error('[allocate_stat_point]', err);
+}
   });
 }
 

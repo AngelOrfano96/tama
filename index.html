@@ -104,6 +104,65 @@
           <button id="play-btn" type="button">🎮 Play</button>
           <button id="clean-btn" type="button">🧼 Clean</button>
         </div>
+<!-- === INVENTARIO PET =================================================== -->
+<section class="inv-card">
+  <h3 class="inv-title">Statistiche</h3>
+
+  <div class="inv-stat-row" data-stat="hp">
+    <span class="inv-stat-name">HP</span>
+    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <div class="inv-stat-bar"><div id="bar-hp"></div></div>
+    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <span class="inv-stat-val" id="val-hp">0</span>
+  </div>
+
+  <div class="inv-stat-row" data-stat="attack">
+    <span class="inv-stat-name">Attacco</span>
+    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <div class="inv-stat-bar"><div id="bar-attack"></div></div>
+    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <span class="inv-stat-val" id="val-attack">0</span>
+  </div>
+
+  <div class="inv-stat-row" data-stat="defense">
+    <span class="inv-stat-name">Difesa</span>
+    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <div class="inv-stat-bar"><div id="bar-defense"></div></div>
+    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <span class="inv-stat-val" id="val-defense">0</span>
+  </div>
+
+  <div class="inv-stat-row" data-stat="speed">
+    <span class="inv-stat-name">Velocità</span>
+    <button class="inv-stat-btn" data-delta="-1" type="button">−</button>
+    <div class="inv-stat-bar"><div id="bar-speed"></div></div>
+    <button class="inv-stat-btn" data-delta="1" type="button">+</button>
+    <span class="inv-stat-val" id="val-speed">0</span>
+  </div>
+</section>
+
+<section class="inv-card">
+  <h3 class="inv-title">Mosse <small>(max 3 equipaggiate)</small></h3>
+  <div id="moves-equipped" class="inv-slots inv-slots-3">
+    <!-- 3 slot riempiti da JS -->
+  </div>
+  <h4 class="inv-subtitle">Sbloccate</h4>
+  <div id="moves-unlocked" class="inv-grid">
+    <!-- chip mosse sbloccate (da JS) -->
+  </div>
+</section>
+
+<section class="inv-card">
+  <h3 class="inv-title">Inventario <small>(max 4 equipaggiati)</small></h3>
+  <div id="items-equipped" class="inv-slots inv-slots-4">
+    <!-- 4 slot riempiti da JS -->
+  </div>
+  <h4 class="inv-subtitle">Raccolti</h4>
+  <div id="items-unlocked" class="inv-grid">
+    <!-- chip oggetti raccolti (da JS) -->
+  </div>
+</section>
+
         <div id="game-over" class="hidden">
           💔 Il tuo pet è scappato! Vuoi scegliere un nuovo uovo?
           <div id="game-over-buttons">

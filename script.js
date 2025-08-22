@@ -408,6 +408,222 @@ function updateBars(hunger, fun, clean, level, exp) {
   }
 }
 
+// ---------- CONFIG STATS ----------
+const STAT_FIELDS = ['hp','attack','defense','speed'];
+const STAT_MAX = 20; // tienilo allineato al CHECK del DB
+
+function updateCombatBars(stats){
+  // aggiorna barre e numeri (se esistono in DOM)
+  STAT_FIELDS.forEach(k => {
+    const v = Math.max(0, Math.min(STAT_MAX, Number(stats[k] ?? 0)));
+    const bar = document.getElementById(`bar-${k}`);
+    const lab = document.getElementById(`val-${k}`);
+    if (bar) bar.style.width = `${Math.round((v / STAT_MAX) * 100)}%`;
+    if (lab) lab.textContent = v;
+  });
+}
+
+async function loadCombatStats(){
+  if (!petId) return;
+  const { data, error } = await supabaseClient
+    .from('pet_states')
+    .select('hp, attack, defense, speed')
+    .eq('pet_id', petId)
+    .single();
+  if (error) { console.error('[loadCombatStats]', error); return; }
+  updateCombatBars(data || {});
+}
+
+// un solo listener delegato per tutti i bottoni ±
+function bindStatButtonsOnce(){
+  if (document.body._statsBound) return;
+  document.body._statsBound = true;
+
+  document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.stat-btn');
+    if (!btn) return;
+
+    const row = btn.closest('.stat-row');
+    const stat = row?.dataset?.stat;
+    const delta = parseInt(btn.dataset.delta, 10) || 0;
+    if (!STAT_FIELDS.includes(stat) || !delta || !petId) return;
+
+    try {
+      // usa la RPC per aggiornare lato server e ricevere i valori aggiornati
+      const { data, error } = await supabaseClient.rpc('adjust_pet_stat', {
+        p_pet_id: petId,
+        p_field: stat,
+        p_delta: delta
+      });
+      if (error) throw error;
+      // la RPC ritorna una riga con hp/attack/defense/speed
+      const row0 = Array.isArray(data) ? data[0] : data;
+      if (row0) updateCombatBars(row0);
+    } catch (err) {
+      console.error('[adjust_pet_stat]', err);
+    }
+  });
+}
+
+// ---------- MOSSE ----------
+async function loadMoves(){
+  if (!petId) return;
+  const { data, error } = await supabaseClient
+    .from('pet_moves')
+    .select('id, move_key, equipped, slot')
+    .eq('pet_id', petId);
+  if (error) { console.error('[loadMoves]', error); return; }
+
+  const eq = (data || []).filter(m => m.equipped).sort((a,b)=> (a.slot||0)-(b.slot||0));
+  const un = (data || []).filter(m => !m.equipped);
+
+  const eqWrap = document.getElementById('moves-equipped');
+  const unWrap = document.getElementById('moves-unlocked');
+  if (eqWrap) {
+    eqWrap.innerHTML = '';
+    for (let i=1;i<=3;i++){
+      const m = eq.find(x => x.slot === i);
+      const div = document.createElement('div');
+      div.className = 'move-slot';
+      div.dataset.slot = String(i);
+      div.innerHTML = m ? `<span class="move-chip" data-move="${m.id}">${m.move_key}</span>`
+                        : `<span class="slot-plus">+</span>`;
+      eqWrap.appendChild(div);
+    }
+  }
+  if (unWrap) {
+    unWrap.innerHTML = '';
+    un.forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'move-chip unlocked';
+      d.dataset.move = m.id;
+      d.textContent = m.move_key;
+      unWrap.appendChild(d);
+    });
+  }
+}
+
+async function equipMove(moveId, slot){
+  // libera eventuale mossa nello stesso slot e metti questa
+  const { error: e1 } = await supabaseClient
+    .from('pet_moves').update({ equipped:false, slot:null })
+    .eq('pet_id', petId).eq('slot', slot);
+  if (e1) { console.error('[equipMove-clear]', e1); }
+
+  const { error: e2 } = await supabaseClient
+    .from('pet_moves').update({ equipped:true, slot })
+    .eq('id', moveId).eq('pet_id', petId);
+  if (e2) { console.error('[equipMove-set]', e2); }
+  await loadMoves();
+}
+
+function bindMoveUIOnce(){
+  if (document.body._movesBound) return;
+  document.body._movesBound = true;
+
+  document.body.addEventListener('click', (e) => {
+    const slotEl = e.target.closest('#moves-equipped .move-slot');
+    if (slotEl){
+      const slot = parseInt(slotEl.dataset.slot, 10);
+      // se clicchi su un "+" apri un mini-picker costruito dai "unlocked"
+      const list = [...document.querySelectorAll('#moves-unlocked .move-chip.unlocked')];
+      if (!list.length) return;
+      // semplice: assegna la prima disponibile (oppure costruisci un menu tuo)
+      const first = list[0].dataset.move;
+      equipMove(first, slot);
+      return;
+    }
+
+    // clic su mossa non equipaggiata → scegli tu lo slot (primo libero)
+    const chip = e.target.closest('#moves-unlocked .move-chip.unlocked');
+    if (chip){
+      const moveId = chip.dataset.move;
+      const used = new Set([...document.querySelectorAll('#moves-equipped .move-chip')]
+        .map(el => el.parentElement?.dataset.slot));
+      let slot = [1,2,3].find(s => !used.has(String(s)));
+      if (!slot) slot = 1; // se pieni, rimpiazza slot 1
+      equipMove(moveId, slot);
+    }
+  });
+}
+
+// ---------- INVENTARIO ----------
+async function loadItems(){
+  if (!petId) return;
+  const { data, error } = await supabaseClient
+    .from('pet_items')
+    .select('id, item_key, equipped, slot')
+    .eq('pet_id', petId);
+  if (error) { console.error('[loadItems]', error); return; }
+
+  const eq = (data || []).filter(m => m.equipped).sort((a,b)=> (a.slot||0)-(b.slot||0));
+  const un = (data || []).filter(m => !m.equipped);
+
+  const eqWrap = document.getElementById('items-equipped');
+  const unWrap = document.getElementById('items-unlocked');
+  if (eqWrap) {
+    eqWrap.innerHTML = '';
+    for (let i=1;i<=4;i++){
+      const it = eq.find(x => x.slot === i);
+      const div = document.createElement('div');
+      div.className = 'item-slot';
+      div.dataset.slot = String(i);
+      div.innerHTML = it ? `<span class="item-chip" data-item="${it.id}">${it.item_key}</span>`
+                         : `<span class="slot-plus">+</span>`;
+      eqWrap.appendChild(div);
+    }
+  }
+  if (unWrap) {
+    unWrap.innerHTML = '';
+    un.forEach(it => {
+      const d = document.createElement('div');
+      d.className = 'item-chip unlocked';
+      d.dataset.item = it.id;
+      d.textContent = it.item_key;
+      unWrap.appendChild(d);
+    });
+  }
+}
+
+async function equipItem(itemId, slot){
+  const { error: e1 } = await supabaseClient
+    .from('pet_items').update({ equipped:false, slot:null })
+    .eq('pet_id', petId).eq('slot', slot);
+  if (e1) { console.error('[equipItem-clear]', e1); }
+
+  const { error: e2 } = await supabaseClient
+    .from('pet_items').update({ equipped:true, slot })
+    .eq('id', itemId).eq('pet_id', petId);
+  if (e2) { console.error('[equipItem-set]', e2); }
+  await loadItems();
+}
+
+function bindItemUIOnce(){
+  if (document.body._itemsBound) return;
+  document.body._itemsBound = true;
+
+  document.body.addEventListener('click', (e) => {
+    const slotEl = e.target.closest('#items-equipped .item-slot');
+    if (slotEl){
+      const slot = parseInt(slotEl.dataset.slot, 10);
+      const list = [...document.querySelectorAll('#items-unlocked .item-chip.unlocked')];
+      if (!list.length) return;
+      const first = list[0].dataset.item;
+      equipItem(first, slot);
+      return;
+    }
+    const chip = e.target.closest('#items-unlocked .item-chip.unlocked');
+    if (chip){
+      const itemId = chip.dataset.item;
+      const used = new Set([...document.querySelectorAll('#items-equipped .item-chip')]
+        .map(el => el.parentElement?.dataset.slot));
+      let slot = [1,2,3,4].find(s => !used.has(String(s)));
+      if (!slot) slot = 1;
+      equipItem(itemId, slot);
+    }
+  });
+}
+
 
 function expForNextLevel(level) {
   return Math.round(100 * Math.pow(1.2, level - 1));
@@ -468,6 +684,16 @@ alive = true;
 document.getElementById('game-over').classList.add('hidden');
 await getStateFromDb();
 startAutoRefresh();
+
+await loadCombatStats();
+bindStatButtonsOnce();
+
+await loadMoves();
+bindMoveUIOnce();
+
+await loadItems();
+bindItemUIOnce();
+
 
 // niente optional-chaining in call:
 await refreshUsernameBadge();      // mostra il badge se c'è
@@ -695,15 +921,6 @@ signupBtn.addEventListener('click', async () => {
     document.getElementById('auth-error').textContent = err.message;
   }
 });
-/*function requestLandscape() {
-  if (screen.orientation && screen.orientation.lock) {
-    screen.orientation.lock('landscape').catch(err => {
-      console.warn('Impossibile forzare landscape:', err);
-    });
-  } else {
-    console.log('Blocco orientamento non supportato dal browser');
-  }
-}*/
 
 // --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {

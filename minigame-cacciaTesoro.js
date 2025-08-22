@@ -1020,37 +1020,86 @@ function movePet(dt) {
   // --- movimento con micro-step ---
   const speed = getCurrentPetSpeed();
 
-  // hitbox un filo più piccola (puoi tornare a tile-20 se vuoi più “pieno”)
+  // hitbox e margini (leggermente permissivi)
   const size = Math.max(10, tile - 24);
-
-  // margini asimmetrici (leggermente più permissivi)
   const HIT_BASE = { top: 2, right: 1, bottom: 1, left: 1 };
 
-  // helper: cella “attraversabile” includendo i muri di bordo nell'intervallo porta
-  const isPassableCell = (cx, cy) => {
-    // interno
-    if (room[cy]?.[cx] === 0) return true;
+  // pre-calcolo fasce porta della stanza corrente
+  const W = Cfg.roomW, H = Cfg.roomH;
+  const span   = getDoorSpan();
+  const midRow = Math.floor(H / 2);
+  const midCol = Math.floor(W / 2);
+  const ysDoor = doorIndices(midRow, span, 1, H - 2); // righe porta su sx/dx
+  const xsDoor = doorIndices(midCol, span, 1, W - 2); // colonne porta su top/bottom
 
-    // bordo con "ghost edge" se dentro allo span della porta
-    const W = Cfg.roomW, H = Cfg.roomH;
-    const span   = getDoorSpan();
-    const midRow = Math.floor(H / 2);
-    const midCol = Math.floor(W / 2);
-    const ys = doorIndices(midRow, span, 1, H - 2); // righe aperte su sx/dx
-    const xs = doorIndices(midCol, span, 1, W - 2); // colonne aperte su top/bottom
+  // padding extra in pixel: consente al CENTRO di “contare” come in porta
+  const doorPadPx = Math.max(4, Math.floor(tile * 0.15));
 
-    // muro sinistro o destro entro la fascia porta verticale
-    if ((cx === 0 || cx === W - 1) && ys.includes(cy)) return true;
-
-    // muro alto o basso entro la fascia porta orizzontale
-    if ((cy === 0 || cy === H - 1) && xs.includes(cx)) return true;
-
-    // altrimenti è muro solido
-    return false;
+  // helper: il centro è entro la fascia porta?
+  const centerInVertDoor = (cyPx) => {
+    const minYPx = ysDoor[0] * tile - doorPadPx;
+    const maxYPx = (ysDoor[ysDoor.length - 1] + 1) * tile + doorPadPx;
+    return cyPx >= minYPx && cyPx <= maxYPx;
+  };
+  const centerInHorzDoor = (cxPx) => {
+    const minXPx = xsDoor[0] * tile - doorPadPx;
+    const maxXPx = (xsDoor[xsDoor.length - 1] + 1) * tile + doorPadPx;
+    return cxPx >= minXPx && cxPx <= maxXPx;
   };
 
   const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
-    // piccolo bias verso la direzione di marcia
+    // 1) se sto andando verso un bordo e il CENTRO è nella fascia porta,
+    //    ignoriamo i muri di quel bordo per questo frame (niente scatti).
+    const centerXPx = nx + size / 2;
+    const centerYPx = ny + size / 2;
+
+    // verso SINISTRA: vicino al bordo sinistro?
+    if (dirX < 0 && nx <= tile * 0.8 && centerInVertDoor(centerYPx)) {
+      // ignora collisioni con x=0
+      const mT = Math.max(0, HIT_BASE.top - (dirY < 0 ? 1 : 0));
+      const mB = Math.max(0, HIT_BASE.bottom - (dirY > 0 ? 1 : 0));
+      const minY = Math.floor((ny + mT) / tile);
+      const maxY = Math.floor((ny + size - mB) / tile);
+      // controlla solo i due angoli interni (x=1..W-2)
+      const ix = 1; // subito dentro al bordo
+      if (minY < 0 || maxY >= H) return false;
+      return (room[minY][ix] === 0 && room[maxY][ix] === 0);
+    }
+
+    // verso DESTRA: vicino al bordo destro?
+    if (dirX > 0 && (nx + size) >= (W - 1) * tile - tile * 0.8 && centerInVertDoor(centerYPx)) {
+      const mT = Math.max(0, HIT_BASE.top - (dirY < 0 ? 1 : 0));
+      const mB = Math.max(0, HIT_BASE.bottom - (dirY > 0 ? 1 : 0));
+      const minY = Math.floor((ny + mT) / tile);
+      const maxY = Math.floor((ny + size - mB) / tile);
+      const ix = W - 2;
+      if (minY < 0 || maxY >= H) return false;
+      return (room[minY][ix] === 0 && room[maxY][ix] === 0);
+    }
+
+    // verso SU: vicino al bordo alto?
+    if (dirY < 0 && ny <= tile * 0.8 && centerInHorzDoor(centerXPx)) {
+      const mL = Math.max(0, HIT_BASE.left  - (dirX < 0 ? 1 : 0));
+      const mR = Math.max(0, HIT_BASE.right - (dirX > 0 ? 1 : 0));
+      const minX = Math.floor((nx + mL) / tile);
+      const maxX = Math.floor((nx + size - mR) / tile);
+      const iy = 1;
+      if (minX < 0 || maxX >= W) return false;
+      return (room[iy][minX] === 0 && room[iy][maxX] === 0);
+    }
+
+    // verso GIÙ: vicino al bordo basso?
+    if (dirY > 0 && (ny + size) >= (H - 1) * tile - tile * 0.8 && centerInHorzDoor(centerXPx)) {
+      const mL = Math.max(0, HIT_BASE.left  - (dirX < 0 ? 1 : 0));
+      const mR = Math.max(0, HIT_BASE.right - (dirX > 0 ? 1 : 0));
+      const minX = Math.floor((nx + mL) / tile);
+      const maxX = Math.floor((nx + size - mR) / tile);
+      const iy = H - 2;
+      if (minX < 0 || maxX >= W) return false;
+      return (room[iy][minX] === 0 && room[iy][maxX] === 0);
+    }
+
+    // 2) fallback: normale collisione con 4 angoli
     const mL = Math.max(0, HIT_BASE.left   - (dirX < 0 ? 1 : 0));
     const mR = Math.max(0, HIT_BASE.right  - (dirX > 0 ? 1 : 0));
     const mT = Math.max(0, HIT_BASE.top    - (dirY < 0 ? 1 : 0));
@@ -1061,12 +1110,11 @@ function movePet(dt) {
     const minY = Math.floor((ny + mT)        / tile);
     const maxY = Math.floor((ny + size - mB) / tile);
 
-    if (minY < 0 || maxY >= Cfg.roomH || minX < 0 || maxX >= Cfg.roomW) return false;
+    if (minY < 0 || maxY >= H || minX < 0 || maxX >= W) return false;
 
-    // NB: usiamo isPassableCell per ciascun angolo dell’hitbox
     return (
-      isPassableCell(minX, minY) && isPassableCell(maxX, minY) &&
-      isPassableCell(minX, maxY) && isPassableCell(maxX, maxY)
+      room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+      room[maxY][minX] === 0 && room[maxY][maxX] === 0
     );
   };
 
@@ -1102,23 +1150,23 @@ function movePet(dt) {
 
   // a Ovest
   if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
-    G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
+    G.petRoom.x -= 1; G.pet.px = (W - 2) * tile; G.pet.x = W - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   // a Est
-  else if (G.pet.px + size >= (Cfg.roomW - 1) * tile - ENTER_GAP &&
-           G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y]?.[Cfg.roomW - 1] === 0) {
+  else if (G.pet.px + size >= (W - 1) * tile - ENTER_GAP &&
+           G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y]?.[W - 1] === 0) {
     G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   // a Nord
   else if (G.pet.py <= ENTER_GAP && G.petRoom.y > 0 && room[0]?.[G.pet.x] === 0) {
-    G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
+    G.petRoom.y -= 1; G.pet.py = (H - 2) * tile; G.pet.y = H - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
   // a Sud
-  else if (G.pet.py + size >= (Cfg.roomH - 1) * tile - ENTER_GAP &&
-           G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1]?.[G.pet.x] === 0) {
+  else if (G.pet.py + size >= (H - 1) * tile - ENTER_GAP &&
+           G.petRoom.y < Cfg.gridH - 1 && room[H - 1]?.[G.pet.x] === 0) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
   }
@@ -1176,13 +1224,15 @@ function movePet(dt) {
   }
 
   // --- collisione con nemici ---
-  if ((G.enemies[key] || []).some(e => distCenter(G.pet, e) < 0.5)) {
+  const enemies = G.enemies[key] || [];
+  if (enemies.some(e => distCenter(G.pet, e) < 0.5)) {
     G.playing = false;
     showTreasureBonus('Game Over!', '#e74c3c');
     if (G.timerId) clearInterval(G.timerId);
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 

@@ -440,8 +440,12 @@ async function loadCombatStats(){
     .eq('pet_id', petId)
     .single();
   if (error) { console.error('[loadCombatStats]', error); return; }
+
   updateCombatBars(data || {});
+  updateStatPointsBadge(data?.stat_points ?? 0);
+  togglePlusButtons((data?.stat_points ?? 0) <= 0);
 }
+
 
 
 // un solo listener delegato per tutti i bottoni ±
@@ -453,25 +457,46 @@ function bindStatButtonsOnce(){
     const btn = e.target.closest('.stat-btn');
     if (!btn) return;
 
-    // PRIMA era .stat-row, deve essere .inv-stat-row
-    const row = btn.closest('.inv-stat-row');
-    const stat = row?.dataset?.stat;
+    const row   = btn.closest('.inv-stat-row');
+    const stat  = row?.dataset?.stat;
     const delta = parseInt(btn.dataset.delta, 10) || 0;
-    if (!STAT_FIELDS.includes(stat) || !delta || !petId) return;
+
+    // ❌ mai permettere decrementi lato UI
+    if (delta < 0) return;
+
+    if (!STAT_FIELDS.includes(stat) || !petId) return;
 
     try {
-      const { data, error } = await supabaseClient.rpc('adjust_pet_stat', {
+      // ✅ usa la nuova RPC che solo incrementa e consuma 1 punto
+      const { data, error } = await supabaseClient.rpc('allocate_stat_point', {
         p_pet_id: petId,
-        p_field: stat,
-        p_delta: delta
+        p_field: stat
       });
       if (error) throw error;
+
       const row0 = Array.isArray(data) ? data[0] : data;
-      if (row0) updateCombatBars(row0);
+      if (!row0) return; // nessun update (0 punti o stat al max)
+
+      updateCombatBars(row0);
+      updateStatPointsBadge(row0.stat_points);
+      togglePlusButtons(row0.stat_points <= 0);
     } catch (err) {
-      console.error('[adjust_pet_stat]', err);
+      console.error('[allocate_stat_point]', err);
     }
   });
+}
+
+function updateStatPointsBadge(n){
+  const el = document.getElementById('stat-points');
+  if (el) el.textContent = n;
+}
+
+function togglePlusButtons(disable){
+  document.querySelectorAll('.inv-stat-row .stat-btn[data-delta="1"]')
+    .forEach(b => b.disabled = !!disable);
+  // i "-" li teniamo sempre disabilitati lato UI
+  document.querySelectorAll('.inv-stat-row .stat-btn[data-delta="-1"]')
+    .forEach(b => b.disabled = true);
 }
 
 

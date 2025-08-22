@@ -436,12 +436,13 @@ async function loadCombatStats(){
   if (!petId) return;
   const { data, error } = await supabaseClient
     .from('pet_states')
-    .select('hp, attack, defense, speed')
+    .select('hp, attack, defense, speed, stat_points')
     .eq('pet_id', petId)
     .single();
   if (error) { console.error('[loadCombatStats]', error); return; }
   updateCombatBars(data || {});
 }
+
 
 // un solo listener delegato per tutti i bottoni ±
 function bindStatButtonsOnce(){

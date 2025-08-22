@@ -408,7 +408,7 @@ function updateBars(hunger, fun, clean, level, exp) {
 const STAT_FIELDS = ['hp','attack','defense','speed'];
 const STAT_MAX = 669; // tienilo allineato al CHECK del DB
 
-function updateCombatBars(stats){
+function updateCombatBars(stats) {
   // aggiorna barre e numeri (se esistono in DOM)
   STAT_FIELDS.forEach(k => {
     const v = Math.max(0, Math.min(STAT_MAX, Number(stats[k] ?? 0)));
@@ -417,7 +417,20 @@ function updateCombatBars(stats){
     if (bar) bar.style.width = `${Math.round((v / STAT_MAX) * 100)}%`;
     if (lab) lab.textContent = v;
   });
+
+  // aggiorna contatore punti disponibili
+  const sp = document.getElementById('stat-points-label');
+  if (sp && 'stat_points' in stats) {
+    sp.textContent = stats.stat_points;
+  }
+
+  // abilita/disabilita i bottoni "+" in base ai punti rimasti
+  const plusButtons = document.querySelectorAll('.stat-btn[data-delta="1"]');
+  plusButtons.forEach(btn => {
+    btn.disabled = (stats.stat_points <= 0);
+  });
 }
+
 
 async function loadCombatStats(){
   if (!petId) return;
@@ -726,6 +739,7 @@ async function addExpAndMaybeLevelUp(state, inc = 0) {
   while (exp >= expNext) {
     exp -= expNext;
     level++;
+    await supabaseClient.rpc('increment_stat_points', { p_pet_id: petId, p_amount: 1 });
     leveledUp = true;
     expNext = expForNextLevel(level);
   }

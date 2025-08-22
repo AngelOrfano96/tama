@@ -1020,11 +1020,34 @@ function movePet(dt) {
   // --- movimento con micro-step ---
   const speed = getCurrentPetSpeed();
 
-  // hitbox più piccola (feeling più permissivo)
+  // hitbox un filo più piccola (puoi tornare a tile-20 se vuoi più “pieno”)
   const size = Math.max(10, tile - 24);
 
-  // margini asimmetrici
+  // margini asimmetrici (leggermente più permissivi)
   const HIT_BASE = { top: 2, right: 1, bottom: 1, left: 1 };
+
+  // helper: cella “attraversabile” includendo i muri di bordo nell'intervallo porta
+  const isPassableCell = (cx, cy) => {
+    // interno
+    if (room[cy]?.[cx] === 0) return true;
+
+    // bordo con "ghost edge" se dentro allo span della porta
+    const W = Cfg.roomW, H = Cfg.roomH;
+    const span   = getDoorSpan();
+    const midRow = Math.floor(H / 2);
+    const midCol = Math.floor(W / 2);
+    const ys = doorIndices(midRow, span, 1, H - 2); // righe aperte su sx/dx
+    const xs = doorIndices(midCol, span, 1, W - 2); // colonne aperte su top/bottom
+
+    // muro sinistro o destro entro la fascia porta verticale
+    if ((cx === 0 || cx === W - 1) && ys.includes(cy)) return true;
+
+    // muro alto o basso entro la fascia porta orizzontale
+    if ((cy === 0 || cy === H - 1) && xs.includes(cx)) return true;
+
+    // altrimenti è muro solido
+    return false;
+  };
 
   const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
     // piccolo bias verso la direzione di marcia
@@ -1040,9 +1063,10 @@ function movePet(dt) {
 
     if (minY < 0 || maxY >= Cfg.roomH || minX < 0 || maxX >= Cfg.roomW) return false;
 
+    // NB: usiamo isPassableCell per ciascun angolo dell’hitbox
     return (
-      room[minY][minX] === 0 && room[minY][maxX] === 0 &&
-      room[maxY][minX] === 0 && room[maxY][maxX] === 0
+      isPassableCell(minX, minY) && isPassableCell(maxX, minY) &&
+      isPassableCell(minX, maxY) && isPassableCell(maxX, maxY)
     );
   };
 
@@ -1060,51 +1084,6 @@ function movePet(dt) {
     const tryPY = G.pet.py + stepDY;
     if (tryMove(G.pet.px, tryPY, 0, Math.sign(stepDY))) G.pet.py = tryPY;
   }
-
-  // --- SOFT DOOR ALIGN (senza scatti) ---------------------------------
-  // guida solo quando:
-  // - sei vicino al bordo verso cui ti muovi
-  // - la tua hitbox è fuori dal corridoio della porta
-  // - applica un lerp piccolo proporzionale alla vicinanza
-  {
-    const span   = getDoorSpan();
-    const midRow = Math.floor(Cfg.roomH / 2);
-    const midCol = Math.floor(Cfg.roomW / 2);
-    const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2); // aperture verticali (sx/dx)
-    const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2); // aperture orizzontali (alto/basso)
-
-    // fattore lerp: più vicino al bordo ⇒ più “magnete”, ma molto morbido
-    const baseFactor = Math.min(0.16, 0.06 + dt * 4); // 0.06..0.16
-
-    // helper: allinea dolcemente pos → dentro [min,max]
-    const softClamp = (pos, min, max, factor) => {
-      if (pos < min) return pos + (min - pos) * factor;
-      if (pos > max) return pos + (max - pos) * factor;
-      return pos;
-    };
-
-    // soglie “vicino al bordo”
-    const nearBand = tile * 1.0;
-
-    // verso SINISTRA o DESTRA → guida Y nel range della porta
-    const nearLeft  = (G.pet.px < nearBand && G.pet.dirX < 0);
-    const nearRight = (G.pet.px + size > (Cfg.roomW - 1) * tile - nearBand && G.pet.dirX > 0);
-    if (nearLeft || nearRight) {
-      const minYPx = ys[0] * tile;
-      const maxYPx = (ys[ys.length - 1] + 1) * tile - size;
-      G.pet.py = softClamp(G.pet.py, minYPx, maxYPx, baseFactor);
-    }
-
-    // verso SU o GIÙ → guida X nel range della porta
-    const nearTop    = (G.pet.py < nearBand && G.pet.dirY < 0);
-    const nearBottom = (G.pet.py + size > (Cfg.roomH - 1) * tile - nearBand && G.pet.dirY > 0);
-    if (nearTop || nearBottom) {
-      const minXPx = xs[0] * tile;
-      const maxXPx = (xs[xs.length - 1] + 1) * tile - size;
-      G.pet.px = softClamp(G.pet.px, minXPx, maxXPx, baseFactor);
-    }
-  }
-  // --------------------------------------------------------------------
 
   // aggiorna cella logica usando il centro dell'hitbox
   G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
@@ -1197,14 +1176,14 @@ function movePet(dt) {
   }
 
   // --- collisione con nemici ---
-  const enemies = G.enemies[key] || [];
-  if (enemies.some(e => distCenter(G.pet, e) < 0.5)) {
+  if ((G.enemies[key] || []).some(e => distCenter(G.pet, e) < 0.5)) {
     G.playing = false;
     showTreasureBonus('Game Over!', '#e74c3c');
     if (G.timerId) clearInterval(G.timerId);
     setTimeout(() => endTreasureMinigame(), 1500);
   }
 }
+
 
 
 

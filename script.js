@@ -676,6 +676,8 @@ bindItemUIOnce();
 
 showOnly('game');
 document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
+await refreshUsernameBadge();
+await promptUsernameIfMissing();
 
 // dentro initFlow(), dopo aver mostrato il gioco
 if (!window._statsModalBound) {

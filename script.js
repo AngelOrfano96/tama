@@ -335,10 +335,6 @@ window.closeLeaderboardModal = function () {
   document.getElementById('leaderboard-modal')?.classList.add('hidden');
 };
 
-window.closeLeaderboardModal = function() {
-  document.getElementById('leaderboard-modal')?.classList.add('hidden');
-};
-
 let user = null;
 let petId = null;
 let eggType = null;
@@ -443,20 +439,19 @@ function bindStatButtonsOnce(){
     const btn = e.target.closest('.stat-btn');
     if (!btn) return;
 
-    const row = btn.closest('.stat-row');
+    // PRIMA era .stat-row, deve essere .inv-stat-row
+    const row = btn.closest('.inv-stat-row');
     const stat = row?.dataset?.stat;
     const delta = parseInt(btn.dataset.delta, 10) || 0;
     if (!STAT_FIELDS.includes(stat) || !delta || !petId) return;
 
     try {
-      // usa la RPC per aggiornare lato server e ricevere i valori aggiornati
       const { data, error } = await supabaseClient.rpc('adjust_pet_stat', {
         p_pet_id: petId,
         p_field: stat,
         p_delta: delta
       });
       if (error) throw error;
-      // la RPC ritorna una riga con hp/attack/defense/speed
       const row0 = Array.isArray(data) ? data[0] : data;
       if (row0) updateCombatBars(row0);
     } catch (err) {
@@ -464,6 +459,7 @@ function bindStatButtonsOnce(){
     }
   });
 }
+
 
 // ---------- MOSSE ----------
 async function loadMoves(){
@@ -674,8 +670,37 @@ async function initFlow() {
   }
   petId = pet.id;
   eggType = pet.egg_type;
+  bindStatButtonsOnce();
+bindMoveUIOnce();
+bindItemUIOnce();
+
 showOnly('game');
 document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
+
+// dentro initFlow(), dopo aver mostrato il gioco
+if (!window._statsModalBound) {
+  window._statsModalBound = true;
+
+  // Apri il modal
+  document.getElementById('stats-btn')?.addEventListener('click', async () => {
+    const modal = document.getElementById('stats-modal');
+    modal?.classList.remove('hidden');
+    await loadCombatStats();
+    await loadMoves();
+    await loadItems();
+  });
+
+  // Chiudi con la X
+  document.getElementById('stats-close')?.addEventListener('click', () => {
+    document.getElementById('stats-modal')?.classList.add('hidden');
+  });
+
+  // Chiudi cliccando fuori
+  document.getElementById('stats-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'stats-modal') e.currentTarget.classList.add('hidden');
+  });
+}
+
 
 // questa basta
 await refreshResourcesWidget();
@@ -684,36 +709,6 @@ alive = true;
 document.getElementById('game-over').classList.add('hidden');
 await getStateFromDb();
 startAutoRefresh();
-
-await loadCombatStats();
-bindStatButtonsOnce();
-
-await loadMoves();
-bindMoveUIOnce();
-
-await loadItems();
-bindItemUIOnce();
-
-
-// niente optional-chaining in call:
-await refreshUsernameBadge();      // mostra il badge se c'è
-await promptUsernameIfMissing();   // se manca, mostra la modal
-
-// === STATS MODAL OPEN/CLOSE ===
-document.getElementById('stats-btn')?.addEventListener('click', () => {
-  document.getElementById('stats-modal').classList.remove('hidden');
-});
-
-document.getElementById('stats-close')?.addEventListener('click', () => {
-  document.getElementById('stats-modal').classList.add('hidden');
-});
-
-// chiudi cliccando fuori
-document.getElementById('stats-modal')?.addEventListener('click', (e) => {
-  if (e.target.id === 'stats-modal') {
-    document.getElementById('stats-modal').classList.add('hidden');
-  }
-});
 
 
 }

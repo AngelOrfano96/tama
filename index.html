@@ -106,8 +106,21 @@
           <button id="stats-btn" type="button">📊 Stats</button>
 
         </div>
-<!-- === INVENTARIO PET =================================================== -->
-<section class="inv-card">
+
+        <div id="game-over" class="hidden">
+          💔 Il tuo pet è scappato! Vuoi scegliere un nuovo uovo?
+          <div id="game-over-buttons">
+            <button id="choose-egg-btn" type="button">Sì</button>
+            <button id="exit-btn" type="button">No</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="stats-modal" class="hidden stats-modal">
+  <div class="stats-modal-content">
+    <button id="stats-close" class="close-btn">✖</button>
+    <section class="inv-card">
   <h3 class="inv-title">Statistiche</h3>
 
   <div class="inv-stat-row" data-stat="hp">
@@ -156,25 +169,6 @@
   <h4 class="inv-subtitle">Raccolti</h4>
   <div id="items-unlocked" class="inv-grid"></div>
 </section>
-
-
-        <div id="game-over" class="hidden">
-          💔 Il tuo pet è scappato! Vuoi scegliere un nuovo uovo?
-          <div id="game-over-buttons">
-            <button id="choose-egg-btn" type="button">Sì</button>
-            <button id="exit-btn" type="button">No</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="stats-modal" class="hidden stats-modal">
-  <div class="stats-modal-content">
-    <button id="stats-close" class="close-btn">✖</button>
-    <!-- qui dentro incolla il blocco inventario -->
-    <section class="inv-card"> … </section>
-    <section class="inv-card"> … </section>
-    <section class="inv-card"> … </section>
   </div>
 </div>
 

@@ -1559,3 +1559,38 @@ body {
 .close-btn {
   float:right; border:none; background:none; font-size:1.2em; cursor:pointer;
 }
+
+
+
+
+
+.stats-modal{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: grid; place-items: center;
+  z-index: 3000;
+}
+.stats-modal-content{
+  width: min(620px, 92vw);
+  max-height: 86vh; overflow:auto;
+  background: #fff8ee;
+  border-radius: 16px;
+  padding: 18px 16px 20px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.25);
+}
+.close-btn{
+  position: sticky; top: 0; left: 100%;
+  float: right;
+  margin: -6px -6px 8px 0;
+  border: 0; background: #111827; color: #fff;
+  border-radius: 8px; padding: 6px 10px; cursor: pointer;
+}
+
+/* un minimo di stile per le righe stat */
+.inv-card{ background:#fffdf6; border-radius:14px; padding:12px; margin:10px 0; }
+.inv-stat-row{ display:grid; grid-template-columns: 86px 38px 1fr 38px 34px; gap:8px; align-items:center; }
+.inv-stat-name{ font-weight:700; color:#3d2100; }
+.inv-stat-bar{ height:12px; background:#eee; border-radius:999px; overflow:hidden; }
+.inv-stat-bar > div{ height:100%; width:0%; background:linear-gradient(90deg,#ffe484,#ffbc73); transition:width .25s; }
+.inv-stat-val{ text-align:right; font-weight:700; min-width: 24px; }
+.stat-btn{ background:#ffe484; border:0; border-radius:8px; padding:6px 0; font-weight:800; cursor:pointer; }

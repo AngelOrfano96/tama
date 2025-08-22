@@ -406,7 +406,7 @@ function updateBars(hunger, fun, clean, level, exp) {
 
 // ---------- CONFIG STATS ----------
 const STAT_FIELDS = ['hp','attack','defense','speed'];
-const STAT_MAX = 699; // tienilo allineato al CHECK del DB
+const STAT_MAX = 669; // tienilo allineato al CHECK del DB
 
 function updateCombatBars(stats){
   // aggiorna barre e numeri (se esistono in DOM)

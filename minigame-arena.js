@@ -19,7 +19,9 @@
   spdMul: 0.65,                    // 65% della tua velocità base
 
   // attacco melee
-  atkRange: 0.9,                   // distanza (in “tile” logici) per iniziare windup
+ atkRange: 0.9,           // entra in windup se entro questo raggio (tile)
+  atkCancelRange: 1.05,    // SE durante il windup il pet esce oltre questo → annulla
+  atkHitRange: 0.75,       // al momento dell'impatto, il pet deve essere entro questo
   windupMs: 350,                   // “carica” prima del colpo
   swingMs: 120,                    // finestra in cui il colpo può fare danno
   recoverMs: 300,                  // recovery dopo il colpo
@@ -670,40 +672,46 @@ for (const e of G.enemies) {
   };
 
   // helper per danno nello swing: piccola hitbox frontale rispetto al nemico
-  const tryHitPetDuringSwing = () => {
-    // skip se in i-frames (dash)
-    if (now <= G.pet.iFrameUntil) return;
+const tryHitPetDuringSwing = () => {
+  // skip se in i-frames (dash)
+  if (now <= G.pet.iFrameUntil) return;
 
-    // hitbox “fronte” nemico (mezzo tile davanti)
-    const hw = G.tile * 0.7, hh = G.tile * 0.7;
-    let hx = e.px, hy = e.py;
-    // scegli una direzione “grossolana” dal vettore verso il pet
-    const ax = Math.abs(nx), ay = Math.abs(ny);
-    if (ax > ay) { // orizzontale
-      if (nx > 0) hx += G.tile * 0.6; else hx -= hw;
-    } else {       // verticale
-      if (ny > 0) hy += G.tile * 0.6; else hy -= hh;
-    }
+  // ❗ Serve anche che al momento del colpo il pet sia DAVVERO vicino
+  const distNow = Math.hypot(G.pet.px - e.px, G.pet.py - e.py) / G.tile;
+  if (distNow > EnemyTuning.atkHitRange) return;
 
-    const hit = (
-      hx < G.pet.px + (G.tile - 12) &&
-      hx + hw > G.pet.px + 6 &&
-      hy < G.pet.py + (G.tile - 12) &&
-      hy + hh > G.pet.py + 6
-    );
-    if (!hit) return;
+  // hitbox piccola davanti al nemico
+  const hw = G.tile * 0.5, hh = G.tile * 0.5;   // più stretta di prima
+  let hx = e.px, hy = e.py;
 
-    // anti-doppio-hit nello stesso swing
-    if (now - e.lastHitTs < EnemyTuning.swingMs) return;
-    e.lastHitTs = now;
+  // direzione “grossolana” verso il pet calcolata sul frame corrente
+  const ax = Math.abs(nx), ay = Math.abs(ny);
+  if (ax > ay) { // orizzontale
+    if (nx > 0) hx += G.tile * 0.5; else hx -= hw;
+  } else {       // verticale
+    if (ny > 0) hy += G.tile * 0.5; else hy -= hh;
+  }
 
-    const dmg = computeDamage(EnemyTuning.dmg, e.atkP || 50, G.defP || 50);
-    G.hpCur = Math.max(0, G.hpCur - dmg);
-    if (G.hpCur <= 0) { gameOver(); return; }
-    // i-frames per il pet dopo il colpo
-    G.pet.iFrameUntil = now + EnemyTuning.iframesMs;
-    syncHUD();
-  };
+  const inset = 8; // riduce un filo la hitbox del pet
+  const hit =
+    hx < G.pet.px + (G.tile - inset) &&
+    hx + hw > G.pet.px + inset &&
+    hy < G.pet.py + (G.tile - inset) &&
+    hy + hh > G.pet.py + inset;
+
+  if (!hit) return;
+
+  // anti-doppio-hit nello stesso swing
+  if (now - e.lastHitTs < EnemyTuning.swingMs) return;
+  e.lastHitTs = now;
+
+  const dmg = computeDamage(EnemyTuning.dmg, e.atkP || 50, G.defP || 50);
+  G.hpCur = Math.max(0, G.hpCur - dmg);
+  if (G.hpCur <= 0) { gameOver(); return; }
+  G.pet.iFrameUntil = now + EnemyTuning.iframesMs;
+  syncHUD();
+};
+
 
   // FSM
   switch (e.state) {
@@ -722,19 +730,29 @@ for (const e of G.enemies) {
       break;
     }
 
-    case 'windup': {
-      e.tState += dt * 1000;
-      // rimani fermo a “caricare”
-      if (e.tState >= EnemyTuning.windupMs) {
-        e.state = 'attack';
-        e.tState = 0;
-        // micro-impulso verso il pet per “affondare” il colpo
-        e.px += nx * (G.tile * 0.25);
-        e.py += ny * (G.tile * 0.25);
-        clampToArena();
-      }
-      break;
-    }
+case 'windup': {
+  e.tState += dt * 1000;
+
+  // ❗ Se il pet si allontana troppo durante il windup, annulla l'attacco
+  if (dTiles > EnemyTuning.atkCancelRange) {
+    e.state = 'chase';
+    e.tState = 0;
+    // piccola penalità prima di poter riattaccare
+    e.nextAtkReadyTs = now + EnemyTuning.cooldownMs * 0.6;
+    break;
+  }
+
+  if (e.tState >= EnemyTuning.windupMs) {
+    e.state = 'attack';
+    e.tState = 0;
+    // micro-impulso verso il pet per “affondare” il colpo
+    e.px += nx * (G.tile * 0.25);
+    e.py += ny * (G.tile * 0.25);
+    clampToArena();
+  }
+  break;
+}
+
 
     case 'attack': {
       e.tState += dt * 1000;

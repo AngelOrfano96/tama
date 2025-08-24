@@ -1014,6 +1014,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   const startTreasure = document.getElementById('btn-minigame-treasure');
   const cancelBtn     = document.getElementById('btn-minigame-cancel');
   //await requestLandscape();
+const openArena = document.getElementById('btn-minigame-arena');
+openArena?.addEventListener('click', () => {
+  document.getElementById('minigame-select-modal')?.classList.add('hidden');
+  if (typeof window.startArenaMinigame === 'function') {
+    window.startArenaMinigame();
+  }
+});
 
   // --- CLASSIFICA: bind bottoni/apertura/chiusura ---
 const lbOpenBtn  = document.getElementById('btn-open-leaderboard');

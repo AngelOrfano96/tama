@@ -44,6 +44,12 @@
     btnAtk: document.getElementById('arena-attack-btn'),
     btnChg: document.getElementById('arena-charge-btn'),
     btnDash:document.getElementById('arena-dash-btn'),
+
+    // joystick & overlay
+  joyBase: document.getElementById('arena-joy-base'),
+  joyStick: document.getElementById('arena-joy-stick'),
+  joyOverlay: document.getElementById('arena-joystick-overlay'),
+  actionsOverlay: document.getElementById('arena-actions-overlay'),
   };
   let ctx = DOM.canvas.getContext('2d');
 
@@ -57,6 +63,8 @@
     timeLeft: 0,
     timerId: null,
     tile: Cfg.baseMoveTile,
+      joy: { active:false, vx:0, vy:0 },
+
 
     // stat pet
     atkP: 50,
@@ -165,38 +173,39 @@ function drawHUDInCanvas() {
 
 
 function resizeCanvas() {
-  // spazio disponibile = viewport (se hai HUD fisso sopra/sotto, sottrai la sua altezza)
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // quanto spazio per OGNI tile, in pixel CSS
+  // spazio disponibile per ogni tile
   const tileFloat = Math.min(vw / Cfg.roomW, vh / Cfg.roomH);
 
-  // snap a multipli di 16 per mantenere allineamento con atlas 16x (e evitare blur)
-  // limiti ragionevoli per mobile/desktop (modifica se vuoi più grande)
   const base = 16;
-  let tile = Math.max(32, Math.min(384, Math.floor(tileFloat / base) * base));
-  if (tile < 32) tile = 32; // safety minimo
 
-  // gestisci DPR (pixel reali del canvas)
+  // mobile vs desktop
+  const minTile = isMobile ? 56 : 32;
+  const maxTile = isMobile ? 192 : 384;
+
+  // snappa a multipli di 16
+  let tile = Math.round(tileFloat / base) * base;
+  if (tile < minTile) tile = minTile;
+  if (tile > maxTile) tile = maxTile;
+
+  // DPR
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
   const widthCss  = Cfg.roomW * tile;
   const heightCss = Cfg.roomH * tile;
 
-  // dimensioni in pixel fisici: moltiplica per DPR
-  DOM.canvas.width  = widthCss  * dpr;
+  DOM.canvas.width  = widthCss * dpr;
   DOM.canvas.height = heightCss * dpr;
 
-  // dimensioni CSS (visive)
   DOM.canvas.style.width  = `${widthCss}px`;
   DOM.canvas.style.height = `${heightCss}px`;
 
-  // context + smoothing off
   ctx = DOM.canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
 
-  // aggiorna tile globale e invalida il layer statico se serve
+  // aggiorna tile globale
   const tileChanged = (G.tile !== tile);
   G.tile = tile;
   if (tileChanged) {
@@ -204,10 +213,11 @@ function resizeCanvas() {
     G.renderCache.tile = tile;
   }
 
-  // riallinea pet al centro stanza in pixel CSS
+  // riallinea pet
   G.pet.px = G.pet.x * tile;
   G.pet.py = G.pet.y * tile;
 }
+
 
 
   function isMobileOrTablet() { return isMobile; }
@@ -595,17 +605,32 @@ G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py));
     G.pet.cdDash= Math.max(0, G.pet.cdDash - dt);
 
     // input → movimento
-    let dx = 0, dy = 0;
-    if (G.keys.has('left'))  dx -= 1;
-    if (G.keys.has('right')) dx += 1;
-    if (G.keys.has('up'))    dy -= 1;
-    if (G.keys.has('down'))  dy += 1;
-    if (dx && dy) { const inv = 1 / Math.sqrt(2); dx *= inv; dy *= inv; }
-    G.pet.moving = !!(dx || dy);
-    if (dx > 0) G.pet.facing = 'right';
-    else if (dx < 0) G.pet.facing = 'left';
-    else if (dy > 0) G.pet.facing = 'down';
-    else if (dy < 0) G.pet.facing = 'up';
+// input → movimento (tastiera + joystick)
+let dx = 0, dy = 0;
+// tastiera
+if (G.keys.has('left'))  dx -= 1;
+if (G.keys.has('right')) dx += 1;
+if (G.keys.has('up'))    dy -= 1;
+if (G.keys.has('down'))  dy += 1;
+
+// joystick (mobile): somma vettori e normalizza
+dx += G.joy.vx;
+dy += G.joy.vy;
+
+if (dx || dy) {
+  const len = Math.hypot(dx, dy);
+  if (len > 1) { dx /= len; dy /= len; } // normalizza
+}
+G.pet.moving = !!(Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01);
+
+// facing
+if (Math.abs(dx) > Math.abs(dy)) {
+  if (dx > 0) G.pet.facing = 'right';
+  else if (dx < 0) G.pet.facing = 'left';
+} else if (Math.abs(dy) > 0.01) {
+  if (dy > 0) G.pet.facing = 'down';
+  else if (dy < 0) G.pet.facing = 'up';
+}
 
     const spd = petSpeed();
     G.pet.px = Math.max(G.tile, Math.min((Cfg.roomW-2)*G.tile, G.pet.px + dx * spd * dt));
@@ -842,7 +867,7 @@ function render() {
     if (e.state === 'windup') {
       ctx.save();
       ctx.globalAlpha = 0.25;
-      ctx.fillStyle = '#ff4d4f';
+      ctx.fillStyle = '#ff4d50';
       ctx.beginPath();
       ctx.arc(e.px + G.tile / 2, e.py + G.tile / 2, G.tile * 0.65, 0, Math.PI * 2);
       ctx.fill();
@@ -852,7 +877,7 @@ function render() {
     // ombra ellittica
     ctx.save();
     ctx.globalAlpha = 0.25;
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#000000';
     ctx.beginPath();
     ctx.ellipse(
       e.px + G.tile / 2,
@@ -1011,6 +1036,65 @@ function spawnWave(n) {
   if (spawned.length) G.enemies.push(...spawned);
 }
 
+function setupMobileControlsArena(){
+  const base = DOM.joyBase, stick = DOM.joyStick;
+  if (!base || !stick) return;
+
+  const radius = base.clientWidth * 0.5;
+  const center = { x: base.offsetLeft + radius, y: base.offsetTop + radius };
+
+  const setStick = (dx, dy) => {
+    stick.style.left = `${50 + dx*100}%`;
+    stick.style.top  = `${50 + dy*100}%`;
+    stick.style.transform = `translate(-50%, -50%)`;
+  };
+
+  const onStart = (ev) => {
+    ev.preventDefault();
+    G.joy.active = true;
+  };
+  const onMove = (ev) => {
+    if (!G.joy.active) return;
+    ev.preventDefault();
+
+    const t = (ev.touches ? ev.touches[0] : ev);
+    const rect = base.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top  + rect.height/2;
+    const dx = (t.clientX - cx) / radius;
+    const dy = (t.clientY - cy) / radius;
+
+    // clamp in cerchio
+    let len = Math.hypot(dx, dy);
+    let vx = 0, vy = 0;
+    if (len > 0.12) { // deadzone
+      const k = Math.min(1, len);
+      vx = (dx/len) * k;
+      vy = (dy/len) * k;
+    }
+    // salva (y positiva verso il basso)
+    G.joy.vx = vx;
+    G.joy.vy = vy;
+
+    setStick(vx*0.35, vy*0.35);
+  };
+  const onEnd = (ev) => {
+    ev.preventDefault();
+    G.joy.active = false;
+    G.joy.vx = 0; G.joy.vy = 0;
+    setStick(0,0);
+  };
+
+  base.addEventListener('touchstart', onStart, {passive:false});
+  base.addEventListener('touchmove',  onMove,  {passive:false});
+  base.addEventListener('touchend',   onEnd,   {passive:false});
+  base.addEventListener('touchcancel',onEnd,   {passive:false});
+
+  // Tasti azione (tap = esegue subito)
+  DOM.btnAtk?.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(G.playing) tryAttackBasic(); }, {passive:false});
+  DOM.btnChg?.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(G.playing) tryAttackCharged(); }, {passive:false});
+  DOM.btnDash?.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(G.playing) tryDash(); }, {passive:false});
+}
 
 
   // ---------- Start / End ----------
@@ -1043,6 +1127,9 @@ async function startArenaMinigame() {
     G.defP = 50;
     G.spdP = 50;
   }
+// Nascondi HUD DOM (usiamo HUD in canvas) e mostra overlay mobile
+DOM.hudBox && (DOM.hudBox.style.display = 'none');
+setupMobileControlsArena();
 
   // 2) Reset partita
   G.wave = 1;

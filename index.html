@@ -221,16 +221,26 @@
 <!-- ===== MODALE MINIGIOCO ARENA ===== -->
 <div id="arena-minigame-modal" class="hidden">
   <div class="arena-wrap">
-  <canvas id="arena-canvas"></canvas>
-  </div>
-  <div id="arena-hud" class="arena-hud"></div>
-  <!-- Mobile controls (facoltativi) -->
-  <div class="arena-actions">
-    <button id="arena-attack-btn">Base</button>
-    <button id="arena-charge-btn">Caricato</button>
-    <button id="arena-dash-btn">Dash</button>
+    <canvas id="arena-canvas"></canvas>
+
+    <!-- HUD in-canvas, lasciamo il div per compatibilità -->
+    <div id="arena-hud" class="arena-hud"></div>
+
+    <!-- OVERLAY MOBILE -->
+    <div class="arena-joystick-overlay" id="arena-joystick-overlay">
+      <div class="arena-joystick-base" id="arena-joy-base">
+        <div class="arena-joystick-stick" id="arena-joy-stick"></div>
+      </div>
+    </div>
+
+    <div class="arena-actions-overlay" id="arena-actions-overlay">
+      <button id="arena-attack-btn" class="arena-action-btn">Base</button>
+      <button id="arena-charge-btn" class="arena-action-btn">Caricato</button>
+      <button id="arena-dash-btn"   class="arena-action-btn">Dash</button>
+    </div>
   </div>
 </div>
+
 
 
 

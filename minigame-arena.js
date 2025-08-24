@@ -993,61 +993,77 @@ function spawnWave(n) {
   if (spawned.length) G.enemies.push(...spawned);
 }
 
+async function fetchPetStatsFromDB(petId) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('pet_states')
+      .select('hp_current, hp_max, attack_power, defense_power, speed_power')
+      .eq('pet_id', petId)
+      .single();
+
+    if (error) throw error;
+
+    // normalizzazione + fallback
+    const hpMax = Math.max(1, Math.round(Number(data?.hp_max ?? 100)));
+    let hpCur = Number(data?.hp_current);
+    if (!Number.isFinite(hpCur) || hpCur <= 0) hpCur = hpMax;      // se manca current → pieno
+    hpCur = Math.min(hpCur, hpMax);                                // clamp
+
+    const atkP = Math.max(1, Math.round(Number(data?.attack_power ?? 50)));
+    const defP = Math.max(1, Math.round(Number(data?.defense_power ?? 50)));
+    const spdP = Math.max(1, Math.round(Number(data?.speed_power  ?? 50)));
+
+    return { hpCur, hpMax, atkP, defP, spdP };
+  } catch (e) {
+    console.error('[Arena] fetchPetStatsFromDB error', e);
+    // fallback hard se la query fallisce
+    const hpMax = 100;
+    return { hpCur: hpMax, hpMax, atkP: 50, defP: 50, spdP: 50 };
+  }
+}
+
 
   // ---------- Start / End ----------
-  async function startArenaMinigame() {
+async function startArenaMinigame() {
+  // 1) leggi le stat dal DB (come fa la home)
+  const stats = await fetchPetStatsFromDB(petId);
+  G.hpCur = stats.hpCur;
+  G.hpMax = stats.hpMax;
+  G.atkP  = stats.atkP;
+  G.defP  = stats.defP;
+  G.spdP  = stats.spdP;
 
-    // carica le stat effettive dal DB
-    try {
-      const { data } = await supabaseClient
-        .from('pet_states')
-        .select('hp_current, hp_max, attack_power, defense_power, speed_power')
-        .eq('pet_id', petId)
-        .single();
-      if (data) {
-        G.hpCur = Math.max(1, data.hp_current ?? 100);
-        G.hpMax = Math.max(G.hpCur, data.hp_max ?? 100);
-        G.atkP = data.attack_power ?? 50;
-        G.defP = data.defense_power ?? 50;
-        G.spdP = data.speed_power ?? 50;
-      }
-    } catch (e) { console.error('[Arena] load stats', e); }
+  // 2) reset stato partita
+  G.wave = 1;
+  G.score = 0;
+  G.enemies = [];
+  G.pet = {
+    x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,
+    px: 0, py: 0, dirX: 0, dirY: 0,
+    moving: false, iFrameUntil: 0,
+    cdAtk: 0, cdChg: 0, cdDash: 0,
+    facing: 'down',
+    animTime: 0,
+    stepFrame: 0
+  };
 
-    G.wave = 1;
-    G.score = 0;
-    G.enemies = []; // ✅ reset
-    // nascondi HUD DOM e bottoni azione (usiamo HUD in-canvas)
-DOM.hudBox && (DOM.hudBox.style.display = 'none');
-DOM.btnAtk && (DOM.btnAtk.style.display = 'none');
-DOM.btnChg && (DOM.btnChg.style.display = 'none');
-DOM.btnDash && (DOM.btnDash.style.display = 'none');
+  // 3) asset & rendering
+  initAtlasSprites();
+  buildDecorFromAtlas();
+  const petNum = detectPetNumFromDom();
+  loadPetSprites(petNum);
+  loadEnemySprites?.();
 
-G.pet = {
-  x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,
-  px: 0, py: 0, dirX: 0, dirY: 0,
-  moving: false, iFrameUntil: 0,
-  cdAtk: 0, cdChg: 0, cdDash: 0,
-  facing: 'down',
-  animTime: 0,
-  stepFrame: 0
-};
-    initAtlasSprites();
-    buildDecorFromAtlas();
-    buildGoblinFromAtlas();
-    buildBatFromAtlas();
-    const petNum = detectPetNumFromDom();
-    loadPetSprites(petNum);
-    loadEnemySprites();
-    await enterFullscreen(); // opzionale
-    resizeCanvas();
-    syncHUD();
-    spawnWave(G.wave);
+  resizeCanvas();
+  syncHUD();
+  spawnWave(G.wave);
 
-    DOM.modal?.classList.remove('hidden');
-    G.lastT = performance.now();
-    G.playing = true;
-    loop();
-  }
+  DOM.modal?.classList.remove('hidden');
+  G.lastT = performance.now();
+  G.playing = true;
+  loop();
+}
+
 
   async function gameOver() {
     G.playing = false;

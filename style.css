@@ -1635,7 +1635,7 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   display: block;
-  box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  box-shadow: 0 8px 32px rgb(0, 0, 0);
   background: #000; /* fallback */
 }
 

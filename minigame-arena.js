@@ -1039,74 +1039,79 @@ function spawnWave(n) {
 function setupMobileControlsArena(){
   const base  = DOM.joyBase;
   const stick = DOM.joyStick;
+  if (!base || !stick) return;
 
-  if (!base || !stick) return; // niente overlay => esci
-
-  const radius = base.clientWidth * 0.5;
-
-  // riposiziona visivamente lo stick
   const setStick = (dx, dy) => {
     stick.style.left = `${50 + dx*100}%`;
     stick.style.top  = `${50 + dy*100}%`;
     stick.style.transform = `translate(-50%, -50%)`;
   };
 
-  // —— Joystick —— //
-  const onStart = (ev) => {
+  const start = (ev) => {
     ev.preventDefault();
     G.joy.active = true;
     setStick(0,0);
   };
 
-  const onMove = (ev) => {
+  const move = (ev) => {
     if (!G.joy.active) return;
     ev.preventDefault();
 
-    const t = (ev.touches ? ev.touches[0] : ev);
+    // misura SEMPRE ora (evita radius 0)
     const rect = base.getBoundingClientRect();
+    const radius = Math.max(1, rect.width * 0.5);  // guardia
     const cx = rect.left + rect.width  / 2;
     const cy = rect.top  + rect.height / 2;
 
-    // distanza normalizzata dal centro
+    const t = (ev.touches ? ev.touches[0] : ev);
     const dx = (t.clientX - cx) / radius;
     const dy = (t.clientY - cy) / radius;
 
     let len = Math.hypot(dx, dy);
     let vx = 0, vy = 0;
-
-    if (len > 0.12) {          // deadzone
+    if (len > 0.12) {              // deadzone
       const k = Math.min(1, len);
       vx = (dx / len) * k;
-      vy = (dy / len) * k;     // positivo = giù (coerente con update)
+      vy = (dy / len) * k;         // y+ = giù
     }
+
+    // se per qualche motivo sono NaN, azzera
+    if (!Number.isFinite(vx)) vx = 0;
+    if (!Number.isFinite(vy)) vy = 0;
 
     G.joy.vx = vx;
     G.joy.vy = vy;
 
-    setStick(vx * 0.35, vy * 0.35); // sposta la “pallina”
+    setStick(vx * 0.35, vy * 0.35);
   };
 
-  const onEnd = (ev) => {
-    ev.preventDefault();
+  const end = (ev) => {
+    ev && ev.preventDefault();
     G.joy.active = false;
     G.joy.vx = 0; G.joy.vy = 0;
     setStick(0,0);
   };
 
-  base.addEventListener('touchstart', onStart,  { passive:false });
-  base.addEventListener('touchmove',  onMove,   { passive:false });
-  base.addEventListener('touchend',   onEnd,    { passive:false });
-  base.addEventListener('touchcancel',onEnd,    { passive:false });
+  // touch
+  base.addEventListener('touchstart',  start, { passive:false });
+  base.addEventListener('touchmove',   move,  { passive:false });
+  base.addEventListener('touchend',    end,   { passive:false });
+  base.addEventListener('touchcancel', end,   { passive:false });
 
-  // —— Bottoni azione (tap immediato, compat Android/iOS) —— //
+  // pointer (Android Chrome a volte preferisce questi)
+  base.addEventListener('pointerdown', start, { passive:false });
+  base.addEventListener('pointermove', move,  { passive:false });
+  base.addEventListener('pointerup',   end,   { passive:false });
+
+  // Bottoni azione – tap immediato
   const fire = (fn) => (e) => { e.preventDefault(); if (G.playing) fn(); };
-
   ['touchstart','pointerdown'].forEach(evName => {
     DOM.btnAtk?.addEventListener(evName,  fire(tryAttackBasic),   { passive:false });
     DOM.btnChg?.addEventListener(evName,  fire(tryAttackCharged), { passive:false });
     DOM.btnDash?.addEventListener(evName, fire(tryDash),          { passive:false });
   });
 }
+
 
 
 
@@ -1153,10 +1158,20 @@ DOM.hudBox && (DOM.hudBox.style.display = 'none');
   }
 
   // nascondi HUD DOM e i vecchi bottoni
-  DOM.hudBox && (DOM.hudBox.style.display = 'none');
-  DOM.btnAtk && (DOM.btnAtk.style.display = 'none');
-  DOM.btnChg && (DOM.btnChg.style.display = 'none');
+// HUD DOM off (usiamo HUD in-canvas)
+DOM.hudBox && (DOM.hudBox.style.display = 'none');
+
+// su mobile vogliamo i 3 bottoni azione visibili
+if (isMobile) {
+  DOM.btnAtk  && (DOM.btnAtk.style.display  = '');
+  DOM.btnChg  && (DOM.btnChg.style.display  = '');
+  DOM.btnDash && (DOM.btnDash.style.display = '');
+} else {
+  DOM.btnAtk  && (DOM.btnAtk.style.display  = 'none');
+  DOM.btnChg  && (DOM.btnChg.style.display  = 'none');
   DOM.btnDash && (DOM.btnDash.style.display = 'none');
+}
+
 
 
 setupMobileControlsArena();

@@ -221,26 +221,35 @@
 <!-- ===== MODALE MINIGIOCO ARENA ===== -->
 <div id="arena-minigame-modal" class="hidden">
   <div class="arena-wrap">
+    <!-- Canvas di gioco -->
     <canvas id="arena-canvas"></canvas>
 
     <!-- Joystick mobile (sinistra) -->
-    <div id="arena-joystick-overlay" class="arena-joystick-overlay hidden">
+    <div id="arena-joystick-overlay" class="arena-joystick-overlay hidden" aria-hidden="true">
       <div id="arena-joy-base" class="arena-joy-base">
         <div id="arena-joy-stick" class="arena-joy-stick"></div>
       </div>
     </div>
 
     <!-- Tasti azione mobile (destra) -->
-    <div id="arena-actions-overlay" class="arena-actions-overlay hidden">
+    <div id="arena-actions-overlay" class="arena-actions-overlay hidden" aria-hidden="true">
       <button id="arena-attack-btn" class="arena-action-btn" aria-label="Attacco base">A</button>
       <button id="arena-charge-btn" class="arena-action-btn" aria-label="Colpo caricato">B</button>
       <button id="arena-dash-btn"   class="arena-action-btn" aria-label="Scatto">⚡</button>
     </div>
   </div>
 
-  <!-- HUD DOM non più usato, ma lo lascio se servisse -->
-  <div id="arena-hud" class="arena-hud"></div>
+  <!-- HUD DOM (solo mobile, fuori dal canvas) -->
+  <div id="arena-hud" class="arena-hud" role="status" aria-live="polite">
+    <div class="row">
+      <span>Wave #<span id="hud-wave">1</span></span>
+      <span>Punti <span id="hud-score">0</span></span>
+    </div>
+    <div class="hpbar"><div id="hud-hp" class="hpfill" style="width:0%"></div></div>
+    <div id="hud-hp-text" class="hptext">— / —</div>
+  </div>
 </div>
+
 
 
 

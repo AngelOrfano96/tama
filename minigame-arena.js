@@ -107,6 +107,7 @@ async function enterFullscreen() {
 }
 
 function drawHUDInCanvas() {
+    if (isMobile) return;
   const W = Cfg.roomW * G.tile;
 
   // pannello compatto a dimensione quasi fissa (leggermente responsive)
@@ -173,31 +174,26 @@ function drawHUDInCanvas() {
 
 
 function resizeCanvas() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  let vw = window.innerWidth;
+  let vh = window.innerHeight;
 
-  // spazio disponibile per ogni tile
+  const gutter = isMobile ? 16 : 0;                // 👈 margine laterale
+  vw = Math.max(200, vw - gutter);
+
   const tileFloat = Math.min(vw / Cfg.roomW, vh / Cfg.roomH);
-
   const base = 16;
-
-  // mobile vs desktop
   const minTile = isMobile ? 56 : 32;
   const maxTile = isMobile ? 192 : 384;
-
-  // snappa a multipli di 16
   let tile = Math.round(tileFloat / base) * base;
   if (tile < minTile) tile = minTile;
   if (tile > maxTile) tile = maxTile;
 
-  // DPR
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
   const widthCss  = Cfg.roomW * tile;
   const heightCss = Cfg.roomH * tile;
 
   DOM.canvas.width  = widthCss * dpr;
   DOM.canvas.height = heightCss * dpr;
-
   DOM.canvas.style.width  = `${widthCss}px`;
   DOM.canvas.style.height = `${heightCss}px`;
 
@@ -205,18 +201,16 @@ function resizeCanvas() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
 
-  // aggiorna tile globale
   const tileChanged = (G.tile !== tile);
   G.tile = tile;
   if (tileChanged) {
     G.renderCache.arenaLayer = null;
     G.renderCache.tile = tile;
   }
-
-  // riallinea pet
   G.pet.px = G.pet.x * tile;
   G.pet.py = G.pet.y * tile;
 }
+
 
 
 
@@ -473,6 +467,36 @@ function loadPetSprites(petNum = '1') {
   function syncHUD() {
 
   }
+
+function syncHUD(){
+  if (!isMobile) return;
+  // crea una volta l’HUD
+  if (!DOM._hudInit){
+    DOM.hudBox.innerHTML = `
+      <div class="row">
+        <span>Wave #<span id="hud-wave">1</span></span>
+        <span>Punti <span id="hud-score">0</span></span>
+      </div>
+      <div class="hpbar"><div id="hud-hp" class="hpfill"></div></div>
+      <div id="hud-hp-text" style="font-weight:700">${G.hpCur} / ${G.hpMax}</div>
+    `;
+    DOM.hudBox.classList.add('show');
+    DOM._hudInit = true;
+  }
+  const hpPct = Math.max(0, Math.min(1, G.hpCur / Math.max(1, G.hpMax)));
+  const waveEl  = document.getElementById('hud-wave');
+  const scoreEl = document.getElementById('hud-score');
+  const hpTxt   = document.getElementById('hud-hp-text');
+  const hpFill  = document.getElementById('hud-hp');
+  if (waveEl)  waveEl.textContent  = (G.wave|0);
+  if (scoreEl) scoreEl.textContent = (G.score|0);
+  if (hpTxt)   hpTxt.textContent   = `${G.hpCur|0} / ${G.hpMax|0}`;
+  if (hpFill){
+    hpFill.style.width = `${Math.round(hpPct*100)}%`;
+    hpFill.style.background = hpPct>0.5 ? '#22c55e' : hpPct>0.25 ? '#f59e0b' : '#ef4444';
+  }
+}
+
 
   function petSpeed() {
     const base = isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop;
@@ -1104,12 +1128,13 @@ function setupMobileControlsArena(){
   base.addEventListener('pointerup',   end,   { passive:false });
 
   // Bottoni azione – tap immediato
-  const fire = (fn) => (e) => { e.preventDefault(); if (G.playing) fn(); };
-  ['touchstart','pointerdown'].forEach(evName => {
-    DOM.btnAtk?.addEventListener(evName,  fire(tryAttackBasic),   { passive:false });
-    DOM.btnChg?.addEventListener(evName,  fire(tryAttackCharged), { passive:false });
-    DOM.btnDash?.addEventListener(evName, fire(tryDash),          { passive:false });
-  });
+const fire = (fn) => (e) => { e.preventDefault(); if (G.playing) fn(); };
+['touchstart','pointerdown'].forEach(evName => {
+  DOM.btnAtk?.addEventListener(evName,  fire(tryAttackBasic),   { passive:false });
+  DOM.btnChg?.addEventListener(evName,  fire(tryAttackCharged), { passive:false });
+  DOM.btnDash?.addEventListener(evName, fire(tryDash),          { passive:false });
+});
+
 }
 
 
@@ -1162,15 +1187,19 @@ DOM.hudBox && (DOM.hudBox.style.display = 'none');
 DOM.hudBox && (DOM.hudBox.style.display = 'none');
 
 // su mobile vogliamo i 3 bottoni azione visibili
-if (isMobile) {
+// HUD DOM on (mobile) / off (desktop)
+if (isMobile){
+  DOM.hudBox && DOM.hudBox.classList.add('show');
   DOM.btnAtk  && (DOM.btnAtk.style.display  = '');
   DOM.btnChg  && (DOM.btnChg.style.display  = '');
   DOM.btnDash && (DOM.btnDash.style.display = '');
 } else {
+  DOM.hudBox && DOM.hudBox.classList.remove('show');
   DOM.btnAtk  && (DOM.btnAtk.style.display  = 'none');
   DOM.btnChg  && (DOM.btnChg.style.display  = 'none');
   DOM.btnDash && (DOM.btnDash.style.display = 'none');
 }
+
 
 
 

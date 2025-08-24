@@ -1693,3 +1693,61 @@ body {
   #arena-joystick-overlay, #arena-actions-overlay{ display:none !important; }
 }
 
+
+
+
+
+
+
+/* ===== Arena: UI mobile ===== */
+@media (max-width: 850px){
+  /* canvas un filo più stretto */
+  #arena-canvas { max-width: 96vw; height: auto; }
+
+  /* pill HUD DOM sopra il canvas */
+  .arena-hud{
+    position: fixed;
+    left: 50%;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    transform: translateX(-50%);
+    background: #0d0f12;
+    color: #e5e7eb;
+    border-radius: 14px;
+    padding: 10px 14px 8px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.35);
+    font: 600 16px system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    display: none;
+    z-index: 10000;
+    text-align: center;
+    min-width: 240px;
+  }
+  .arena-hud.show { display: block; }
+  .arena-hud .row { display:flex; gap:18px; justify-content:center; }
+  .arena-hud .hpbar{
+    width: 56vw; max-width: 360px; height: 12px;
+    background:#1f242b; border-radius:999px; overflow:hidden;
+    margin: 6px auto 2px;
+  }
+  .arena-hud .hpfill{ height:100%; width:0; background:#22c55e; }
+
+  /* cluster bottoni mosse a destra */
+  .arena-actions{
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    display:flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10000;
+  }
+  .arena-actions button{
+    width: 62px; height: 62px;
+    border: 0; border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color:#111; font-weight: 800;
+    box-shadow: 0 10px 24px rgba(0,0,0,.25);
+  }
+}
+@media (min-width: 851px){
+  .arena-actions{ display:none; } /* solo mobile */
+}

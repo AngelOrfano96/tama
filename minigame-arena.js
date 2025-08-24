@@ -96,6 +96,82 @@ async function enterFullscreen() {
   } catch (e) { console.warn('Fullscreen failed', e); }
 }
 
+function drawHUDInCanvas() {
+  const tile = G.tile;
+
+  // pannello dimensioni reattive ai tile
+  const pad = Math.round(tile * 0.3);
+  const panelW = Math.round(tile * 5.5);
+  const panelH = Math.round(tile * 1.6);
+  const x = Math.round((Cfg.roomW * tile - panelW) / 2);
+  const y = Math.round(tile * 0.35);
+
+  // sfondo scuro + bordo sottile
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#0d0f12';
+  roundRect(ctx, x, y, panelW, panelH, Math.round(tile * 0.25));
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#2a2f36';
+  roundRect(ctx, x, y, panelW, panelH, Math.round(tile * 0.25));
+  ctx.stroke();
+
+  // testo (centrato)
+  const lineY1 = y + Math.round(panelH * 0.42);
+  const lineY2 = y + Math.round(panelH * 0.78);
+
+  ctx.fillStyle = '#e5e7eb';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // font proporzionali
+  const f1 = Math.max(12, Math.round(tile * 0.42)); // Wave/Punteggio
+  const f2 = Math.max(10, Math.round(tile * 0.36)); // valori
+  ctx.font = `600 ${f1}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+
+  // Wave e Punteggio (due colonne)
+  const colL = x + Math.round(panelW * 0.28);
+  const colR = x + Math.round(panelW * 0.72);
+
+  ctx.fillText(`Wave #${G.wave|0}`,  colL, lineY1);
+  ctx.fillText(`Punti ${G.score|0}`, colR, lineY1);
+
+  // Barra HP (sotto, al centro)
+  const barW = Math.round(panelW * 0.82);
+  const barH = Math.max(8, Math.round(tile * 0.24));
+  const barX = Math.round(x + (panelW - barW)/2);
+  const barY = Math.round(y + panelH - barH - Math.max(6, tile * 0.18));
+
+  // contorno barra
+  ctx.strokeStyle = '#3a414b';
+  ctx.lineWidth = 2;
+  roundRect(ctx, barX, barY, barW, barH, Math.round(barH/2));
+  ctx.stroke();
+
+  // fill HP
+  const hpPerc = Math.max(0, Math.min(1, G.hpCur / Math.max(1, G.hpMax)));
+  const fillW = Math.round(barW * hpPerc);
+
+  // fondo barra
+  ctx.fillStyle = '#1f242b';
+  roundRect(ctx, barX, barY, barW, barH, Math.round(barH/2));
+  ctx.fill();
+
+  // riempimento
+  ctx.fillStyle = hpPerc > 0.5 ? '#22c55e' : hpPerc > 0.25 ? '#f59e0b' : '#ef4444';
+  roundRect(ctx, barX, barY, fillW, barH, Math.round(barH/2));
+  ctx.fill();
+
+  // testo HP sopra la barra
+  ctx.font = `600 ${f2}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillText(`${G.hpCur|0} / ${G.hpMax|0}`, x + panelW/2, barY - Math.max(2, tile*0.06));
+
+  ctx.restore();
+}
 
 function resizeCanvas() {
   // spazio disponibile = viewport (se hai HUD fisso sopra/sotto, sottrai la sua altezza)
@@ -394,12 +470,7 @@ function loadPetSprites(petNum = '1') {
 
   // HUD compatto
   function syncHUD() {
-    if (!DOM.hudBox) return;
-    DOM.hudBox.innerHTML = `
-      <div class="row"><span>Wave</span><b>#${G.wave}</b></div>
-      <div class="row"><span>Punteggio</span><b>${G.score}</b></div>
-      <div class="row"><span>HP</span><b>${G.hpCur} / ${G.hpMax}</b></div>
-    `;
+
   }
 
   function petSpeed() {
@@ -727,6 +798,19 @@ for (const e of G.enemies) {
     }
   }
 
+
+function roundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+
 function render() {
   // pulizia
   ctx.clearRect(0, 0, Cfg.roomW * G.tile, Cfg.roomH * G.tile);
@@ -846,6 +930,10 @@ function render() {
       }
     }
 
+    // HUD in-canvas (centrato in alto)
+drawHUDInCanvas();
+
+
     if (img && img.complete) ctx.drawImage(img, px, py, sz, sz);
     else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
   }
@@ -939,6 +1027,12 @@ function spawnWave(n) {
     G.wave = 1;
     G.score = 0;
     G.enemies = []; // ✅ reset
+    // nascondi HUD DOM e bottoni azione (usiamo HUD in-canvas)
+DOM.hudBox && (DOM.hudBox.style.display = 'none');
+DOM.btnAtk && (DOM.btnAtk.style.display = 'none');
+DOM.btnChg && (DOM.btnChg.style.display = 'none');
+DOM.btnDash && (DOM.btnDash.style.display = 'none');
+
 G.pet = {
   x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,
   px: 0, py: 0, dirX: 0, dirY: 0,
@@ -1019,9 +1113,9 @@ G.pet = {
   });
 
   // Mobile buttons (se li hai messi)
-  DOM.btnAtk?.addEventListener('click', () => { if (G.playing) tryAttackBasic(); });
-  DOM.btnChg?.addEventListener('click', () => { if (G.playing) tryAttackCharged(); });
-  DOM.btnDash?.addEventListener('click', () => { if (G.playing) tryDash(); });
+  //DOM.btnAtk?.addEventListener('click', () => { if (G.playing) tryAttackBasic(); });
+//  DOM.btnChg?.addEventListener('click', () => { if (G.playing) tryAttackCharged(); });
+//  DOM.btnDash?.addEventListener('click', () => { if (G.playing) tryDash(); });
 
   window.addEventListener('resize', () => { if (G.playing) { resizeCanvas(); syncHUD(); } });
 })();

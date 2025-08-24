@@ -1932,3 +1932,54 @@ body {
 .btn-dash{left: calc(50% - var(--btn)/2);           top: calc(50% - var(--btn) - var(--gap)); }
 
 .arena-action-btn:active{ transform: scale(0.96); }
+
+
+
+/* bottone classifica vicino al pulsante minigioco */
+.lb-icon-btn {
+  margin-left: 6px;
+  padding: 0 10px;
+  font-size: 20px;
+  line-height: 32px;
+  border-radius: 8px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.lb-icon-btn:hover {
+  background: #334155;
+}
+
+/* modal leaderboard (stile già visto) */
+.arena-lb-modal.hidden{ display:none; }
+.arena-lb-modal{
+  position: fixed; inset:0; z-index: 80;
+  background: rgba(0,0,0,.45);
+  display:flex; align-items:center; justify-content:center;
+  padding: 16px;
+}
+.arena-lb-card{
+  width: min(720px, 96vw);
+  background: #0c1117; color:#e5e7eb;
+  border:1px solid #243040; border-radius:16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.45);
+}
+.arena-lb-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:1px solid #243040;
+}
+.arena-lb-close{
+  background:transparent; color:#9ca3af; border:0; font-size:18px;
+}
+.arena-lb-body{ max-height: min(70vh, 520px); overflow:auto; padding: 8px 0; }
+
+.arena-lb-table{ width:100%; border-collapse: collapse; }
+.arena-lb-table th, .arena-lb-table td{
+  padding: 10px 14px; border-bottom: 1px solid #1c2430; text-align: left;
+  font-size: 14px;
+}
+.arena-lb-table th{ color:#9fb1c8; font-weight:600; position:sticky; top:0; background:#0c1117; }
+.arena-lb-table tr:nth-child(even){ background:#0f1621; }
+.arena-lb-table .rank{ width:60px; text-align:center; font-weight:700; }

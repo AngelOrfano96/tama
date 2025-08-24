@@ -273,10 +273,24 @@
 
 
         <!-- Qui in futuro puoi aggiungere altri bottoni/mini giochi -->
-         <div class="minigame-row">
+ <div class="minigame-row">
   <button id="btn-minigame-arena" class="minigame-btn">Arena del Colosseo</button>
   <button id="btn-open-leaderboard-arena" class="lb-icon-btn" title="Classifica Arena" aria-label="Apri classifica">🏆</button>
 </div>
+
+<!-- Modal Leaderboard -->
+<div id="arena-leaderboard-modal" class="arena-lb-modal hidden" role="dialog" aria-modal="true">
+  <div class="arena-lb-card">
+    <div class="arena-lb-header">
+      <h3>Classifica Arena</h3>
+      <button id="arena-lb-close" class="arena-lb-close">✕</button>
+    </div>
+    <div id="arena-lb-body" class="arena-lb-body">
+      <!-- tabella leaderboard qui -->
+    </div>
+  </div>
+</div>
+
         <br>
         <button id="btn-minigame-cancel" class="minigame-btn" style="margin-top:18px;">Chiudi</button>
       </div>

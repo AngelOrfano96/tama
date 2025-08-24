@@ -1,4 +1,76 @@
 // === MINI GIOCO ARENA — versione “solo arena” (IIFE) ======================
+// === Leaderboard Arena =====================================================
+(function setupArenaLeaderboardUI(){
+  const btn  = document.getElementById('btn-open-leaderboard-arena');
+  const modal= document.getElementById('arena-leaderboard-modal');
+  const close= document.getElementById('arena-lb-close');
+  if (!btn || !modal || !close) return;
+
+  btn.addEventListener('click', async () => {
+    await openArenaLeaderboard();
+  });
+  close.addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+  });
+})();
+
+async function openArenaLeaderboard(){
+  const modal = document.getElementById('arena-leaderboard-modal');
+  const body  = document.getElementById('arena-lb-body');
+  if (!modal || !body) return;
+
+  body.innerHTML = `<div style="padding:16px">Caricamento…</div>`;
+  modal.classList.remove('hidden');
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('arena_leaderboard') // ← la VIEW definita lato SQL
+      .select('*')
+      .limit(100);
+    if (error) throw error;
+
+    renderArenaLeaderboard(body, data || []);
+  } catch (err) {
+    console.error('[Arena LB] fetch', err);
+    body.innerHTML = `<div style="padding:16px;color:#fca5a5">Errore nel caricamento.</div>`;
+  }
+}
+
+function renderArenaLeaderboard(container, rows){
+  const fmt = (d)=> new Date(d).toLocaleString();
+  const html = `
+    <table class="arena-lb-table">
+      <thead>
+        <tr>
+          <th class="rank">#</th>
+          <th>Giocatore</th>
+          <th>Punti</th>
+          <th>Wave</th>
+          <th>Data</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td class="rank">${r.rank}</td>
+            <td>${escapeHtml(r.username || 'Player')}</td>
+            <td>${r.score|0}</td>
+            <td>${r.wave|0}</td>
+            <td>${fmt(r.created_at)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+  container.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
+
 (() => {
   const Cfg = {
     roomW: 10,       // stanza unica

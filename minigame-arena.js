@@ -14,6 +14,27 @@
     baseMoveTile: 64
   };
 
+  const EnemyTuning = {
+  // velocità (più lenti del pet)
+  spdMul: 0.65,                    // 65% della tua velocità base
+
+  // attacco melee
+  atkRange: 0.9,                   // distanza (in “tile” logici) per iniziare windup
+  windupMs: 350,                   // “carica” prima del colpo
+  swingMs: 120,                    // finestra in cui il colpo può fare danno
+  recoverMs: 300,                  // recovery dopo il colpo
+  cooldownMs: 700,                 // tempo minimo tra un attacco e il successivo
+
+  // danno
+  dmg: 10,                         // danno per colpo
+  iframesMs: 350,                  // invulnerabilità breve per il pet dopo un colpo
+
+  // separazione
+  sepRadius: 0.55,                 // raggio sotto cui si respingono
+  sepStrength: 380,                // forza “repulsione” (pixel/s)
+};
+
+
   const DOM = {
     modal:  document.getElementById('arena-minigame-modal'),
     canvas: document.getElementById('arena-canvas'),
@@ -159,6 +180,7 @@
         const dmg = computeDamage(power, G.atkP, e.defP);
         e.hp -= dmg;
         G.score += 1 + Math.floor(dmg / 5);
+        syncHUD();
       }
     }
   }
@@ -184,6 +206,7 @@
         const nx = Math.sign(e.px - G.pet.px), ny = Math.sign(e.py - G.pet.py);
         e.px += nx * k; e.py += ny * k;
         G.score += 3 + Math.floor(dmg / 4);
+        syncHUD();
       }
     }
   }
@@ -198,6 +221,10 @@
     const ny = (G.pet.facing === 'down')  ? 1 : (G.pet.facing === 'up')   ? -1 : 0;
     G.pet.px += nx * dist;
     G.pet.py += ny * dist;
+    // clamp ai confini dell’arena
+G.pet.px = Math.max(G.tile, Math.min((Cfg.roomW-2)*G.tile, G.pet.px));
+G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py));
+
   }
 
   // ---------- Overlap helper ----------
@@ -230,29 +257,155 @@
     G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py + dy * spd * dt));
 
     // nemici: muoviti verso il pet + attaccare se vicini
-    const now = performance.now();
-    for (const e of G.enemies) {
-      const vx = G.pet.px - e.px, vy = G.pet.py - e.py;
-      const d = Math.hypot(vx, vy) || 1;
-      const nx = vx / d, ny = vy / d;
+// ---------- ENEMIES: separation + FSM attack ----------
+const now = performance.now();
 
-      const enemySpd = (isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop) * (e.spdMul || 1);
-      e.px += nx * enemySpd * dt;
-      e.py += ny * enemySpd * dt;
-
-      // attacco nemico se a contatto
-      const touching = rectOverlap(G.pet.px+6, G.pet.py+6, G.tile-12, G.tile-12, e.px+6, e.py+6, G.tile-12, G.tile-12);
-      if (touching && e.cd <= 0) {
-        e.cd = 0.8; // cadenza
-        // se non siamo in iframe
-        if (now > G.pet.iFrameUntil) {
-          const dmg = computeDamage(10, e.atkP, G.defP);
-          G.hpCur = Math.max(0, G.hpCur - dmg);
-          if (G.hpCur <= 0) { gameOver(); return; }
-        }
-      }
-      e.cd = Math.max(0, e.cd - dt);
+// 2.1) SEPARAZIONE (repulsione morbida tra nemici)
+for (let i = 0; i < G.enemies.length; i++) {
+  for (let j = i + 1; j < G.enemies.length; j++) {
+    const a = G.enemies[i], b = G.enemies[j];
+    const dx = b.px - a.px, dy = b.py - a.py;
+    const dist = Math.hypot(dx, dy) || 1;
+    const desired = EnemyTuning.sepRadius * G.tile; // raggio in pixel
+    if (dist < desired) {
+      const push = (desired - dist) / desired;      // 0..1
+      const nx = dx / dist, ny = dy / dist;
+      const strength = EnemyTuning.sepStrength * dt * push; // pixel
+      // spingi in direzioni opposte (mezzo a testa)
+      a.px -= nx * strength * 0.5;
+      a.py -= ny * strength * 0.5;
+      b.px += nx * strength * 0.5;
+      b.py += ny * strength * 0.5;
     }
+  }
+}
+
+// 2.2) AI per singolo nemico
+for (const e of G.enemies) {
+  // velocità: più lenti del pet
+  const basePet = isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop;
+  const enemySpd = basePet * (EnemyTuning.spdMul || 0.65) * (e.spdMul || 1);
+
+  // vettore verso il pet
+  const vx = G.pet.px - e.px, vy = G.pet.py - e.py;
+  const d = Math.hypot(vx, vy) || 1;
+  const nx = vx / d, ny = vy / d;
+
+  // distanza in “tile” logici (comodo per le soglie)
+  const dTiles = d / G.tile;
+
+  // clampa ai confini dell’arena (lascia un margine)
+  const clampToArena = () => {
+    const minX = 1 * G.tile, maxX = (Cfg.roomW - 2) * G.tile;
+    const minY = 1 * G.tile, maxY = (Cfg.roomH - 2) * G.tile;
+    e.px = Math.max(minX, Math.min(maxX, e.px));
+    e.py = Math.max(minY, Math.min(maxY, e.py));
+  };
+
+  // helper per danno nello swing: piccola hitbox frontale rispetto al nemico
+  const tryHitPetDuringSwing = () => {
+    // skip se in i-frames (dash)
+    if (now <= G.pet.iFrameUntil) return;
+
+    // hitbox “fronte” nemico (mezzo tile davanti)
+    const hw = G.tile * 0.7, hh = G.tile * 0.7;
+    let hx = e.px, hy = e.py;
+    // scegli una direzione “grossolana” dal vettore verso il pet
+    const ax = Math.abs(nx), ay = Math.abs(ny);
+    if (ax > ay) { // orizzontale
+      if (nx > 0) hx += G.tile * 0.6; else hx -= hw;
+    } else {       // verticale
+      if (ny > 0) hy += G.tile * 0.6; else hy -= hh;
+    }
+
+    const hit = (
+      hx < G.pet.px + (G.tile - 12) &&
+      hx + hw > G.pet.px + 6 &&
+      hy < G.pet.py + (G.tile - 12) &&
+      hy + hh > G.pet.py + 6
+    );
+    if (!hit) return;
+
+    // anti-doppio-hit nello stesso swing
+    if (now - e.lastHitTs < EnemyTuning.swingMs) return;
+    e.lastHitTs = now;
+
+    const dmg = computeDamage(EnemyTuning.dmg, e.atkP || 50, G.defP || 50);
+    G.hpCur = Math.max(0, G.hpCur - dmg);
+    if (G.hpCur <= 0) { gameOver(); return; }
+    // i-frames per il pet dopo il colpo
+    G.pet.iFrameUntil = now + EnemyTuning.iframesMs;
+    syncHUD();
+  };
+
+  // FSM
+  switch (e.state) {
+    case 'chase': {
+      // muovi verso il pet, ma senza “incollarti” (fermati poco prima)
+      if (dTiles > EnemyTuning.atkRange * 0.85) {
+        e.px += nx * enemySpd * dt;
+        e.py += ny * enemySpd * dt;
+        clampToArena();
+      }
+      // entra in windup solo se vicino e cooldown ok
+      if (dTiles <= EnemyTuning.atkRange && now >= e.nextAtkReadyTs) {
+        e.state = 'windup';
+        e.tState = 0;
+      }
+      break;
+    }
+
+    case 'windup': {
+      e.tState += dt * 1000;
+      // rimani fermo a “caricare”
+      if (e.tState >= EnemyTuning.windupMs) {
+        e.state = 'attack';
+        e.tState = 0;
+        // micro-impulso verso il pet per “affondare” il colpo
+        e.px += nx * (G.tile * 0.25);
+        e.py += ny * (G.tile * 0.25);
+        clampToArena();
+      }
+      break;
+    }
+
+    case 'attack': {
+      e.tState += dt * 1000;
+
+      // solo durante la finestra di swing fai danno
+      if (e.tState <= EnemyTuning.swingMs) {
+        tryHitPetDuringSwing();
+      }
+
+      // fine attacco → recovery
+      if (e.tState >= EnemyTuning.swingMs + EnemyTuning.recoverMs) {
+        e.state = 'recover';
+        e.tState = 0;
+        e.nextAtkReadyTs = now + EnemyTuning.cooldownMs; // cooldown prima del prossimo windup
+      }
+      break;
+    }
+
+    case 'recover': {
+      e.tState += dt * 1000;
+      // piccola “indietreggiata” (facoltativa)
+      e.px -= nx * enemySpd * 0.25 * dt;
+      e.py -= ny * enemySpd * 0.25 * dt;
+      clampToArena();
+
+      // finita la recovery, torna a inseguire
+      if (e.tState >= EnemyTuning.recoverMs * 0.6) {
+        e.state = 'chase';
+        e.tState = 0;
+      }
+      break;
+    }
+  }
+}
+for (const e of G.enemies) {
+  e.px = Math.max(G.tile, Math.min((Cfg.roomW - 2) * G.tile, e.px));
+  e.py = Math.max(G.tile, Math.min((Cfg.roomH - 2) * G.tile, e.py));
+}
 
     // rimuovi morti
     G.enemies = G.enemies.filter(e => e.hp > 0);
@@ -267,29 +420,48 @@
     }
   }
 
-  function render() {
-    ctx.clearRect(0,0,DOM.canvas.width, DOM.canvas.height);
+function render() {
+  // meglio usare dimensioni visive del canvas; con la transform DPR va bene così:
+  ctx.clearRect(0, 0, Cfg.roomW * G.tile, Cfg.roomH * G.tile);
 
-    // pavimento semplice
-    ctx.fillStyle = '#111';
-    ctx.fillRect(0,0,Cfg.roomW*G.tile, Cfg.roomH*G.tile);
-    ctx.fillStyle = '#222';
-    ctx.fillRect(G.tile, G.tile, (Cfg.roomW-2)*G.tile, (Cfg.roomH-2)*G.tile);
+  // pavimento
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, Cfg.roomW * G.tile, Cfg.roomH * G.tile);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(G.tile, G.tile, (Cfg.roomW - 2) * G.tile, (Cfg.roomH - 2) * G.tile);
 
-    // pet
-    ctx.fillStyle = '#ffd54f';
-    ctx.fillRect(G.pet.px+6, G.pet.py+6, G.tile-12, G.tile-12);
-
-    // nemici
-    for (const e of G.enemies) {
-      ctx.fillStyle = (e.type === 'bat') ? '#a78bfa' : '#e74c3c';
-      ctx.fillRect(e.px+8, e.py+8, G.tile-16, G.tile-16);
-      // barra HP
-      const w = G.tile-16, hpw = Math.max(0, Math.round(w * (e.hp / e.hpMax)));
-      ctx.fillStyle = '#000'; ctx.fillRect(e.px+8, e.py+4, w, 3);
-      ctx.fillStyle = '#4ade80'; ctx.fillRect(e.px+8, e.py+4, hpw, 3);
+  // NEMICI
+  for (const e of G.enemies) {
+    // telegraph sotto al corpo
+    if (e.state === 'windup') {
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#ff4d4f';
+      ctx.beginPath();
+      ctx.arc(e.px + G.tile / 2, e.py + G.tile / 2, G.tile * 0.65, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
+
+    // corpo
+    ctx.fillStyle = (e.type === 'bat') ? '#a78bfa' : '#e74c3c';
+    ctx.fillRect(e.px + 8, e.py + 8, G.tile - 16, G.tile - 16);
+
+    // barra HP
+    const w = G.tile - 16;
+    const hpw = Math.max(0, Math.round(w * (e.hp / e.hpMax)));
+    ctx.fillStyle = '#000';
+    ctx.fillRect(e.px + 8, e.py + 4, w, 3);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(e.px + 8, e.py + 4, hpw, 3);
   }
+
+  // PET (disegnato sopra i nemici)
+  ctx.fillStyle = '#ffd54f';
+  ctx.fillRect(G.pet.px + 6, G.pet.py + 6, G.tile - 12, G.tile - 12);
+}
+
+
 
   function loop() {
     if (!G.playing) return;
@@ -303,27 +475,61 @@
   }
 
   // ---------- Wave spawning ----------
-  function spawnWave(n) {
-    // scala lieve
-    const scale = 1 + (n - 1) * 0.06;
-    const count = 2 + Math.floor(n * 0.8);
-    const bats = (n % 3 === 0) ? 1 : 0;
 
-    const arr = [];
-    for (let i = 0; i < count; i++) arr.push(makeGoblin(scale));
-    for (let i = 0; i < bats; i++) arr.push(makeBat(Math.max(1, scale * 0.95)));
+function spawnWave(n) {
+  // safety cap: evita ondate troppo dense
+  const MAX_ENEMIES = 20;
+  if (G.enemies.length >= MAX_ENEMIES) return;
 
-    for (const e of arr) {
+  // scala lieve
+  const scale = 1 + (n - 1) * 0.06;
+  const count = 2 + Math.floor(n * 0.8);
+  const bats = (n % 3 === 0) ? 1 : 0;
+
+  // blueprint dell’ondata
+  const blueprints = [];
+  for (let i = 0; i < count; i++) blueprints.push(makeGoblin(scale));
+  for (let i = 0; i < bats; i++)  blueprints.push(makeBat(Math.max(1, scale * 0.95)));
+
+  const spawned = [];
+  const minDist = 2.0 * G.tile;
+
+  for (const e of blueprints) {
+    // non superare il cap totale
+    if (G.enemies.length + spawned.length >= MAX_ENEMIES) break;
+
+    // prova qualche volta a trovare uno spawn lontano dal pet
+    let ok = false;
+    for (let tries = 0; tries < 8; tries++) {
       const s = randSpawn(true);
-      e.x = s.x; e.y = s.y;
-      e.px = e.x * G.tile;
-      e.py = e.y * G.tile;
+      const px = s.x * G.tile;
+      const py = s.y * G.tile;
+      if (Math.hypot(px - G.pet.px, py - G.pet.py) >= minDist) {
+        e.x = s.x; e.y = s.y;
+        e.px = px;  e.py = py;
+
+        // --- campi per la FSM di combattimento ---
+        e.state = 'chase';         // 'chase' | 'windup' | 'attack' | 'recover'
+        e.tState = 0;              // timer stato corrente (ms)
+        e.nextAtkReadyTs = 0;      // cooldown tra attacchi
+        e.lastHitTs = 0;           // anti multi-hit nello stesso swing
+
+        spawned.push(e);
+        ok = true;
+        break;
+      }
     }
-    G.enemies.push(...arr);
+    // se dopo i tentativi non trovi un punto valido, semplicemente salta questo nemico
+    if (!ok) { /* skipped spawn */ }
   }
+
+  if (spawned.length) G.enemies.push(...spawned);
+}
+
 
   // ---------- Start / End ----------
   async function startArenaMinigame() {
+
     // carica le stat effettive dal DB
     try {
       const { data } = await supabaseClient
@@ -342,8 +548,8 @@
 
     G.wave = 1;
     G.score = 0;
+    G.enemies = []; // ✅ reset
     G.pet = { x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0, px:0, py:0, dirX:0, dirY:0, moving:false, iFrameUntil:0, cdAtk:0, cdChg:0, cdDash:0, facing:'down' };
-
     resizeCanvas();
     syncHUD();
     spawnWave(G.wave);

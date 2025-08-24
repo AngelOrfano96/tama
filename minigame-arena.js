@@ -75,6 +75,19 @@
     lastT: performance.now(),
   };
 
+  // --- SPRITES & CACHE (arena) ---
+G.sprites = {
+  atlas: null,     // atlas dungeon
+  decor: null,     // mapping tile → ritaglio atlas
+  pet: null        // frames del pet
+};
+
+G.renderCache = {
+  arenaLayer: null, // {canvas, tile} per il layer statico (pavimento+muri)
+  tile: 0
+};
+
+
   function resizeCanvas() {
     const W = Math.min(window.innerWidth, 1100);
     const H = Math.min(window.innerHeight, 700);
@@ -94,10 +107,149 @@
     ctx.imageSmoothingEnabled = false;
 
     G.tile = tile;
+    G.renderCache.arenaLayer = null; // forza rebake con nuova tile
+    G.renderCache.tile = tile;
+
     // riallinea pet al centro stanza
     G.pet.px = G.pet.x * tile;
     G.pet.py = G.pet.y * tile;
   }
+
+  function isMobileOrTablet() { return isMobile; }
+
+// === ATLAS base ===
+const ATLAS_TILE = 16;
+const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
+
+// ritaglio generico da atlas 16×16
+const pick = (c, r, w=1, h=1) => ({
+  sx: c * ATLAS_TILE, sy: r * ATLAS_TILE, sw: w * ATLAS_TILE, sh: h * ATLAS_TILE,
+});
+
+// decor desktop/mobile (stesse celle del tuo altro minigioco)
+const DECOR_DESKTOP = {
+  floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
+  top:    [ pick(11,1), pick(12,1) ],
+  bottom: [ pick(11,4), pick(12,4) ],
+  left:   [ pick(10,2), pick(10,3) ],
+  right:  [ pick(13,2), pick(13,3) ],
+  corner_tl: pick(10,1), corner_tr: pick(13,1),
+  corner_bl: pick(10,4), corner_br: pick(13,4),
+};
+const DECOR_MOBILE = DECOR_DESKTOP; // se vuoi, puoi differenziare
+
+let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
+
+function variantIndex(x, y, len) {
+  let h = (x * 73856093) ^ (y * 19349663);
+  h = (h ^ (h >>> 13)) >>> 0;
+  return h % len;
+}
+
+function initAtlasSprites() {
+  if (G.sprites.atlas) return;
+  G.sprites.atlas = new Image();
+  G.sprites.atlas.onload  = () => {
+    console.log('[ARENA ATLAS] ok');
+    G.renderCache.arenaLayer = null;  // invalida
+    bakeArenaLayer();                 // bake subito
+  };
+  G.sprites.atlas.onerror = (e) => console.error('[ARENA ATLAS] fail', e);
+  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`;
+}
+function detectPetNumFromDom() {
+  const src = document.getElementById('pet')?.src || '';
+  const m = src.match(/pet_(\d+)/);
+  return m ? m[1] : '1';
+}
+
+
+
+function buildDecorFromAtlas() {
+  G.sprites.decor = {
+    floor: DECOR.floor,
+    top: DECOR.top, bottom: DECOR.bottom, left: DECOR.left, right: DECOR.right,
+    corner_tl: DECOR.corner_tl, corner_tr: DECOR.corner_tr,
+    corner_bl: DECOR.corner_bl, corner_br: DECOR.corner_br
+  };
+}
+
+function drawTileType(x, y, type, tile) {
+  const entry = G.sprites.decor?.[type];
+  if (!entry || !G.sprites.atlas?.complete) return;
+  let d = entry;
+  if (Array.isArray(entry)) {
+    const idx = (type === 'floor') ? variantIndex(x, y, entry.length) : (x + y) % entry.length;
+    d = entry[idx];
+  }
+  const { sx, sy, sw, sh } = d;
+  ctx.drawImage(G.sprites.atlas, sx, sy, sw, sh, x*tile, y*tile, tile, tile);
+}
+
+function bakeArenaLayer() {
+  const tile = G.tile;
+  if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
+
+  const wpx = Cfg.roomW * tile;
+  const hpx = Cfg.roomH * tile;
+
+  const cv = document.createElement('canvas');
+  cv.width = wpx; cv.height = hpx;
+  const bctx = cv.getContext('2d');
+  bctx.imageSmoothingEnabled = false;
+
+  // floor dentro il bordo (1..W-2, 1..H-2)
+  for (let y = 1; y < Cfg.roomH-1; y++) {
+    for (let x = 1; x < Cfg.roomW-1; x++) {
+      const entry = G.sprites.decor?.floor;
+      if (!entry) continue;
+      let d = entry[(x + y) % entry.length];
+      if (Array.isArray(entry)) {
+        const idx = variantIndex(x, y, entry.length);
+        d = entry[idx];
+      }
+      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
+    }
+  }
+
+  // muri anello esterno
+  const left = 0, right = Cfg.roomW-1, top = 0, bottom = Cfg.roomH-1;
+  // angoli
+  const C = G.sprites.decor;
+  if (C?.corner_tl) bctx.drawImage(G.sprites.atlas, C.corner_tl.sx, C.corner_tl.sy, C.corner_tl.sw, C.corner_tl.sh, left*tile, top*tile, tile, tile);
+  if (C?.corner_tr) bctx.drawImage(G.sprites.atlas, C.corner_tr.sx, C.corner_tr.sy, C.corner_tr.sw, C.corner_tr.sh, right*tile, top*tile, tile, tile);
+  if (C?.corner_bl) bctx.drawImage(G.sprites.atlas, C.corner_bl.sx, C.corner_bl.sy, C.corner_bl.sw, C.corner_bl.sh, left*tile, bottom*tile, tile, tile);
+  if (C?.corner_br) bctx.drawImage(G.sprites.atlas, C.corner_br.sx, C.corner_br.sy, C.corner_br.sw, C.corner_br.sh, right*tile, bottom*tile, tile, tile);
+
+  // lati orizzontali
+  for (let x = 1; x <= Cfg.roomW-2; x++) {
+    const t = C.top[(x)%C.top.length], b = C.bottom[(x)%C.bottom.length];
+    bctx.drawImage(G.sprites.atlas, t.sx, t.sy, t.sw, t.sh, x*tile, top*tile, tile, tile);
+    bctx.drawImage(G.sprites.atlas, b.sx, b.sy, b.sw, b.sh, x*tile, bottom*tile, tile, tile);
+  }
+  // lati verticali
+  for (let y = 1; y <= Cfg.roomH-2; y++) {
+    const l = C.left[(y)%C.left.length], r = C.right[(y)%C.right.length];
+    bctx.drawImage(G.sprites.atlas, l.sx, l.sy, l.sw, l.sh, left*tile, y*tile, tile, tile);
+    bctx.drawImage(G.sprites.atlas, r.sx, r.sy, r.sw, r.sh, right*tile, y*tile, tile, tile);
+  }
+
+  G.renderCache.arenaLayer = { canvas: cv, tile };
+  G.renderCache.tile = tile;
+  return G.renderCache.arenaLayer;
+}
+
+function loadPetSprites(petNum = '1') {
+  const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
+  const mkImg = (path) => { const i = new Image(); i.src = `${assetBase}/pets/${path}?v=7`; return i; };
+  G.sprites.pet = {
+    idle:  mkImg(`pet_${petNum}.png`),
+    right: [ mkImg(`pet_${petNum}_right1.png`), mkImg(`pet_${petNum}_right2.png`) ],
+    left:  [ mkImg(`pet_${petNum}_left1.png`),  mkImg(`pet_${petNum}_left2.png`)  ],
+    down:  [ mkImg(`pet_${petNum}_down1.png`),  mkImg(`pet_${petNum}_down2.png`)  ],
+    up:    [ mkImg(`pet_${petNum}_up1.png`),    mkImg(`pet_${petNum}_up2.png`)    ],
+  };
+}
 
   // HUD compatto
   function syncHUD() {
@@ -255,6 +407,20 @@ G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py));
     const spd = petSpeed();
     G.pet.px = Math.max(G.tile, Math.min((Cfg.roomW-2)*G.tile, G.pet.px + dx * spd * dt));
     G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py + dy * spd * dt));
+
+    // --- animazione pet (walk 2-frame) ---
+if (G.pet.moving) {
+  G.pet.animTime += dt;
+  const STEP = 0.16;                 // velocità switch frame
+  if (G.pet.animTime >= STEP) {
+    G.pet.stepFrame = 1 - (G.pet.stepFrame|0);
+    G.pet.animTime = 0;
+  }
+} else {
+  G.pet.animTime = 0;
+  G.pet.stepFrame = 0;
+}
+
 
     // nemici: muoviti verso il pet + attaccare se vicini
 // ---------- ENEMIES: separation + FSM attack ----------
@@ -421,18 +587,25 @@ for (const e of G.enemies) {
   }
 
 function render() {
-  // meglio usare dimensioni visive del canvas; con la transform DPR va bene così:
+  // pulizia
   ctx.clearRect(0, 0, Cfg.roomW * G.tile, Cfg.roomH * G.tile);
 
-  // pavimento
-  ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, Cfg.roomW * G.tile, Cfg.roomH * G.tile);
-  ctx.fillStyle = '#222';
-  ctx.fillRect(G.tile, G.tile, (Cfg.roomW - 2) * G.tile, (Cfg.roomH - 2) * G.tile);
+  // layer statico (atlas): bake una volta e riusa
+  if (!G.renderCache.arenaLayer || G.renderCache.tile !== G.tile) {
+    bakeArenaLayer();
+  }
+  if (G.renderCache.arenaLayer) {
+    ctx.drawImage(G.renderCache.arenaLayer.canvas, 0, 0);
+  } else {
+    // fallback (se atlas non pronto): rettangoli come prima
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, Cfg.roomW * G.tile, Cfg.roomH * G.tile);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(G.tile, G.tile, (Cfg.roomW - 2) * G.tile, (Cfg.roomH - 2) * G.tile);
+  }
 
-  // NEMICI
+  // --- NEMICI (come prima, con telegrafo e barre HP) ---
   for (const e of G.enemies) {
-    // telegraph sotto al corpo
     if (e.state === 'windup') {
       ctx.save();
       ctx.globalAlpha = 0.25;
@@ -442,12 +615,9 @@ function render() {
       ctx.fill();
       ctx.restore();
     }
-
-    // corpo
     ctx.fillStyle = (e.type === 'bat') ? '#a78bfa' : '#e74c3c';
     ctx.fillRect(e.px + 8, e.py + 8, G.tile - 16, G.tile - 16);
 
-    // barra HP
     const w = G.tile - 16;
     const hpw = Math.max(0, Math.round(w * (e.hp / e.hpMax)));
     ctx.fillStyle = '#000';
@@ -456,10 +626,31 @@ function render() {
     ctx.fillRect(e.px + 8, e.py + 4, hpw, 3);
   }
 
-  // PET (disegnato sopra i nemici)
-  ctx.fillStyle = '#ffd54f';
-  ctx.fillRect(G.pet.px + 6, G.pet.py + 6, G.tile - 12, G.tile - 12);
+  // --- PET (con texture) ---
+  {
+    const tile = G.tile;
+    const px = G.pet.px + 6, py = G.pet.py + 6, sz = tile - 12;
+    const PET = G.sprites.pet;
+    let img = null;
+
+    if (PET) {
+      if (!G.pet.moving) {
+        img = PET.idle;
+      } else {
+        const dirArr = PET[G.pet.facing]; // 'up'|'down'|'left'|'right'
+        if (Array.isArray(dirArr) && dirArr.length) {
+          img = dirArr[Math.abs(G.pet.stepFrame|0) % dirArr.length] || dirArr[0];
+        } else {
+          img = PET.idle;
+        }
+      }
+    }
+
+    if (img && img.complete) ctx.drawImage(img, px, py, sz, sz);
+    else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
+  }
 }
+
 
 
 
@@ -549,7 +740,19 @@ function spawnWave(n) {
     G.wave = 1;
     G.score = 0;
     G.enemies = []; // ✅ reset
-    G.pet = { x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0, px:0, py:0, dirX:0, dirY:0, moving:false, iFrameUntil:0, cdAtk:0, cdChg:0, cdDash:0, facing:'down' };
+G.pet = {
+  x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,
+  px: 0, py: 0, dirX: 0, dirY: 0,
+  moving: false, iFrameUntil: 0,
+  cdAtk: 0, cdChg: 0, cdDash: 0,
+  facing: 'down',
+  animTime: 0,
+  stepFrame: 0
+};
+    initAtlasSprites();
+    buildDecorFromAtlas();
+    const petNum = detectPetNumFromDom();
+    loadPetSprites(petNum);
     resizeCanvas();
     syncHUD();
     spawnWave(G.wave);
@@ -581,6 +784,7 @@ function spawnWave(n) {
     } catch (e) {
       console.error('[Arena] end rewards', e);
     }
+    G.keys.clear();
   }
 
   // Expose

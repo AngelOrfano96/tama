@@ -418,17 +418,37 @@ function updateCombatBars(stats) {
     if (lab) lab.textContent = v;
   });
 
-  // --- Mostra punti disponibili ---
+  // Punti disponibili
   const sp = document.getElementById('stat-points');
   if (sp) sp.textContent = stats.stat_points ?? 0;
 
-  // --- Mostra HP Max accanto al label ---
+  // HP Max accanto all’etichetta
   const hpLabel = document.querySelector('.inv-stat-row[data-stat="hp"] .inv-stat-name');
   if (hpLabel) {
     const max = stats.hp_max ?? 100;
     hpLabel.textContent = `HP (${max})`;
   }
+
+  // Attacco Power accanto ad Attacco
+  const atkLabel = document.querySelector('.inv-stat-row[data-stat="attack"] .inv-stat-name');
+  if (atkLabel) {
+    atkLabel.textContent = `Attacco (${stats.attack_power ?? 50})`;
+  }
+
+  // Difesa Power
+  const defLabel = document.querySelector('.inv-stat-row[data-stat="defense"] .inv-stat-name');
+  if (defLabel) {
+    defLabel.textContent = `Difesa (${stats.defense_power ?? 50})`;
+  }
+
+  // Velocità Power
+  const spdLabel = document.querySelector('.inv-stat-row[data-stat="speed"] .inv-stat-name');
+  if (spdLabel) {
+    spdLabel.textContent = `Velocità (${stats.speed_power ?? 50})`;
+  }
 }
+
+
 
 
 
@@ -436,15 +456,19 @@ async function loadCombatStats(){
   if (!petId) return;
   const { data, error } = await supabaseClient
     .from('pet_states')
-    .select('hp, attack, defense, speed, stat_points, hp_max')
+    .select('hp, attack, defense, speed, stat_points, hp_max, attack_power, defense_power, speed_power')
     .eq('pet_id', petId)
     .single();
-  if (error) { console.error('[loadCombatStats]', error); return; }
+  if (error) { 
+    console.error('[loadCombatStats]', error); 
+    return; 
+  }
 
   updateCombatBars(data || {});
   updateStatPointsBadge(data?.stat_points ?? 0);
   togglePlusButtons((data?.stat_points ?? 0) <= 0);
 }
+
 
 
 

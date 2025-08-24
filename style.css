@@ -1814,3 +1814,80 @@ body {
 
 /* opzionale: effetto “premuto” */
 .arena-action-btn:active{ transform: scale(0.96) translateZ(0); }
+
+
+
+
+
+
+
+
+/* --- OVERLAY AZIONI (in basso a destra) --- */
+.arena-actions-overlay{
+  position:absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom:max(10px, env(safe-area-inset-bottom));
+  width:  160px;           /* area piccola così non sfora */
+  height: 160px;
+  z-index: 30;
+  pointer-events: none;    /* l'overlay non cattura tocchi... */
+}
+
+.action-triangle{
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* dimensioni e stile bottoni */
+:root{
+  --btn: clamp(54px, 12vw, 64px);
+  --gap: 10px;             /* distanza tra i tre bottoni (regola qui per “vicinanza”) */
+}
+
+.arena-action-btn{
+  position:absolute;
+  width:var(--btn);
+  height:var(--btn);
+  border-radius:50%;
+  font-weight:700;
+  font-size:18px;
+  color:#fff;
+  border:2px solid rgba(255,255,255,.25);
+  background:rgba(17,25,40,.65);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  backdrop-filter:blur(6px);
+  pointer-events:auto;       /* ...ma i bottoni sì */
+  touch-action:manipulation;
+}
+
+/* --- TRIANGOLO COMPATTO (centrato nel box) --- */
+/* centro “virtuale” */
+.action-triangle::before{
+  content:"";
+  position:absolute;
+  left:50%; top:50%;
+  width:0; height:0;
+  transform:translate(-50%,-50%);
+}
+
+/* A = basso-sinistra del cluster */
+.btn-a{
+  left: calc(50% - var(--btn) - var(--gap));
+  top:  calc(50% + var(--btn)/2);
+}
+
+/* B = basso-destra del cluster */
+.btn-b{
+  left: calc(50% + var(--gap));
+  top:  calc(50% + var(--btn)/2);
+}
+
+/* ⚡ = punta sopra */
+.btn-dash{
+  left: calc(50% - var(--btn)/2);
+  top:  calc(50% - var(--btn) - var(--gap));
+}
+
+/* feedback “premuto” */
+.arena-action-btn:active{ transform: scale(0.96); }

@@ -163,7 +163,104 @@ function detectPetNumFromDom() {
   return m ? m[1] : '1';
 }
 
+// === ENEMY ATLAS (come Treasure) ===========================================
+const ENEMY_FRAME = 32; // <-- cambia a 48 se i tuoi chara sono 48x48
+const enemyAtlasBase = isMobileOrTablet() ? 'assets/mobile/enemies' : 'assets/desktop/enemies';
 
+// pick frame da spritesheet nemici
+const gPick = (c, r, w=1, h=1) => ({
+  sx: c * ENEMY_FRAME, sy: r * ENEMY_FRAME, sw: w * ENEMY_FRAME, sh: h * ENEMY_FRAME,
+});
+
+// draw con flip orizzontale opzionale (per “left”)
+function drawEnemyFrame(img, f, dx, dy, dw, dh, flipX=false) {
+  if (!img || !img.complete) return false;
+  ctx.save();
+  if (flipX) {
+    ctx.translate(dx + dw, dy);
+    ctx.scale(-1, 1);
+    dx = 0; dy = 0;
+  }
+  ctx.drawImage(img, f.sx, f.sy, f.sw, f.sh, dx, dy, dw, dh);
+  ctx.restore();
+  return true;
+}
+
+function buildGoblinFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_orc.png`,
+    rows: { walkDown:2, walkRight:3, walkUp:4, atkDown:5, atkRight:6, atkUp:7 },
+    walkCols: [0,1,2,3],
+    attackCols: [0,1,2,3],
+    idleMap: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],
+  };
+
+  if (!G.sprites.goblinSheet) {
+    G.sprites.goblinSheet = new Image();
+    G.sprites.goblinSheet.onload  = () => console.log('[GOBLIN] atlas ready');
+    G.sprites.goblinSheet.onerror = (e) => console.error('[GOBLIN] atlas fail', e);
+    G.sprites.goblinSheet.src = cfg.sheetSrc;
+  }
+
+  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+  const mkPairs = (pairs)     => pairs.map(([c,r]) => gPick(c, r));
+  const idleFrames = mkPairs(cfg.idleMap);
+  const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
+
+  G.sprites.goblinFrames = {
+    idle: safeIdle,
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+      // left = flip di right
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+      // left = flip di right
+    },
+  };
+}
+
+function buildBatFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_bat.png`,
+    rows: { flyDown:2, flyRight:3, flyUp:4, atkDown:5, atkRight:6, atkUp:7 },
+    flyCols: [0,1,2,3],
+    attackCols: [0,1,2,3],
+    idleMap: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],
+  };
+
+  if (!G.sprites.batSheet) {
+    G.sprites.batSheet = new Image();
+    G.sprites.batSheet.onload  = () => console.log('[BAT] atlas ready');
+    G.sprites.batSheet.onerror = (e) => console.error('[BAT] atlas fail', e);
+    G.sprites.batSheet.src = cfg.sheetSrc;
+  }
+
+  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+  const mkPairs = (pairs)     => pairs.map(([c,r]) => gPick(c, r));
+  const idleFrames = mkPairs(cfg.idleMap);
+  const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.flyDown, [0]);
+
+  G.sprites.batFrames = {
+    idle: safeIdle,
+    walk: {         // chiamiamolo "walk" per compatibilità, ma è volo
+      down:  mkRow(cfg.rows.flyDown,  cfg.flyCols),
+      right: mkRow(cfg.rows.flyRight, cfg.flyCols),
+      up:    mkRow(cfg.rows.flyUp,    cfg.flyCols),
+      // left = flip di right
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+      // left = flip di right
+    },
+  };
+}
 
 function buildDecorFromAtlas() {
   G.sprites.decor = {
@@ -619,7 +716,7 @@ function render() {
     ctx.fillRect(G.tile, G.tile, (Cfg.roomW - 2) * G.tile, (Cfg.roomH - 2) * G.tile);
   }
 
-  // --- NEMICI (sprite + telegrafo + shadow + HP) ---
+  // --- NEMICI (sprite atlas + telegrafo + shadow + HP) ---
   for (const e of G.enemies) {
     // telegrafo sotto al corpo
     if (e.state === 'windup') {
@@ -647,35 +744,46 @@ function render() {
     ctx.fill();
     ctx.restore();
 
-    // sprite (o fallback rect)
+    // sprite (atlas) o fallback rect
     const pad = 8;
     const ex = e.px + pad, ey = e.py + pad, esz = G.tile - pad * 2;
 
-    const EN = G.sprites.enemies?.[e.type];
-    let imgE = null;
+    // selezione sheet + frames in stile Treasure
+    let sheet = null, FR = null;
+    if (e.type === 'goblin') { sheet = G.sprites.goblinSheet; FR = G.sprites.goblinFrames; }
+    else if (e.type === 'bat') { sheet = G.sprites.batSheet; FR = G.sprites.batFrames; }
 
-    if (EN) {
-      // facing “grossolano” verso il pet (se esistono direzioni)
+    let drawn = false;
+    if (sheet && sheet.complete && FR) {
+      // facing “grossolano” verso il pet
       let face = 'down';
       const dx = G.pet.px - e.px, dy = G.pet.py - e.py;
       if (Math.abs(dx) > Math.abs(dy)) face = dx >= 0 ? 'right' : 'left';
       else                             face = dy >= 0 ? 'down'  : 'up';
 
-      const arr = EN[face]; // es: EN.right / EN.left / EN.up / EN.down
-      if (Array.isArray(arr) && arr.length) {
-        // animazione 2 frame time-based
-        const t = (performance.now() * 0.001);    // secondi
-        const idx = ((t * 6) | 0) % arr.length;   // ~6 fps
-        imgE = arr[idx];
-      } else if (EN.idle) {
-        imgE = EN.idle;
+      // scegli set in base allo stato
+      let set;
+      if (e.state === 'attack')      set = FR.attack;
+      else if (e.state === 'windup') set = FR.idle;   // fermo mentre carica
+      else                           set = FR.walk;
+
+      // left = usa frames "right" + flip
+      const isLeft = (face === 'left');
+      const dirKey = isLeft ? 'right' : face;
+      let frames = (set && set[dirKey]) ? set[dirKey] : FR.idle;
+
+      if (frames && frames.length) {
+        const t = performance.now() * 0.001;
+        const fps = (e.state === 'attack') ? 10 : 6;
+        const idx = ((t * fps) | 0) % frames.length;
+        const frame = frames[idx];
+
+        drawn = drawEnemyFrame(sheet, frame, ex, ey, esz, esz, isLeft);
       }
     }
 
-    if (imgE && imgE.complete) {
-      ctx.drawImage(imgE, ex, ey, esz, esz);
-    } else {
-      // fallback
+    if (!drawn) {
+      // fallback color block
       ctx.fillStyle = (e.type === 'bat') ? '#a78bfa' : '#e74c3c';
       ctx.fillRect(ex, ey, esz, esz);
     }
@@ -713,6 +821,7 @@ function render() {
     else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
   }
 }
+
 
 
   function loop() {
@@ -812,6 +921,8 @@ G.pet = {
 };
     initAtlasSprites();
     buildDecorFromAtlas();
+    buildGoblinFromAtlas();
+    buildBatFromAtlas();
     const petNum = detectPetNumFromDom();
     loadPetSprites(petNum);
     loadEnemySprites();

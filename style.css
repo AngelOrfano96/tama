@@ -1665,7 +1665,7 @@ body {
 
 /* Joystick */
 .arena-joy-base{
-  width: 112px; height: 112px; border-radius: 50%;
+  width: 140px; height: 140px; border-radius: 50%;
   background: rgba(80,80,80,.28);
   box-shadow: 0 0 10px 2px #0004;
   position: relative;
@@ -1757,3 +1757,60 @@ body {
 .arena-action-btn{ width:64px; height:64px; border-radius:50%; font-weight:700; font-size:18px; backdrop-filter:blur(6px);
   background:rgba(17,25,40,.6); color:#fff; border:2px solid rgba(255,255,255,.25); box-shadow:0 6px 20px rgba(0,0,0,.35); }
 .hidden{ display:none !important; }
+
+
+
+
+
+
+/* contenitore overlay a destra in basso */
+.arena-actions-overlay{
+  position:absolute;
+  right:max(12px, env(safe-area-inset-right));
+  bottom:max(12px, env(safe-area-inset-bottom));
+  width:  200px;   /* area in cui disponiamo i bottoni */
+  height: 180px;
+  z-index:30;
+  pointer-events:none; /* eviti che l'overlay blocchi tocchi fuori dai bottoni */
+}
+
+/* wrapper triangolo */
+.action-triangle{
+  position:relative;
+  width:100%;
+  height:100%;
+}
+
+/* dimensioni responsive dei bottoni */
+:root{
+  --btn: clamp(56px, 12vw, 68px);
+  --gap: clamp(14px, 3vw, 20px);
+}
+
+/* stile generico bottone */
+.arena-action-btn{
+  position:absolute;
+  width:var(--btn);
+  height:var(--btn);
+  border-radius:50%;
+  font-weight:700;
+  font-size:18px;
+  color:#fff;
+  border:2px solid rgba(255,255,255,.25);
+  background:rgba(17,25,40,.6);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  backdrop-filter:blur(6px);
+  pointer-events:auto;            /* riattiva il tocco sui bottoni */
+  touch-action:manipulation;      /* meno delay su iOS */
+}
+
+/* posizioni per formare il triangolo */
+.btn-a{ left:  20px; bottom: 20px; }              /* basso-sinistra  */
+.btn-b{ right: 20px; bottom: 20px; }              /* basso-destra    */
+.btn-dash{
+  left:50%; transform:translateX(-50%);
+  bottom: calc(20px + var(--btn) + var(--gap));   /* punta sopra */
+}
+
+/* opzionale: effetto “premuto” */
+.arena-action-btn:active{ transform: scale(0.96) translateZ(0); }

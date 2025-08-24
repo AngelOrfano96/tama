@@ -97,81 +97,70 @@ async function enterFullscreen() {
 }
 
 function drawHUDInCanvas() {
-  const tile = G.tile;
+  const W = Cfg.roomW * G.tile;
 
-  // pannello dimensioni reattive ai tile
-  const pad = Math.round(tile * 0.3);
-  const panelW = Math.round(tile * 5.5);
-  const panelH = Math.round(tile * 1.6);
-  const x = Math.round((Cfg.roomW * tile - panelW) / 2);
-  const y = Math.round(tile * 0.35);
+  // pannello compatto a dimensione quasi fissa (leggermente responsive)
+  const panelW = Math.round(Math.min(280, Math.max(200, W * 0.32)));
+  const panelH = 72;
+  const x = Math.round((W - panelW) / 2);
+  const y = Math.round(G.tile * 0.30); // stacco dall’alto
 
-  // sfondo scuro + bordo sottile
   ctx.save();
-  ctx.globalAlpha = 0.9;
-  ctx.fillStyle = '#0d0f12';
-  roundRect(ctx, x, y, panelW, panelH, Math.round(tile * 0.25));
+
+  // ombra soft
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#000';
+  roundRect(ctx, x + 3, y + 4, panelW, panelH, 14);
   ctx.fill();
 
+  // pannello
+  ctx.globalAlpha = 0.95;
+  ctx.fillStyle = '#0d0f12';
+  roundRect(ctx, x, y, panelW, panelH, 14);
+  ctx.fill();
+
+  // bordo
   ctx.globalAlpha = 1;
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#2a2f36';
-  roundRect(ctx, x, y, panelW, panelH, Math.round(tile * 0.25));
+  roundRect(ctx, x, y, panelW, panelH, 14);
   ctx.stroke();
 
-  // testo (centrato)
-  const lineY1 = y + Math.round(panelH * 0.42);
-  const lineY2 = y + Math.round(panelH * 0.78);
-
+  // testo
   ctx.fillStyle = '#e5e7eb';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // font proporzionali
-  const f1 = Math.max(12, Math.round(tile * 0.42)); // Wave/Punteggio
-  const f2 = Math.max(10, Math.round(tile * 0.36)); // valori
-  ctx.font = `600 ${f1}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+  const titleY = y + 22;
+  ctx.font = '600 18px system-ui,-apple-system,Segoe UI,Roboto,Arial';
+  ctx.fillText(`Wave #${G.wave|0}`,  x + panelW * 0.30, titleY);
+  ctx.fillText(`Punti ${G.score|0}`, x + panelW * 0.70, titleY);
 
-  // Wave e Punteggio (due colonne)
-  const colL = x + Math.round(panelW * 0.28);
-  const colR = x + Math.round(panelW * 0.72);
-
-  ctx.fillText(`Wave #${G.wave|0}`,  colL, lineY1);
-  ctx.fillText(`Punti ${G.score|0}`, colR, lineY1);
-
-  // Barra HP (sotto, al centro)
-  const barW = Math.round(panelW * 0.82);
-  const barH = Math.max(8, Math.round(tile * 0.24));
-  const barX = Math.round(x + (panelW - barW)/2);
-  const barY = Math.round(y + panelH - barH - Math.max(6, tile * 0.18));
-
-  // contorno barra
-  ctx.strokeStyle = '#3a414b';
-  ctx.lineWidth = 2;
-  roundRect(ctx, barX, barY, barW, barH, Math.round(barH/2));
-  ctx.stroke();
-
-  // fill HP
-  const hpPerc = Math.max(0, Math.min(1, G.hpCur / Math.max(1, G.hpMax)));
-  const fillW = Math.round(barW * hpPerc);
+  // barra HP
+  const barW = panelW - 40;
+  const barH = 14;
+  const barX = x + (panelW - barW) / 2;
+  const barY = y + panelH - barH - 10;
 
   // fondo barra
   ctx.fillStyle = '#1f242b';
-  roundRect(ctx, barX, barY, barW, barH, Math.round(barH/2));
+  roundRect(ctx, barX, barY, barW, barH, barH / 2);
   ctx.fill();
 
-  // riempimento
+  const hpPerc = Math.max(0, Math.min(1, G.hpCur / Math.max(1, G.hpMax)));
+  const fillW = Math.round(barW * hpPerc);
   ctx.fillStyle = hpPerc > 0.5 ? '#22c55e' : hpPerc > 0.25 ? '#f59e0b' : '#ef4444';
-  roundRect(ctx, barX, barY, fillW, barH, Math.round(barH/2));
+  roundRect(ctx, barX, barY, fillW, barH, barH / 2);
   ctx.fill();
 
   // testo HP sopra la barra
-  ctx.font = `600 ${f2}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+  ctx.font = '600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial';
   ctx.fillStyle = '#e5e7eb';
-  ctx.fillText(`${G.hpCur|0} / ${G.hpMax|0}`, x + panelW/2, barY - Math.max(2, tile*0.06));
+  ctx.fillText(`${G.hpCur|0} / ${G.hpMax|0}`, x + panelW / 2, barY - 6);
 
   ctx.restore();
 }
+
 
 function resizeCanvas() {
   // spazio disponibile = viewport (se hai HUD fisso sopra/sotto, sottrai la sua altezza)

@@ -1090,10 +1090,18 @@ function setupMobileControlsArena(){
   base.addEventListener('touchend',   onEnd,   {passive:false});
   base.addEventListener('touchcancel',onEnd,   {passive:false});
 
-  // Tasti azione (tap = esegue subito)
-  DOM.btnAtk?.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(G.playing) tryAttackBasic(); }, {passive:false});
-  DOM.btnChg?.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(G.playing) tryAttackCharged(); }, {passive:false});
-  DOM.btnDash?.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(G.playing) tryDash(); }, {passive:false});
+// Tasti azione (tap = esegue subito, compatibile con Android/iOS)
+const fire = (fn) => (e) => { 
+  e.preventDefault(); 
+  if (G.playing) fn(); 
+};
+
+['touchstart','pointerdown'].forEach(ev=>{
+  DOM.btnAtk?.addEventListener(ev, fire(tryAttackBasic), {passive:false});
+  DOM.btnChg?.addEventListener(ev, fire(tryAttackCharged), {passive:false});
+  DOM.btnDash?.addEventListener(ev, fire(tryDash), {passive:false});
+});
+
 }
 
 
@@ -1129,6 +1137,23 @@ async function startArenaMinigame() {
   }
 // Nascondi HUD DOM (usiamo HUD in canvas) e mostra overlay mobile
 DOM.hudBox && (DOM.hudBox.style.display = 'none');
+
+  // mostra/occulta overlay mobile
+  if (isMobile) {
+    DOM.joyOverlay?.classList.remove('hidden');
+    DOM.actionsOverlay?.classList.remove('hidden');
+  } else {
+    DOM.joyOverlay?.classList.add('hidden');
+    DOM.actionsOverlay?.classList.add('hidden');
+  }
+
+  // nascondi HUD DOM e i vecchi bottoni
+  DOM.hudBox && (DOM.hudBox.style.display = 'none');
+  DOM.btnAtk && (DOM.btnAtk.style.display = 'none');
+  DOM.btnChg && (DOM.btnChg.style.display = 'none');
+  DOM.btnDash && (DOM.btnDash.style.display = 'none');
+
+
 setupMobileControlsArena();
 
   // 2) Reset partita

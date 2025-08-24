@@ -223,23 +223,25 @@
   <div class="arena-wrap">
     <canvas id="arena-canvas"></canvas>
 
-    <!-- HUD in-canvas, lasciamo il div per compatibilità -->
-    <div id="arena-hud" class="arena-hud"></div>
-
-    <!-- OVERLAY MOBILE -->
-    <div class="arena-joystick-overlay" id="arena-joystick-overlay">
-      <div class="arena-joystick-base" id="arena-joy-base">
-        <div class="arena-joystick-stick" id="arena-joy-stick"></div>
+    <!-- Joystick mobile (sinistra) -->
+    <div id="arena-joystick-overlay" class="arena-joystick-overlay hidden">
+      <div id="arena-joy-base" class="arena-joy-base">
+        <div id="arena-joy-stick" class="arena-joy-stick"></div>
       </div>
     </div>
 
-    <div class="arena-actions-overlay" id="arena-actions-overlay">
-      <button id="arena-attack-btn" class="arena-action-btn">Base</button>
-      <button id="arena-charge-btn" class="arena-action-btn">Caricato</button>
-      <button id="arena-dash-btn"   class="arena-action-btn">Dash</button>
+    <!-- Tasti azione mobile (destra) -->
+    <div id="arena-actions-overlay" class="arena-actions-overlay hidden">
+      <button id="arena-attack-btn" class="arena-action-btn" aria-label="Attacco base">A</button>
+      <button id="arena-charge-btn" class="arena-action-btn" aria-label="Colpo caricato">B</button>
+      <button id="arena-dash-btn"   class="arena-action-btn" aria-label="Scatto">⚡</button>
     </div>
   </div>
+
+  <!-- HUD DOM non più usato, ma lo lascio se servisse -->
+  <div id="arena-hud" class="arena-hud"></div>
 </div>
+
 
 
 

@@ -87,33 +87,61 @@ G.renderCache = {
   tile: 0
 };
 
+async function enterFullscreen() {
+  try {
+    const root = DOM.modal || document.documentElement;
+    if (!document.fullscreenElement && root?.requestFullscreen) {
+      await root.requestFullscreen();
+    }
+  } catch (e) { console.warn('Fullscreen failed', e); }
+}
 
-  function resizeCanvas() {
-    const W = Math.min(window.innerWidth, 1100);
-    const H = Math.min(window.innerHeight, 700);
-    // calcolo tile in modo simile al Treasure
-    const raw = Math.min(W / Cfg.roomW, H / Cfg.roomH);
-    const base = 16;
-    let tile = Math.max(32, Math.min(128, Math.round(raw / base) * base));
-    const dpr = Math.max(1, Math.round(devicePixelRatio || 1));
 
-    DOM.canvas.width = Cfg.roomW * tile * dpr;
-    DOM.canvas.height = Cfg.roomH * tile * dpr;
-    DOM.canvas.style.width = `${Cfg.roomW * tile}px`;
-    DOM.canvas.style.height = `${Cfg.roomH * tile}px`;
+function resizeCanvas() {
+  // spazio disponibile = viewport (se hai HUD fisso sopra/sotto, sottrai la sua altezza)
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
 
-    ctx = DOM.canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+  // quanto spazio per OGNI tile, in pixel CSS
+  const tileFloat = Math.min(vw / Cfg.roomW, vh / Cfg.roomH);
 
-    G.tile = tile;
-    G.renderCache.arenaLayer = null; // forza rebake con nuova tile
+  // snap a multipli di 16 per mantenere allineamento con atlas 16x (e evitare blur)
+  // limiti ragionevoli per mobile/desktop (modifica se vuoi più grande)
+  const base = 16;
+  let tile = Math.max(32, Math.min(256, Math.floor(tileFloat / base) * base));
+  if (tile < 32) tile = 32; // safety minimo
+
+  // gestisci DPR (pixel reali del canvas)
+  const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const widthCss  = Cfg.roomW * tile;
+  const heightCss = Cfg.roomH * tile;
+
+  // dimensioni in pixel fisici: moltiplica per DPR
+  DOM.canvas.width  = widthCss  * dpr;
+  DOM.canvas.height = heightCss * dpr;
+
+  // dimensioni CSS (visive)
+  DOM.canvas.style.width  = `${widthCss}px`;
+  DOM.canvas.style.height = `${heightCss}px`;
+
+  // context + smoothing off
+  ctx = DOM.canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+
+  // aggiorna tile globale e invalida il layer statico se serve
+  const tileChanged = (G.tile !== tile);
+  G.tile = tile;
+  if (tileChanged) {
+    G.renderCache.arenaLayer = null;
     G.renderCache.tile = tile;
-
-    // riallinea pet al centro stanza
-    G.pet.px = G.pet.x * tile;
-    G.pet.py = G.pet.y * tile;
   }
+
+  // riallinea pet al centro stanza in pixel CSS
+  G.pet.px = G.pet.x * tile;
+  G.pet.py = G.pet.y * tile;
+}
+
 
   function isMobileOrTablet() { return isMobile; }
 
@@ -927,6 +955,7 @@ G.pet = {
     const petNum = detectPetNumFromDom();
     loadPetSprites(petNum);
     loadEnemySprites();
+    await enterFullscreen(); // opzionale
     resizeCanvas();
     syncHUD();
     spawnWave(G.wave);

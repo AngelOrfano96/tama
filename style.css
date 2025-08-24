@@ -1594,3 +1594,47 @@ body {
 .inv-stat-bar > div{ height:100%; width:0%; background:linear-gradient(90deg,#ffe484,#ffbc73); transition:width .25s; }
 .inv-stat-val{ text-align:right; font-weight:700; min-width: 24px; }
 .stat-btn{ background:#ffe484; border:0; border-radius:8px; padding:6px 0; font-weight:800; cursor:pointer; }
+
+
+
+
+
+
+
+
+
+
+
+
+/* overlay del minigioco */
+#arena-minigame-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;         /* centratura verticale */
+  justify-content: center;     /* centratura orizzontale */
+  background: rgba(0,0,0,0.5); /* opzionale: dim schermo dietro */
+  z-index: 9999;
+}
+
+/* contenitore che non “spinge” oltre viewport */
+#arena-minigame-modal .arena-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  padding: env(safe-area-inset-top, 0)
+           env(safe-area-inset-right, 0)
+           env(safe-area-inset-bottom, 0)
+           env(safe-area-inset-left, 0);
+}
+
+/* canvas pixel-art nitido */
+#arena-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  background: #000; /* fallback */
+}

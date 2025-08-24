@@ -164,24 +164,25 @@ function detectPetNumFromDom() {
 }
 
 // === ENEMY ATLAS (come Treasure) ===========================================
-const ENEMY_FRAME = 32; // <-- cambia a 48 se i tuoi chara sono 48x48
+const ENEMY_FRAME = 48; // <-- cambia a 48 se i tuoi chara sono 48x48
 const enemyAtlasBase = isMobileOrTablet() ? 'assets/mobile/enemies' : 'assets/desktop/enemies';
 
 // pick frame da spritesheet nemici
-const gPick = (c, r, w=1, h=1) => ({
-  sx: c * ENEMY_FRAME, sy: r * ENEMY_FRAME, sw: w * ENEMY_FRAME, sh: h * ENEMY_FRAME,
-});
+function gPick(c, r) {
+  return { sx: c * ENEMY_FRAME, sy: r * ENEMY_FRAME, sw: ENEMY_FRAME, sh: ENEMY_FRAME };
+}
 
 // draw con flip orizzontale opzionale (per “left”)
-function drawEnemyFrame(img, f, dx, dy, dw, dh, flipX=false) {
-  if (!img || !img.complete) return false;
+function drawEnemyFrame(sheet, frame, dx, dy, dw, dh, flip = false) {
+  if (!sheet || !frame) return false;
   ctx.save();
-  if (flipX) {
+  if (flip) {
     ctx.translate(dx + dw, dy);
     ctx.scale(-1, 1);
-    dx = 0; dy = 0;
+    ctx.drawImage(sheet, frame.sx, frame.sy, frame.sw, frame.sh, 0, 0, dw, dh);
+  } else {
+    ctx.drawImage(sheet, frame.sx, frame.sy, frame.sw, frame.sh, dx, dy, dw, dh);
   }
-  ctx.drawImage(img, f.sx, f.sy, f.sw, f.sh, dx, dy, dw, dh);
   ctx.restore();
   return true;
 }
@@ -202,7 +203,7 @@ function buildGoblinFromAtlas() {
     G.sprites.goblinSheet.src = cfg.sheetSrc;
   }
 
-  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+  const mkRow = (row, cols) => cols.map(c => gPick(c, row));
   const mkPairs = (pairs)     => pairs.map(([c,r]) => gPick(c, r));
   const idleFrames = mkPairs(cfg.idleMap);
   const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
@@ -240,7 +241,7 @@ function buildBatFromAtlas() {
     G.sprites.batSheet.src = cfg.sheetSrc;
   }
 
-  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+  const mkRow = (row, cols) => cols.map(c => gPick(c, row));
   const mkPairs = (pairs)     => pairs.map(([c,r]) => gPick(c, r));
   const idleFrames = mkPairs(cfg.idleMap);
   const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.flyDown, [0]);

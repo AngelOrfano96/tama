@@ -1025,18 +1025,48 @@ async function fetchPetStatsFromDB(petId) {
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
-  // 1) leggi le stat dal DB (come fa la home)
-  const stats = await fetchPetStatsFromDB(petId);
-  G.hpCur = stats.hpCur;
-  G.hpMax = stats.hpMax;
-  G.atkP  = stats.atkP;
-  G.defP  = stats.defP;
-  G.spdP  = stats.spdP;
+  // 1) Leggi le stat dal DB (stesso schema della home)
+  try {
+    const { data, error } = await supabaseClient
+      .from('pet_states')
+      .select('hp_current, hp_max, attack_power, defense_power, speed_power')
+      .eq('pet_id', petId)
+      .single();
 
-  // 2) reset stato partita
+    if (error) throw error;
+
+    const hpMax = Math.max(1, Math.round(Number(data?.hp_max ?? 100)));
+    let hpCur = Number(data?.hp_current);
+    // se hp_current è nullo/0/non valido → parti full life
+    if (!Number.isFinite(hpCur) || hpCur <= 0) hpCur = hpMax;
+    hpCur = Math.min(Math.round(hpCur), hpMax); // clamp a hpMax
+
+    G.hpMax = hpMax;
+    G.hpCur = hpCur;
+    G.atkP  = Math.max(1, Math.round(Number(data?.attack_power ?? 50)));
+    G.defP  = Math.max(1, Math.round(Number(data?.defense_power ?? 50)));
+    G.spdP  = Math.max(1, Math.round(Number(data?.speed_power  ?? 50)));
+  } catch (e) {
+    console.error('[Arena] load stats', e);
+    // fallback robusto se la query fallisce
+    G.hpMax = 100;
+    G.hpCur = 100;
+    G.atkP = 50;
+    G.defP = 50;
+    G.spdP = 50;
+  }
+
+  // 2) Reset partita
   G.wave = 1;
   G.score = 0;
   G.enemies = [];
+
+  // nascondi HUD DOM e bottoni (usiamo HUD in-canvas)
+  if (DOM.hudBox)  DOM.hudBox.style.display = 'none';
+  if (DOM.btnAtk)  DOM.btnAtk.style.display = 'none';
+  if (DOM.btnChg)  DOM.btnChg.style.display = 'none';
+  if (DOM.btnDash) DOM.btnDash.style.display = 'none';
+
   G.pet = {
     x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,
     px: 0, py: 0, dirX: 0, dirY: 0,
@@ -1047,17 +1077,23 @@ async function startArenaMinigame() {
     stepFrame: 0
   };
 
-  // 3) asset & rendering
+  // 3) Asset & rendering
   initAtlasSprites();
   buildDecorFromAtlas();
+
+  // enemy frames da atlas (come nel Treasure)
+  buildGoblinFromAtlas?.();
+  buildBatFromAtlas?.();
+
   const petNum = detectPetNumFromDom();
   loadPetSprites(petNum);
-  loadEnemySprites?.();
 
+  await enterFullscreen?.(); // opzionale
   resizeCanvas();
   syncHUD();
   spawnWave(G.wave);
 
+  // 4) Avvio loop
   DOM.modal?.classList.remove('hidden');
   G.lastT = performance.now();
   G.playing = true;

@@ -1891,3 +1891,44 @@ body {
 
 /* feedback “premuto” */
 .arena-action-btn:active{ transform: scale(0.96); }
+
+
+
+/* overlay azioni: fisso in basso a dx, sopra le safe-area */
+.arena-actions-overlay{
+  position: fixed;
+  right:  calc(env(safe-area-inset-right, 0px) + 10px);
+  bottom: calc(env(safe-area-inset-bottom,0px) + 10px);
+  width:  180px;      /* area abbastanza grande da contenere il triangolo */
+  height: 180px;
+  z-index: 50;
+  pointer-events: none; /* l'overlay non prende tocchi, i bottoni sì */
+}
+
+.action-triangle{ position: relative; width:100%; height:100%; }
+
+/* dimensioni + distanza tra i tre bottoni */
+:root{
+  --btn: clamp(54px, 12vw, 64px);
+  --gap: 10px;  /* riduci a 6px se li vuoi ancora più vicini */
+}
+
+.arena-action-btn{
+  position:absolute;
+  width:var(--btn); height:var(--btn);
+  border-radius:50%;
+  font-weight:700; font-size:18px; color:#fff;
+  border:2px solid rgba(255,255,255,.25);
+  background:rgba(17,25,40,.65);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  backdrop-filter:blur(6px);
+  pointer-events:auto;
+  touch-action:manipulation;
+}
+
+/* triangolo compatto centrato nel box */
+.btn-a{   left: calc(50% - var(--btn) - var(--gap)); top: calc(50% + var(--btn)/2); }
+.btn-b{   left: calc(50% + var(--gap));             top: calc(50% + var(--btn)/2); }
+.btn-dash{left: calc(50% - var(--btn)/2);           top: calc(50% - var(--btn) - var(--gap)); }
+
+.arena-action-btn:active{ transform: scale(0.96); }

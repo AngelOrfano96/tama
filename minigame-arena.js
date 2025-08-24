@@ -239,6 +239,21 @@ function bakeArenaLayer() {
   return G.renderCache.arenaLayer;
 }
 
+function loadEnemySprites() {
+  const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
+  G.sprites.enemies = {
+    goblin: {
+      idle: new Image(),
+    },
+    bat: {
+      idle: new Image(),
+    }
+  };
+  G.sprites.enemies.goblin.idle.src = `${assetBase}/enemies/goblin.png`;
+  G.sprites.enemies.bat.idle.src = `${assetBase}/enemies/bat.png`;
+}
+
+
 function loadPetSprites(petNum = '1') {
   const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
   const mkImg = (path) => { const i = new Image(); i.src = `${assetBase}/pets/${path}?v=7`; return i; };
@@ -604,8 +619,9 @@ function render() {
     ctx.fillRect(G.tile, G.tile, (Cfg.roomW - 2) * G.tile, (Cfg.roomH - 2) * G.tile);
   }
 
-  // --- NEMICI (come prima, con telegrafo e barre HP) ---
+  // --- NEMICI (sprite + telegrafo + shadow + HP) ---
   for (const e of G.enemies) {
+    // telegrafo sotto al corpo
     if (e.state === 'windup') {
       ctx.save();
       ctx.globalAlpha = 0.25;
@@ -615,9 +631,56 @@ function render() {
       ctx.fill();
       ctx.restore();
     }
-    ctx.fillStyle = (e.type === 'bat') ? '#a78bfa' : '#e74c3c';
-    ctx.fillRect(e.px + 8, e.py + 8, G.tile - 16, G.tile - 16);
 
+    // ombra ellittica
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(
+      e.px + G.tile / 2,
+      e.py + G.tile * 0.82,
+      G.tile * 0.28,
+      G.tile * 0.16,
+      0, 0, Math.PI * 2
+    );
+    ctx.fill();
+    ctx.restore();
+
+    // sprite (o fallback rect)
+    const pad = 8;
+    const ex = e.px + pad, ey = e.py + pad, esz = G.tile - pad * 2;
+
+    const EN = G.sprites.enemies?.[e.type];
+    let imgE = null;
+
+    if (EN) {
+      // facing “grossolano” verso il pet (se esistono direzioni)
+      let face = 'down';
+      const dx = G.pet.px - e.px, dy = G.pet.py - e.py;
+      if (Math.abs(dx) > Math.abs(dy)) face = dx >= 0 ? 'right' : 'left';
+      else                             face = dy >= 0 ? 'down'  : 'up';
+
+      const arr = EN[face]; // es: EN.right / EN.left / EN.up / EN.down
+      if (Array.isArray(arr) && arr.length) {
+        // animazione 2 frame time-based
+        const t = (performance.now() * 0.001);    // secondi
+        const idx = ((t * 6) | 0) % arr.length;   // ~6 fps
+        imgE = arr[idx];
+      } else if (EN.idle) {
+        imgE = EN.idle;
+      }
+    }
+
+    if (imgE && imgE.complete) {
+      ctx.drawImage(imgE, ex, ey, esz, esz);
+    } else {
+      // fallback
+      ctx.fillStyle = (e.type === 'bat') ? '#a78bfa' : '#e74c3c';
+      ctx.fillRect(ex, ey, esz, esz);
+    }
+
+    // barra HP
     const w = G.tile - 16;
     const hpw = Math.max(0, Math.round(w * (e.hp / e.hpMax)));
     ctx.fillStyle = '#000';
@@ -639,7 +702,7 @@ function render() {
       } else {
         const dirArr = PET[G.pet.facing]; // 'up'|'down'|'left'|'right'
         if (Array.isArray(dirArr) && dirArr.length) {
-          img = dirArr[Math.abs(G.pet.stepFrame|0) % dirArr.length] || dirArr[0];
+          img = dirArr[Math.abs(G.pet.stepFrame | 0) % dirArr.length] || dirArr[0];
         } else {
           img = PET.idle;
         }
@@ -650,8 +713,6 @@ function render() {
     else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
   }
 }
-
-
 
 
   function loop() {
@@ -753,6 +814,7 @@ G.pet = {
     buildDecorFromAtlas();
     const petNum = detectPetNumFromDom();
     loadPetSprites(petNum);
+    loadEnemySprites();
     resizeCanvas();
     syncHUD();
     spawnWave(G.wave);

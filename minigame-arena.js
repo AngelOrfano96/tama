@@ -1037,47 +1037,55 @@ function spawnWave(n) {
 }
 
 function setupMobileControlsArena(){
-  const base = DOM.joyBase, stick = DOM.joyStick;
-  if (!base || !stick) return;
+  const base  = DOM.joyBase;
+  const stick = DOM.joyStick;
+
+  if (!base || !stick) return; // niente overlay => esci
 
   const radius = base.clientWidth * 0.5;
-  const center = { x: base.offsetLeft + radius, y: base.offsetTop + radius };
 
+  // riposiziona visivamente lo stick
   const setStick = (dx, dy) => {
     stick.style.left = `${50 + dx*100}%`;
     stick.style.top  = `${50 + dy*100}%`;
     stick.style.transform = `translate(-50%, -50%)`;
   };
 
+  // —— Joystick —— //
   const onStart = (ev) => {
     ev.preventDefault();
     G.joy.active = true;
+    setStick(0,0);
   };
+
   const onMove = (ev) => {
     if (!G.joy.active) return;
     ev.preventDefault();
 
     const t = (ev.touches ? ev.touches[0] : ev);
     const rect = base.getBoundingClientRect();
-    const cx = rect.left + rect.width/2;
-    const cy = rect.top  + rect.height/2;
+    const cx = rect.left + rect.width  / 2;
+    const cy = rect.top  + rect.height / 2;
+
+    // distanza normalizzata dal centro
     const dx = (t.clientX - cx) / radius;
     const dy = (t.clientY - cy) / radius;
 
-    // clamp in cerchio
     let len = Math.hypot(dx, dy);
     let vx = 0, vy = 0;
-    if (len > 0.12) { // deadzone
+
+    if (len > 0.12) {          // deadzone
       const k = Math.min(1, len);
-      vx = (dx/len) * k;
-      vy = (dy/len) * k;
+      vx = (dx / len) * k;
+      vy = (dy / len) * k;     // positivo = giù (coerente con update)
     }
-    // salva (y positiva verso il basso)
+
     G.joy.vx = vx;
     G.joy.vy = vy;
 
-    setStick(vx*0.35, vy*0.35);
+    setStick(vx * 0.35, vy * 0.35); // sposta la “pallina”
   };
+
   const onEnd = (ev) => {
     ev.preventDefault();
     G.joy.active = false;
@@ -1085,24 +1093,21 @@ function setupMobileControlsArena(){
     setStick(0,0);
   };
 
-  base.addEventListener('touchstart', onStart, {passive:false});
-  base.addEventListener('touchmove',  onMove,  {passive:false});
-  base.addEventListener('touchend',   onEnd,   {passive:false});
-  base.addEventListener('touchcancel',onEnd,   {passive:false});
+  base.addEventListener('touchstart', onStart,  { passive:false });
+  base.addEventListener('touchmove',  onMove,   { passive:false });
+  base.addEventListener('touchend',   onEnd,    { passive:false });
+  base.addEventListener('touchcancel',onEnd,    { passive:false });
 
-// Tasti azione (tap = esegue subito, compatibile con Android/iOS)
-const fire = (fn) => (e) => { 
-  e.preventDefault(); 
-  if (G.playing) fn(); 
-};
+  // —— Bottoni azione (tap immediato, compat Android/iOS) —— //
+  const fire = (fn) => (e) => { e.preventDefault(); if (G.playing) fn(); };
 
-['touchstart','pointerdown'].forEach(ev=>{
-  DOM.btnAtk?.addEventListener(ev, fire(tryAttackBasic), {passive:false});
-  DOM.btnChg?.addEventListener(ev, fire(tryAttackCharged), {passive:false});
-  DOM.btnDash?.addEventListener(ev, fire(tryDash), {passive:false});
-});
-
+  ['touchstart','pointerdown'].forEach(evName => {
+    DOM.btnAtk?.addEventListener(evName,  fire(tryAttackBasic),   { passive:false });
+    DOM.btnChg?.addEventListener(evName,  fire(tryAttackCharged), { passive:false });
+    DOM.btnDash?.addEventListener(evName, fire(tryDash),          { passive:false });
+  });
 }
+
 
 
   // ---------- Start / End ----------

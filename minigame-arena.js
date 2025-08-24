@@ -993,62 +993,32 @@ function spawnWave(n) {
   if (spawned.length) G.enemies.push(...spawned);
 }
 
-async function fetchPetStatsFromDB(petId) {
-  try {
-    const { data, error } = await supabaseClient
-      .from('pet_states')
-      .select('hp_current, hp_max, attack_power, defense_power, speed_power')
-      .eq('pet_id', petId)
-      .single();
-
-    if (error) throw error;
-
-    // normalizzazione + fallback
-    const hpMax = Math.max(1, Math.round(Number(data?.hp_max ?? 100)));
-    let hpCur = Number(data?.hp_current);
-    if (!Number.isFinite(hpCur) || hpCur <= 0) hpCur = hpMax;      // se manca current → pieno
-    hpCur = Math.min(hpCur, hpMax);                                // clamp
-
-    const atkP = Math.max(1, Math.round(Number(data?.attack_power ?? 50)));
-    const defP = Math.max(1, Math.round(Number(data?.defense_power ?? 50)));
-    const spdP = Math.max(1, Math.round(Number(data?.speed_power  ?? 50)));
-
-    return { hpCur, hpMax, atkP, defP, spdP };
-  } catch (e) {
-    console.error('[Arena] fetchPetStatsFromDB error', e);
-    // fallback hard se la query fallisce
-    const hpMax = 100;
-    return { hpCur: hpMax, hpMax, atkP: 50, defP: 50, spdP: 50 };
-  }
-}
 
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
-  // 1) Leggi le stat dal DB (stesso schema della home)
+  // 1) Leggi le stat dal DB
   try {
     const { data, error } = await supabaseClient
       .from('pet_states')
-      .select('hp_current, hp_max, attack_power, defense_power, speed_power')
+      .select('hp_max, attack_power, defense_power, speed_power')
       .eq('pet_id', petId)
       .single();
 
     if (error) throw error;
 
+    // HP: usa hp_max come "massimo" e anche come "current" a inizio arena
     const hpMax = Math.max(1, Math.round(Number(data?.hp_max ?? 100)));
-    let hpCur = Number(data?.hp_current);
-    // se hp_current è nullo/0/non valido → parti full life
-    if (!Number.isFinite(hpCur) || hpCur <= 0) hpCur = hpMax;
-    hpCur = Math.min(Math.round(hpCur), hpMax); // clamp a hpMax
-
     G.hpMax = hpMax;
-    G.hpCur = hpCur;
-    G.atkP  = Math.max(1, Math.round(Number(data?.attack_power ?? 50)));
-    G.defP  = Math.max(1, Math.round(Number(data?.defense_power ?? 50)));
-    G.spdP  = Math.max(1, Math.round(Number(data?.speed_power  ?? 50)));
+    G.hpCur = hpMax; // <-- ignoriamo hp_current: si parte full HP in arena
+
+    // Altre stats direttamente dal DB
+    G.atkP = Math.max(1, Math.round(Number(data?.attack_power  ?? 50)));
+    G.defP = Math.max(1, Math.round(Number(data?.defense_power ?? 50)));
+    G.spdP = Math.max(1, Math.round(Number(data?.speed_power  ?? 50)));
   } catch (e) {
     console.error('[Arena] load stats', e);
-    // fallback robusto se la query fallisce
+    // fallback robusto
     G.hpMax = 100;
     G.hpCur = 100;
     G.atkP = 50;
@@ -1080,8 +1050,6 @@ async function startArenaMinigame() {
   // 3) Asset & rendering
   initAtlasSprites();
   buildDecorFromAtlas();
-
-  // enemy frames da atlas (come nel Treasure)
   buildGoblinFromAtlas?.();
   buildBatFromAtlas?.();
 
@@ -1099,6 +1067,7 @@ async function startArenaMinigame() {
   G.playing = true;
   loop();
 }
+
 
 
   async function gameOver() {

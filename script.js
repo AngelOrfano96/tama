@@ -409,27 +409,27 @@ const STAT_FIELDS = ['hp','attack','defense','speed'];
 const STAT_MAX = 669; // tienilo allineato al CHECK del DB
 
 function updateCombatBars(stats) {
-  // aggiorna barre e numeri (se esistono in DOM)
   STAT_FIELDS.forEach(k => {
     const v = Math.max(0, Math.min(STAT_MAX, Number(stats[k] ?? 0)));
     const bar = document.getElementById(`bar-${k}`);
     const lab = document.getElementById(`val-${k}`);
+
     if (bar) bar.style.width = `${Math.round((v / STAT_MAX) * 100)}%`;
     if (lab) lab.textContent = v;
   });
 
-  // aggiorna contatore punti disponibili
-  const sp = document.getElementById('stat-points-label');
-  if (sp && 'stat_points' in stats) {
-    sp.textContent = stats.stat_points;
-  }
+  // --- Mostra punti disponibili ---
+  const sp = document.getElementById('stat-points-available');
+  if (sp) sp.textContent = stats.stat_points ?? 0;
 
-  // abilita/disabilita i bottoni "+" in base ai punti rimasti
-  const plusButtons = document.querySelectorAll('.stat-btn[data-delta="1"]');
-  plusButtons.forEach(btn => {
-    btn.disabled = (stats.stat_points <= 0);
-  });
+  // --- Mostra HP Max accanto al label ---
+  const hpLabel = document.querySelector('.inv-stat-row[data-stat="hp"] .inv-stat-name');
+  if (hpLabel) {
+    const max = stats.hp_max ?? 100;
+    hpLabel.textContent = `HP (${max})`;
+  }
 }
+
 
 
 async function loadCombatStats(){
@@ -453,40 +453,30 @@ function bindStatButtonsOnce(){
   if (document.body._statsBound) return;
   document.body._statsBound = true;
 
-  document.body.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.stat-btn');
-    if (!btn) return;
+document.body.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.stat-btn');
+  if (!btn) return;
 
-    const row   = btn.closest('.inv-stat-row');
-    const stat  = row?.dataset?.stat;
-    const delta = parseInt(btn.dataset.delta, 10) || 0;
+  const row = btn.closest('.inv-stat-row');
+  const stat = row?.dataset?.stat;
+  const delta = parseInt(btn.dataset.delta, 10) || 0;
+  if (!STAT_FIELDS.includes(stat) || !petId) return;
 
-    // ❌ mai permettere decrementi lato UI
-    if (delta < 0) return;
+  // 🔴 Disabilita i decrementi
+  if (delta < 0) return;
 
-    if (!STAT_FIELDS.includes(stat) || !petId) return;
-
-    try {
-  const { data, error } = await supabaseClient.rpc('allocate_stat_point', {
-    p_pet_id: petId,
-    p_field: stat
-  });
-  if (error) throw error;
-
-  // Se la RPC non ha fatto nulla (0 punti o stat al max) esci
-  const row0 = Array.isArray(data) ? data[0] : data;
-  if (!row0) {
-    // opzionale: mostra un toast "Nessun punto disponibile"
-    return;
+  try {
+    const { data, error } = await supabaseClient.rpc('allocate_stat_point', {
+      p_pet_id: petId,
+      p_field: stat
+    });
+    if (error) throw error;
+    if (data && data[0]) updateCombatBars(data[0]);
+  } catch (err) {
+    console.error('[allocate_stat_point]', err);
   }
+});
 
-  // 🔁 Ricarica lo stato dal DB: così aggiorni UI in modo certo
-  await loadCombatStats();
-
-} catch (err) {
-  console.error('[allocate_stat_point]', err);
-}
-  });
 }
 
 function updateStatPointsBadge(n){

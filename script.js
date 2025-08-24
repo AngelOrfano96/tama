@@ -419,7 +419,7 @@ function updateCombatBars(stats) {
   });
 
   // --- Mostra punti disponibili ---
-  const sp = document.getElementById('stat-points-available');
+  const sp = document.getElementById('stat-points');
   if (sp) sp.textContent = stats.stat_points ?? 0;
 
   // --- Mostra HP Max accanto al label ---
@@ -436,7 +436,7 @@ async function loadCombatStats(){
   if (!petId) return;
   const { data, error } = await supabaseClient
     .from('pet_states')
-    .select('hp, attack, defense, speed, stat_points')
+    .select('hp, attack, defense, speed, stat_points, hp_max')
     .eq('pet_id', petId)
     .single();
   if (error) { console.error('[loadCombatStats]', error); return; }
@@ -445,6 +445,7 @@ async function loadCombatStats(){
   updateStatPointsBadge(data?.stat_points ?? 0);
   togglePlusButtons((data?.stat_points ?? 0) <= 0);
 }
+
 
 
 
@@ -462,7 +463,7 @@ document.body.addEventListener('click', async (e) => {
   const delta = parseInt(btn.dataset.delta, 10) || 0;
   if (!STAT_FIELDS.includes(stat) || !petId) return;
 
-  // 🔴 Disabilita i decrementi
+  // blocca i decrementi
   if (delta < 0) return;
 
   try {
@@ -471,11 +472,17 @@ document.body.addEventListener('click', async (e) => {
       p_field: stat
     });
     if (error) throw error;
-    if (data && data[0]) updateCombatBars(data[0]);
+
+    if (data && data[0]) {
+      updateCombatBars(data[0]);
+      updateStatPointsBadge(data[0].stat_points ?? 0);
+      togglePlusButtons((data[0].stat_points ?? 0) <= 0);
+    }
   } catch (err) {
     console.error('[allocate_stat_point]', err);
   }
 });
+
 
 }
 

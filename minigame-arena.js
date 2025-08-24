@@ -108,7 +108,7 @@ function resizeCanvas() {
   // snap a multipli di 16 per mantenere allineamento con atlas 16x (e evitare blur)
   // limiti ragionevoli per mobile/desktop (modifica se vuoi più grande)
   const base = 16;
-  let tile = Math.max(32, Math.min(256, Math.floor(tileFloat / base) * base));
+  let tile = Math.max(32, Math.min(384, Math.floor(tileFloat / base) * base));
   if (tile < 32) tile = 32; // safety minimo
 
   // gestisci DPR (pixel reali del canvas)

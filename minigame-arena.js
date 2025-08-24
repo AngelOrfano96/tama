@@ -1170,38 +1170,35 @@ async function startArenaMinigame() {
     G.defP = 50;
     G.spdP = 50;
   }
-// Nascondi HUD DOM (usiamo HUD in canvas) e mostra overlay mobile
-DOM.hudBox && (DOM.hudBox.style.display = 'none');
+// HUD DOM fuori dal canvas: lo vogliamo SOLO su mobile
+// e i bottoni azione devono essere visibili su mobile.
+if (isMobile) {
+  DOM.joyOverlay?.classList.remove('hidden');
+  DOM.actionsOverlay?.classList.remove('hidden');
 
-  // mostra/occulta overlay mobile
-  if (isMobile) {
-    DOM.joyOverlay?.classList.remove('hidden');
-    DOM.actionsOverlay?.classList.remove('hidden');
-  } else {
-    DOM.joyOverlay?.classList.add('hidden');
-    DOM.actionsOverlay?.classList.add('hidden');
+  // mostra HUD DOM (verrà popolato da syncHUD)
+  if (DOM.hudBox) {
+    DOM.hudBox.style.display = '';      // assicurati che non sia display:none
+    DOM.hudBox.classList.add('show');   // se nel CSS usi .show per lo stile mobile
   }
 
-  // nascondi HUD DOM e i vecchi bottoni
-// HUD DOM off (usiamo HUD in-canvas)
-DOM.hudBox && (DOM.hudBox.style.display = 'none');
-
-// su mobile vogliamo i 3 bottoni azione visibili
-// HUD DOM on (mobile) / off (desktop)
-if (isMobile){
-  DOM.hudBox && DOM.hudBox.classList.add('show');
-  DOM.btnAtk  && (DOM.btnAtk.style.display  = '');
-  DOM.btnChg  && (DOM.btnChg.style.display  = '');
-  DOM.btnDash && (DOM.btnDash.style.display = '');
+  // assicurati che i tre bottoni non siano nascosti
+  if (DOM.btnAtk)  DOM.btnAtk.style.display  = '';
+  if (DOM.btnChg)  DOM.btnChg.style.display  = '';
+  if (DOM.btnDash) DOM.btnDash.style.display = '';
 } else {
-  DOM.hudBox && DOM.hudBox.classList.remove('show');
-  DOM.btnAtk  && (DOM.btnAtk.style.display  = 'none');
-  DOM.btnChg  && (DOM.btnChg.style.display  = 'none');
-  DOM.btnDash && (DOM.btnDash.style.display = 'none');
+  // Desktop: niente overlay mobile e HUD nel canvas
+  DOM.joyOverlay?.classList.add('hidden');
+  DOM.actionsOverlay?.classList.add('hidden');
+
+  if (DOM.hudBox) {
+    DOM.hudBox.classList.remove('show');
+    DOM.hudBox.style.display = 'none';
+  }
+  if (DOM.btnAtk)  DOM.btnAtk.style.display  = 'none';
+  if (DOM.btnChg)  DOM.btnChg.style.display  = 'none';
+  if (DOM.btnDash) DOM.btnDash.style.display = 'none';
 }
-
-
-
 
 setupMobileControlsArena();
 
@@ -1211,10 +1208,10 @@ setupMobileControlsArena();
   G.enemies = [];
 
   // nascondi HUD DOM e bottoni (usiamo HUD in-canvas)
-  if (DOM.hudBox)  DOM.hudBox.style.display = 'none';
-  if (DOM.btnAtk)  DOM.btnAtk.style.display = 'none';
-  if (DOM.btnChg)  DOM.btnChg.style.display = 'none';
-  if (DOM.btnDash) DOM.btnDash.style.display = 'none';
+  //if (DOM.hudBox)  DOM.hudBox.style.display = 'none';
+  //if (DOM.btnAtk)  DOM.btnAtk.style.display = 'none';
+  //if (DOM.btnChg)  DOM.btnChg.style.display = 'none';
+  //if (DOM.btnDash) DOM.btnDash.style.display = 'none';
 
   G.pet = {
     x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,

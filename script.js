@@ -1134,21 +1134,21 @@ document.addEventListener('dblclick', function (e) {
     const email = emailI.value.trim();
     if (!email) return;
 
-    // URL della pagina che ospiterà il form nuova password
+    // pagina di reset ospitata sullo stesso dominio
     const redirectTo = `${location.origin}/reset-password.html`;
 
-    // Messaggio generico (non rivelare esistenza email)
+    // messaggio neutro (privacy)
+    msg.style.color = ''; // reset
     msg.textContent = 'Se esiste un account con questa email, riceverai un link di reset.';
 
     try {
       const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) console.error('[resetPasswordForEmail]', error);
-      // opzionale: chiudi la modale tra 1s
       setTimeout(()=> modal.classList.add('hidden'), 1000);
     } catch (err) {
       console.error('[forgot submit]', err);
+      // manteniamo il messaggio neutro
     }
   });
 })();
-
 

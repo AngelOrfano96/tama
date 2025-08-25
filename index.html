@@ -36,12 +36,28 @@
   <input type="email" id="email-input" placeholder="Email" required />
   <input type="password" id="password-input" placeholder="Password" required />
 
-  <!-- link password -->
-  <div class="muted-row">
-    <button type="button" id="forgot-password-link" class="link-btn">
-      Password dimenticata?
-    </button>
+<!-- sotto il campo password -->
+<div class="muted-row">
+  <button type="button" id="forgot-link" class="link-btn">Password dimenticata?</button>
+</div>
+
+<!-- Modale -->
+<div id="forgot-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" style="width:min(420px,92vw); text-align:center;">
+    <h3 style="margin-bottom:10px;">Recupera password</h3>
+    <p class="muted" style="margin-bottom:12px;">
+      Inserisci la tua email. Se esiste un account, riceverai un link di reset.
+    </p>
+    <form id="forgot-form">
+      <input id="forgot-email" type="email" class="username-input" placeholder="tua@email.com" required>
+      <div id="forgot-msg" class="error" style="min-height:18px;margin-top:8px;"></div>
+      <div class="actions" style="margin-top:12px;">
+        <button type="submit" class="ui-btn">Invia link</button>
+        <button type="button" id="forgot-cancel" class="ui-btn secondary">Annulla</button>
+      </div>
+    </form>
   </div>
+</div>
 
   <div class="buttons">
     <button type="submit" id="login-btn">Entra</button>
@@ -50,22 +66,7 @@
   <div id="auth-error" class="error"></div>
 </form>
 
-<!-- Modale: chiedi email per reset -->
-<div id="forgot-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-content" style="width:min(420px,92vw); text-align:center;">
-    <h3 style="margin-bottom:10px;">Recupera password</h3>
-    <p class="muted" style="margin-bottom:12px;">
-      Inserisci la tua email. Ti invieremo un link per impostare una nuova password.
-    </p>
-    <input id="forgot-email" type="email" placeholder="tua@email.com"
-           class="username-input" style="margin-bottom:10px;">
-    <div id="forgot-msg" class="error" style="min-height:18px;"></div>
-    <div class="actions">
-      <button id="forgot-send" class="ui-btn">Invia link</button>
-      <button id="forgot-cancel" class="ui-btn secondary">Annulla</button>
-    </div>
-  </div>
-</div>
+
 
 
     <!-- Selezione Uovo -->

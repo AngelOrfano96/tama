@@ -1099,3 +1099,56 @@ document.addEventListener('dblclick', function (e) {
 });
 
 
+
+
+
+
+
+// Assumo che tu abbia già creato il client altrove come:
+// const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Se non esiste, scommenta questa riga:
+// const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+(function setupForgotPasswordUI(){
+  const link   = document.getElementById('forgot-link');
+  const modal  = document.getElementById('forgot-modal');
+  const form   = document.getElementById('forgot-form');
+  const emailI = document.getElementById('forgot-email');
+  const cancel = document.getElementById('forgot-cancel');
+  const msg    = document.getElementById('forgot-msg');
+
+  if (!link || !modal || !form) return;
+
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    emailI.value = document.getElementById('email-input')?.value || '';
+    modal.classList.remove('hidden');
+  });
+
+  cancel.addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = emailI.value.trim();
+    if (!email) return;
+
+    // URL della pagina che ospiterà il form nuova password
+    const redirectTo = `${location.origin}/reset-password.html`;
+
+    // Messaggio generico (non rivelare esistenza email)
+    msg.textContent = 'Se esiste un account con questa email, riceverai un link di reset.';
+
+    try {
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) console.error('[resetPasswordForEmail]', error);
+      // opzionale: chiudi la modale tra 1s
+      setTimeout(()=> modal.classList.add('hidden'), 1000);
+    } catch (err) {
+      console.error('[forgot submit]', err);
+    }
+  });
+})();
+
+

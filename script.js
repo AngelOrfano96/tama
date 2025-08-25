@@ -1083,6 +1083,7 @@ document.getElementById('choose-egg-btn').addEventListener('click', () => {
   eggType = null;
   alive = true;
   showOnly('egg-selection');
+  
   document.querySelectorAll('.egg.selectable').forEach(i => i.classList.remove('selected'));
   document.getElementById('confirm-egg-btn').disabled = true;
 });

@@ -344,13 +344,24 @@ let autoRefresh = null;
 // ========== FUNZIONI PRINCIPALI (NON TOCCARE QUESTE PARTI SE NON NECESSARIO) ==========
 
 // Mostra/hide
-function show(id) { document.getElementById(id).classList.remove('hidden'); }
-function hide(id) { document.getElementById(id).classList.add('hidden'); }
+function show(id) {
+  const el = document.getElementById(id);
+  if (!el) { console.warn('[show] missing #' + id); return; }
+  el.classList.remove('hidden');
+}
+function hide(id) {
+  const el = document.getElementById(id);
+  if (!el) { console.warn('[hide] missing #' + id); return; }
+  el.classList.add('hidden');
+}
 function showOnly(id) {
   ['login-container', 'egg-selection', 'game'].forEach(section => {
-    if (section === id) show(section); else hide(section);
+    const el = document.getElementById(section);
+    if (!el) { console.warn('[showOnly] missing #' + section); return; }
+    el.classList.toggle('hidden', section !== id);
   });
 }
+
 // Rende disponibile al minigioco l'aggiornamento di FUN + EXP
 window.updateFunAndExpFromMiniGame = async function(funDelta = 0, expDelta = 0) {
   try {
@@ -978,7 +989,7 @@ authForm.addEventListener('submit', async e => {
     if (error) throw error;
     const { data: sessionData } = await supabaseClient.auth.getUser();
     user = sessionData.user;
-    showOnly('egg-selection');
+    //showOnly('egg-selection');
     await initFlow();
   } catch (err) {
     document.getElementById('auth-error').textContent = err.message;

@@ -61,6 +61,20 @@ function renderArenaLeaderboard(container, rows){
   `;
   container.innerHTML = html;
 }
+// wiring UI leaderboard (al load del DOM)
+document.addEventListener('DOMContentLoaded', () => {
+  const btn   = document.getElementById('btn-open-leaderboard-arena');
+  const modal = document.getElementById('arena-leaderboard-modal');
+  const close = document.getElementById('arena-lb-close');
+
+  if (!btn || !modal || !close) return;
+
+  btn.addEventListener('click', () => openArenaLeaderboard());
+  close.addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+  });
+});
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({

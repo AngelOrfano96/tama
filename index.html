@@ -31,44 +31,42 @@
   <div id="app-root">
     <!-- Login / Registrazione -->
     <div id="login-container" class="fullscreen center">
-      <form id="auth-form" class="form-box">
-        <h2>Login / Registrati</h2>
-        <input type="email" id="email-input" placeholder="Email" required />
-        <input type="password" id="password-input" placeholder="Password" required />
-        <p class="forgot-wrap">
-  <a href="#" id="forgot-link">Password dimenticata?</a>
-</p>
-        <div class="buttons">
-          <button type="submit" id="login-btn">Entra</button>
-          <button type="button" id="signup-btn">Registrati</button>
-        </div>
-        <div id="auth-error" class="error"></div>
-      </form>
-    </div>
+<form id="auth-form" class="form-box">
+  <h2>Login / Registrati</h2>
+  <input type="email" id="email-input" placeholder="Email" required />
+  <input type="password" id="password-input" placeholder="Password" required />
 
-<!-- Modale reset password -->
+  <!-- link password -->
+  <div class="muted-row">
+    <button type="button" id="forgot-password-link" class="link-btn">
+      Password dimenticata?
+    </button>
+  </div>
+
+  <div class="buttons">
+    <button type="submit" id="login-btn">Entra</button>
+    <button type="button" id="signup-btn">Registrati</button>
+  </div>
+  <div id="auth-error" class="error"></div>
+</form>
+
+<!-- Modale: chiedi email per reset -->
 <div id="forgot-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-content">
-    <h3>Reimposta password</h3>
-    <form id="forgot-form">
-      <label for="forgot-email">Email</label>
-      <input id="forgot-email" type="email" required autocomplete="email" />
-      <div class="buttons" style="margin-top:10px">
-        <button type="submit">Invia link</button>
-        <button type="button" id="forgot-cancel">Annulla</button>
-      </div>
-      <p id="forgot-msg" class="msg"></p>
-    </form>
+  <div class="modal-content" style="width:min(420px,92vw); text-align:center;">
+    <h3 style="margin-bottom:10px;">Recupera password</h3>
+    <p class="muted" style="margin-bottom:12px;">
+      Inserisci la tua email. Ti invieremo un link per impostare una nuova password.
+    </p>
+    <input id="forgot-email" type="email" placeholder="tua@email.com"
+           class="username-input" style="margin-bottom:10px;">
+    <div id="forgot-msg" class="error" style="min-height:18px;"></div>
+    <div class="actions">
+      <button id="forgot-send" class="ui-btn">Invia link</button>
+      <button id="forgot-cancel" class="ui-btn secondary">Annulla</button>
+    </div>
   </div>
 </div>
-<style>
-  .forgot-wrap { margin: 6px 0 0; text-align: right; }
-  .forgot-wrap a { font-size: .9em; color: #2563eb; text-decoration: underline; }
 
-  .modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); z-index: 999; }
-  .modal .modal-content { background:#111827; color:#e5e7eb; padding:16px; border-radius:12px; width:min(420px, 92vw); }
-  .msg { font-size:.9em; margin-top:8px; color:#9ca3af; }
-</style>
 
     <!-- Selezione Uovo -->
     <div id="egg-selection" class="fullscreen center hidden">

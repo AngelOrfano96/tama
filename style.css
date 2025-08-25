@@ -1987,6 +1987,13 @@ body {
 
 
 
+.muted-row{ width:100%; text-align:right; margin:-6px 0 8px; }
+.link-btn{
+  appearance:none; background:transparent; border:0; color:#2563eb;
+  font-weight:700; cursor:pointer; padding:4px 0;
+}
+.link-btn:hover{ text-decoration:underline; }
+.muted{ color:#6b7280; }
 
 
 

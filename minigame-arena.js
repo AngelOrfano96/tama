@@ -1,20 +1,5 @@
 // === MINI GIOCO ARENA — versione “solo arena” (IIFE) ======================
 // === Leaderboard Arena =====================================================
-(function setupArenaLeaderboardUI(){
-  const btn  = document.getElementById('btn-open-leaderboard-arena');
-  const modal= document.getElementById('arena-leaderboard-modal');
-  const close= document.getElementById('arena-lb-close');
-  if (!btn || !modal || !close) return;
-
-  btn.addEventListener('click', async () => {
-    await openArenaLeaderboard();
-  });
-  close.addEventListener('click', () => modal.classList.add('hidden'));
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.classList.add('hidden');
-  });
-})();
-
 async function openArenaLeaderboard(){
   const modal = document.getElementById('arena-leaderboard-modal');
   const body  = document.getElementById('arena-lb-body');
@@ -25,12 +10,24 @@ async function openArenaLeaderboard(){
 
   try {
     const { data, error } = await supabaseClient
-      .from('arena_leaderboard') // ← la VIEW definita lato SQL
-      .select('*')
+      .from('leaderboard_arena') // 👈 usa la tua tabella
+      .select('user_id, username_snapshot, best_score, best_wave, best_at')
+      .order('best_score', { ascending:false })
+      .order('best_wave',  { ascending:false })
       .limit(100);
+
     if (error) throw error;
 
-    renderArenaLeaderboard(body, data || []);
+    // mappa alle colonne attese dal renderer
+    const rows = (data || []).map((r, i) => ({
+      rank: i + 1,
+      username: r.username_snapshot || 'Player',
+      score: r.best_score || 0,
+      wave: r.best_wave || 0,
+      created_at: r.best_at
+    }));
+
+    renderArenaLeaderboard(body, rows);
   } catch (err) {
     console.error('[Arena LB] fetch', err);
     body.innerHTML = `<div style="padding:16px;color:#fca5a5">Errore nel caricamento.</div>`;
@@ -38,7 +35,7 @@ async function openArenaLeaderboard(){
 }
 
 function renderArenaLeaderboard(container, rows){
-  const fmt = (d)=> new Date(d).toLocaleString();
+  const fmt = (d)=> d ? new Date(d).toLocaleString() : '-';
   const html = `
     <table class="arena-lb-table">
       <thead>
@@ -54,7 +51,7 @@ function renderArenaLeaderboard(container, rows){
         ${rows.map(r=>`
           <tr>
             <td class="rank">${r.rank}</td>
-            <td>${escapeHtml(r.username || 'Player')}</td>
+            <td>${escapeHtml(r.username)}</td>
             <td>${r.score|0}</td>
             <td>${r.wave|0}</td>
             <td>${fmt(r.created_at)}</td>

@@ -978,8 +978,8 @@ if (u) u.textContent = '—';
 }
 
 // --- LOGIN/SIGNUP ---
-//const authForm = document.getElementById('auth-form');
-//const signupBtn = document.getElementById('signup-btn');
+const authForm = document.getElementById('auth-form');
+const signupBtn = document.getElementById('signup-btn');
 authForm.addEventListener('submit', async e => {
   e.preventDefault();
   const email = document.getElementById('email-input').value.trim();

@@ -1343,25 +1343,34 @@ setupMobileControlsArena();
   spawnWave(G.wave);
 
   // 4) Avvio loop
-  DOM.modal?.classList.remove('hidden');
-  DOM.modal?.classList.add('show');  
-// dentro startArenaMinigame(), dopo aver popolato DOM.* (vedi punto 1)
+DOM.modal?.classList.remove('hidden');
+DOM.modal?.classList.add('show');
+
+// dentro startArenaMinigame(), dopo aver popolato DOM.*
 if (!DOM._arenaBound) {
-const bindTap = (el, handler) => {
-  if (!el) return;
-  const doIt = (e) => {
-    e.preventDefault();
-    e.stopImmediatePropagation?.();
-    e.stopPropagation();
-    if (G.playing) handler();
+  const bindTap = (el, handler) => {
+    if (!el) return;
+    const doIt = (e) => {
+      e.preventDefault();
+      e.stopImmediatePropagation?.();
+      e.stopPropagation();
+      if (G.playing) handler();
+    };
+    ['pointerdown','touchstart','click'].forEach(t =>
+      el.addEventListener(t, doIt, { passive:false })
+    );
   };
-  ['pointerdown','touchstart','click'].forEach(t => el.addEventListener(t, doIt, {passive:false}));
-};
+
+  bindTap(DOM.btnAtk,  tryAttackBasic);
+  bindTap(DOM.btnChg,  tryAttackCharged);
+  bindTap(DOM.btnDash, tryDash);
+
+  DOM._arenaBound = true;
 }
-      
-  G.lastT = performance.now();
-  G.playing = true;
-  loop();
+
+G.lastT = performance.now();
+G.playing = true;
+loop();
 }
 
 

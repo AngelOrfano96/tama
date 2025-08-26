@@ -2017,4 +2017,5 @@ button, .ui-btn { touch-action: manipulation; }
 
 
 
-
+#arena-hud, #treasure-minigame-modal, #arena-minigame-modal { pointer-events:none; }
+#arena-hud.show, #treasure-minigame-modal.show, #arena-minigame-modal.show { pointer-events:auto; }

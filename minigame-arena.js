@@ -1207,13 +1207,6 @@ function setupMobileControlsArena(){
     base.addEventListener('touchcancel', end,   {passive:true});
   }
 
-  // === BOTTONI AZIONE (fire immediato, anche con un altro dito sul joystick) ===
-  const fire = (fn) => (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (G.playing) fn();
-  };
-
 }
 
 
@@ -1236,6 +1229,7 @@ function unloadArenaCSS() {
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
+  DOM.modal?.classList.remove('show')
   DOM.modal   = document.getElementById('arena-minigame-modal');
 DOM.canvas  = document.getElementById('arena-canvas');
 DOM.hudBox  = document.getElementById('arena-hud');

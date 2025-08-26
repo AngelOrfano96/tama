@@ -320,16 +320,16 @@ const DECOR_DESKTOP = {
 
   // bordi (un singolo tile “corpo muro”). Se il tuo atlas ha cap e body separati,
   // metti il tile del "corpo". La parte “alta” la disegniamo con il fore-layer.
-  top:    [ pick(  0,  7), pick(  0,  7) ],
-  bottom: [ pick(  1,  11), pick(  1,  11) ],
-  left:   [ pick(  4,  7), pick(  4,  7) ],
-  right:  [ pick(  4,  7), pick(  4,  7) ],
+  top:    [ pick(  4,  0), pick(  5,  0) ],
+  bottom: [ pick(  4,  4), pick(  5,  4) ],
+  left:   [ pick(  3,  2), pick(  3,  3) ],
+  right:  [ pick(  6,  2), pick(  6,  3) ],
 
   // angoli
-  corner_tl: pick( 0, 9 ),
-  corner_tr: pick( 2, 9 ),
-  corner_bl: pick( 0, 11 ),
-  corner_br: pick( 2, 11 ),
+  corner_tl: pick( 3, 1 ),
+  corner_tr: pick( 6, 1 ),
+  corner_bl: pick( 3, 4 ),
+  corner_br: pick( 6, 4 ),
 };
 const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;

@@ -1220,10 +1220,25 @@ DOM.btnDash?.addEventListener(EV_FIRE, fire(tryDash),          { passive:false }
 
 
 
+let arenaStyleEl = null;
+
+function loadArenaCSS() {
+  if (arenaStyleEl) return;
+  arenaStyleEl = document.createElement('link');
+  arenaStyleEl.rel = 'stylesheet';
+  arenaStyleEl.href = '/css/arena.css'; // ← percorso reale
+  document.head.appendChild(arenaStyleEl);
+}
+function unloadArenaCSS() {
+  if (!arenaStyleEl) return;
+  arenaStyleEl.remove();
+  arenaStyleEl = null;
+}
 
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
+  loadArenaCSS();
   // 1) Leggi le stat dal DB
   try {
     const { data, error } = await supabaseClient
@@ -1338,6 +1353,7 @@ DOM.joyOverlay?.classList.add('show');
     G.playing = false;
     DOM.modal?.classList.add('hidden');
     DOM.hudBox?.classList.remove('show');
+  unloadArenaCSS(); // ← via lo stile
 
     // assegna reward base (tuning semplice): EXP/FUN/Gettoni
     const fun = 10 + Math.round(G.wave * 1.2);

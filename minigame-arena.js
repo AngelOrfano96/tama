@@ -1149,82 +1149,64 @@ function setupMobileControlsArena(){
   const stick = DOM.joyStick;
   if (!base || !stick) return;
 
-  // === JOYSTICK (Pointer Events, multi-touch safe) ===
-  let joyPointerId = null;
+  const HAS_POINTER = 'PointerEvent' in window;
 
+  let joyPointerId = null;
   const setStick = (dx, dy) => {
     stick.style.left = `${50 + dx*100}%`;
     stick.style.top  = `${50 + dy*100}%`;
     stick.style.transform = `translate(-50%, -50%)`;
   };
 
-  const joyStart = (e) => {
-    // NON fare preventDefault qui: abbiamo touch-action:none sul base
-    if (joyPointerId !== null) return;               // già attivo con un dito
-    joyPointerId = e.pointerId ?? 'touch';
+  const start = (e) => {
+    if (joyPointerId !== null) return;
+    joyPointerId = HAS_POINTER ? e.pointerId : 'touch';
     G.joy.active = true;
-    base.setPointerCapture?.(joyPointerId);          // cattura solo QUEL pointer
+    if (HAS_POINTER) base.setPointerCapture?.(joyPointerId);
     setStick(0,0);
   };
-
-  const joyMove = (e) => {
-    if (!G.joy.active || (e.pointerId ?? 'touch') !== joyPointerId) return;
-    // niente preventDefault: touch-action:none evita lo scroll
+  const move = (e) => {
+    if (!G.joy.active) return;
+    if (HAS_POINTER && e.pointerId !== joyPointerId) return;
     const rect = base.getBoundingClientRect();
     const radius = Math.max(1, rect.width * 0.5);
-    const cx = rect.left + rect.width  / 2;
-    const cy = rect.top  + rect.height / 2;
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top  + rect.height/2;
+    const x = HAS_POINTER ? e.clientX : e.touches[0].clientX;
+    const y = HAS_POINTER ? e.clientY : e.touches[0].clientY;
 
-    const dx = (e.clientX - cx) / radius;
-    const dy = (e.clientY - cy) / radius;
+    const dx = (x - cx) / radius;
+    const dy = (y - cy) / radius;
 
-    let len = Math.hypot(dx, dy);
-    let vx = 0, vy = 0;
-    if (len > 0.12) {
-      const k = Math.min(1, len);
-      vx = (dx / len) * k;
-      vy = (dy / len) * k;
-    }
-    if (!Number.isFinite(vx)) vx = 0;
-    if (!Number.isFinite(vy)) vy = 0;
+    const len = Math.hypot(dx, dy);
+    const k = len > 0.12 ? Math.min(1, len) : 0;
+    const vx = k ? (dx/len)*k : 0;
+    const vy = k ? (dy/len)*k : 0;
 
-    G.joy.vx = vx; G.joy.vy = vy;
-    setStick(vx * 0.35, vy * 0.35);
+    G.joy.vx = Number.isFinite(vx) ? vx : 0;
+    G.joy.vy = Number.isFinite(vy) ? vy : 0;
+    setStick(G.joy.vx * 0.35, G.joy.vy * 0.35);
   };
-
-  const joyEnd = (e) => {
-    if ((e.pointerId ?? 'touch') !== joyPointerId) return;
+  const end = (e) => {
+    if (HAS_POINTER && e.pointerId !== joyPointerId) return;
     joyPointerId = null;
     G.joy.active = false;
     G.joy.vx = 0; G.joy.vy = 0;
     setStick(0,0);
-    base.releasePointerCapture?.(e.pointerId);
+    if (HAS_POINTER) base.releasePointerCapture?.(e.pointerId);
   };
 
-  base.addEventListener('pointerdown', joyStart);
-  base.addEventListener('pointermove', joyMove);
-  base.addEventListener('pointerup',   joyEnd);
-  base.addEventListener('pointercancel', joyEnd);
-
-  // fallback (vecchi iOS senza Pointer Events)
-  base.addEventListener('touchstart',  (ev)=>{ if (ev.touches.length===1) { G.joy.active=true; setStick(0,0); } }, { passive:true });
-  base.addEventListener('touchmove',   (ev)=>{
-    if (!G.joy.active) return;
-    const t = ev.touches[0];
-    const rect = base.getBoundingClientRect();
-    const radius = Math.max(1, rect.width * 0.5);
-    const cx = rect.left + rect.width  / 2;
-    const cy = rect.top  + rect.height / 2;
-    const dx = (t.clientX - cx) / radius;
-    const dy = (t.clientY - cy) / radius;
-    const len = Math.hypot(dx, dy);
-    let vx=0, vy=0;
-    if (len > 0.12) { const k = Math.min(1,len); vx = (dx/len)*k; vy = (dy/len)*k; }
-    G.joy.vx = vx; G.joy.vy = vy;
-    setStick(vx*0.35, vy*0.35);
-  }, { passive:true });
-  base.addEventListener('touchend',    ()=>{ G.joy.active=false; G.joy.vx=0; G.joy.vy=0; setStick(0,0); }, { passive:true });
-  base.addEventListener('touchcancel', ()=>{ G.joy.active=false; G.joy.vx=0; G.joy.vy=0; setStick(0,0); }, { passive:true });
+  if (HAS_POINTER) {
+    base.addEventListener('pointerdown', start, {passive:false});
+    base.addEventListener('pointermove',  move,  {passive:false});
+    base.addEventListener('pointerup',    end,   {passive:false});
+    base.addEventListener('pointercancel',end,   {passive:false});
+  } else {
+    base.addEventListener('touchstart',  start, {passive:true});
+    base.addEventListener('touchmove',   move,  {passive:true});
+    base.addEventListener('touchend',    end,   {passive:true});
+    base.addEventListener('touchcancel', end,   {passive:true});
+  }
 
   // === BOTTONI AZIONE (fire immediato, anche con un altro dito sul joystick) ===
   const fire = (fn) => (e) => {

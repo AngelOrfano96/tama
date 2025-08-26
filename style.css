@@ -2057,3 +2057,63 @@ button, .ui-btn { touch-action: manipulation; }
 #arena-joystick-overlay { z-index: 10; }
 #arena-actions-overlay  { z-index: 11; } /* bottoni sopra */
 #arena-hud              { z-index: 12; }
+
+/* ==== ARENA — fix multitouch (override pulito) ==== */
+
+/* 1) Non usare le versioni a classi (se nel DOM usi SOLO gli ID).
+      Azzeriamo le classi per sicurezza. */
+.arena-joystick-overlay,
+.arena-actions-overlay { all: unset; }
+
+/* 2) Overlay con ID: SEMPRE visibili per hit-test ma NON catturano loro i tocchi.
+      Solo i figli (base stick + bottoni) hanno pointer-events:auto. */
+#arena-joystick-overlay,
+#arena-actions-overlay {
+  position: fixed;                 /* fuori da stacking context strani */
+  inset: auto;
+  z-index: 10002;                  /* sopra il canvas e sopra l’HUD */
+  pointer-events: none;            /* l’overlay non blocca mai */
+}
+
+/* Aree non sovrapposte */
+#arena-joystick-overlay {
+  left: 0;
+  bottom: 0;
+  width: 50vw;
+  height: 50vh;
+}
+#arena-actions-overlay {
+  right: 0;
+  bottom: 0;
+  width: 50vw;
+  height: 50vh;
+}
+
+/* 3) Solo i controlli REALI ricevono eventi */
+.arena-joy-base {                  /* stick base */
+  pointer-events: auto !important;
+  touch-action: none !important;   /* essenziale per lo stick */
+  user-select: none;
+}
+
+.arena-action-btn {                /* bottoni azione */
+  pointer-events: auto !important;
+  touch-action: manipulation;      /* niente delay/double-tap */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  position: absolute;              /* già così nel tuo CSS, ribadiamo */
+  z-index: 10003;                  /* sopra allo stick se si sovrappongono */
+}
+
+/* 4) L’HUD non deve mai bloccare tocchi ai controlli */
+#arena-hud { pointer-events: none !important; z-index: 10001; }
+
+/* 5) Evita conflitti: NON rimettere pointer-events:auto sugli overlay quando .show */
+#arena-joystick-overlay.show,
+#arena-actions-overlay.show {
+  pointer-events: none !important; /* restano trasparenti, i figli NO */
+}
+
+/* 6) Il modal può restare cliccabile (serve), ma i controlli stanno sopra */
+#arena-minigame-modal.show { z-index: 10000; }
+

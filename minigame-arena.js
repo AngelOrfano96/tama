@@ -136,7 +136,8 @@ function escapeHtml(s){
   };
   let ctx = DOM.canvas.getContext('2d');
 
-  const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+  const isMobile = (window.matchMedia?.('(pointer:coarse)')?.matches ?? false) || /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+
 
   // Stato principale
   const G = {
@@ -1261,6 +1262,7 @@ if (isMobile) {
 
   // mostra HUD DOM (verrà popolato da syncHUD)
   if (DOM.hudBox) {
+    DOM.hudBox.classList.remove('hidden');
     DOM.hudBox.style.display = '';      // assicurati che non sia display:none
     DOM.hudBox.classList.add('show');   // se nel CSS usi .show per lo stile mobile
   }
@@ -1332,6 +1334,7 @@ setupMobileControlsArena();
   async function gameOver() {
     G.playing = false;
     DOM.modal?.classList.add('hidden');
+    DOM.hudBox?.classList.remove('show');
 
     // assegna reward base (tuning semplice): EXP/FUN/Gettoni
     const fun = 10 + Math.round(G.wave * 1.2);

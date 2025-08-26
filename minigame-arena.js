@@ -1212,12 +1212,18 @@ function setupMobileControlsArena(){
   base.addEventListener('pointerup',   end,   { passive:false });
 
   // Bottoni azione – tap immediato
-const fire = (fn) => (e) => { e.preventDefault(); if (G.playing) fn(); };
-['touchstart','pointerdown'].forEach(evName => {
+const fire = (fn) => (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (G.playing) fn();
+};
+
+['click','touchstart','pointerdown'].forEach(evName => {
   DOM.btnAtk?.addEventListener(evName,  fire(tryAttackBasic),   { passive:false });
   DOM.btnChg?.addEventListener(evName,  fire(tryAttackCharged), { passive:false });
   DOM.btnDash?.addEventListener(evName, fire(tryDash),          { passive:false });
 });
+
 
 }
 

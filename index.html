@@ -394,5 +394,29 @@
   window.addEventListener('keyup',    (e) => { if (isTyping(e.target)) e.stopPropagation(); }, true);
 })();
 </script>
+<script>
+// Non far arrivare gli eventi touch/pointer globali ai minigiochi
+// quando il tap è su input / button / form / link / modali
+(function () {
+  const isFormish = (el) =>
+    el && (el.closest('form, input, textarea, select, button, a, .form-box, .modal'));
+
+  ['pointerdown','pointerup','touchstart','touchend','touchmove'].forEach(ev => {
+    window.addEventListener(ev, (e) => {
+      if (isFormish(e.target)) {
+        // impedisce ai listener globali (in capture/bubble) di prenderli
+        e.stopPropagation();
+      }
+    }, true); // capture = true
+  });
+})();
+</script>
+<script>
+  const authForm  = document.getElementById('auth-form');
+  const loginBtn  = document.getElementById('login-btn');
+  // Safari/mobile: assicura che il tap chiami davvero il submit del form
+  loginBtn?.addEventListener('click', () => authForm?.requestSubmit());
+</script>
+
 </body>
 </html>

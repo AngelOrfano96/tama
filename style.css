@@ -1996,6 +1996,9 @@ body {
 .muted{ color:#6b7280; }
 
 
+button, .ui-btn { touch-action: manipulation; }
+
+
 
 
 

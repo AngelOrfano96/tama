@@ -1806,6 +1806,8 @@ const isTyping = (e) =>
   e.target && (e.target.matches('input, textarea, [contenteditable="true"]') ||
                e.target.closest('input, textarea, [contenteditable="true"]'));
 
+const isFormish = (el) =>
+  el && (el.closest('form, input, textarea, select, button, a, .form-box, .modal'));
 
 document.addEventListener('keydown', (e) => {
   if (!G.playing) return;

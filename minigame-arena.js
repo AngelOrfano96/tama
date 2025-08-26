@@ -97,6 +97,10 @@ function escapeHtml(s){
     baseMoveTile: 64
   };
 
+  // in alto
+const DOM = {};  // ← non più valorizzato subito
+let ctx = null;
+
   const EnemyTuning = {
   // velocità (più lenti del pet)
   spdMul: 0.65,                    // 65% della tua velocità base
@@ -118,7 +122,7 @@ function escapeHtml(s){
   sepRadius: 0.55,                 // raggio sotto cui si respingono
   sepStrength: 380,                // forza “repulsione” (pixel/s)
 };
-
+/*
 
   const DOM = {
     modal:  document.getElementById('arena-minigame-modal'),
@@ -134,7 +138,7 @@ function escapeHtml(s){
   joyOverlay: document.getElementById('arena-joystick-overlay'),
   actionsOverlay: document.getElementById('arena-actions-overlay'),
   };
-  let ctx = DOM.canvas.getContext('2d');
+  let ctx = DOM.canvas.getContext('2d'); */
 
   const isMobile = (window.matchMedia?.('(pointer:coarse)')?.matches ?? false) || /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
 
@@ -1210,12 +1214,6 @@ function setupMobileControlsArena(){
     if (G.playing) fn();
   };
 
-  // usa pointerdown e touchstart; il click su iOS non scatta finché c’è un altro dito
-const EV_FIRE = ('PointerEvent' in window) ? 'pointerdown' : 'touchstart';
-DOM.btnAtk?.addEventListener(EV_FIRE,  fire(tryAttackBasic),   { passive:false });
-DOM.btnChg?.addEventListener(EV_FIRE,  fire(tryAttackCharged), { passive:false });
-DOM.btnDash?.addEventListener(EV_FIRE, fire(tryDash),          { passive:false });
-
 }
 
 
@@ -1238,7 +1236,21 @@ function unloadArenaCSS() {
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
+  DOM.modal   = document.getElementById('arena-minigame-modal');
+DOM.canvas  = document.getElementById('arena-canvas');
+DOM.hudBox  = document.getElementById('arena-hud');
+DOM.btnAtk  = document.getElementById('arena-attack-btn');
+DOM.btnChg  = document.getElementById('arena-charge-btn');
+DOM.btnDash = document.getElementById('arena-dash-btn');
+DOM.joyBase = document.getElementById('arena-joy-base');
+DOM.joyStick= document.getElementById('arena-joy-stick');
+DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
+DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
+
+if (!DOM.canvas) { console.error('[Arena] canvas mancante'); return; }
+ctx = DOM.canvas.getContext('2d');
   loadArenaCSS();
+
   // 1) Leggi le stat dal DB
   try {
     const { data, error } = await supabaseClient
@@ -1338,24 +1350,25 @@ setupMobileControlsArena();
   // 4) Avvio loop
   DOM.modal?.classList.remove('hidden');
   DOM.modal?.classList.add('show');  
-  if (!DOM._arenaBound) {
-    const bindTap = (el, handler) => {
-      if (!el) return;
-      const doIt = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (G.playing) handler();
-      };
-      el.addEventListener('pointerdown', doIt, { passive:false });
-      el.addEventListener('touchstart',  doIt, { passive:false });
+// dentro startArenaMinigame(), dopo aver popolato DOM.* (vedi punto 1)
+if (!DOM._arenaBound) {
+  const bindTap = (el, handler) => {
+    if (!el) return;
+    const doIt = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (G.playing) handler();
     };
-
-    bindTap(DOM.btnAtk,  tryAttackBasic);
-    bindTap(DOM.btnChg,  tryAttackCharged);
-    bindTap(DOM.btnDash, tryDash);
-
-    DOM._arenaBound = true; // flag così non li raddoppia ogni avvio
-  }        // <-- così i bottoni ricevono eventi
+    // doppio canale per iOS (tap immediato anche con altro dito sullo stick)
+    el.addEventListener('pointerdown', doIt, { passive:false });
+    el.addEventListener('touchstart',  doIt, { passive:false });
+  };
+  bindTap(DOM.btnAtk,  tryAttackBasic);
+  bindTap(DOM.btnChg,  tryAttackCharged);
+  bindTap(DOM.btnDash, tryDash);
+  DOM._arenaBound = true;
+}
+      
   G.lastT = performance.now();
   G.playing = true;
   loop();

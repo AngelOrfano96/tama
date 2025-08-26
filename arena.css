@@ -342,3 +342,21 @@
   #arena-joy-base,
   #arena-actions-overlay{ display:none !important; }
 }
+
+#arena-joystick-overlay, #arena-actions-overlay { pointer-events: none; position:fixed; z-index:10002; }
+.arena-joy-base, .arena-action-btn { pointer-events: auto; }
+
+#arena-actions-overlay{
+  position:fixed; right:calc(env(safe-area-inset-right,0)+10px);
+  bottom:calc(env(safe-area-inset-bottom,0)+10px);
+  width:180px; height:180px; pointer-events:none; z-index:10002;
+}
+.action-triangle{ position:relative; width:100%; height:100%; }
+:root{ --btn: clamp(54px, 12vw, 64px); --gap: 10px; }
+.arena-action-btn{
+  position:absolute; width:var(--btn); height:var(--btn);
+  border-radius:50%; pointer-events:auto; touch-action:manipulation;
+}
+.btn-a   { left: calc(50% - var(--btn) - var(--gap)); top:  calc(50% + var(--btn)/2); }
+.btn-b   { left: calc(50% + var(--gap));              top:  calc(50% + var(--btn)/2); }
+.btn-dash{ left: calc(50% - var(--btn)/2);            top:  calc(50% - var(--btn) - var(--gap)); }

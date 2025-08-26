@@ -313,19 +313,78 @@ const pick = (c, r, w=1, h=1) => ({
   sx: c * ATLAS_TILE, sy: r * ATLAS_TILE, sw: w * ATLAS_TILE, sh: h * ATLAS_TILE,
 });
 
-// decor desktop/mobile (stesse celle del tuo altro minigioco)
+// ⛏️ Sostituisci qui con le celle di Dungeon_2.png
 const DECOR_DESKTOP = {
-  floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
-  top:    [ pick(11,1), pick(12,1) ],
-  bottom: [ pick(11,4), pick(12,4) ],
-  left:   [ pick(10,2), pick(10,3) ],
-  right:  [ pick(13,2), pick(13,3) ],
-  corner_tl: pick(10,1), corner_tr: pick(13,1),
-  corner_bl: pick(10,4), corner_br: pick(13,4),
-};
-const DECOR_MOBILE = DECOR_DESKTOP; // se vuoi, puoi differenziare
+  // Esempio: 4 varianti di pavimento
+  floor: [ pick(0,6), pick(1,6), pick(0,7), pick(1,7) ],
 
+  // bordi (un singolo tile “corpo muro”). Se il tuo atlas ha cap e body separati,
+  // metti il tile del "corpo". La parte “alta” la disegniamo con il fore-layer.
+  top:    [ pick(  X,  Y), pick(  X2,  Y2) ],
+  bottom: [ pick(  X,  Y), pick(  X2,  Y2) ],
+  left:   [ pick(  X,  Y), pick(  X2,  Y2) ],
+  right:  [ pick(  X,  Y), pick(  X2,  Y2) ],
+
+  // angoli
+  corner_tl: pick( X, Y ),
+  corner_tr: pick( X, Y ),
+  corner_bl: pick( X, Y ),
+  corner_br: pick( X, Y ),
+};
+const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
+
+// ===== DEV: Atlas Inspector =====
+let INSPECT = { on:false };
+function toggleInspector(){ INSPECT.on = !INSPECT.on; }
+document.addEventListener('keydown', (e)=>{
+  if (e.key === '`') {   // backtick per attivare/disattivare
+    toggleInspector();
+  }
+});
+
+DOM.canvas?.addEventListener('click', (e)=>{
+  if (!INSPECT.on) return;
+  const rect = DOM.canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left);
+  const y = (e.clientY - rect.top);
+  const tile = G.tile;
+  // proietto le coordinate del canvas sul tileset (stessa scala)
+  const c = Math.floor(x / tile);
+  const r = Math.floor(y / tile);
+  console.log('pick(', c, ',', r, ')');
+});
+
+// Disegna griglia e indici sopra al rendering
+function drawInspectorGrid(ctx){
+  if (!INSPECT.on) return;
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = '#00ffc3';
+  for (let x=0; x<=Cfg.roomW; x++){
+    ctx.beginPath();
+    ctx.moveTo(x*G.tile, 0);
+    ctx.lineTo(x*G.tile, Cfg.roomH*G.tile);
+    ctx.stroke();
+  }
+  for (let y=0; y<=Cfg.roomH; y++){
+    ctx.beginPath();
+    ctx.moveTo(0, y*G.tile);
+    ctx.lineTo(Cfg.roomW*G.tile, y*G.tile);
+    ctx.stroke();
+  }
+  // numeri
+  ctx.fillStyle = '#00ffc3';
+  ctx.font = '600 10px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  for (let y=0; y<Cfg.roomH; y++){
+    for (let x=0; x<Cfg.roomW; x++){
+      ctx.fillText(`${x},${y}`, x*G.tile + 4, y*G.tile + 12);
+    }
+  }
+  ctx.restore();
+}
+
+
 
 function variantIndex(x, y, len) {
   let h = (x * 73856093) ^ (y * 19349663);
@@ -337,12 +396,12 @@ function initAtlasSprites() {
   if (G.sprites.atlas) return;
   G.sprites.atlas = new Image();
   G.sprites.atlas.onload  = () => {
-    console.log('[ARENA ATLAS] ok');
-    G.renderCache.arenaLayer = null;  // invalida
-    bakeArenaLayer();                 // bake subito
+    console.log('[ARENA ATLAS] ok', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+    G.renderCache.arenaLayer = null;
+    bakeArenaLayer();
   };
   G.sprites.atlas.onerror = (e) => console.error('[ARENA ATLAS] fail', e);
-  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`;
+  G.sprites.atlas.src = `${atlasBase}/Dungeon_2.png`;   // 👈 nuovo file
 }
 function detectPetNumFromDom() {
   const src = document.getElementById('pet')?.src || '';
@@ -478,51 +537,65 @@ function bakeArenaLayer() {
   const wpx = Cfg.roomW * tile;
   const hpx = Cfg.roomH * tile;
 
-  const cv = document.createElement('canvas');
-  cv.width = wpx; cv.height = hpx;
-  const bctx = cv.getContext('2d');
+  // layer pavimento + base muri
+  const cvBase = document.createElement('canvas');
+  cvBase.width = wpx; cvBase.height = hpx;
+  const bctx = cvBase.getContext('2d');
   bctx.imageSmoothingEnabled = false;
 
-  // floor dentro il bordo (1..W-2, 1..H-2)
+  // layer "front" (secondo blocco dei muri)
+  const cvFront = document.createElement('canvas');
+  cvFront.width = wpx; cvFront.height = hpx;
+  const fctx = cvFront.getContext('2d');
+  fctx.imageSmoothingEnabled = false;
+
+  // floor
   for (let y = 1; y < Cfg.roomH-1; y++) {
     for (let x = 1; x < Cfg.roomW-1; x++) {
       const entry = G.sprites.decor?.floor;
       if (!entry) continue;
       let d = entry[(x + y) % entry.length];
-      if (Array.isArray(entry)) {
-        const idx = variantIndex(x, y, entry.length);
-        d = entry[idx];
-      }
+      if (Array.isArray(entry)) d = entry[variantIndex(x, y, entry.length)];
       bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
     }
   }
 
-  // muri anello esterno
-  const left = 0, right = Cfg.roomW-1, top = 0, bottom = Cfg.roomH-1;
-  // angoli
+  const left=0, right=Cfg.roomW-1, top=0, bottom=Cfg.roomH-1;
   const C = G.sprites.decor;
-  if (C?.corner_tl) bctx.drawImage(G.sprites.atlas, C.corner_tl.sx, C.corner_tl.sy, C.corner_tl.sw, C.corner_tl.sh, left*tile, top*tile, tile, tile);
-  if (C?.corner_tr) bctx.drawImage(G.sprites.atlas, C.corner_tr.sx, C.corner_tr.sy, C.corner_tr.sw, C.corner_tr.sh, right*tile, top*tile, tile, tile);
-  if (C?.corner_bl) bctx.drawImage(G.sprites.atlas, C.corner_bl.sx, C.corner_bl.sy, C.corner_bl.sw, C.corner_bl.sh, left*tile, bottom*tile, tile, tile);
-  if (C?.corner_br) bctx.drawImage(G.sprites.atlas, C.corner_br.sx, C.corner_br.sy, C.corner_br.sw, C.corner_br.sh, right*tile, bottom*tile, tile, tile);
+
+  const drawWall2 = (spr, dx, dy) => {
+    // base
+    bctx.drawImage(G.sprites.atlas, spr.sx, spr.sy, spr.sw, spr.sh, dx, dy, tile, tile);
+    // “secondo blocco” sopra
+    fctx.drawImage(G.sprites.atlas, spr.sx, spr.sy, spr.sw, spr.sh, dx, dy - tile, tile, tile);
+  };
+
+  // angoli
+  if (C?.corner_tl) drawWall2(C.corner_tl, left*tile, top*tile);
+  if (C?.corner_tr) drawWall2(C.corner_tr, right*tile, top*tile);
+  if (C?.corner_bl) drawWall2(C.corner_bl, left*tile, bottom*tile);
+  if (C?.corner_br) drawWall2(C.corner_br, right*tile, bottom*tile);
 
   // lati orizzontali
   for (let x = 1; x <= Cfg.roomW-2; x++) {
     const t = C.top[(x)%C.top.length], b = C.bottom[(x)%C.bottom.length];
-    bctx.drawImage(G.sprites.atlas, t.sx, t.sy, t.sw, t.sh, x*tile, top*tile, tile, tile);
-    bctx.drawImage(G.sprites.atlas, b.sx, b.sy, b.sw, b.sh, x*tile, bottom*tile, tile, tile);
+    drawWall2(t, x*tile, top*tile);
+    drawWall2(b, x*tile, bottom*tile);
   }
   // lati verticali
   for (let y = 1; y <= Cfg.roomH-2; y++) {
     const l = C.left[(y)%C.left.length], r = C.right[(y)%C.right.length];
-    bctx.drawImage(G.sprites.atlas, l.sx, l.sy, l.sw, l.sh, left*tile, y*tile, tile, tile);
-    bctx.drawImage(G.sprites.atlas, r.sx, r.sy, r.sw, r.sh, right*tile, y*tile, tile, tile);
+    drawWall2(l, left*tile, y*tile);
+    drawWall2(r, right*tile, y*tile);
   }
 
-  G.renderCache.arenaLayer = { canvas: cv, tile };
+  G.renderCache.arenaLayer     = { canvas: cvBase,  tile };
+  G.renderCache.arenaForeLayer = { canvas: cvFront, tile };
   G.renderCache.tile = tile;
   return G.renderCache.arenaLayer;
 }
+
+
 
 function loadEnemySprites() {
   const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
@@ -960,6 +1033,7 @@ function render() {
   }
   if (G.renderCache.arenaLayer) {
     ctx.drawImage(G.renderCache.arenaLayer.canvas, 0, 0);
+    drawInspectorGrid(ctx); ////////////////////////////////////////////////////////////////////
   } else {
     // fallback (se atlas non pronto): rettangoli come prima
     ctx.fillStyle = '#111';
@@ -1068,6 +1142,12 @@ function render() {
         }
       }
     }
+
+    // sopra pet/nemici → parte alta dei muri
+if (G.renderCache.arenaForeLayer) {
+  ctx.drawImage(G.renderCache.arenaForeLayer.canvas, 0, 0);
+}
+
 
     // HUD in-canvas (centrato in alto)
 drawHUDInCanvas();

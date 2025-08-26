@@ -1226,7 +1226,7 @@ function loadArenaCSS() {
   if (arenaStyleEl) return;
   arenaStyleEl = document.createElement('link');
   arenaStyleEl.rel = 'stylesheet';
-  arenaStyleEl.href = '/css/arena.css'; // ← percorso reale
+  arenaStyleEl.href = 'arena.css'; // ← percorso reale
   document.head.appendChild(arenaStyleEl);
 }
 function unloadArenaCSS() {

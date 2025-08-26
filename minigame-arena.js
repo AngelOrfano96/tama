@@ -1337,11 +1337,25 @@ setupMobileControlsArena();
 
   // 4) Avvio loop
   DOM.modal?.classList.remove('hidden');
-  DOM.modal?.classList.add('show');          // <-- così i bottoni ricevono eventi
-DOM.actionsOverlay?.classList.remove('hidden');
-DOM.actionsOverlay?.classList.add('show');
-DOM.joyOverlay?.classList.remove('hidden');
-DOM.joyOverlay?.classList.add('show');
+  DOM.modal?.classList.add('show');  
+  if (!DOM._arenaBound) {
+    const bindTap = (el, handler) => {
+      if (!el) return;
+      const doIt = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (G.playing) handler();
+      };
+      el.addEventListener('pointerdown', doIt, { passive:false });
+      el.addEventListener('touchstart',  doIt, { passive:false });
+    };
+
+    bindTap(DOM.btnAtk,  tryAttackBasic);
+    bindTap(DOM.btnChg,  tryAttackCharged);
+    bindTap(DOM.btnDash, tryDash);
+
+    DOM._arenaBound = true; // flag così non li raddoppia ogni avvio
+  }        // <-- così i bottoni ricevono eventi
   G.lastT = performance.now();
   G.playing = true;
   loop();

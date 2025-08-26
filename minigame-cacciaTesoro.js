@@ -1802,7 +1802,9 @@ function render() {
 }
 
 
-
+const isTyping = (e) =>
+  e.target && (e.target.matches('input, textarea, [contenteditable="true"]') ||
+               e.target.closest('input, textarea, [contenteditable="true"]'));
 
 
 document.addEventListener('keydown', (e) => {

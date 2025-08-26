@@ -384,5 +384,15 @@
 <script src="minigame-cacciaTesoro.js"></script>
 <script src="minigame-arena.js"></script>
 <script src="script.js"></script>
+<script>
+// Blocca la propagazione dei keydown/keypress/keyup verso i minigiochi quando si sta scrivendo in input/textarea/contenteditable
+(function () {
+  const isTyping = (el) =>
+    el && (el.matches('input, textarea, [contenteditable="true"]') || el.closest('input, textarea, [contenteditable="true"]'));
+  window.addEventListener('keydown',  (e) => { if (isTyping(e.target)) e.stopPropagation(); }, true);
+  window.addEventListener('keypress', (e) => { if (isTyping(e.target)) e.stopPropagation(); }, true);
+  window.addEventListener('keyup',    (e) => { if (isTyping(e.target)) e.stopPropagation(); }, true);
+})();
+</script>
 </body>
 </html>

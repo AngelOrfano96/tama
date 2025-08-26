@@ -1364,6 +1364,11 @@ setupMobileControlsArena();
     ArrowDown: 'down',  s: 'down',
     j: 'atk', k: 'chg', ' ': 'dash'
   };
+
+  const isTyping = (e) =>
+  e.target && (e.target.matches('input, textarea, [contenteditable="true"]') ||
+               e.target.closest('input, textarea, [contenteditable="true"]'));
+               
   document.addEventListener('keydown', (e) => {
     const m = keyMap[e.key];
     if (!m) return;

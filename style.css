@@ -2023,3 +2023,37 @@ button, .ui-btn { touch-action: manipulation; }
 /* importantissimo per lo stick */
 .arena-joy-base { touch-action: none; }
 
+#arena-joystick-overlay {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50%;   /* solo metà sinistra dello schermo */
+  height: 50%;  /* non tutto lo schermo, solo zona stick */
+}
+
+#arena-actions-overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 50%;   /* metà destra per i bottoni */
+  height: 50%;
+}
+
+#arena-hud, #treasure-minigame-modal, #arena-minigame-modal { pointer-events:none; }
+#arena-hud.show, #treasure-minigame-modal.show, #arena-minigame-modal.show { pointer-events:auto; }
+
+#arena-joystick-overlay,
+#arena-actions-overlay {
+  pointer-events: none;   /* non catturano niente */
+}
+
+#arena-joystick-overlay.show,
+#arena-actions-overlay.show {
+  pointer-events: auto;   /* solo quando attivi */
+}
+#arena-joy-base {
+  touch-action: none;
+}
+#arena-joystick-overlay { z-index: 10; }
+#arena-actions-overlay  { z-index: 11; } /* bottoni sopra */
+#arena-hud              { z-index: 12; }

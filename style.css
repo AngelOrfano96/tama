@@ -1999,6 +1999,15 @@ body {
 button, .ui-btn { touch-action: manipulation; }
 
 
+.hidden,
+#arena-joystick-overlay.hidden,
+#arena-actions-overlay.hidden,
+#treasure-minigame-modal.hidden,
+#arena-minigame-modal.hidden {
+  pointer-events: none;
+}
+
+
 
 
 

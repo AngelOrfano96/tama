@@ -411,6 +411,16 @@
   });
 })();
 </script>
+<script>
+(() => {
+  const form = document.getElementById('auth-form');
+  const btn  = document.getElementById('login-btn');
+  btn?.addEventListener('click', (e) => {
+    e.preventDefault();        // opzionale, evita doppio submit
+    form?.requestSubmit();
+  });
+})();
+</script>
 
 </body>
 </html>

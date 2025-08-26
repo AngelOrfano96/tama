@@ -976,6 +976,13 @@ if (u) u.textContent = '—';
 });
 
 }
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('auth-form');
+  document.getElementById('login-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    form?.requestSubmit();
+  });
+});
 
 // --- LOGIN/SIGNUP ---
 const authForm = document.getElementById('auth-form');

@@ -547,11 +547,6 @@ function loadPetSprites(petNum = '1') {
   };
 }
 
-  // HUD compatto
-  function syncHUD() {
-
-  }
-
 function syncHUD(){
   if (!isMobile) return;
   // crea una volta l’HUD
@@ -1216,11 +1211,11 @@ function setupMobileControlsArena(){
   };
 
   // usa pointerdown e touchstart; il click su iOS non scatta finché c’è un altro dito
-  ['pointerdown','touchstart'].forEach(evName => {
-    DOM.btnAtk?.addEventListener(evName,  fire(tryAttackBasic),   { passive:false });
-    DOM.btnChg?.addEventListener(evName,  fire(tryAttackCharged), { passive:false });
-    DOM.btnDash?.addEventListener(evName, fire(tryDash),          { passive:false });
-  });
+const EV_FIRE = ('PointerEvent' in window) ? 'pointerdown' : 'touchstart';
+DOM.btnAtk?.addEventListener(EV_FIRE,  fire(tryAttackBasic),   { passive:false });
+DOM.btnChg?.addEventListener(EV_FIRE,  fire(tryAttackCharged), { passive:false });
+DOM.btnDash?.addEventListener(EV_FIRE, fire(tryDash),          { passive:false });
+
 }
 
 

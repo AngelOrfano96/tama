@@ -1212,12 +1212,13 @@ function setupMobileControlsArena(){
 
 
 let arenaStyleEl = null;
-
 function loadArenaCSS() {
   if (arenaStyleEl) return;
   arenaStyleEl = document.createElement('link');
   arenaStyleEl.rel = 'stylesheet';
-  arenaStyleEl.href = 'arena.css'; // ← percorso reale
+  arenaStyleEl.href = 'arena.css'; // <--- percorso: metti quello giusto
+  arenaStyleEl.onload  = () => console.log('[Arena CSS] loaded:', arenaStyleEl.href);
+  arenaStyleEl.onerror = () => console.warn('[Arena CSS] FAILED:', arenaStyleEl.href);
   document.head.appendChild(arenaStyleEl);
 }
 function unloadArenaCSS() {

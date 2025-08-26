@@ -976,54 +976,46 @@ if (u) u.textContent = '—';
 });
 
 }
-/*document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('auth-form');
   document.getElementById('login-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     form?.requestSubmit();
   });
-}); */
+});
 
-// --- LOGIN / SIGNUP ---
-const authForm  = document.getElementById('auth-form');
-const loginBtn  = document.getElementById('login-btn');
+// --- LOGIN/SIGNUP ---
+const authForm = document.getElementById('auth-form');
 const signupBtn = document.getElementById('signup-btn');
-const authErr   = document.getElementById('auth-error');
-
-authForm.addEventListener('submit', async (e) => {
+authForm.addEventListener('submit', async e => {
   e.preventDefault();
   const email = document.getElementById('email-input').value.trim();
   const password = document.getElementById('password-input').value;
-
-  authErr.textContent = '';
-  loginBtn.disabled = true;
-
   try {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
-
-    // ✅ Usa l’utente restituito direttamente
-    user = data?.user || null;
+    const { data: sessionData } = await supabaseClient.auth.getUser();
+    user = sessionData.user;
+    //showOnly('egg-selection');
     await initFlow();
   } catch (err) {
-    authErr.textContent = err.message || 'Errore di accesso';
-  } finally {
-    loginBtn.disabled = false;
+    document.getElementById('auth-error').textContent = err.message;
   }
 });
-
-// facoltativo ma utile su mobile: re-inizia il flow quando cambia la sessione
-let _authBound = false;
-if (!_authBound) {
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      user = session.user;
-      initFlow();
-    }
-  });
-  _authBound = true;
-}
-
+signupBtn.addEventListener('click', async () => {
+  const email = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value;
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) throw error;
+    const { data: sessionData } = await supabaseClient.auth.getUser();
+    user = sessionData.user;
+    showOnly('egg-selection');
+    await initFlow();
+  } catch (err) {
+    document.getElementById('auth-error').textContent = err.message;
+  }
+});
 
 // --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {

@@ -1347,21 +1347,16 @@ setupMobileControlsArena();
   DOM.modal?.classList.add('show');  
 // dentro startArenaMinigame(), dopo aver popolato DOM.* (vedi punto 1)
 if (!DOM._arenaBound) {
-  const bindTap = (el, handler) => {
-    if (!el) return;
-    const doIt = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (G.playing) handler();
-    };
-    // doppio canale per iOS (tap immediato anche con altro dito sullo stick)
-    el.addEventListener('pointerdown', doIt, { passive:false });
-    el.addEventListener('touchstart',  doIt, { passive:false });
+const bindTap = (el, handler) => {
+  if (!el) return;
+  const doIt = (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation?.();
+    e.stopPropagation();
+    if (G.playing) handler();
   };
-  bindTap(DOM.btnAtk,  tryAttackBasic);
-  bindTap(DOM.btnChg,  tryAttackCharged);
-  bindTap(DOM.btnDash, tryDash);
-  DOM._arenaBound = true;
+  ['pointerdown','touchstart','click'].forEach(t => el.addEventListener(t, doIt, {passive:false}));
+};
 }
       
   G.lastT = performance.now();

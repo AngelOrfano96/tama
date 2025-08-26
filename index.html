@@ -394,21 +394,25 @@
 </script>
 <script>
 // Non far arrivare gli eventi touch/pointer globali ai minigiochi
-// quando il tap è su input / button / form / link / modali
+// quando il tap è su input / button / form / link / modali,
+// MA consenti SEMPRE i controlli dell’arena.
 (function () {
   const isFormish = (el) =>
-    el && (el.closest('form, input, textarea, select, button, a, .form-box, .modal'));
+    el && (el.closest('form, input, textarea, select, a, .form-box, .modal, button'));
+
+  const isArenaControl = (el) =>
+    el && el.closest('#arena-joy-base, #arena-actions-overlay');
 
   ['pointerdown','pointerup','touchstart','touchend','touchmove'].forEach(ev => {
     window.addEventListener(ev, (e) => {
+      // ⛔ non bloccare i controlli arena
+      if (isArenaControl(e.target)) return;
       if (isFormish(e.target)) {
-        // impedisce ai listener globali (in capture/bubble) di prenderli
-        e.stopPropagation();
+        e.stopPropagation();              // ferma la propagazione globale
       }
-    }, true); // capture = true
+    }, { capture:true, passive:false });
   });
 })();
 </script>
-
 </body>
 </html>

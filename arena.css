@@ -1,234 +1,29 @@
-/* ==================== ARENA MINIGAME (CSS isolato) ==================== */
-/* Il file è pensato per essere caricato solo durante l'Arena.           */
-/* Tutto è scoping-centrico su #arena-minigame-modal per evitare conflitti. */
-
-/* ---------- Modal full-screen ---------- */
-#arena-minigame-modal {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;               /* centratura verticale */
-  justify-content: center;           /* centratura orizzontale */
-  background: rgba(0,0,0,0.5);       /* dim dello sfondo */
-  z-index: 10000;
-}
-
-/* Variabili locali (no :root globale) */
-#arena-minigame-modal {
-  --arena-btn: clamp(54px, 12vw, 64px);
-  --arena-gap: 10px;
-}
-
-/* Contenitore interno che copre viewport senza “spingere” oltre */
-#arena-minigame-modal .arena-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100vw;
-  height: 100vh;
-  padding: env(safe-area-inset-top, 0)
-           env(safe-area-inset-right, 0)
-           env(safe-area-inset-bottom, 0)
-           env(safe-area-inset-left, 0);
-}
-
-/* Canvas nitido per pixel art */
-#arena-minigame-modal #arena-canvas {
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  display: block;
-  background: #000;                  /* fallback */
-  box-shadow: 0 8px 32px rgb(0 0 0 / 85%);
-}
-
-/* ---------- HUD (DOM) mobile ---------- */
-#arena-minigame-modal #arena-hud {
-  position: fixed;
-  left: 50%;
-  top: calc(env(safe-area-inset-top, 0px) + 8px);
-  transform: translateX(-50%);
-  background: #0d0f12;
-  color: #e5e7eb;
-  border-radius: 14px;
-  padding: 10px 14px 8px;
-  box-shadow: 0 10px 28px rgba(0,0,0,.35);
-  font: 600 16px system-ui,-apple-system,Segoe UI,Roboto,Arial;
-  text-align: center;
-  min-width: 240px;
-  z-index: 10005;
-  display: none;                     /* visibile solo con .show su mobile */
-  pointer-events: none;              /* l’HUD non blocca mai i tocchi */
-}
-#arena-minigame-modal #arena-hud .row {
-  display: flex; gap: 18px; justify-content: center;
-}
-#arena-minigame-modal #arena-hud .hpbar {
-  width: 56vw; max-width: 360px; height: 12px;
-  background: #1f242b; border-radius: 999px; overflow: hidden;
-  margin: 6px auto 2px;
-}
-#arena-minigame-modal #arena-hud .hpfill { height: 100%; width: 0; background: #22c55e; }
-
-/* ---------- Overlay controlli (mobile) ---------- */
-/* Gli overlay non catturano eventi; i figli sì. */
-#arena-minigame-modal #arena-joystick-overlay,
-#arena-minigame-modal #arena-actions-overlay {
-  position: absolute;
-  z-index: 10010;
-  pointer-events: none;
-}
-
-/* Joystick: area sinistra-bassa */
-#arena-minigame-modal #arena-joystick-overlay {
-  left: max(12px, env(safe-area-inset-left));
-  bottom: max(22px, env(safe-area-inset-bottom));
-  width: 50vw; height: 50vh;        /* ampia ma non tutto lo schermo */
-}
-
-/* Azioni: area destra-bassa */
-#arena-minigame-modal #arena-actions-overlay {
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(22px, env(safe-area-inset-bottom));
-  width: 180px; height: 180px;      /* box compatto per triangolo bottoni */
-}
-
-/* Wrapper triangolo per disporre i tre bottoni */
-#arena-minigame-modal #arena-actions-overlay .action-triangle {
-  position: relative; width: 100%; height: 100%;
-}
-
-/* Stick base + stick */
-#arena-minigame-modal .arena-joy-base {
-  width: 140px; height: 140px;
-  border-radius: 50%;
-  background: rgba(80,80,80,.28);
-  box-shadow: 0 0 10px 2px #0004;
-  position: relative;
-  pointer-events: auto;             /* riceve i touch */
-  user-select: none;
-  touch-action: none;               /* essenziale per stick */
-}
-#arena-minigame-modal .arena-joy-stick {
-  width: 50px; height: 50px; border-radius: 50%;
-  background: radial-gradient(circle at 60% 40%, #eee 60%, #888 100%);
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-  pointer-events: none;
-}
-
-/* Bottoni azione (stile) */
-#arena-minigame-modal .arena-action-btn {
-  position: absolute;
-  width: var(--arena-btn); height: var(--arena-btn);
-  border-radius: 50%;
-  font-weight: 700; font-size: 18px; color: #fff;
-  border: 2px solid rgba(255,255,255,.25);
-  background: rgba(17,25,40,.65);
-  box-shadow: 0 8px 24px rgba(0,0,0,.35);
-  backdrop-filter: blur(6px);
-  pointer-events: auto;             /* i bottoni sono cliccabili */
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-#arena-minigame-modal .arena-action-btn:active { transform: scale(0.96); }
-
-/* Posizioni a triangolo compatto, centrato nel box overlay */
-#arena-minigame-modal .btn-a  { left: calc(50% - var(--arena-btn) - var(--arena-gap)); top:  calc(50% + var(--arena-btn)/2); }
-#arena-minigame-modal .btn-b  { left: calc(50% + var(--arena-gap));                      top:  calc(50% + var(--arena-btn)/2); }
-#arena-minigame-modal .btn-dash { left: calc(50% - var(--arena-btn)/2);                  top:  calc(50% - var(--arena-btn) - var(--arena-gap)); }
-
-/* ---------- Leaderboard (modal) ---------- */
-#arena-minigame-modal .arena-lb-modal.hidden { display: none; }
-#arena-minigame-modal .arena-lb-modal {
-  position: fixed; inset: 0; z-index: 10020;
-  background: rgba(0,0,0,.45);
-  display: flex; align-items: center; justify-content: center;
-  padding: 16px;
-}
-#arena-minigame-modal .arena-lb-card {
-  width: min(720px, 96vw);
-  background: #0c1117; color: #e5e7eb;
-  border: 1px solid #243040; border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0,0,0,.45);
-}
-#arena-minigame-modal .arena-lb-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid #243040;
-}
-#arena-minigame-modal .arena-lb-close {
-  background: transparent; color: #9ca3af; border: 0; font-size: 18px; cursor: pointer;
-}
-#arena-minigame-modal .arena-lb-body {
-  max-height: min(70vh, 520px); overflow: auto; padding: 8px 0;
-}
-#arena-minigame-modal .arena-lb-table { width: 100%; border-collapse: collapse; }
-#arena-minigame-modal .arena-lb-table th,
-#arena-minigame-modal .arena-lb-table td {
-  padding: 10px 14px; border-bottom: 1px solid #1c2430; text-align: left; font-size: 14px;
-}
-#arena-minigame-modal .arena-lb-table th {
-  color: #9fb1c8; font-weight: 600; position: sticky; top: 0; background: #0c1117;
-}
-#arena-minigame-modal .arena-lb-table tr:nth-child(even) { background: #0f1621; }
-#arena-minigame-modal .arena-lb-table .rank { width: 60px; text-align: center; font-weight: 700; }
-
-/* Bottone classifica “generico” (se lo metti vicino al trigger) */
-#arena-minigame-modal .lb-icon-btn {
-  margin-left: 6px; padding: 0 10px;
-  font-size: 20px; line-height: 32px;
-  border-radius: 8px;
-  background: #1e293b; border: 1px solid #334155; color: #f1f5f9;
-  cursor: pointer; transition: background .2s;
-}
-#arena-minigame-modal .lb-icon-btn:hover { background: #334155; }
-
-/* ---------- Utility locale ---------- */
-/* Evita di ridefinire .hidden globale: scopo solo dentro il modal Arena */
-#arena-minigame-modal .hidden { display: none !important; }
-
-/* ---------- Responsività ---------- */
-@media (max-width: 850px) {
-  /* Canvas un filo più stretto su schermi piccoli */
-  #arena-minigame-modal #arena-canvas { max-width: 96vw; height: auto; }
-  /* Mostra HUD mobile quando ha la classe .show */
-  #arena-minigame-modal #arena-hud.show { display: block; }
-  /* Mostra overlay controlli (JS aggiunge/rimuove .show all’occorrenza) */
-  #arena-minigame-modal #arena-joystick-overlay,
-  #arena-minigame-modal #arena-actions-overlay { display: block; }
-}
-@media (min-width: 851px) {
-  /* Niente overlay mobile su desktop (il gioco usa l’HUD in-canvas) */
-  #arena-minigame-modal #arena-joystick-overlay,
-  #arena-minigame-modal #arena-actions-overlay,
-  #arena-minigame-modal #arena-hud { display: none !important; }
-}
-
-
-/* ===== Modal full-screen dell'arena ===== */
+/* ===== Modal fullscreen ===== */
 #arena-minigame-modal{
   position:fixed; inset:0;
   display:flex; align-items:center; justify-content:center;
   background:rgba(0,0,0,.45);
-  z-index:10000;            /* sotto ai controlli, sopra al resto */
+  z-index:10000;
 }
 #arena-minigame-modal.hidden{ display:none !important; }
 
-/* Contenitore centrale */
+/* Wrap centrale che fa da “area di gioco” */
 #arena-minigame-modal .arena-wrap{
   position:relative;
   width:100vw; height:100vh;
   display:flex; align-items:center; justify-content:center;
 }
 
-/* Canvas nitido */
+/* Canvas */
 #arena-canvas{
   image-rendering:pixelated; image-rendering:crisp-edges;
   display:block; background:#000;
-  box-shadow:0 8px 32px #000c;
-  max-width:96vw; height:auto;       /* mobile friendly */
+  box-shadow:0 8px 32px rgba(0,0,0,.85);
+  max-width:96vw; height:auto;
+  z-index:0;
 }
 
-/* ===== HUD mobile (solo quando .show) ===== */
+/* ===== HUD mobile (DOM) ===== */
 #arena-hud{
   position:fixed; left:50%;
   top:calc(env(safe-area-inset-top,0px) + 8px);
@@ -238,19 +33,23 @@
   box-shadow:0 10px 28px rgba(0,0,0,.35);
   font:600 16px system-ui,-apple-system,Segoe UI,Roboto,Arial;
   text-align:center; min-width:240px;
-  z-index:10001;                /* sotto ai bottoni, sopra al canvas */
-  display:none; pointer-events:none;     /* non blocca i tocchi */
+  z-index:10005;
+  display:none;                /* compare solo con .show */
+  pointer-events:none;         /* non blocca tocchi */
 }
 #arena-hud.show{ display:block; }
 #arena-hud .row{ display:flex; gap:18px; justify-content:center; }
 #arena-hud .hpbar{ width:56vw; max-width:360px; height:12px; background:#1f242b; border-radius:999px; overflow:hidden; margin:6px auto 2px; }
 #arena-hud .hpfill{ height:100%; width:0; background:#22c55e; }
 
-/* ===== Controlli mobili: posizionamento FISSO sui bordi ===== */
-/* NB: niente “metà schermo”: ancoriamo i controlli agli angoli, così non
-   finiscono sopra il canvas anche quando il canvas è piccolo. */
+/* ===== Controlli mobili ===== */
+/* NB: il contenitore overlay NON prende eventi, i figli sì. */
+#arena-joystick-overlay,
+#arena-actions-overlay{
+  position:fixed; z-index:10010; pointer-events:none;
+}
 
-/* Joystick base (elemento con id="arena-joy-base") */
+/* Joystick: in basso a sinistra */
 #arena-joy-base{
   position:fixed;
   left:max(16px, env(safe-area-inset-left));
@@ -259,7 +58,7 @@
   background:rgba(80,80,80,.28);
   box-shadow:0 0 10px 2px #0004;
   pointer-events:auto; touch-action:none; user-select:none;
-  z-index:10003;
+  z-index:10011;
 }
 #arena-joy-stick{
   position:absolute; left:50%; top:50%;
@@ -269,34 +68,31 @@
   pointer-events:none;
 }
 
-/* Cluster bottoni azione (A,B,Dash) in triangolo compatto a destra */
+/* Bottoni: in basso a destra, triangolo compatto */
 #arena-actions-overlay{
-  position:fixed;
   right:max(16px, env(safe-area-inset-right));
   bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
   width:180px; height:180px;
-  z-index:10003; pointer-events:none; /* il contenitore NON prende tocchi */
 }
-#arena-actions-overlay .action-triangle{ position:relative; width:100%; height:100%; }
+#arena-actions-overlay .action-triangle{
+  position:relative; width:100%; height:100%;
+}
 
-/* dimensioni responsive */
 :root{ --arena-btn: clamp(54px, 12vw, 64px); --arena-gap: 10px; }
 
-/* stile generale dei bottoni */
 .arena-action-btn{
   position:absolute;
   width:var(--arena-btn); height:var(--arena-btn);
   border-radius:50%;
   border:2px solid rgba(255,255,255,.25);
-  background:rgba(17,25,40,.65);
+  background:rgba(17,25,40,.75);
   color:#fff; font-weight:700; font-size:18px;
   box-shadow:0 8px 24px rgba(0,0,0,.35);
   backdrop-filter:blur(6px);
-  pointer-events:auto;    /* i bottoni ricevono i tocchi */
-  touch-action:manipulation;
+  pointer-events:auto; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
 }
+.arena-action-btn:active{ transform:scale(.96); }
 
-/* posizioni triangolo: A sinistra, B destra, Dash sopra */
 .arena-action-btn.btn-a{
   left: calc(50% - var(--arena-btn) - var(--arena-gap));
   top:  calc(50% + var(--arena-btn)/2);
@@ -309,110 +105,8 @@
   left: calc(50% - var(--arena-btn)/2);
   top:  calc(50% - var(--arena-btn) - var(--arena-gap));
 }
-.arena-action-btn:active{ transform:scale(.96); }
 
-/* Leaderboard (tuo stile, solo ripulito) */
-.arena-lb-modal.hidden{ display:none; }
-.arena-lb-modal{
-  position:fixed; inset:0; z-index:10020;
-  background:rgba(0,0,0,.45);
-  display:flex; align-items:center; justify-content:center;
-  padding:16px;
-}
-.arena-lb-card{
-  width:min(720px, 96vw);
-  background:#0c1117; color:#e5e7eb;
-  border:1px solid #243040; border-radius:16px;
-  box-shadow:0 20px 50px rgba(0,0,0,.45);
-}
-.arena-lb-header{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #243040; }
-.arena-lb-close{ background:transparent; color:#9ca3af; border:0; font-size:18px; }
-.arena-lb-body{ max-height:min(70vh, 520px); overflow:auto; padding:8px 0; }
-.arena-lb-table{ width:100%; border-collapse:collapse; }
-.arena-lb-table th, .arena-lb-table td{ padding:10px 14px; border-bottom:1px solid #1c2430; text-align:left; font-size:14px; }
-.arena-lb-table th{ color:#9fb1c8; font-weight:600; position:sticky; top:0; background:#0c1117; }
-.arena-lb-table tr:nth-child(even){ background:#0f1621; }
-.arena-lb-table .rank{ width:60px; text-align:center; font-weight:700; }
-
-/* Utility */
-.hidden{ display:none !important; }
-
-/* Desktop: nascondi i controlli mobili */
+/* Desktop: nascondi controlli mobili */
 @media (min-width:851px){
-  #arena-joy-base,
-  #arena-actions-overlay{ display:none !important; }
+  #arena-joy-base, #arena-actions-overlay, #arena-hud{ display:none !important; }
 }
-
-#arena-joystick-overlay, #arena-actions-overlay { pointer-events: none; position:fixed; z-index:10002; }
-.arena-joy-base, .arena-action-btn { pointer-events: auto; }
-
-#arena-actions-overlay{
-  position:fixed; right:calc(env(safe-area-inset-right,0)+10px);
-  bottom:calc(env(safe-area-inset-bottom,0)+10px);
-  width:180px; height:180px; pointer-events:none; z-index:10002;
-}
-.action-triangle{ position:relative; width:100%; height:100%; }
-:root{ --btn: clamp(54px, 12vw, 64px); --gap: 10px; }
-.arena-action-btn{
-  position:absolute; width:var(--btn); height:var(--btn);
-  border-radius:50%; pointer-events:auto; touch-action:manipulation;
-}
-.btn-a   { left: calc(50% - var(--btn) - var(--gap)); top:  calc(50% + var(--btn)/2); }
-.btn-b   { left: calc(50% + var(--gap));              top:  calc(50% + var(--btn)/2); }
-.btn-dash{ left: calc(50% - var(--btn)/2);            top:  calc(50% - var(--btn) - var(--gap)); }
-
-
-/* Modal */
-#arena-minigame-modal {
-  position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-  background: rgba(0,0,0,.25); z-index: 9990;
-}
-#arena-minigame-modal.show { display: flex; }
-#arena-minigame-modal.hidden { display: none; }
-
-/* Canvas sempre sotto agli overlay */
-#arena-canvas { display:block; z-index: 0; }
-
-/* Overlay a pieno schermo sopra al canvas ma senza “mangiare” i click */
-#arena-joystick-overlay,
-#arena-actions-overlay {
-  position: absolute; inset: 0; z-index: 9995;
-  pointer-events: none;                 /* fondamentale */
-  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
-}
-
-/* Joystick base/stick cliccabili */
-#arena-joy-base, #arena-joy-stick {
-  pointer-events: auto; touch-action: none;
-}
-#arena-joy-base {
-  position: absolute; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
-  width: 160px; height:160px; border-radius: 50%;
-  background: rgba(0,0,0,.25);
-}
-#arena-joy-stick {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-  width: 90px; height:90px; border-radius: 50%;
-  background: rgba(255,255,255,.95);
-}
-
-/* Bottoni azione cliccabili e riallineati */
-#arena-attack-btn, #arena-charge-btn, #arena-dash-btn {
-  position: absolute; pointer-events: auto; touch-action: none; user-select: none;
-  width: 76px; height: 76px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
-  background: rgba(20,22,26,.85); box-shadow: 0 6px 16px rgba(0,0,0,.35);
-  font: 700 18px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#fff;
-}
-
-/* Layout mobile: A/B affiancati, Dash sopra */
-#arena-attack-btn { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
-#arena-charge-btn { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-92px); }
-#arena-dash-btn   { right: 16px; bottom: calc(108px + env(safe-area-inset-bottom)); }
-
-/* HUD mobile (se usi il box DOM) */
-#arena-hud { position:absolute; top: 8px; left: 50%; transform:translateX(-50%);
-  background: rgba(13,15,18,.9); color:#e5e7eb; border-radius: 12px; padding:8px 12px; z-index:9996; display:none;
-}
-#arena-hud.show { display:block; }
-#arena-hud .hpbar{ width:220px; height:10px; background:#1f242b; border-radius:6px; overflow:hidden; margin-top:6px}
-#arena-hud .hpfill{ height:100%; width:100%; background:#22c55e }

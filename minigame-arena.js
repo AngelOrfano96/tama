@@ -263,43 +263,47 @@ function drawHUDInCanvas() {
 
 
 function resizeCanvas() {
-  let vw = window.innerWidth;
-  let vh = window.innerHeight;
+  if (!DOM.canvas) return;
 
-  const gutter = isMobile ? 16 : 0;                // 👈 margine laterale
-  vw = Math.max(200, vw - gutter);
-
-  const tileFloat = Math.min(vw / Cfg.roomW, vh / Cfg.roomH);
-  const base = 16;
-  const minTile = isMobile ? 56 : 32;
-  const maxTile = isMobile ? 192 : 384;
-  let tile = Math.round(tileFloat / base) * base;
-  if (tile < minTile) tile = minTile;
-  if (tile > maxTile) tile = maxTile;
-
+  // --- 1) Tile di gioco fisso a 32 px
+  const TILE_RENDER = 32;          // ogni tile sul canvas misura 32×32 px
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const widthCss  = Cfg.roomW * tile;
-  const heightCss = Cfg.roomH * tile;
 
-  DOM.canvas.width  = widthCss * dpr;
-  DOM.canvas.height = heightCss * dpr;
+  // --- 2) Dimensioni canvas (in base alla stanza)
+  const widthCss  = Cfg.roomW * TILE_RENDER;
+  const heightCss = Cfg.roomH * TILE_RENDER;
+
+  // dimensione reale del buffer (pixel fisici)
+  DOM.canvas.width  = Math.max(1, Math.round(widthCss  * dpr));
+  DOM.canvas.height = Math.max(1, Math.round(heightCss * dpr));
+
+  // dimensione CSS (quella “visibile”)
   DOM.canvas.style.width  = `${widthCss}px`;
   DOM.canvas.style.height = `${heightCss}px`;
 
-  ctx = DOM.canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingEnabled = false;
+  // --- 3) Context + trasformazione per DPR
+  ctx = DOM.canvas.getContext('2d', { alpha: true, desynchronized: false });
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // 1 unità canvas = 1 px CSS
+  ctx.imageSmoothingEnabled = false;        // pixel art nitida
 
-  const tileChanged = (G.tile !== tile);
-  G.tile = tile;
- if (tileChanged) {
-  G.renderCache.arenaLayer = null;
-  G.renderCache.arenaForeLayer = null;   // <-- aggiungi questo
-  G.renderCache.tile = tile;
+  // --- 4) Aggiorna stato gioco
+  const tileChanged = (G.tile !== TILE_RENDER);
+  G.tile = TILE_RENDER;
+  if (tileChanged) {
+    G.renderCache.arenaLayer = null;
+    G.renderCache.arenaForeLayer = null;
+    G.renderCache.tile = TILE_RENDER;
+  }
+
+  // riposiziona il pet coerentemente alla nuova dimensione tile
+  G.pet.px = G.pet.x * G.tile;
+  G.pet.py = G.pet.y * G.tile;
+
+  // --- 5) (facoltativo) ritorna fattore css->canvas utile per il picker
+  // const cssToCanvas = DOM.canvas.width / widthCss;
+  // return cssToCanvas;
 }
-  G.pet.px = G.pet.x * tile;
-  G.pet.py = G.pet.y * tile;
-}
+
 
 
 
@@ -356,8 +360,8 @@ let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 
 
-// === ATLAS base (atlas 16×16) =========================
-const ATLAS_TILE = 16;                        // <-- 16 (il tuo Dungeon_2.png è 192×144 = 12×9 tile)
+// === ATLAS base (atlas 32×32) =========================
+const ATLAS_TILE = 32;                        // <-- 32 (il tuo Dungeon_2.png è 192×144 = 12×9 tile)
 const atlasBase  = isMobileOrTablet()
   ? 'assets/mobile/atlas'
   : 'assets/desktop/atlas';
@@ -373,41 +377,30 @@ const pick = (c, r, w = 1, h = 1) => ({
 // ⚠️ Questi indici sono un preset “buono” per l’anteprima.
 // Se vuoi perfezionarli, premi “P”, clicca il tile, e metti i pick(c,r) giusti.
 const DECOR_DESKTOP = {
-  // pavimento piatto (no mattoni visibili) → area “liscia”
-  // prova questi 4; se non ti piacciono, clicca col picker e cambia.
-  floor: [ pick(9,5), pick(10,5), pick(9,6), pick(10,6) ],
-
-  // MURI: “corpo” (prima fila, attaccata al bordo scuro)
+  floor: [ pick(6,0), pick(6,1), pick(7,0), pick(7,1) ],
   wallBody: {
-    // striscia alta con mattoni scuri/granito
-    top:    [ pick(3,0), pick(4,0) ],
-    bottom: [ pick(3,2), pick(4,2) ],
-    left:   [ pick(2,1), pick(2,2) ],
-    right:  [ pick(5,1), pick(5,2) ],
-
-    // angoli corpo (seleziona 4 tasselli angolo con mattoni pieni)
-    corner_tl: pick(2,0),
-    corner_tr: pick(5,0),
-    corner_bl: pick(2,3),
-    corner_br: pick(5,3),
+    top:    [ pick(1,7), pick(1,6) ],
+    bottom: [ pick(7,4), pick(1,6) ],
+    left:   [ pick(4,2), pick(4,1) ],
+    right:  [ pick(4,2), pick(4,1) ],
+    corner_tl: pick(3,1),
+    corner_tr: pick(6,1),
+    corner_bl: pick(3,4),
+    corner_br: pick(6,4),
   },
-
-  // MURI: “cap” (secondo blocco sopra il corpo: appare in foreground)
-  // Se non trovi tasselli dedicati, usa gli stessi del body.
   wallCap: {
-    top:    [ pick(3,1) ],
-    bottom: [ pick(3,1) ],
-    left:   [ pick(1,1) ],
-    right:  [ pick(6,1) ],
-    corner_tl: pick(1,0),
-    corner_tr: pick(6,0),
-    corner_bl: pick(1,3),
-    corner_br: pick(6,3),
+    top:    [ pick(1,4) ],
+    bottom: [ pick(1,4) ],
+    left:   [ pick(3,0) ],
+    right:  [ pick(3,0) ],
+    corner_tl: pick(2,1),
+    corner_tr: pick(7,1),
+    corner_bl: pick(2,4),
+    corner_br: pick(7,4),
   },
-
-  // banda soffitto interna (opzionale): una lastra scura/ombra
   ceiling: [ pick(8,6) ],
 };
+
 
 const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
@@ -495,29 +488,44 @@ document.addEventListener('keydown', (e)=>{
   if (e.key.toLowerCase() === 'p') toggleAtlasPicker(); // premi P per on/off
 });
 
-// clicca sull'ATLAS per stampare pick(c, r)
+// --- CLICK PICKER: converti coordinate CSS -> canvas px
 function handleAtlasPickerClick(e){
   if (!ATLAS_PICKER_ON || !G.sprites.atlas?.complete) return false;
+
   const rect = DOM.canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  // l’atlas viene disegnato in alto a sinistra a scala 1:1 (vedi sotto)
+  const xCss = e.clientX - rect.left;
+  const yCss = e.clientY - rect.top;
+
+  // fattore di scala CSS->canvas (tipicamente = dpr)
+  const cssToCanvas = DOM.canvas.width / parseFloat(DOM.canvas.style.width);
+
+  const x = xCss * cssToCanvas;
+  const y = yCss * cssToCanvas;
+
   const c = Math.floor(x / ATLAS_TILE);
   const r = Math.floor(y / ATLAS_TILE);
+
   console.log(`pick(${c}, ${r})`);
   e.preventDefault(); e.stopPropagation();
   return true;
 }
-DOM.canvas?.addEventListener('click', handleAtlasPickerClick, {capture:true});
+DOM.canvas?.addEventListener('click', handleAtlasPickerClick, { capture:true });
+
 
 // disegna l’atlante sopra la scena con la griglia
+// --- OVERLAY DELL'ATLANTE: disegnal0 a trasformazione identità
 function drawAtlasPickerOverlay(ctx){
   if (!ATLAS_PICKER_ON || !G.sprites.atlas?.complete) return;
   const img = G.sprites.atlas;
+
   ctx.save();
+  // Disegno in spazio "canvas pixel" senza dpr applicato
+  ctx.setTransform(1,0,0,1,0,0);
+
   ctx.globalAlpha = 0.92;
-  ctx.drawImage(img, 0, 0); // 1:1 nell’angolo
-  // griglia
+  ctx.drawImage(img, 0, 0); // 1:1 in alto a sinistra (pixel reali dell'immagine)
+
+  // griglia 32x32 (o 16x16 se cambi ATLAS_TILE)
   ctx.globalAlpha = 0.4;
   ctx.strokeStyle = '#00ffc3';
   for (let x=0; x<=img.width; x+=ATLAS_TILE){
@@ -528,6 +536,7 @@ function drawAtlasPickerOverlay(ctx){
   }
   ctx.restore();
 }
+
 
 function detectPetNumFromDom() {
   const src = document.getElementById('pet')?.src || '';

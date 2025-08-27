@@ -146,8 +146,8 @@ let ctx = null;
   Cfg.roomH += 3;         // +3 file solo mobile
 }
 
-const PET_SCALE_MOBILE   = 1.10; // +10% pet
-const ENEMY_SCALE_MOBILE = 1.06; // +6% nemici
+const PET_SCALE_MOBILE   = 1.70; // +10% pet
+const ENEMY_SCALE_MOBILE = 1.56; // +6% nemici
 
   // Stato principale
   const G = {

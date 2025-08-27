@@ -1332,13 +1332,13 @@ case 'windup': {
     G.enemies = G.enemies.filter(e => e.hp > 0);
 
     // wave clear?
-    if (!G.enemies.length) {
+   /* if (!G.enemies.length) {
       // breve interludio + wave up
       G.wave++;
       G.hpCur = Math.min(G.hpMax, Math.round(G.hpCur + G.hpMax * 0.07)); // piccola cura
       spawnWave(G.wave);
       syncHUD();
-    }
+    }*/
 
 updateGates(dt);
 
@@ -1468,7 +1468,7 @@ function render() {
   }
   if (G.renderCache.arenaLayer) {
     ctx.drawImage(G.renderCache.arenaLayer.canvas, 0, 0);
-     drawGatesOnTopWall();
+    // drawGatesOnTopWall();
     drawInspectorGrid(ctx); ////////////////////////////////////////////////////////////////////
   } else {
     // fallback (se atlas non pronto): rettangoli come prima
@@ -1862,7 +1862,7 @@ if (isMobile) {
 setupMobileControlsArena();
 
   // 2) Reset partita
-  G.wave = 1;
+  G.wave = 0;
   G.score = 0;
   G.enemies = [];
 

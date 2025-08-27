@@ -375,7 +375,7 @@ const pick = (c, r, w = 1, h = 1) => ({
 // Questi indici sono per l’area “liscia” a destra dell’atlas.
 // Se uno non ti convince, prova a commentarlo/variare: sono tutte 16×16.
 const DECOR_DESKTOP = {
-  floor: [ pick(0,6), pick(1,6), pick(0,7), pick(1,7) ],
+  floor: [ pick(6,0), pick(6,1), pick(7,0), pick(7,1) ],
 
   wallBody: {
     top:    [ pick(4,0), pick(5,0) ],

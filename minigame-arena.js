@@ -501,23 +501,27 @@ document.addEventListener('keydown', (e)=>{
 function handleAtlasPickerClick(e){
   if (!ATLAS_PICKER_ON || !G.sprites.atlas?.complete) return false;
 
+  // coordinate in CSS px rispetto al canvas
   const rect = DOM.canvas.getBoundingClientRect();
   const xCss = e.clientX - rect.left;
   const yCss = e.clientY - rect.top;
 
-  // fattore di scala CSS->canvas (tipicamente = dpr)
-  const cssToCanvas = DOM.canvas.width / parseFloat(DOM.canvas.style.width);
+  // fattore di conversione CSS->canvas (indipendente dal dpr)
+  const scaleX = DOM.canvas.width  / rect.width;
+  const scaleY = DOM.canvas.height / rect.height;
 
-  const x = xCss * cssToCanvas;
-  const y = yCss * cssToCanvas;
+  const x = xCss * scaleX;
+  const y = yCss * scaleY;
 
   const c = Math.floor(x / ATLAS_TILE);
   const r = Math.floor(y / ATLAS_TILE);
 
   console.log(`pick(${c}, ${r})`);
-  e.preventDefault(); e.stopPropagation();
+  e.preventDefault();
+  e.stopPropagation();
   return true;
 }
+
 DOM.canvas?.addEventListener('click', handleAtlasPickerClick, { capture:true });
 
 
@@ -528,23 +532,25 @@ function drawAtlasPickerOverlay(ctx){
   const img = G.sprites.atlas;
 
   ctx.save();
-  // Disegno in spazio "canvas pixel" senza dpr applicato
+  // ignora la trasformazione dpr del gioco
   ctx.setTransform(1,0,0,1,0,0);
 
   ctx.globalAlpha = 0.92;
-  ctx.drawImage(img, 0, 0); // 1:1 in alto a sinistra (pixel reali dell'immagine)
+  ctx.drawImage(img, 0, 0); // 1:1 in alto a sinistra
 
-  // griglia 32x32 (o 16x16 se cambi ATLAS_TILE)
+  // griglia
   ctx.globalAlpha = 0.4;
   ctx.strokeStyle = '#00ffc3';
-  for (let x=0; x<=img.width; x+=ATLAS_TILE){
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,img.height); ctx.stroke();
+  for (let x = 0; x <= img.width; x += ATLAS_TILE) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, img.height); ctx.stroke();
   }
-  for (let y=0; y<=img.height; y+=ATLAS_TILE){
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(img.width,y); ctx.stroke();
+  for (let y = 0; y <= img.height; y += ATLAS_TILE) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(img.width, y); ctx.stroke();
   }
+
   ctx.restore();
 }
+
 
 
 function detectPetNumFromDom() {
@@ -1535,6 +1541,14 @@ DOM.joyBase = document.getElementById('arena-joy-base');
 DOM.joyStick= document.getElementById('arena-joy-stick');
 DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
 DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
+// bind del picker SOLO ora che il canvas esiste
+if (!DOM._pickerBound && DOM.canvas) {
+  // meglio usare pointerdown per catturare sempre
+  DOM.canvas.addEventListener('pointerdown', handleAtlasPickerClick, { capture: true, passive: false });
+  DOM._pickerBound = true;
+  // debug utile:
+  console.log('[Picker] bound on canvas. ATLAS_TILE =', ATLAS_TILE);
+}
 
 if (!DOM.canvas) { console.error('[Arena] canvas mancante'); return; }
 ctx = DOM.canvas.getContext('2d');

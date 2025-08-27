@@ -142,6 +142,12 @@ let ctx = null;
 
   const isMobile = (window.matchMedia?.('(pointer:coarse)')?.matches ?? false) || /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
 
+  if (isMobile) {
+  Cfg.roomH += 3;         // +3 file solo mobile
+}
+
+const PET_SCALE_MOBILE   = 1.10; // +10% pet
+const ENEMY_SCALE_MOBILE = 1.06; // +6% nemici
 
   // Stato principale
   const G = {
@@ -1340,9 +1346,14 @@ function render() {
     ctx.fill();
     ctx.restore();
 
-    // sprite (atlas) o fallback rect
-    const pad = 8;
-    const ex = e.px + pad, ey = e.py + pad, esz = G.tile - pad * 2;
+    // sprite (atlas) o fallback rect — con scala mobile
+    const basePad = 8;
+    const escale  = isMobile ? ENEMY_SCALE_MOBILE : 1;
+
+    const esz  = (G.tile - basePad * 2) * escale;
+    const eoff = (G.tile - esz) / 2;
+    const ex   = e.px + eoff;
+    const ey   = e.py + eoff;
 
     // selezione sheet + frames in stile Treasure
     let sheet = null, FR = null;
@@ -1384,7 +1395,7 @@ function render() {
       ctx.fillRect(ex, ey, esz, esz);
     }
 
-    // barra HP
+    // barra HP (posizionamento invariato)
     const w = G.tile - 16;
     const hpw = Math.max(0, Math.round(w * (e.hp / e.hpMax)));
     ctx.fillStyle = '#000';
@@ -1396,7 +1407,15 @@ function render() {
   // --- PET (con texture) ---
   {
     const tile = G.tile;
-    const px = G.pet.px + 6, py = G.pet.py + 6, sz = tile - 12;
+    const basePad = 6; // era 6
+    const scale   = isMobile ? PET_SCALE_MOBILE : 1;
+
+    const sz  = (tile - basePad * 2) * scale;
+    const off = (tile - sz) / 2;
+
+    const px = G.pet.px + off;
+    const py = G.pet.py + off;
+
     const PET = G.sprites.pet;
     let img = null;
 
@@ -1413,20 +1432,19 @@ function render() {
       }
     }
 
-
     // HUD in-canvas (centrato in alto)
-drawHUDInCanvas();
-
+    drawHUDInCanvas();
 
     if (img && img.complete) ctx.drawImage(img, px, py, sz, sz);
     else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
   }
-  if (G.renderCache.arenaForeLayer) {
-  ctx.drawImage(G.renderCache.arenaForeLayer.canvas, 0, 0);
-}
-drawAtlasPickerOverlay(ctx);
 
+  if (G.renderCache.arenaForeLayer) {
+    ctx.drawImage(G.renderCache.arenaForeLayer.canvas, 0, 0);
+  }
+  drawAtlasPickerOverlay(ctx);
 }
+
 
 
 

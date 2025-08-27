@@ -306,6 +306,10 @@ function resizeCanvas() {
 
   function isMobileOrTablet() { return isMobile; }
 
+
+
+  
+/*
 // === ATLAS base ===
 const ATLAS_TILE = 16;
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
@@ -342,6 +346,53 @@ const DECOR_DESKTOP = {
     corner_tr: pick(2 ?? 9, 2 ?? 9),
     corner_bl: pick(0 ?? 11, 0 ?? 11),
     corner_br: pick(2 ?? 11, 2 ?? 11),
+  },
+};
+const DECOR_MOBILE = DECOR_DESKTOP;
+let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP; 
+
+
+*/
+
+
+
+// --- Atlas base ---
+const ATLAS_TILE = 16;
+const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
+const pick = (c, r, w=1, h=1) => ({ sx:c*ATLAS_TILE, sy:r*ATLAS_TILE, sw:w*ATLAS_TILE, sh:h*ATLAS_TILE });
+
+// ⚠️ floor: usa i tasselli piatti (non i brick del muro).
+// Questi indici sono per l’area “liscia” a destra dell’atlas.
+// Se uno non ti convince, prova a commentarlo/variare: sono tutte 16×16.
+const DECOR_DESKTOP = {
+  floor: [
+    pick(9,6), pick(10,6),
+    pick(9,7), pick(10,7),
+  ],
+
+  // corpo muro (il “primo blocco”, quello a contatto col pavimento)
+  wallBody: {
+    top:    [ pick(4,0),  pick(5,0)  ],
+    bottom: [ pick(4,4),  pick(5,4)  ],
+    left:   [ pick(3,2),  pick(3,3)  ],
+    right:  [ pick(6,2),  pick(6,3)  ],
+    corner_tl: pick(3,1),
+    corner_tr: pick(6,1),
+    corner_bl: pick(3,4),
+    corner_br: pick(6,4),
+  },
+
+  // “cap” del muro (il tassello che disegniamo UNA riga sopra per effetto 2-blocchi)
+  // Se non hai un cap diverso, puoi riusare i body o prenderne di più scuri/chiari.
+  wallCap: {
+    top:    [ pick(4,1),  pick(5,1)  ],
+    bottom: [ pick(4,5),  pick(5,5)  ],
+    left:   [ pick(2,2)              ],
+    right:  [ pick(7,2)              ],
+    corner_tl: pick(2,1),
+    corner_tr: pick(7,1),
+    corner_bl: pick(2,4),
+    corner_br: pick(7,4),
   },
 };
 const DECOR_MOBILE = DECOR_DESKTOP;

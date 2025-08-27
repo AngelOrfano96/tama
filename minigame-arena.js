@@ -322,8 +322,7 @@ const DECOR_DESKTOP = {
 
   // bordi (un singolo tile “corpo muro”). Se il tuo atlas ha cap e body separati,
   // metti il tile del "corpo". La parte “alta” la disegniamo con il fore-layer.
-  //top:    [ pick(  1,  9), pick(  1,  7) ],
-  top:    [ pick(  1,  9, 1, 7)],
+  top:    [ pick(  1,  9), pick(  1,  7) ],
   bottom: [ pick(  4,  4), pick(  5,  4) ],
   left:   [ pick(  3,  2), pick(  3,  3) ],
   right:  [ pick(  6,  2), pick(  6,  3) ],
@@ -537,80 +536,71 @@ function bakeArenaLayer() {
   const tile = G.tile;
   if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
 
-  const W = Cfg.roomW, H = Cfg.roomH;
-  const wpx = W * tile, hpx = H * tile;
+  const wpx = Cfg.roomW * tile;
+  const hpx = Cfg.roomH * tile;
 
-  // layer pavimento + muri "esterni"
+  // base (pavimento + primo blocco muro)
   const cvBase = document.createElement('canvas');
   cvBase.width = wpx; cvBase.height = hpx;
   const bctx = cvBase.getContext('2d');
   bctx.imageSmoothingEnabled = false;
 
-  // layer "front" (striscia interna dei muri che va sopra a pet/nemici)
+  // front (secondo blocco muro che deve stare SOPRA ai personaggi)
   const cvFront = document.createElement('canvas');
   cvFront.width = wpx; cvFront.height = hpx;
   const fctx = cvFront.getContext('2d');
   fctx.imageSmoothingEnabled = false;
 
-  const C = G.sprites.decor;
-
-  // ---- FLOOR (interno) ----
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      const entry = C?.floor;
-      if (!entry) continue;
-      let d = Array.isArray(entry) ? entry[variantIndex(x, y, entry.length)] : entry;
-      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
+  // === Floor
+  const entryFloor = G.sprites.decor?.floor || [];
+  for (let y = 1; y < Cfg.roomH - 1; y++) {
+    for (let x = 1; x < Cfg.roomW - 1; x++) {
+      let d = entryFloor[(x + y) % entryFloor.length];
+      if (Array.isArray(entryFloor)) d = entryFloor[variantIndex(x, y, entryFloor.length)];
+      if (!d) continue;
+      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
     }
   }
 
-  // helper: disegna un pezzo 1x1 dal decor
-  const put = (ctx, spr, gx, gy) => {
+  const C = G.sprites.decor;
+  const left = 0, right = Cfg.roomW - 1, top = 0, bottom = Cfg.roomH - 1;
+
+  // Disegna 1° blocco su base + 2° blocco su front, con offset dipendente dal bordo
+  const drawWall2 = (spr, dx, dy, edge) => {
     if (!spr) return;
-    ctx.drawImage(G.sprites.atlas, spr.sx, spr.sy, spr.sw, spr.sh, gx*tile, gy*tile, tile, tile);
+    // primo blocco
+    bctx.drawImage(G.sprites.atlas, spr.sx, spr.sy, spr.sw, spr.sh, dx, dy, tile, tile);
+    // secondo blocco: direzione
+    let oy = 0;
+    if (edge === 'top')      oy = +tile;    // verso l'interno (giù)
+    else if (edge === 'bottom') oy = -tile; // verso l'interno (su)
+    else                       oy = -tile;  // lati sx/dx “crescono” verso l'alto
+    fctx.drawImage(G.sprites.atlas, spr.sx, spr.sy, spr.sw, spr.sh, dx, dy + oy, tile, tile);
   };
 
-  // ---- MURI A 2 BLOCCHI ----
-  // TOP: blocco esterno su riga 0 (base), blocco interno su riga 1 (front)
-  for (let x = 0; x < W; x++) {
-    const t = C.top[x % C.top.length];
-    put(bctx, t, x, 0);
-    put(fctx, t, x, 1);
-  }
+  // Angoli (usa lo stesso criterio del bordo adiacente)
+  drawWall2(C?.corner_tl, left * tile,  top * tile,    'top');
+  drawWall2(C?.corner_tr, right * tile, top * tile,    'top');
+  drawWall2(C?.corner_bl, left * tile,  bottom * tile, 'bottom');
+  drawWall2(C?.corner_br, right * tile, bottom * tile, 'bottom');
 
-  // BOTTOM: esterno su riga H-1 (base), interno su riga H-2 (front)
-  for (let x = 0; x < W; x++) {
-    const b = C.bottom[x % C.bottom.length];
-    put(bctx, b, x, H - 1);
-    put(fctx, b, x, H - 2);
+  // Lati orizzontali
+  for (let x = 1; x <= Cfg.roomW - 2; x++) {
+    drawWall2(C.top[x % C.top.length],       x * tile, top * tile,    'top');
+    drawWall2(C.bottom[x % C.bottom.length], x * tile, bottom * tile, 'bottom');
   }
-
-  // LEFT: esterno su colonna 0 (base), interno su colonna 1 (front)
-  for (let y = 0; y < H; y++) {
-    const l = C.left[y % C.left.length];
-    put(bctx, l, 0, y);
-    put(fctx, l, 1, y);
+  // Lati verticali
+  for (let y = 1; y <= Cfg.roomH - 2; y++) {
+    drawWall2(C.left[y % C.left.length],  left * tile,  y * tile, 'left');
+    drawWall2(C.right[y % C.right.length], right * tile, y * tile, 'right');
   }
-
-  // RIGHT: esterno su colonna W-1 (base), interno su colonna W-2 (front)
-  for (let y = 0; y < H; y++) {
-    const r = C.right[y % C.right.length];
-    put(bctx, r, W - 1, y);
-    put(fctx, r, W - 2, y);
-  }
-
-  // Angoli (opzionali): se hai tile speciali, piazzali sulle 4 celle d’angolo esterne
-  // e puoi anche duplicarli nella cella interna adiacente su fctx.
-  if (C.corner_tl) { put(bctx, C.corner_tl, 0, 0); put(fctx, C.corner_tl, 1, 1); }
-  if (C.corner_tr) { put(bctx, C.corner_tr, W-1, 0); put(fctx, C.corner_tr, W-2, 1); }
-  if (C.corner_bl) { put(bctx, C.corner_bl, 0, H-1); put(fctx, C.corner_bl, 1, H-2); }
-  if (C.corner_br) { put(bctx, C.corner_br, W-1, H-1); put(fctx, C.corner_br, W-2, H-2); }
 
   G.renderCache.arenaLayer     = { canvas: cvBase,  tile };
   G.renderCache.arenaForeLayer = { canvas: cvFront, tile };
   G.renderCache.tile = tile;
   return G.renderCache.arenaLayer;
 }
+
 
 
 

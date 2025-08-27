@@ -196,6 +196,17 @@ const RENDER_DEPTH = { top: 2, bottom: 1, sides: 1 }; // quanti "blocchi" disegn
 const WALK_BOUNDS  = { top: 2, bottom: 0, sides: 0 }; // dove può camminare il pet
 const PAD_X = 2;                                      // margine laterale visivo (px)
 // due cancelli 2×2 nel muro top (x,y = angolo in alto-sx in tile)
+
+
+const GATE_CFG = {
+  fw: 2 * ATLAS_TILE,              // 32 px se ATLAS_TILE=16
+  fh: 2 * ATLAS_TILE,
+  frames: 26,
+  fps: 18,                         // velocità animazione
+  src: `${atlasBase}/Dungeon_2_Gate_anim.png`
+};
+
+
 const GATE_Y = Math.max(0, (1 + RENDER_DEPTH.top) - 2);
 
 const ARENA_GATES = [
@@ -203,7 +214,15 @@ const ARENA_GATES = [
   { x: Cfg.roomW - 4,     y: GATE_Y },            // right gate (2 tiles wide)
 ];
 // Se cambi roomW, questi restano centrati ai lati.
-
+// stato runtime cancelli
+const Gates = {
+  sheet: null,
+  state: 'idleUp',            // idleUp | lowering | open | raising
+  frame: 0,
+  t: 0,
+  pendingIngress: 0,          // quanti nemici devono ancora “entrare”
+  spawnedThisWave: false
+};
 // Area camminabile in pixel
 function getPlayBounds(){
   const t = G.tile;
@@ -216,6 +235,10 @@ function getPlayBounds(){
     // bottom: nessun rientro
     maxY: (Cfg.roomH - 2 - WALK_BOUNDS.bottom) * t
   };
+}
+function gateIngressY() {
+  // prima riga utile dentro l’area di gioco
+  return (1 + WALK_BOUNDS.top) * G.tile;
 }
 
 // Clampa un oggetto {px,py} ai bounds
@@ -476,16 +499,11 @@ function initAtlasSprites() {
 }
 
 function initGateSprite(){
-  if (G.sprites.gate) return;
-  G.sprites.gate = new Image();
-  G.sprites.gate.onload  = () => console.log('[GATE] ready');
-  G.sprites.gate.onerror = (e) => console.error('[GATE] fail', e);
-
-  // PNG che mi hai passato; ogni frame è 2×2 tile (32×32 px se ATLAS_TILE=16)
-  G.sprites.gate.src = `${atlasBase}/Dungeon_2_Gate_anim.png`;
-
-  // frame 0 (sx=0, sy=0) – puoi cambiare sx per animarlo
-  G.sprites.gateFrame = { sx: 0, sy: 0, sw: ATLAS_TILE*2, sh: ATLAS_TILE*2 };
+  if (Gates.sheet) return;
+  Gates.sheet = new Image();
+  Gates.sheet.onload  = () => console.log('[GATE] sprite ready');
+  Gates.sheet.onerror = (e) => console.error('[GATE] sprite fail', e);
+  Gates.sheet.src = GATE_CFG.src;
 }
 
 
@@ -1171,8 +1189,25 @@ for (const e of G.enemies) {
   const dTiles = d / G.tile;
 
   // clampa ai confini dell’arena (lascia un margine)
- const clampToArena = () => clampToBounds(e);
-
+ // al posto di: const clampToArena = () => clampToBounds(e);
+const clampToArena = () => {
+  // durante l’ingresso lascio “sfondare” il bound top
+  if (e.enteringViaGate) {
+    const b = getPlayBounds();
+    // clamp solo X e bottom, ma NON il top
+    e.px = Math.max(b.minX, Math.min(b.maxX, e.px));
+    e.py = Math.min(b.maxY, e.py); // niente minY
+    // quando supera la soglia, entra “ufficialmente”
+    if (e.py >= gateIngressY()) {
+      e.enteringViaGate = false;
+      // uno in meno che deve entrare
+      if (Gates.pendingIngress > 0) Gates.pendingIngress--;
+    }
+  } else {
+    // clamp normale
+    clampToBounds(e);
+  }
+};
 
   // helper per danno nello swing: piccola hitbox frontale rispetto al nemico
 const tryHitPetDuringSwing = () => {
@@ -1290,7 +1325,7 @@ case 'windup': {
     }
   }
 }
-for (const e of G.enemies) clampToBounds(e);
+//for (const e of G.enemies) clampToBounds(e);
 
 
     // rimuovi morti
@@ -1304,8 +1339,101 @@ for (const e of G.enemies) clampToBounds(e);
       spawnWave(G.wave);
       syncHUD();
     }
+
+updateGates(dt);
+
   }
 
+  function updateGates(dt){
+  Gates.t += dt;
+  const step = 1 / GATE_CFG.fps;
+
+  // avanza i frame solo quando è passato "step"
+  while (Gates.t >= step){
+    Gates.t -= step;
+    if (Gates.state === 'lowering') {
+      Gates.frame++;
+      if (Gates.frame >= GATE_CFG.frames-1) {
+        Gates.frame = GATE_CFG.frames-1;
+        Gates.state = 'open';
+      }
+    } else if (Gates.state === 'raising') {
+      Gates.frame--;
+      if (Gates.frame <= 0) {
+        Gates.frame = 0;
+        Gates.state = 'idleUp';
+      }
+    }
+  }
+
+  // orchestrazione wave
+  if (!G.enemies.length && !Gates.spawnedThisWave) {
+    // wave appena finita → apri cancelli e prepara spawn
+    Gates.state = 'lowering';
+    Gates.spawnedThisWave = true;      // eviti doppio trigger
+    G.wave++;
+    // lo spawn effettivo lo facciamo quando i cancelli sono "open"
+  }
+
+  // quando i cancelli sono completamente aperti, spawna via cancelli
+  if (Gates.state === 'open' && Gates.pendingIngress === 0) {
+    // spawna subito la wave N (tutti dal top, dai due cancelli)
+    const entering = spawnWaveViaGates(G.wave);
+    Gates.pendingIngress = entering;    // quanti devono “varcare la soglia”
+  }
+
+  // quando tutti i "throughGate" hanno passato la soglia → chiudi i cancelli
+  if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
+    Gates.state = 'raising';
+  }
+}
+
+function spawnWaveViaGates(n){
+  // come spawnWave(), ma posiziona i nemici in modo alternato sui due cancelli
+  const MAX_ENEMIES = 20;
+  if (G.enemies.length >= MAX_ENEMIES) return 0;
+
+  const scale = 1 + (n - 1) * 0.06;
+  const count = 2 + Math.floor(n * 0.8);
+  const bats = (n % 3 === 0) ? 1 : 0;
+
+  const blue = [];
+  for (let i=0;i<count;i++) blue.push(makeGoblin(scale));
+  for (let i=0;i<bats;i++)  blue.push(makeBat(Math.max(1, scale*0.95)));
+
+  let spawned = 0;
+  let gateIdx = 0;
+
+  for (const e of blue){
+    if (G.enemies.length >= MAX_ENEMIES) break;
+
+    // gate scelto
+    const g = ARENA_GATES[gateIdx % ARENA_GATES.length];
+    gateIdx++;
+
+    // colonna casuale dentro al 2×2 del cancello
+    const gx = g.x + (Math.random() < 0.5 ? 0 : 1);
+    const gyOutside = g.y - 1; // UNA riga sopra al 2×2 (quindi fuori)
+
+    e.x = gx;
+    e.y = gyOutside;
+    e.px = e.x * G.tile;
+    e.py = e.y * G.tile;
+
+    // flag: questo nemico sta entrando dai cancelli → niente clamp top finché non passa
+    e.enteringViaGate = true;
+
+    // stato combattimento base
+    e.state = 'chase';
+    e.tState = 0;
+    e.nextAtkReadyTs = 0;
+    e.lastHitTs = 0;
+
+    G.enemies.push(e);
+    spawned++;
+  }
+  return spawned;
+}
 
 function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w/2, h/2);
@@ -1474,10 +1602,23 @@ function render() {
   if (G.renderCache.arenaForeLayer) {
     ctx.drawImage(G.renderCache.arenaForeLayer.canvas, 0, 0);
   }
+renderGates();
+
   drawAtlasPickerOverlay(ctx);
 }
 
-
+  function renderGates(){
+  if (!Gates.sheet) return;
+  const img = Gates.sheet;
+  const f = Math.max(0, Math.min(GATE_CFG.frames-1, Gates.frame|0));
+  const sx = 0;
+  const sy = f * GATE_CFG.fh; // frame impilati verticalmente (se orizzontale inverti)
+  for (const g of ARENA_GATES){
+    const dx = g.x * G.tile;
+    const dy = g.y * G.tile;
+    ctx.drawImage(img, sx, sy, GATE_CFG.fw, GATE_CFG.fh, dx, dy, 2*G.tile, 2*G.tile);
+  }
+}
 
 
   function loop() {
@@ -1630,6 +1771,11 @@ function unloadArenaCSS() {
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
+  Gates.state = 'idleUp';
+Gates.frame = 0;
+Gates.t = 0;
+Gates.pendingIngress = 0;
+Gates.spawnedThisWave = false;
   DOM.modal?.classList.remove('show')
   DOM.modal   = document.getElementById('arena-minigame-modal');
 DOM.canvas  = document.getElementById('arena-canvas');
@@ -1738,7 +1884,7 @@ setupMobileControlsArena();
 
   // 3) Asset & rendering
   initAtlasSprites();
-  initGateSprite();  
+  initGateSprite() 
   buildDecorFromAtlas();
   buildGoblinFromAtlas?.();
   buildBatFromAtlas?.();
@@ -1749,7 +1895,7 @@ setupMobileControlsArena();
   await enterFullscreen?.(); // opzionale
   resizeCanvas();
   syncHUD();
-  spawnWave(G.wave);
+  //spawnWave(G.wave);
 
   // 4) Avvio loop
 DOM.modal?.classList.remove('hidden');

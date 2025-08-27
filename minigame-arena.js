@@ -317,24 +317,36 @@ const pick = (c, r, w=1, h=1) => ({
 
 // ⛏️ Sostituisci qui con le celle di Dungeon_2.png
 const DECOR_DESKTOP = {
-  // Esempio: 4 varianti di pavimento
-  floor: [ pick(0,6), pick(1,6), pick(0,7), pick(1,7) ],
+  floor: [ pick(0,6), pick(0,7), pick(1,6), pick(1,7) ],
 
-  // bordi (un singolo tile “corpo muro”). Se il tuo atlas ha cap e body separati,
-  // metti il tile del "corpo". La parte “alta” la disegniamo con il fore-layer.
-  top:    [ pick(  1,  9), pick(  1,  7) ],
-  bottom: [ pick(  4,  4), pick(  5,  4) ],
-  left:   [ pick(  3,  2), pick(  3,  3) ],
-  right:  [ pick(  6,  2), pick(  6,  3) ],
+  // MURI — corpo (tile “base” del muro)
+  wallBody: {
+    top:    [ pick(1,7) ],
+    bottom: [ pick(7,2) ],
+    left:   [ pick(6,1) ],
+    right:  [ pick(8,1) ],
+    corner_tl: pick(0,7),
+    corner_tr: pick(2,6),
+    corner_bl: pick(0,10),
+    corner_br: pick(2,7),
+  },
 
-  // angoli
-  corner_tl: pick( 3, 1 ),
-  corner_tr: pick( 6, 1 ),
-  corner_bl: pick( 3, 4 ),
-  corner_br: pick( 6, 4 ),
+  // MURI — “cap” (il tassello che fa il secondo blocco)
+  // Se il tuo atlas non ha un cap diverso, rimetti GLI STESSI tile del body.
+  wallCap: {
+    top:    [ pick(1,6) ],
+    bottom: [ pick(1,11) ],
+    left:   [ pick(0,10) ],
+    right:  [ pick(2,10) ],
+    corner_tl: pick(0 ?? 9, 0 ?? 9),
+    corner_tr: pick(2 ?? 9, 2 ?? 9),
+    corner_bl: pick(0 ?? 11, 0 ?? 11),
+    corner_br: pick(2 ?? 11, 2 ?? 11),
+  },
 };
 const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
+
 
 // ===== DEV: Atlas Inspector =====
 let INSPECT = { on:false };
@@ -539,60 +551,74 @@ function bakeArenaLayer() {
   const wpx = Cfg.roomW * tile;
   const hpx = Cfg.roomH * tile;
 
-  // base (pavimento + primo blocco muro)
+  // base: pavimento + corpo muro
   const cvBase = document.createElement('canvas');
   cvBase.width = wpx; cvBase.height = hpx;
   const bctx = cvBase.getContext('2d');
   bctx.imageSmoothingEnabled = false;
 
-  // front (secondo blocco muro che deve stare SOPRA ai personaggi)
+  // front: il “secondo blocco” che deve stare SOPRA a pet/nemici
   const cvFront = document.createElement('canvas');
   cvFront.width = wpx; cvFront.height = hpx;
   const fctx = cvFront.getContext('2d');
   fctx.imageSmoothingEnabled = false;
 
-  // === Floor
+  // === floor
   const entryFloor = G.sprites.decor?.floor || [];
   for (let y = 1; y < Cfg.roomH - 1; y++) {
     for (let x = 1; x < Cfg.roomW - 1; x++) {
       let d = entryFloor[(x + y) % entryFloor.length];
       if (Array.isArray(entryFloor)) d = entryFloor[variantIndex(x, y, entryFloor.length)];
       if (!d) continue;
-      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
+      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
     }
   }
 
-  const C = G.sprites.decor;
+  const D = G.sprites.decor;
   const left = 0, right = Cfg.roomW - 1, top = 0, bottom = Cfg.roomH - 1;
 
-  // Disegna 1° blocco su base + 2° blocco su front, con offset dipendente dal bordo
-  const drawWall2 = (spr, dx, dy, edge) => {
-    if (!spr) return;
-    // primo blocco
-    bctx.drawImage(G.sprites.atlas, spr.sx, spr.sy, spr.sw, spr.sh, dx, dy, tile, tile);
-    // secondo blocco: direzione
+  // helper per pescare una variante
+  const pickVar = (arr, idx) => Array.isArray(arr) ? arr[idx % arr.length] : arr;
+
+  // Disegna corpo + cap con offset dipendente dal lato
+  const drawWall2 = (body, cap, dx, dy, edge) => {
+    if (!body) return;
+    // corpo nella base
+    bctx.drawImage(G.sprites.atlas, body.sx, body.sy, body.sw, body.sh, dx, dy, tile, tile);
+
+    // cap nel front con offset
+    cap = cap || body; // fallback: se non definito usa il corpo
     let oy = 0;
-    if (edge === 'top')      oy = +tile;    // verso l'interno (giù)
-    else if (edge === 'bottom') oy = -tile; // verso l'interno (su)
-    else                       oy = -tile;  // lati sx/dx “crescono” verso l'alto
-    fctx.drawImage(G.sprites.atlas, spr.sx, spr.sy, spr.sw, spr.sh, dx, dy + oy, tile, tile);
+    if (edge === 'top')      oy = +tile;   // “cresce” verso l’interno (giù)
+    else if (edge === 'bottom') oy = -tile; // cresce verso l’alto
+    else                       oy = -tile;  // lati sx/dx alzano la seconda fila
+    fctx.drawImage(G.sprites.atlas, cap.sx, cap.sy, cap.sw, cap.sh, dx, dy + oy, tile, tile);
   };
 
-  // Angoli (usa lo stesso criterio del bordo adiacente)
-  drawWall2(C?.corner_tl, left * tile,  top * tile,    'top');
-  drawWall2(C?.corner_tr, right * tile, top * tile,    'top');
-  drawWall2(C?.corner_bl, left * tile,  bottom * tile, 'bottom');
-  drawWall2(C?.corner_br, right * tile, bottom * tile, 'bottom');
+  // Angoli
+  drawWall2(D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    'top');
+  drawWall2(D.wallBody.corner_tr, D.wallCap.corner_tr, right*tile, top*tile,    'top');
+  drawWall2(D.wallBody.corner_bl, D.wallCap.corner_bl, left*tile,  bottom*tile, 'bottom');
+  drawWall2(D.wallBody.corner_br, D.wallCap.corner_br, right*tile, bottom*tile, 'bottom');
 
   // Lati orizzontali
   for (let x = 1; x <= Cfg.roomW - 2; x++) {
-    drawWall2(C.top[x % C.top.length],       x * tile, top * tile,    'top');
-    drawWall2(C.bottom[x % C.bottom.length], x * tile, bottom * tile, 'bottom');
+    const bTop = pickVar(D.wallBody.top,    x);
+    const cTop = pickVar(D.wallCap.top,     x);
+    const bBot = pickVar(D.wallBody.bottom, x);
+    const cBot = pickVar(D.wallCap.bottom,  x);
+    drawWall2(bTop, cTop, x*tile, top*tile, 'top');
+    drawWall2(bBot, cBot, x*tile, bottom*tile, 'bottom');
   }
+
   // Lati verticali
   for (let y = 1; y <= Cfg.roomH - 2; y++) {
-    drawWall2(C.left[y % C.left.length],  left * tile,  y * tile, 'left');
-    drawWall2(C.right[y % C.right.length], right * tile, y * tile, 'right');
+    const bL = pickVar(D.wallBody.left,  y);
+    const cL = pickVar(D.wallCap.left,   y);
+    const bR = pickVar(D.wallBody.right, y);
+    const cR = pickVar(D.wallCap.right,  y);
+    drawWall2(bL, cL, left*tile,  y*tile, 'left');
+    drawWall2(bR, cR, right*tile, y*tile, 'right');
   }
 
   G.renderCache.arenaLayer     = { canvas: cvBase,  tile };
@@ -600,6 +626,7 @@ function bakeArenaLayer() {
   G.renderCache.tile = tile;
   return G.renderCache.arenaLayer;
 }
+
 
 
 

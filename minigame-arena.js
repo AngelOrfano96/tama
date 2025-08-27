@@ -84,8 +84,8 @@ function escapeHtml(s){
 
 (() => {
   const Cfg = {
-    roomW: 10,       // stanza unica
-    roomH: 8,
+    roomW: 13,       // stanza unica
+    roomH: 10,
     baseTimerMs: 1000,
     waveTimeCap: 60, // secondi hard-cap per wave (puoi ignorarlo all’inizio)
     petBaseSpeedDesktop: 150,

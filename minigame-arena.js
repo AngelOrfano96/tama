@@ -426,9 +426,9 @@ const DECOR_DESKTOP = {
     ],
     left:   [ pick(4,2), pick(4,1) ],
     right:  [ pick(4,2), pick(4,1) ],
-    corner_tl: pick(3,1),
+    corner_tl: pick(0,0),
     corner_tr: pick(6,1),
-    corner_bl: pick(3,4),
+    corner_bl: pick(1,7),
     corner_br: pick(6,4),
   },
   wallCap: {

@@ -196,9 +196,11 @@ const RENDER_DEPTH = { top: 2, bottom: 1, sides: 1 }; // quanti "blocchi" disegn
 const WALK_BOUNDS  = { top: 2, bottom: 0, sides: 0 }; // dove può camminare il pet
 const PAD_X = 2;                                      // margine laterale visivo (px)
 // due cancelli 2×2 nel muro top (x,y = angolo in alto-sx in tile)
+const GATE_Y = Math.max(0, (1 + RENDER_DEPTH.top) - 2);
+
 const ARENA_GATES = [
-  { x: 2, y: 0 },                          // sinistra
-  { x: Cfg.roomW - 4, y: 0 },              // destra  (roomW-4 = 2 tile di larghezza)
+  { x: 2,                 y: GATE_Y },            // left gate
+  { x: Cfg.roomW - 4,     y: GATE_Y },            // right gate (2 tiles wide)
 ];
 // Se cambi roomW, questi restano centrati ai lati.
 

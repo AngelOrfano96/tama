@@ -147,7 +147,7 @@ let ctx = null;
 }
 
 const PET_SCALE_MOBILE   = 1.70; // +10% pet
-const ENEMY_SCALE_MOBILE = 2.56; // +6% nemici
+const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
 
   // Stato principale
   const G = {

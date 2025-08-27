@@ -752,15 +752,17 @@ function bakeArenaLayer() {
   const pickVar = (entry, i) => Array.isArray(entry) ? entry[i % entry.length] : entry;
 
   // -------- FLOOR (evita di disegnarlo sotto ai muri spessi) --------
-  const entryFloor = D?.floor || [];
-  for (let y = 1 + DEPTH_TOP; y < Cfg.roomH - 1 - DEPTH_BOTTOM; y++) {
-    for (let x = 1 + DEPTH_SIDES; x < Cfg.roomW - 1 - DEPTH_SIDES; x++) {
-      let d = entryFloor[(x + y) % entryFloor.length];
-      if (Array.isArray(entryFloor)) d = entryFloor[variantIndex(x, y, entryFloor.length)];
-      if (!d) continue;
-      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
-    }
+// -------- FLOOR (taglia solo top/bottom, NON i lati) --------
+const entryFloor = D?.floor || [];
+for (let y = 1 + DEPTH_TOP; y < Cfg.roomH - 1 - DEPTH_BOTTOM; y++) {
+  for (let x = 1; x < Cfg.roomW - 1; x++) { // ← niente DEPTH_SIDES qui
+    let d = entryFloor[(x + y) % entryFloor.length];
+    if (Array.isArray(entryFloor)) d = entryFloor[variantIndex(x, y, entryFloor.length)];
+    if (!d) continue;
+    bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
   }
+}
+
 
   // -------- stack: N corpi (base) + 1 cap (front) ----------
   function drawWallStack(edge, bodyEntry, capEntry, xTile, yTile, depth) {

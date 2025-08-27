@@ -457,11 +457,12 @@ const ARENA_GATES = [
 // stato runtime cancelli
 const Gates = {
   sheet: null,
-  state: 'idleUp',            // idleUp | lowering | open | raising
+  state: 'idleUp',
   frame: 0,
   t: 0,
-  pendingIngress: 0,          // quanti nemici devono ancora “entrare”
-  spawnedThisWave: false
+  pendingIngress: 0,
+  spawnedThisWave: false,
+  queue: [0, 0],           // ← contatori di coda per i due cancelli
 };
 // Area camminabile in pixel
 function getPlayBounds(){
@@ -1386,15 +1387,20 @@ function updateGates(dt){
     G.wave++;                     // incremento qui
     syncHUD?.();
   }
-
+/*
   // Spawn quando i cancelli sono “open” e non abbiamo ancora ingressi pendenti
  if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
   Gates.pendingIngress = spawnWaveViaGates(G.wave);
   Gates._spawnedThisOpen = true;           // ← blocca doppi spawn
   if (Gates.pendingIngress === 0) Gates.state = 'raising';
 }
+*/
+ if (Gates.state === 'open' && Gates.pendingIngress === 0) {
+  Gates.queue = [0, 0];                    // ← reset code per questa apertura
+  Gates.pendingIngress = spawnWaveViaGates(G.wave);
+  if (Gates.pendingIngress === 0) Gates.state = 'raising';
+}
 
- 
   // Chiudi quando tutti hanno varcato la soglia
 if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
   Gates.state = 'raising';
@@ -1431,51 +1437,56 @@ function spawnWaveViaGates(n){
   const MAX_ENEMIES = 20;
   if (G.enemies.length >= MAX_ENEMIES) return 0;
 
-  // --- quantità per wave (vedi punto 2) ---
+  // quantità per wave
   const count = waveEnemyTotal(n);
   const bats  = waveBatCount(n, count);
+  const scale = 1 + (n - 1) * 0.06;
 
   const blue = [];
-  for (let i=0;i<count;i++) blue.push(makeGoblin(1 + (n-1)*0.06));
-  for (let i=0;i<bats;i++)  blue.push(makeBat( Math.max(1, (1 + (n-1)*0.06)*0.95) ));
+  for (let i = 0; i < count; i++) blue.push(makeGoblin(scale));
+  for (let i = 0; i < bats;  i++) blue.push(makeBat(Math.max(1, scale * 0.95)));
 
   let spawned = 0, gateIdx = 0;
+  const SPACING_TILES = 0.90;              // distanza verticale tra due ingressi
 
-  for (const e of blue){
+  for (const e of blue) {
     if (G.enemies.length >= MAX_ENEMIES) break;
 
-    // alterna i due cancelli
-    const g = ARENA_GATES[gateIdx % ARENA_GATES.length];
+    // cancello alternato
+    const gIndex = gateIdx % ARENA_GATES.length;
+    const g = ARENA_GATES[gIndex];
     gateIdx++;
 
-    // colonna (sinistra o destra) nel 2×2 del cancello
-    const gx = g.x + (Math.random() < 0.5 ? 0 : 1);
+    // posizione nella coda di QUEL cancello
+    const q = (Gates.queue?.[gIndex] || 0);
 
-    // ✅ spawn “dentro il varco” (non sopra)
+    // colonna dentro al 2×2: sx/dx alternati per varietà
+    const gx = g.x + (q % 2);
+
+    // nascita SOPRA il varco, scalata in alto in base alla coda
     const startX = gx * G.tile;
-    const startY = (g.y + 0.15) * G.tile; // un filo dentro l’arco
+    const startY = (g.y - 1 - q * SPACING_TILES) * G.tile;
 
-    e.x  = gx;            // (solo per riferimento)
-    e.y  = g.y + 0.15;
+    e.x  = gx;
+    e.y  = g.y - 1 - q * SPACING_TILES;
     e.px = startX;
     e.py = startY;
 
-    e.spawnPx = startX;      // bloccheremo la X durante l’ingresso
-e.enteringViaGate = true;
-e.state = 'ingress';     // ← nuovo stato iniziale
-e.tState = 0;
-
-   // e.enteringViaGate = true;   // niente clamp sul minY finché non varca la soglia
-    //e.state = 'chase';
-    //e.tState = 0;
+    // ingresso “a canna”: X bloccata, solo discesa fino alla soglia
+    e.spawnPx = startX;
+    e.enteringViaGate = true;
+    e.state = 'ingress';
+    e.tState = 0;
     e.nextAtkReadyTs = 0;
     e.lastHitTs = 0;
 
     G.enemies.push(e);
+    Gates.queue[gIndex] = q + 1;           // avanza la coda per quel cancello
     spawned++;
   }
   return spawned;
 }
+
 
 
 function roundRect(ctx, x, y, w, h, r) {

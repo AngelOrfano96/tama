@@ -380,8 +380,8 @@ const DECOR_DESKTOP = {
   wallBody: {
     top:    [ pick(1,7), pick(1,6) ],
     bottom: [ pick(7,4), pick(1,6) ],
-    left:   [ pick(3,2), pick(3,3) ],
-    right:  [ pick(6,2), pick(6,3) ],
+    left:   [ pick(4,2), pick(4,1) ],
+    right:  [ pick(4,2), pick(4,1) ],
     corner_tl: pick(3,1),
     corner_tr: pick(6,1),
     corner_bl: pick(3,4),
@@ -391,8 +391,8 @@ const DECOR_DESKTOP = {
   wallCap: {
     top:    [ pick(1,4) ],
     bottom: [ pick(1,4) ],
-    left:   [ pick(2,2) ],
-    right:  [ pick(7,2) ],
+    left:   [ pick(3,0) ],
+    right:  [ pick(3,0) ],
     corner_tl: pick(2,1),
     corner_tr: pick(7,1),
     corner_bl: pick(2,4),
@@ -476,6 +476,49 @@ function initAtlasSprites() {
   G.sprites.atlas.onerror = (e) => console.error('[ARENA ATLAS] fail', e);
   G.sprites.atlas.src = `${atlasBase}/Dungeon_2.png`;   // 👈 nuovo file
 }
+
+// === ATLAS PICKER (debug) ===============================================
+let ATLAS_PICKER_ON = false;
+
+function toggleAtlasPicker(){ ATLAS_PICKER_ON = !ATLAS_PICKER_ON; }
+document.addEventListener('keydown', (e)=>{
+  if (e.key.toLowerCase() === 'p') toggleAtlasPicker(); // premi P per on/off
+});
+
+// clicca sull'ATLAS per stampare pick(c, r)
+function handleAtlasPickerClick(e){
+  if (!ATLAS_PICKER_ON || !G.sprites.atlas?.complete) return false;
+  const rect = DOM.canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  // l’atlas viene disegnato in alto a sinistra a scala 1:1 (vedi sotto)
+  const c = Math.floor(x / ATLAS_TILE);
+  const r = Math.floor(y / ATLAS_TILE);
+  console.log(`pick(${c}, ${r})`);
+  e.preventDefault(); e.stopPropagation();
+  return true;
+}
+DOM.canvas?.addEventListener('click', handleAtlasPickerClick, {capture:true});
+
+// disegna l’atlante sopra la scena con la griglia
+function drawAtlasPickerOverlay(ctx){
+  if (!ATLAS_PICKER_ON || !G.sprites.atlas?.complete) return;
+  const img = G.sprites.atlas;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.drawImage(img, 0, 0); // 1:1 nell’angolo
+  // griglia
+  ctx.globalAlpha = 0.4;
+  ctx.strokeStyle = '#00ffc3';
+  for (let x=0; x<=img.width; x+=ATLAS_TILE){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,img.height); ctx.stroke();
+  }
+  for (let y=0; y<=img.height; y+=ATLAS_TILE){
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(img.width,y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function detectPetNumFromDom() {
   const src = document.getElementById('pet')?.src || '';
   const m = src.match(/pet_(\d+)/);
@@ -1282,6 +1325,8 @@ drawHUDInCanvas();
   if (G.renderCache.arenaForeLayer) {
   ctx.drawImage(G.renderCache.arenaForeLayer.canvas, 0, 0);
 }
+drawAtlasPickerOverlay(ctx);
+
 }
 
 

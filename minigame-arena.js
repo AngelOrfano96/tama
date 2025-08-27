@@ -357,7 +357,7 @@ let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 
 // --- Atlas base ---
-const ATLAS_TILE = 16;
+const ATLAS_TILE = 32;
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
 const pick = (c, r, w=1, h=1) => ({ sx:c*ATLAS_TILE, sy:r*ATLAS_TILE, sw:w*ATLAS_TILE, sh:h*ATLAS_TILE });
 

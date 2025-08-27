@@ -1688,3 +1688,78 @@ button, .ui-btn { touch-action: manipulation; }
   background:#ecfdf5;
   box-shadow: inset 0 0 0 2px #34d399;
 }
+
+
+/* ===== Arena Leaderboard Modal ===== */
+.arena-lb-modal{
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,.35);
+  z-index: 2200;
+}
+.arena-lb-card{
+  width: min(640px, 92vw);
+  background: #fff8ee;
+  border-radius: 16px;
+  padding: 18px 16px 16px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.25);
+}
+
+.arena-lb-header{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:10px;
+}
+.arena-lb-header h3{
+  margin:0; font-size:1.25rem; color:#111827;
+}
+.arena-lb-close{
+  width:34px; height:34px; border-radius:10px; border:0;
+  display:grid; place-items:center;
+  background:#111827; color:#fff; font-weight:800; cursor:pointer;
+}
+
+.arena-lb-body{ max-height: 65vh; overflow:auto; }
+
+/* pill "self rank" */
+.arena-lb-self{
+  margin: 4px 0 10px;
+}
+.arena-lb-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px;
+  background:#eff6ff; color:#1e40af; font-weight:700; font-size:.95rem;
+}
+.arena-lb-chip.muted{ background:#f1f5f9; color:#64748b; font-weight:600; }
+
+/* tabella */
+.arena-lb-table{
+  width:100%; border-collapse:separate; border-spacing:0;
+  background:#fff; border-radius:12px; overflow:hidden;
+  box-shadow:0 6px 20px rgba(0,0,0,.06);
+}
+.arena-lb-table thead th{
+  background:#f8fafc; color:#334155; font-weight:800; font-size:0.95rem;
+  text-align:left; padding:10px 12px; border-bottom:1px solid #e5e7eb;
+}
+.arena-lb-table tbody td{
+  padding:10px 12px; border-top:1px solid #eef2f7; color:#0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.arena-lb-table tbody tr:hover{ background:#f9fbff; }
+
+/* colonna # centrata + medaglie */
+.arena-lb-table td:nth-child(1){ width:46px; text-align:center; color:#64748b; font-weight:800; }
+.arena-lb-table tbody tr:nth-child(1) td:first-child::before{content:"🥇 "; }
+.arena-lb-table tbody tr:nth-child(2) td:first-child::before{content:"🥈 "; }
+.arena-lb-table tbody tr:nth-child(3) td:first-child::before{content:"🥉 "; }
+
+/* allineamento numeri a destra su Punti/Wave/Data */
+.arena-lb-table td:nth-child(3),
+.arena-lb-table td:nth-child(4),
+.arena-lb-table td:nth-child(5){ text-align:right; }
+
+/* evidenzia "me" */
+.arena-lb-table tbody tr.is-me{
+  background:#ecfdf5;
+  box-shadow: inset 0 0 0 2px #34d399;
+}

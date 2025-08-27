@@ -1,5 +1,3 @@
-// === MINI GIOCO ARENA — versione “solo arena” (IIFE) ======================
-// === Leaderboard Arena =====================================================
 // === Leaderboard Arena =====================================================
 async function openArenaLeaderboard(){
   const modal = document.getElementById('arena-leaderboard-modal');
@@ -10,79 +8,52 @@ async function openArenaLeaderboard(){
   modal.classList.remove('hidden');
 
   try {
-    // 1) Prendiamo top 100 + count totale
-    const { data: topRows, error: e1, count: totalCount } = await supabaseClient
+    // utente loggato (per highlight + posizione)
+    const { data:auth } = await supabaseClient.auth.getUser();
+    const meId = auth?.user?.id || null;
+
+    const { data, error } = await supabaseClient
       .from('leaderboard_arena')
-      .select('user_id, username_snapshot, best_score, best_wave, best_at', { count: 'exact' })
+      .select('user_id, username_snapshot, best_score, best_wave, best_at')
       .order('best_score', { ascending:false })
       .order('best_wave',  { ascending:false })
       .limit(100);
 
-    if (e1) throw e1;
+    if (error) throw error;
 
-    // 2) Prendiamo utente loggato e sua riga (se esiste)
-    let myRank = null, tot = totalCount ?? (topRows?.length || 0);
-    let meRow = null;
-
-    // Supabase v2:
-    const { data: auth } = await supabaseClient.auth.getUser();
-    const myId = auth?.user?.id || auth?.user?.user_metadata?.sub; // fallback prudente
-
-    if (myId) {
-      // prendi il best dell'utente
-      const { data: me, error: e2 } = await supabaseClient
-        .from('leaderboard_arena')
-        .select('best_score, best_wave')
-        .eq('user_id', myId)
-        .maybeSingle();
-      if (e2) console.warn('[Arena LB] me-row warn:', e2);
-      meRow = me || null;
-
-      // 3) Calcolo posizione: quante righe sono "migliori" (score desc, wave desc)
-      if (meRow && Number.isFinite(meRow.best_score)) {
-        const s = meRow.best_score|0;
-        const w = meRow.best_wave|0;
-
-        // conta: (best_score > s) OR (best_score = s AND best_wave > w)
-        const { count: betterCnt, error: e3 } = await supabaseClient
-          .from('leaderboard_arena')
-          .select('user_id', { count: 'exact', head: true })
-          .or(`best_score.gt.${s},and(best_score.eq.${s},best_wave.gt.${w})`);
-
-        if (e3) console.warn('[Arena LB] rank-count warn:', e3);
-        myRank = (betterCnt ?? 0) + 1;
-      }
-    }
-
-    // 4) Mappiamo e render
-    const rows = (topRows || []).map((r, i) => ({
+    // mappa alle colonne attese dal renderer + tieni userId
+    const rows = (data || []).map((r, i) => ({
       rank: i + 1,
+      userId: r.user_id,
       username: r.username_snapshot || 'Player',
       score: r.best_score || 0,
-      wave: r.best_wave  || 0,
+      wave:  r.best_wave  || 0,
       created_at: r.best_at
     }));
 
-    renderArenaLeaderboard(body, rows, { myRank, total: tot, myId });
+    renderArenaLeaderboard(body, rows, { meId, total: rows.length });
   } catch (err) {
     console.error('[Arena LB] fetch', err);
     body.innerHTML = `<div style="padding:16px;color:#fca5a5">Errore nel caricamento.</div>`;
   }
 }
 
-function renderArenaLeaderboard(container, rows, opts={}){
-  const { myRank=null, total=rows.length, myId=null } = opts;
-  const fmtDate = (d)=> d ? new Date(d).toLocaleString() : '—';
+function renderArenaLeaderboard(container, rows, opts = {}){
+  const fmtDate = (d)=> d ? new Date(d).toLocaleString() : '-';
+  const { meId = null, total = rows.length } = opts;
 
-  // chip “La tua posizione”
-  const chipText = (myRank && total)
-    ? `La tua posizione: ${myRank} di ${total}`
-    : `La tua posizione: —`;
+  const meIndex = rows.findIndex(r => r.userId && r.userId === meId);
+  const meRank  = meIndex >= 0 ? (meIndex + 1) : null;
 
-  // costruiamo tabella con classi identiche alla leaderboard già esistente
-  const html = `
-    <div class="arena-self-rank ${myRank? '' : 'muted'}">${chipText}</div>
-    <table class="lb-table">
+  const selfPill = `
+    <div class="arena-lb-self">
+      <span class="arena-lb-chip ${meRank ? '' : 'muted'}">
+        ${meRank ? `La tua posizione: #${meRank} su ${total}` : 'Non in classifica'}
+      </span>
+    </div>`;
+
+  const table = `
+    <table class="arena-lb-table">
       <thead>
         <tr>
           <th>#</th>
@@ -93,22 +64,21 @@ function renderArenaLeaderboard(container, rows, opts={}){
         </tr>
       </thead>
       <tbody>
-        ${rows.map(r=>`
-          <tr>
+        ${rows.map(r => `
+          <tr class="${r.userId === meId ? 'is-me' : ''}">
             <td>${r.rank}</td>
             <td>${escapeHtml(r.username)}</td>
-            <td style="text-align:right">${r.score|0}</td>
-            <td style="text-align:right">${r.wave|0}</td>
+            <td>${r.score|0}</td>
+            <td>${r.wave|0}</td>
             <td>${fmtDate(r.created_at)}</td>
-          </tr>`).join('')}
-        ${rows.length ? '' : `
-          <tr><td colspan="5" class="muted" style="text-align:center;padding:14px;">Nessun dato</td></tr>
-        `}
+          </tr>
+        `).join('')}
       </tbody>
-    </table>
-  `;
-  container.innerHTML = html;
+    </table>`;
+
+  container.innerHTML = selfPill + table;
 }
+
 
 // wiring UI leaderboard (al load del DOM)
 document.addEventListener('DOMContentLoaded', () => {

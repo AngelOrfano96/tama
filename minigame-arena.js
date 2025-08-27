@@ -596,7 +596,7 @@ function bakeArenaLayer() {
   };
 
   // Angoli
-  drawWall2(D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    'top');
+  //drawWall2(D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    'top');
   drawWall2(D.wallBody.corner_tr, D.wallCap.corner_tr, right*tile, top*tile,    'top');
   drawWall2(D.wallBody.corner_bl, D.wallCap.corner_bl, left*tile,  bottom*tile, 'bottom');
   drawWall2(D.wallBody.corner_br, D.wallCap.corner_br, right*tile, bottom*tile, 'bottom');

@@ -1998,7 +1998,7 @@ loop();
 
 
 
-  async function gameOver() {
+  /*async function gameOver() {
     G.playing = false;
     DOM.modal?.classList.add('hidden');
     DOM.hudBox?.classList.remove('show');
@@ -2024,6 +2024,48 @@ loop();
     }
     G.keys.clear();
   }
+*/
+
+async function gameOver() {
+  G.playing = false;
+
+  // UI off
+  DOM.modal?.classList.add('hidden');
+  DOM.hudBox?.classList.remove('show');
+  DOM.hudBox?.classList.add('hidden');
+  unloadArenaCSS(); // ← via lo stile
+
+  // ⬅️ Esci dallo schermo intero se attivo (try/catch per sicurezza)
+  try {
+    const doc = document;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement) {
+      if (doc.exitFullscreen)       await doc.exitFullscreen();
+      else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen();
+      else if (doc.msExitFullscreen)     await doc.msExitFullscreen();
+    }
+  } catch (err) {
+    console.warn('[Arena] exit fullscreen failed', err);
+  }
+
+  // ricompense
+  const fun = 10 + Math.round(G.wave * 1.2);
+  const exp = 10 + Math.round(G.score * 0.4);
+
+  try {
+    if (typeof window.updateFunAndExpFromMiniGame === 'function') {
+      await window.updateFunAndExpFromMiniGame(fun, exp);
+    }
+    await supabaseClient.rpc('submit_arena_score', { p_wave: G.wave|0, p_score: G.score|0 });
+
+    const coins = Math.floor(G.score / 10);
+    if (coins > 0) await window.addGettoniSupabase?.(coins);
+    await window.refreshResourcesWidget?.();
+  } catch (e) {
+    console.error('[Arena] end rewards', e);
+  }
+
+  G.keys.clear();
+}
 
   // Expose
   window.startArenaMinigame = startArenaMinigame;

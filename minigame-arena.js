@@ -378,8 +378,8 @@ const DECOR_DESKTOP = {
   floor: [ pick(6,0), pick(6,1), pick(7,0), pick(7,1) ],
 
   wallBody: {
-    top:    [ pick(4,0), pick(5,0) ],
-    bottom: [ pick(4,4), pick(5,4) ],
+    top:    [ pick(1,7), pick(1,6) ],
+    bottom: [ pick(7,4), pick(1,6) ],
     left:   [ pick(3,2), pick(3,3) ],
     right:  [ pick(6,2), pick(6,3) ],
     corner_tl: pick(3,1),
@@ -389,8 +389,8 @@ const DECOR_DESKTOP = {
   },
 
   wallCap: {
-    top:    [ pick(4,1) ],
-    bottom: [ pick(4,5) ],
+    top:    [ pick(1,4) ],
+    bottom: [ pick(1,4) ],
     left:   [ pick(2,2) ],
     right:  [ pick(7,2) ],
     corner_tl: pick(2,1),

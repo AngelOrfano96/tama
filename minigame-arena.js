@@ -198,55 +198,7 @@ const PAD_X = 2;                                      // margine laterale visivo
 // due cancelli 2×2 nel muro top (x,y = angolo in alto-sx in tile)
 
 
-const GATE_CFG = {
-  fw: 2 * ATLAS_TILE,              // 32 px se ATLAS_TILE=16
-  fh: 2 * ATLAS_TILE,
-  frames: 26,
-  fps: 18,                         // velocità animazione
-  src: `${atlasBase}/Dungeon_2_Gate_anim.png`
-};
 
-
-const GATE_Y = Math.max(0, (1 + RENDER_DEPTH.top) - 2);
-
-const ARENA_GATES = [
-  { x: 2,                 y: GATE_Y },            // left gate
-  { x: Cfg.roomW - 4,     y: GATE_Y },            // right gate (2 tiles wide)
-];
-// Se cambi roomW, questi restano centrati ai lati.
-// stato runtime cancelli
-const Gates = {
-  sheet: null,
-  state: 'idleUp',            // idleUp | lowering | open | raising
-  frame: 0,
-  t: 0,
-  pendingIngress: 0,          // quanti nemici devono ancora “entrare”
-  spawnedThisWave: false
-};
-// Area camminabile in pixel
-function getPlayBounds(){
-  const t = G.tile;
-  return {
-    // laterali: può toccare quasi i muri (con 2px di aria)
-    minX: 1 * t + PAD_X,
-    maxX: (Cfg.roomW - 2) * t - PAD_X,
-    // top: fermati dopo 2 file di muro
-    minY: (1 + WALK_BOUNDS.top) * t,
-    // bottom: nessun rientro
-    maxY: (Cfg.roomH - 2 - WALK_BOUNDS.bottom) * t
-  };
-}
-function gateIngressY() {
-  // prima riga utile dentro l’area di gioco
-  return (1 + WALK_BOUNDS.top) * G.tile;
-}
-
-// Clampa un oggetto {px,py} ai bounds
-function clampToBounds(obj){
-  const b = getPlayBounds();
-  obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
-  obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
-}
 
 
 
@@ -484,7 +436,55 @@ const DECOR_DESKTOP = {
 
 const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
+const GATE_CFG = {
+  fw: 2 * ATLAS_TILE,              // 32 px se ATLAS_TILE=16
+  fh: 2 * ATLAS_TILE,
+  frames: 26,
+  fps: 18,                         // velocità animazione
+  src: `${atlasBase}/Dungeon_2_Gate_anim.png`
+};
 
+
+const GATE_Y = Math.max(0, (1 + RENDER_DEPTH.top) - 2);
+
+const ARENA_GATES = [
+  { x: 2,                 y: GATE_Y },            // left gate
+  { x: Cfg.roomW - 4,     y: GATE_Y },            // right gate (2 tiles wide)
+];
+// Se cambi roomW, questi restano centrati ai lati.
+// stato runtime cancelli
+const Gates = {
+  sheet: null,
+  state: 'idleUp',            // idleUp | lowering | open | raising
+  frame: 0,
+  t: 0,
+  pendingIngress: 0,          // quanti nemici devono ancora “entrare”
+  spawnedThisWave: false
+};
+// Area camminabile in pixel
+function getPlayBounds(){
+  const t = G.tile;
+  return {
+    // laterali: può toccare quasi i muri (con 2px di aria)
+    minX: 1 * t + PAD_X,
+    maxX: (Cfg.roomW - 2) * t - PAD_X,
+    // top: fermati dopo 2 file di muro
+    minY: (1 + WALK_BOUNDS.top) * t,
+    // bottom: nessun rientro
+    maxY: (Cfg.roomH - 2 - WALK_BOUNDS.bottom) * t
+  };
+}
+function gateIngressY() {
+  // prima riga utile dentro l’area di gioco
+  return (1 + WALK_BOUNDS.top) * G.tile;
+}
+
+// Clampa un oggetto {px,py} ai bounds
+function clampToBounds(obj){
+  const b = getPlayBounds();
+  obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
+  obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
+}
 // carica l’atlas dungeon
 function initAtlasSprites() {
   if (G.sprites.atlas) return;

@@ -2002,6 +2002,7 @@ loop();
     G.playing = false;
     DOM.modal?.classList.add('hidden');
     DOM.hudBox?.classList.remove('show');
+    DOM.hudBox.classList.add('hidden');
   unloadArenaCSS(); // ← via lo stile
 
     // assegna reward base (tuning semplice): EXP/FUN/Gettoni

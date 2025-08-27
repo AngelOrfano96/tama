@@ -356,13 +356,13 @@ let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 
 
-// === ATLAS base ===
-const ATLAS_TILE = 32;                        // ⬅️ prima era 16
+// === ATLAS base (atlas 16×16) =========================
+const ATLAS_TILE = 16;                        // <-- 16 (il tuo Dungeon_2.png è 192×144 = 12×9 tile)
 const atlasBase  = isMobileOrTablet()
   ? 'assets/mobile/atlas'
   : 'assets/desktop/atlas';
 
-// ritaglio generico da atlas 32×32
+// ritaglio generico
 const pick = (c, r, w = 1, h = 1) => ({
   sx: c * ATLAS_TILE,
   sy: r * ATLAS_TILE,
@@ -370,41 +370,61 @@ const pick = (c, r, w = 1, h = 1) => ({
   sh: h * ATLAS_TILE,
 });
 
-
-// ⚠️ floor: usa i tasselli piatti (non i brick del muro).
-// Questi indici sono per l’area “liscia” a destra dell’atlas.
-// Se uno non ti convince, prova a commentarlo/variare: sono tutte 16×16.
+// ⚠️ Questi indici sono un preset “buono” per l’anteprima.
+// Se vuoi perfezionarli, premi “P”, clicca il tile, e metti i pick(c,r) giusti.
 const DECOR_DESKTOP = {
-  floor: [ pick(6,0), pick(6,1), pick(7,0), pick(7,1) ],
+  // pavimento piatto (no mattoni visibili) → area “liscia”
+  // prova questi 4; se non ti piacciono, clicca col picker e cambia.
+  floor: [ pick(9,5), pick(10,5), pick(9,6), pick(10,6) ],
 
+  // MURI: “corpo” (prima fila, attaccata al bordo scuro)
   wallBody: {
-    top:    [ pick(1,7), pick(1,6) ],
-    bottom: [ pick(7,4), pick(1,6) ],
-    left:   [ pick(4,2), pick(4,1) ],
-    right:  [ pick(4,2), pick(4,1) ],
-    corner_tl: pick(3,1),
-    corner_tr: pick(6,1),
-    corner_bl: pick(3,4),
-    corner_br: pick(6,4),
+    // striscia alta con mattoni scuri/granito
+    top:    [ pick(3,0), pick(4,0) ],
+    bottom: [ pick(3,2), pick(4,2) ],
+    left:   [ pick(2,1), pick(2,2) ],
+    right:  [ pick(5,1), pick(5,2) ],
+
+    // angoli corpo (seleziona 4 tasselli angolo con mattoni pieni)
+    corner_tl: pick(2,0),
+    corner_tr: pick(5,0),
+    corner_bl: pick(2,3),
+    corner_br: pick(5,3),
   },
 
+  // MURI: “cap” (secondo blocco sopra il corpo: appare in foreground)
+  // Se non trovi tasselli dedicati, usa gli stessi del body.
   wallCap: {
-    top:    [ pick(1,4) ],
-    bottom: [ pick(1,4) ],
-    left:   [ pick(3,0) ],
-    right:  [ pick(3,0) ],
-    corner_tl: pick(2,1),
-    corner_tr: pick(7,1),
-    corner_bl: pick(2,4),
-    corner_br: pick(7,4),
+    top:    [ pick(3,1) ],
+    bottom: [ pick(3,1) ],
+    left:   [ pick(1,1) ],
+    right:  [ pick(6,1) ],
+    corner_tl: pick(1,0),
+    corner_tr: pick(6,0),
+    corner_bl: pick(1,3),
+    corner_br: pick(6,3),
   },
 
-  // opzionale: banda soffitto interna
-  ceiling: [ pick(8,6) ]
+  // banda soffitto interna (opzionale): una lastra scura/ombra
+  ceiling: [ pick(8,6) ],
 };
 
 const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
+
+// carica l’atlas dungeon
+function initAtlasSprites() {
+  if (G.sprites.atlas) return;
+  G.sprites.atlas = new Image();
+  G.sprites.atlas.onload  = () => {
+    console.log('[ARENA ATLAS] ok', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+    G.renderCache.arenaLayer = null;
+    bakeArenaLayer();
+  };
+  G.sprites.atlas.onerror = (e) => console.error('[ARENA ATLAS] fail', e);
+  G.sprites.atlas.src = `${atlasBase}/Dungeon_2.png`;  // lascia questo path
+}
+
 
 
 // ===== DEV: Atlas Inspector =====
@@ -465,17 +485,7 @@ function variantIndex(x, y, len) {
   return h % len;
 }
 
-function initAtlasSprites() {
-  if (G.sprites.atlas) return;
-  G.sprites.atlas = new Image();
-  G.sprites.atlas.onload  = () => {
-    console.log('[ARENA ATLAS] ok', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
-    G.renderCache.arenaLayer = null;
-    bakeArenaLayer();
-  };
-  G.sprites.atlas.onerror = (e) => console.error('[ARENA ATLAS] fail', e);
-  G.sprites.atlas.src = `${atlasBase}/Dungeon_2.png`;   // 👈 nuovo file
-}
+
 
 // === ATLAS PICKER (debug) ===============================================
 let ATLAS_PICKER_ON = false;
@@ -756,6 +766,21 @@ function bakeArenaLayer() {
     drawWall2(bL, cL, left*tile,  y*tile, 'left');
     drawWall2(bR, cR, right*tile, y*tile, 'right');
   }
+
+  // --- banda soffitto interna (opzionale)
+if (D.ceiling?.length) {
+  const cTile = Array.isArray(D.ceiling) ? D.ceiling[0] : D.ceiling;
+  for (let x = 1; x <= Cfg.roomW - 2; x++) {
+    bctx.drawImage(G.sprites.atlas, cTile.sx, cTile.sy, cTile.sw, cTile.sh, x*tile, 1*tile, tile, tile);
+  }
+}
+
+// --- ombra interna lungo i muri (soft strip)
+bctx.save();
+bctx.globalAlpha = 0.22;
+bctx.fillStyle = '#000';
+bctx.fillRect(1*tile, 1*tile, (Cfg.roomW-2)*tile, Math.round(tile*0.45)); // fascia in alto
+bctx.restore();
 
   G.renderCache.arenaLayer     = { canvas: cvBase,  tile };
   G.renderCache.arenaForeLayer = { canvas: cvFront, tile };

@@ -110,3 +110,9 @@
 @media (min-width:851px){
   #arena-joy-base, #arena-actions-overlay, #arena-hud{ display:none !important; }
 }
+
+
+#arena-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}

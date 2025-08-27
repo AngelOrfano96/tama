@@ -1355,17 +1355,17 @@ updateGates(dt);
 
   }
 
-  function updateGates(dt){
+function updateGates(dt){
   Gates.t += dt;
   const step = 1 / GATE_CFG.fps;
+  const last = (GATE_CFG.frames ?? GATE_CFG.total ?? 26) - 1;
 
-  // avanza i frame solo quando è passato "step"
   while (Gates.t >= step){
     Gates.t -= step;
     if (Gates.state === 'lowering') {
       Gates.frame++;
-      if (Gates.frame >= GATE_CFG.frames-1) {
-        Gates.frame = GATE_CFG.frames-1;
+      if (Gates.frame >= last) {
+        Gates.frame = last;
         Gates.state = 'open';
       }
     } else if (Gates.state === 'raising') {
@@ -1373,76 +1373,82 @@ updateGates(dt);
       if (Gates.frame <= 0) {
         Gates.frame = 0;
         Gates.state = 'idleUp';
+        // ✅ cancelli chiusi e animazione finita → pronti per la prossima wave
+        Gates.spawnedThisWave = false;
       }
     }
   }
 
-  // orchestrazione wave
-  if (!G.enemies.length && !Gates.spawnedThisWave) {
-    // wave appena finita → apri cancelli e prepara spawn
+  // ✅ Trigger apertura wave: cancelli chiusi, nessun nemico vivo, e non abbiamo già spawnato questa wave
+  if (Gates.state === 'idleUp' && !G.enemies.length && !Gates.spawnedThisWave) {
     Gates.state = 'lowering';
-    Gates.spawnedThisWave = true;      // eviti doppio trigger
-    G.wave++;
-    // lo spawn effettivo lo facciamo quando i cancelli sono "open"
+    Gates.spawnedThisWave = true;
+    G.wave++;                     // incremento qui
+    syncHUD?.();
   }
 
-  // quando i cancelli sono completamente aperti, spawna via cancelli
+  // Spawn quando i cancelli sono “open” e non abbiamo ancora ingressi pendenti
   if (Gates.state === 'open' && Gates.pendingIngress === 0) {
-    // spawna subito la wave N (tutti dal top, dai due cancelli)
-    const entering = spawnWaveViaGates(G.wave);
-    Gates.pendingIngress = entering;    // quanti devono “varcare la soglia”
+    Gates.pendingIngress = spawnWaveViaGates(G.wave);
+    // Se per qualche motivo non è stato spawnato nessuno, richiudi subito
+    if (Gates.pendingIngress === 0) Gates.state = 'raising';
   }
 
-  // quando tutti i "throughGate" hanno passato la soglia → chiudi i cancelli
+  // Chiudi appena tutti quelli “throughGate” sono entrati nell’arena
   if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
     Gates.state = 'raising';
   }
-  // wave conclusa: cancello su e nessun nemico → pronta la prossima
-if (Gates.state === 'idleUp' && G.enemies.length === 0 && Gates.spawnedThisWave) {
-  Gates.spawnedThisWave = false;                 // permette il prossimo lowering
-  // ricompensina tra le ondate (opzionale):
-  G.hpCur = Math.min(G.hpMax, Math.round(G.hpCur + G.hpMax * 0.07));
-  syncHUD();
 }
 
+function waveEnemyTotal(n){
+  if (n <= 1) return 3;        // Wave 1: 3
+  if (n === 2) return 6;       // Wave 2: 6
+  // Dalla 3 in poi: cresce ~2.5 a wave, con un pizzico di jitter
+  const base = 6 + Math.round((n - 2) * 2.5);
+  const jitter = (Math.random() < 0.5 ? 0 : 1);
+  return Math.min(base + jitter, 24);  // cap di sicurezza
+}
+function waveBatCount(n, total){
+  // Pipistrelli solo ogni 3 wave a partire dalla 3, max ~20% del totale
+  if (n < 3) return 0;
+  if (n % 3 !== 0) return 0;
+  return Math.min( Math.max(1, Math.round(total * 0.2)), 4 );
 }
 
 function spawnWaveViaGates(n){
-  // come spawnWave(), ma posiziona i nemici in modo alternato sui due cancelli
   const MAX_ENEMIES = 20;
   if (G.enemies.length >= MAX_ENEMIES) return 0;
 
-  const scale = 1 + (n - 1) * 0.06;
-  const count = 2 + Math.floor(n * 0.8);
-  const bats = (n % 3 === 0) ? 1 : 0;
+  // --- quantità per wave (vedi punto 2) ---
+  const count = waveEnemyTotal(n);
+  const bats  = waveBatCount(n, count);
 
   const blue = [];
-  for (let i=0;i<count;i++) blue.push(makeGoblin(scale));
-  for (let i=0;i<bats;i++)  blue.push(makeBat(Math.max(1, scale*0.95)));
+  for (let i=0;i<count;i++) blue.push(makeGoblin(1 + (n-1)*0.06));
+  for (let i=0;i<bats;i++)  blue.push(makeBat( Math.max(1, (1 + (n-1)*0.06)*0.95) ));
 
-  let spawned = 0;
-  let gateIdx = 0;
+  let spawned = 0, gateIdx = 0;
 
   for (const e of blue){
     if (G.enemies.length >= MAX_ENEMIES) break;
 
-    // gate scelto
+    // alterna i due cancelli
     const g = ARENA_GATES[gateIdx % ARENA_GATES.length];
     gateIdx++;
 
-    // colonna casuale dentro al 2×2 del cancello
+    // colonna (sinistra o destra) nel 2×2 del cancello
     const gx = g.x + (Math.random() < 0.5 ? 0 : 1);
-    const gyOutside = g.y - 1; // UNA riga sopra al 2×2 (quindi fuori)
 
-    e.x = gx;
-    e.y = gyOutside;
-    e.px = e.x * G.tile;
-    e.py = e.y * G.tile;
+    // ✅ spawn “dentro il varco” (non sopra)
+    const startX = gx * G.tile;
+    const startY = (g.y + 0.15) * G.tile; // un filo dentro l’arco
 
-    // flag: questo nemico sta entrando dai cancelli → niente clamp top finché non passa
-    e.enteringViaGate = true;
+    e.x  = gx;            // (solo per riferimento)
+    e.y  = g.y + 0.15;
+    e.px = startX;
+    e.py = startY;
 
-    // stato combattimento base
+    e.enteringViaGate = true;   // niente clamp sul minY finché non varca la soglia
     e.state = 'chase';
     e.tState = 0;
     e.nextAtkReadyTs = 0;
@@ -1453,6 +1459,7 @@ function spawnWaveViaGates(n){
   }
   return spawned;
 }
+
 
 function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w/2, h/2);

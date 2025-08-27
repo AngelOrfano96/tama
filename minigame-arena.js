@@ -369,8 +369,8 @@ let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 
 
-// === ATLAS base (atlas 32×32) =========================
-const ATLAS_TILE = 32;                        // <-- 32 (il tuo Dungeon_2.png è 192×144 = 12×9 tile)
+// === ATLAS base (atlas 16×32) =========================
+const ATLAS_TILE = 16;                        // <-- 16 (il tuo Dungeon_2.png è 192×144 = 12×9 tile)
 const atlasBase  = isMobileOrTablet()
   ? 'assets/mobile/atlas'
   : 'assets/desktop/atlas';

@@ -1361,6 +1361,7 @@ function updateGates(dt){
   const step = 1 / GATE_CFG.fps;
   const last = (GATE_CFG.frames ?? GATE_CFG.total ?? 26) - 1;
 
+  // --- avanzamento animazione ---
   while (Gates.t >= step){
     Gates.t -= step;
     if (Gates.state === 'lowering') {
@@ -1374,57 +1375,45 @@ function updateGates(dt){
       if (Gates.frame <= 0) {
         Gates.frame = 0;
         Gates.state = 'idleUp';
-        // ✅ cancelli chiusi e animazione finita → pronti per la prossima wave
-        Gates.spawnedThisWave = false;
+        // reset sicuri a cancelli chiusi
+        Gates.spawnedThisWave   = false;
+        Gates._spawnedThisOpen  = false;
+        Gates.pendingIngress    = 0;
       }
     }
   }
 
-  // ✅ Trigger apertura wave: cancelli chiusi, nessun nemico vivo, e non abbiamo già spawnato questa wave
-  if (Gates.state === 'idleUp' && !G.enemies.length && !Gates.spawnedThisWave) {
+  // --- apri nuova wave solo quando: chiusi, nessun nemico vivo, e non già aperta questa wave ---
+  if (Gates.state === 'idleUp' && G.enemies.length === 0 && !Gates.spawnedThisWave) {
     Gates.state = 'lowering';
-    Gates.spawnedThisWave = true;
-    G.wave++;                     // incremento qui
+    Gates.spawnedThisWave = true;   // evita ri-trigger finché non si richiudono
+    G.wave++;
     syncHUD?.();
   }
-/*
-  // Spawn quando i cancelli sono “open” e non abbiamo ancora ingressi pendenti
- if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
-  Gates.pendingIngress = spawnWaveViaGates(G.wave);
-  Gates._spawnedThisOpen = true;           // ← blocca doppi spawn
-  if (Gates.pendingIngress === 0) Gates.state = 'raising';
-}
-*/
- if (Gates.state === 'open' && Gates.pendingIngress === 0) {
-  Gates.queue = [0, 0];                    // ← reset code per questa apertura
-  Gates.pendingIngress = spawnWaveViaGates(G.wave);
-  if (Gates.pendingIngress === 0) Gates.state = 'raising';
+
+  // --- spawna UNA SOLA volta quando i cancelli sono aperti ---
+  if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
+    Gates.queue = [0, 0];                          // (se usi la coda per la "fila indiana")
+    Gates.pendingIngress = spawnWaveViaGates(G.wave);
+    Gates._spawnedThisOpen = true;                 // blocca doppi spawn nella stessa apertura
+    if (Gates.pendingIngress === 0) {
+      Gates.state = 'raising';                     // niente da far entrare → richiudi
+    }
+  }
+
+  // --- richiudi appena tutti quelli “throughGate” hanno varcato e c’è almeno 1 nemico in arena ---
+  if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
+    Gates.state = 'raising';
+  }
 }
 
-  // Chiudi quando tutti hanno varcato la soglia
-if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
-  Gates.state = 'raising';
-  Gates._spawnedThisOpen = false;          // reset al ciclo successivo
-}
-// Quando chiusi, prepara prossima wave
-if (Gates.state === 'idleUp' && !G.enemies.length && !Gates.spawnedThisWave) {
-  Gates.state = 'lowering';
-  Gates.spawnedThisWave = true;
-  Gates._spawnedThisOpen = false;          // sicurezza
-  G.wave++;
-  syncHUD?.();
-}
-if (Gates.state === 'idleUp' && G.enemies.length) {
-  Gates.spawnedThisWave = false;           // se qualcuno resta, consenti nuova apertura dopo
-}
-}
 
 function waveEnemyTotal(n){
   if (n <= 1) return 3;
   if (n === 2) return 6;
   const base = 6 + Math.round((n - 2) * 2.5);
   const jitter = (Math.random() < 0.5 ? 0 : 1);
-  return Math.min(base + jitter, 24);
+  return Math.min(base + jitter, 20);
 }
 function waveBatCount(n, total){
   // Pipistrelli solo ogni 3 wave a partire dalla 3, max ~20% del totale

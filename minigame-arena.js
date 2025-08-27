@@ -195,6 +195,12 @@ G.renderCache = {
 const RENDER_DEPTH = { top: 2, bottom: 1, sides: 1 }; // quanti "blocchi" disegniamo
 const WALK_BOUNDS  = { top: 2, bottom: 0, sides: 0 }; // dove può camminare il pet
 const PAD_X = 2;                                      // margine laterale visivo (px)
+// due cancelli 2×2 nel muro top (x,y = angolo in alto-sx in tile)
+const ARENA_GATES = [
+  { x: 2, y: 0 },                          // sinistra
+  { x: Cfg.roomW - 4, y: 0 },              // destra  (roomW-4 = 2 tile di larghezza)
+];
+// Se cambi roomW, questi restano centrati ai lati.
 
 // Area camminabile in pixel
 function getPlayBounds(){
@@ -467,6 +473,18 @@ function initAtlasSprites() {
   G.sprites.atlas.src = `${atlasBase}/Dungeon_2.png`;  // lascia questo path
 }
 
+function initGateSprite(){
+  if (G.sprites.gate) return;
+  G.sprites.gate = new Image();
+  G.sprites.gate.onload  = () => console.log('[GATE] ready');
+  G.sprites.gate.onerror = (e) => console.error('[GATE] fail', e);
+
+  // PNG che mi hai passato; ogni frame è 2×2 tile (32×32 px se ATLAS_TILE=16)
+  G.sprites.gate.src = `${atlasBase}/Dungeon_2_Gate_anim.png`;
+
+  // frame 0 (sx=0, sy=0) – puoi cambiare sx per animarlo
+  G.sprites.gateFrame = { sx: 0, sy: 0, sw: ATLAS_TILE*2, sh: ATLAS_TILE*2 };
+}
 
 
 // ===== DEV: Atlas Inspector =====
@@ -1297,6 +1315,17 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x + w, y, rr);
   ctx.closePath();
 }
+function drawGatesOnTopWall(){
+  const img = G.sprites.gate;
+  const fr  = G.sprites.gateFrame;
+  if (!img || !img.complete || !fr) return;
+
+  const t = G.tile;
+  for (const g of ARENA_GATES) {
+    // 2×2 tile scalati alla tua tile size corrente
+    ctx.drawImage(img, fr.sx, fr.sy, fr.sw, fr.sh, g.x * t, g.y * t, 2 * t, 2 * t);
+  }
+}
 
 
 function render() {
@@ -1309,6 +1338,7 @@ function render() {
   }
   if (G.renderCache.arenaLayer) {
     ctx.drawImage(G.renderCache.arenaLayer.canvas, 0, 0);
+     drawGatesOnTopWall();
     drawInspectorGrid(ctx); ////////////////////////////////////////////////////////////////////
   } else {
     // fallback (se atlas non pronto): rettangoli come prima
@@ -1706,6 +1736,7 @@ setupMobileControlsArena();
 
   // 3) Asset & rendering
   initAtlasSprites();
+  initGateSprite();  
   buildDecorFromAtlas();
   buildGoblinFromAtlas?.();
   buildBatFromAtlas?.();

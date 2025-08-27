@@ -775,8 +775,8 @@ function bakeArenaLayer() {
   const CAP_IN_FRONT = {
     top:    false,  // ⬅️ cap del top nel BASE (non copre i personaggi)
     bottom: true,   // cap del bottom nel FRONT (copre un pochino i piedi)
-    left:   true,   // puoi mettere false se non vuoi occlusione laterale
-    right:  true
+    left:   false,   // puoi mettere false se non vuoi occlusione laterale
+    right:  false
   };
 
   const pickVar = (entry, i) => Array.isArray(entry) ? entry[i % entry.length] : entry;

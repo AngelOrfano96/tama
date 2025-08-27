@@ -389,8 +389,8 @@ const DECOR_DESKTOP = {
   floor: [ pick(6,0), pick(6,1), pick(7,0), pick(7,1) ],
   wallBody: {
     top: [
-      pick(1,4), // FILA 1 (esterna, quella che tocca il bordo)
-      pick(1,4)  // FILA 2 (subito sotto la 1)
+      pick(1,7), // FILA 1 (esterna, quella che tocca il bordo)
+      pick(1,7)  // FILA 2 (subito sotto la 1)
     ],
     bottom: [
       pick(7,4), // FILA 1 dal basso verso l’alto
@@ -404,7 +404,7 @@ const DECOR_DESKTOP = {
     corner_br: pick(6,4),
   },
   wallCap: {
-    top:    [ pick(1,7) ],
+    top:    [ pick(1,4) ],
     bottom: [ pick(1,4) ],
     left:   [ pick(3,0) ],
     right:  [ pick(3,0) ],

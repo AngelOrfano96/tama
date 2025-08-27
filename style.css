@@ -1612,3 +1612,79 @@ body {
 button, .ui-btn { touch-action: manipulation; }
 
 
+/* ===== Modal Classifica Arena ===== */
+.arena-lb-modal{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.35);
+  display: grid; place-items: center;
+  z-index: 2500;
+}
+.arena-lb-modal.hidden{ display:none; }
+
+.arena-lb-card{
+  width: min(560px, 92vw);
+  background: #fff8ee;
+  border-radius: 16px;
+  padding: 18px 16px 14px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.25);
+  max-height: 78vh;
+  overflow: auto;
+  border: 2px solid #ffe484;
+}
+
+.arena-lb-header{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; margin-bottom:10px;
+}
+.arena-lb-header h3{
+  font-size: 1.15rem; margin:0;
+}
+.arena-lb-close{
+  appearance:none; border:0; background:#111827; color:#fff;
+  border-radius:8px; padding:6px 10px; cursor:pointer;
+}
+
+/* pill con posizione personale */
+.arena-lb-selfrank{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px;
+  background:#eff6ff; color:#1e40af; font-weight:700;
+  margin: 0 0 10px 2px;
+}
+.arena-lb-selfrank.muted{
+  background:#f1f5f9; color:#64748b; font-weight:600;
+}
+
+/* tabella */
+.arena-lb-table{
+  width:100%;
+  border-collapse:separate; border-spacing:0;
+  background:#fff; border-radius:12px; overflow:hidden;
+  box-shadow:0 6px 20px rgba(0,0,0,.06);
+}
+.arena-lb-table thead th{
+  background:#f8fafc; color:#334155; font-weight:800;
+  font-size:.95rem; text-align:left;
+  padding:10px 12px; border-bottom:1px solid #e5e7eb;
+}
+.arena-lb-table tbody td{
+  padding:10px 12px; border-top:1px solid #eef2f7; color:#0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.arena-lb-table tbody tr:hover{ background:#f9fbff; }
+
+/* colonne e medaglie */
+.arena-lb-table td:nth-child(1){ width:46px; text-align:center; color:#64748b; font-weight:800; }
+.arena-lb-table td:nth-child(3){ text-align:right; }
+.arena-lb-table td:nth-child(4){ text-align:right; }
+
+/* medal emojis on first column */
+.arena-lb-table tbody tr:nth-child(1) td:first-child::before{ content:"🥇 "; }
+.arena-lb-table tbody tr:nth-child(2) td:first-child::before{ content:"🥈 "; }
+.arena-lb-table tbody tr:nth-child(3) td:first-child::before{ content:"🥉 "; }
+
+/* evidenzia la riga dell'utente */
+.arena-lb-table tbody tr.is-me{
+  background:#ecfdf5;
+  box-shadow: inset 0 0 0 2px #34d399;
+}

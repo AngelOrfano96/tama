@@ -767,9 +767,22 @@ function bakeArenaLayer() {
   const left = 0, right = Cfg.roomW - 1, top = 0, bottom = Cfg.roomH - 1;
 
   // profondità per lato
-  const DEPTH_TOP    = 2; // TOP: 2 corpi + cap = 3 blocchi
-  const DEPTH_BOTTOM = 1; // BOTTOM: 1 corpo + cap = 2 blocchi
-  const DEPTH_SIDES  = 1; // LATI: 1 corpo + cap = 2 blocchi
+//  const DEPTH_TOP    = 2; // TOP: 2 corpi + cap = 3 blocchi
+ // const DEPTH_BOTTOM = 1; // BOTTOM: 1 corpo + cap = 2 blocchi
+  //const DEPTH_SIDES  = 1; // LATI: 1 corpo + cap = 2 blocchi
+const DEPTH_TOP    = RENDER_DEPTH.top;
+const DEPTH_BOTTOM = RENDER_DEPTH.bottom;
+const DEPTH_SIDES  = RENDER_DEPTH.sides;
+
+  // Profondità usate SOLO per il disegno dei muri
+const RENDER_DEPTH = { top: 2, bottom: 1, sides: 1 };
+
+// Limiti di movimento (indipendenti dal disegno)
+const WALK_BOUNDS  = { top: 2, bottom: 0, sides: 0 };
+//  top: 2 -> non oltrepassa le due file del muro alto
+//  bottom: 0 -> può scendere fino al bordo interno
+//  sides: 0 -> può toccare i muri laterali
+
 
   // dove finisce il cap (foreground?) per ogni lato
   const CAP_IN_FRONT = {
@@ -1045,13 +1058,28 @@ const ARENA_DEPTH = { top: 2, bottom: 1, sides: 1 };
 
 function getPlayBounds(){
   const t = G.tile;
+  const PAD = 2; // margine di sicurezza in pixel
+
   return {
-    minX: (1 + ARENA_DEPTH.sides)  * t,
-    maxX: (Cfg.roomW - 2 - ARENA_DEPTH.sides) * t,
-    minY: (1 + ARENA_DEPTH.top)    * t,
-    maxY: (Cfg.roomH - 2 - ARENA_DEPTH.bottom) * t
+    // laterali: può toccare i muri, ma con un piccolo margine
+    minX: 1 * t + PAD,
+    maxX: (Cfg.roomW - 2) * t - PAD,
+
+    // top: rientra di WALK_BOUNDS.top file
+    minY: (1 + WALK_BOUNDS.top) * t,
+
+    // bottom: nessun rientro (può scendere fino al bordo interno)
+    maxY: (Cfg.roomH - 2 - WALK_BOUNDS.bottom) * t
   };
 }
+
+
+function clampToBounds(obj){
+  const b = getPlayBounds();
+  obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
+  obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
+}
+
 
 // Clampa un oggetto con {px,py} ai bounds
 function clampToBounds(obj){

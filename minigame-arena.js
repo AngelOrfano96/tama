@@ -389,12 +389,12 @@ const DECOR_DESKTOP = {
   floor: [ pick(6,0), pick(6,1), pick(7,0), pick(7,1) ],
   wallBody: {
     top: [
-      pick(1,7), // FILA 1 (esterna, quella che tocca il bordo)
+      pick(1,4), // FILA 1 (esterna, quella che tocca il bordo)
       pick(1,7)  // FILA 2 (subito sotto la 1)
     ],
     bottom: [
-      pick(7,4), // FILA 1 dal basso verso l’alto
-      pick(1,6)  // FILA 2
+      pick(7,4) // FILA 1 dal basso verso l’alto
+      //pick(1,6)  // FILA 2
     ],
     left:   [ pick(4,2), pick(4,1) ],
     right:  [ pick(4,2), pick(4,1) ],
@@ -404,7 +404,7 @@ const DECOR_DESKTOP = {
     corner_br: pick(6,4),
   },
   wallCap: {
-    top:    [ pick(1,4) ],
+    top:    [ pick(1,7) ],
     bottom: [ pick(1,4) ],
     left:   [ pick(3,0) ],
     right:  [ pick(3,0) ],
@@ -729,13 +729,13 @@ function bakeArenaLayer() {
   const wpx = Cfg.roomW * tile;
   const hpx = Cfg.roomH * tile;
 
-  // base: pavimento + corpi muro
+  // base (floor + corpi muro)
   const cvBase = document.createElement('canvas');
   cvBase.width = wpx; cvBase.height = hpx;
   const bctx = cvBase.getContext('2d');
   bctx.imageSmoothingEnabled = false;
 
-  // front: i “cap” (coperchi) che stanno SOPRA a pet/nemici
+  // front (coperchi muro)
   const cvFront = document.createElement('canvas');
   cvFront.width = wpx; cvFront.height = hpx;
   const fctx = cvFront.getContext('2d');
@@ -744,22 +744,17 @@ function bakeArenaLayer() {
   const D = G.sprites.decor;
   const left = 0, right = Cfg.roomW - 1, top = 0, bottom = Cfg.roomH - 1;
 
-  // --------- parametri di profondità (N "corpi" + 1 "cap") ----------
-  const DEPTH_TOP_BOTTOM = 2; // => 2 corpi + 1 cap = 3 blocchi totali
-  const DEPTH_SIDES      = 1; // => 1 corpo  + 1 cap = 2 blocchi totali
+  // --- PROFONDITÀ PER LATO ---
+  const DEPTH_TOP    = 2; // => 2 corpi + 1 cap = 3 blocchi
+  const DEPTH_BOTTOM = 1; // => 1 corpo + 1 cap = 2 blocchi
+  const DEPTH_SIDES  = 1; // => 1 corpo + 1 cap
 
-  // helper: variante i-esima se è array
   const pickVar = (entry, i) => Array.isArray(entry) ? entry[i % entry.length] : entry;
 
-  // --------- FLOOR (evita di disegnarlo sotto ai muri spessi) --------
+  // -------- FLOOR (evita di disegnarlo sotto ai muri spessi) --------
   const entryFloor = D?.floor || [];
-  const topInset    = DEPTH_TOP_BOTTOM;
-  const bottomInset = DEPTH_TOP_BOTTOM;
-  const leftInset   = DEPTH_SIDES;
-  const rightInset  = DEPTH_SIDES;
-
-  for (let y = 1 + topInset; y < Cfg.roomH - 1 - bottomInset; y++) {
-    for (let x = 1 + leftInset; x < Cfg.roomW - 1 - rightInset; x++) {
+  for (let y = 1 + DEPTH_TOP; y < Cfg.roomH - 1 - DEPTH_BOTTOM; y++) {
+    for (let x = 1 + DEPTH_SIDES; x < Cfg.roomW - 1 - DEPTH_SIDES; x++) {
       let d = entryFloor[(x + y) % entryFloor.length];
       if (Array.isArray(entryFloor)) d = entryFloor[variantIndex(x, y, entryFloor.length)];
       if (!d) continue;
@@ -767,19 +762,19 @@ function bakeArenaLayer() {
     }
   }
 
-  // --------- MURI: N corpi nel base + 1 cap nel front ----------------
+  // -------- stack: N corpi (base) + 1 cap (front) ----------
   function drawWallStack(edge, bodyEntry, capEntry, xTile, yTile, depth) {
     if (!bodyEntry) return;
 
     const body = (i)=> pickVar(bodyEntry, i);
     const cap  = pickVar(capEntry || bodyEntry, 0);
 
-    // verso in cui cresce verso l'interno
+    // direzione verso l'interno della stanza
     const sgn = (edge === 'top') ? +1 :
                 (edge === 'bottom') ? -1 :
                 (edge === 'left') ? +1 : -1;
 
-    // 1) corpi (base layer)
+    // corpi (base)
     for (let i = 0; i < depth; i++) {
       const d = body(i);
       const ox = (edge === 'left'  || edge === 'right') ? sgn * i * tile : 0;
@@ -788,7 +783,7 @@ function bakeArenaLayer() {
                      xTile + ox, yTile + oy, tile, tile);
     }
 
-    // 2) cap (foreground), 1 step oltre i corpi
+    // cap (front), 1 step oltre i corpi
     const capOff = depth * tile;
     const offX = (edge === 'left'  || edge === 'right') ? sgn * capOff : 0;
     const offY = (edge === 'top'   || edge === 'bottom') ? sgn * capOff : 0;
@@ -797,47 +792,37 @@ function bakeArenaLayer() {
                    xTile + offX, yTile + offY, tile, tile);
   }
 
-  // --------- Angoli (usano la profondità del rispettivo lato) --------
-  drawWallStack('top',    D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    DEPTH_TOP_BOTTOM);
-  drawWallStack('top',    D.wallBody.corner_tr, D.wallCap.corner_tr, right*tile, top*tile,    DEPTH_TOP_BOTTOM);
-  drawWallStack('bottom', D.wallBody.corner_bl, D.wallCap.corner_bl, left*tile,  bottom*tile, DEPTH_TOP_BOTTOM);
-  drawWallStack('bottom', D.wallBody.corner_br, D.wallCap.corner_br, right*tile, bottom*tile, DEPTH_TOP_BOTTOM);
+  // -------- Angoli ----------
+  drawWallStack('top',    D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    DEPTH_TOP);
+  drawWallStack('top',    D.wallBody.corner_tr, D.wallCap.corner_tr, right*tile, top*tile,    DEPTH_TOP);
+  drawWallStack('bottom', D.wallBody.corner_bl, D.wallCap.corner_bl, left*tile,  bottom*tile, DEPTH_BOTTOM);
+  drawWallStack('bottom', D.wallBody.corner_br, D.wallCap.corner_br, right*tile, bottom*tile, DEPTH_BOTTOM);
 
-  // --------- Lati orizzontali ---------------------------------------
+  // -------- Lati orizzontali ----------
   for (let x = 1; x <= Cfg.roomW - 2; x++) {
-    drawWallStack('top',    D.wallBody.top,    D.wallCap.top,    x*tile, top*tile,    DEPTH_TOP_BOTTOM);
-    drawWallStack('bottom', D.wallBody.bottom, D.wallCap.bottom, x*tile, bottom*tile, DEPTH_TOP_BOTTOM);
+    drawWallStack('top',    D.wallBody.top,    D.wallCap.top,    x*tile, top*tile,    DEPTH_TOP);
+    drawWallStack('bottom', D.wallBody.bottom, D.wallCap.bottom, x*tile, bottom*tile, DEPTH_BOTTOM);
   }
 
-  // --------- Lati verticali -----------------------------------------
+  // -------- Lati verticali ----------
   for (let y = 1; y <= Cfg.roomH - 2; y++) {
     drawWallStack('left',  D.wallBody.left,  D.wallCap.left,  left*tile,  y*tile, DEPTH_SIDES);
     drawWallStack('right', D.wallBody.right, D.wallCap.right, right*tile, y*tile, DEPTH_SIDES);
   }
 
-  // --------- Banda soffitto + ombra (opzionali) ----------------------
-  if (D.ceiling?.length) {
-    const cTile = Array.isArray(D.ceiling) ? D.ceiling[0] : D.ceiling;
-    // posiziona subito sotto il bordo alto (dopo le file di muro)
-    const yBand = (1 + topInset - 1) * tile;
-    for (let x = 1; x <= Cfg.roomW - 2; x++) {
-      bctx.drawImage(G.sprites.atlas, cTile.sx, cTile.sy, cTile.sw, cTile.sh, x*tile, yBand, tile, tile);
-    }
-  }
-
+  // (facoltativo) piccola ombra sotto il bordo alto
   bctx.save();
-  bctx.globalAlpha = 0.22;
+  bctx.globalAlpha = 0.20;
   bctx.fillStyle = '#000';
-  // fascia d’ombra appena sotto il muro alto spesso
-  bctx.fillRect(1*tile, (1 + topInset)*tile, (Cfg.roomW-2)*tile, Math.round(tile*0.35));
+  bctx.fillRect(1*tile, (1 + DEPTH_TOP)*tile, (Cfg.roomW-2)*tile, Math.round(tile*0.35));
   bctx.restore();
 
-  // --------- cache ---------------------------------------------------
   G.renderCache.arenaLayer     = { canvas: cvBase,  tile };
   G.renderCache.arenaForeLayer = { canvas: cvFront, tile };
   G.renderCache.tile = tile;
   return G.renderCache.arenaLayer;
 }
+
 
 
 

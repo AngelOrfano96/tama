@@ -436,12 +436,14 @@ const DECOR_DESKTOP = {
 
 const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
+
 const GATE_CFG = {
-  fw: 2 * ATLAS_TILE,              // 32 px se ATLAS_TILE=16
+  fw: 2 * ATLAS_TILE,
   fh: 2 * ATLAS_TILE,
-  frames: 26,
-  fps: 18,                         // velocità animazione
-  src: `${atlasBase}/Dungeon_2_Gate_anim.png`
+  frames: 26,         // valore atteso (verrà clampato su cols*rows)
+  fps: 18,
+  src: `${atlasBase}/Dungeon_2_Gate_anim.png`,
+  snake: true         // ← ordine a serpentina: L→R poi R→L
 };
 
 
@@ -501,10 +503,19 @@ function initAtlasSprites() {
 function initGateSprite(){
   if (Gates.sheet) return;
   Gates.sheet = new Image();
-  Gates.sheet.onload  = () => console.log('[GATE] sprite ready');
+  Gates.sheet.onload  = () => {
+    console.log('[GATE] sprite ready', Gates.sheet.naturalWidth, 'x', Gates.sheet.naturalHeight);
+    // calcola colonne/righe del foglio
+    GATE_CFG.cols = Math.max(1, (Gates.sheet.naturalWidth  / GATE_CFG.fw) | 0);
+    GATE_CFG.rows = Math.max(1, (Gates.sheet.naturalHeight / GATE_CFG.fh) | 0);
+    GATE_CFG.total = GATE_CFG.cols * GATE_CFG.rows;
+    // Se il PNG ha più/meno frame del previsto, clampa
+    GATE_CFG.frames = Math.min(GATE_CFG.frames, GATE_CFG.total);
+  };
   Gates.sheet.onerror = (e) => console.error('[GATE] sprite fail', e);
   Gates.sheet.src = GATE_CFG.src;
 }
+
 
 
 // ===== DEV: Atlas Inspector =====
@@ -1615,18 +1626,43 @@ renderGates();
   drawAtlasPickerOverlay(ctx);
 }
 
-  function renderGates(){
-  if (!Gates.sheet) return;
+function renderGates(){
   const img = Gates.sheet;
-  const f = Math.max(0, Math.min(GATE_CFG.frames-1, Gates.frame|0));
-  const sx = 0;
-  const sy = f * GATE_CFG.fh; // frame impilati verticalmente (se orizzontale inverti)
+  if (!img || !img.complete) {
+    // piccolo placeholder visivo per capire dove sarebbero i cancelli
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#ff99aa';
+    for (const g of ARENA_GATES) {
+      ctx.fillRect(g.x * G.tile, g.y * G.tile, 2 * G.tile, 2 * G.tile);
+    }
+    ctx.restore();
+    return;
+  }
+
+  const fw = GATE_CFG.fw, fh = GATE_CFG.fh;
+  const cols = GATE_CFG.cols || Math.max(1, (img.naturalWidth  / fw) | 0);
+  const rows = GATE_CFG.rows || Math.max(1, (img.naturalHeight / fh) | 0);
+  const total = cols * rows;
+
+  // frame corrente clampato
+  const f = Math.max(0, Math.min((GATE_CFG.frames ?? total) - 1, Gates.frame | 0));
+
+  // mappa indice → (c,r) con serpentina opzionale
+  let r = Math.floor(f / cols);
+  let c = f % cols;
+  if (GATE_CFG.snake && (r % 2 === 1)) c = cols - 1 - c;
+
+  const sx = c * fw;
+  const sy = r * fh;
+
   for (const g of ARENA_GATES){
     const dx = g.x * G.tile;
     const dy = g.y * G.tile;
-    ctx.drawImage(img, sx, sy, GATE_CFG.fw, GATE_CFG.fh, dx, dy, 2*G.tile, 2*G.tile);
+    ctx.drawImage(img, sx, sy, fw, fh, dx, dy, 2 * G.tile, 2 * G.tile);
   }
 }
+
 
 
   function loop() {

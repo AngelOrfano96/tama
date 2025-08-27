@@ -265,44 +265,53 @@ function drawHUDInCanvas() {
 function resizeCanvas() {
   if (!DOM.canvas) return;
 
-  // --- 1) Tile di gioco fisso a 32 px
-  const TILE_RENDER = 32;          // ogni tile sul canvas misura 32×32 px
+  // --- viewport disponibile
+  let vw = window.innerWidth;
+  let vh = window.innerHeight;
+  const gutter = isMobile ? 16 : 0;     // piccolo margine su mobile
+  vw = Math.max(200, vw - gutter);
+
+  // --- calcolo tile "grande quanto possibile", arrotondato a multipli di 32
+  const rawTile = Math.min(vw / Cfg.roomW, vh / Cfg.roomH);
+  const MIN_TILE = 32;
+  const MAX_TILE = isMobile ? 192 : 384; // evita tile esagerati su desktop giganti
+
+  let tile = Math.floor(rawTile / 32) * 32; // multiplo di 32
+  if (tile < MIN_TILE) tile = MIN_TILE;
+  if (tile > MAX_TILE) tile = Math.floor(MAX_TILE / 32) * 32;
+
+  // --- dimensioni canvas
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const widthCss  = Cfg.roomW * tile;
+  const heightCss = Cfg.roomH * tile;
 
-  // --- 2) Dimensioni canvas (in base alla stanza)
-  const widthCss  = Cfg.roomW * TILE_RENDER;
-  const heightCss = Cfg.roomH * TILE_RENDER;
-
-  // dimensione reale del buffer (pixel fisici)
   DOM.canvas.width  = Math.max(1, Math.round(widthCss  * dpr));
   DOM.canvas.height = Math.max(1, Math.round(heightCss * dpr));
-
-  // dimensione CSS (quella “visibile”)
   DOM.canvas.style.width  = `${widthCss}px`;
   DOM.canvas.style.height = `${heightCss}px`;
 
-  // --- 3) Context + trasformazione per DPR
+  // --- context
   ctx = DOM.canvas.getContext('2d', { alpha: true, desynchronized: false });
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // 1 unità canvas = 1 px CSS
   ctx.imageSmoothingEnabled = false;        // pixel art nitida
 
-  // --- 4) Aggiorna stato gioco
-  const tileChanged = (G.tile !== TILE_RENDER);
-  G.tile = TILE_RENDER;
+  // --- aggiorna stato/tile e cache rendering
+  const tileChanged = (G.tile !== tile);
+  G.tile = tile;
   if (tileChanged) {
     G.renderCache.arenaLayer = null;
     G.renderCache.arenaForeLayer = null;
-    G.renderCache.tile = TILE_RENDER;
+    G.renderCache.tile = tile;
   }
 
-  // riposiziona il pet coerentemente alla nuova dimensione tile
-  G.pet.px = G.pet.x * G.tile;
-  G.pet.py = G.pet.y * G.tile;
+  // --- riposiziona il pet in pixel
+  G.pet.px = G.pet.x * tile;
+  G.pet.py = G.pet.y * tile;
 
-  // --- 5) (facoltativo) ritorna fattore css->canvas utile per il picker
-  // const cssToCanvas = DOM.canvas.width / widthCss;
-  // return cssToCanvas;
+  // utile per il picker (CSS->canvas)
+  G._cssToCanvas = DOM.canvas.width / widthCss;
 }
+
 
 
 

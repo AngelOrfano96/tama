@@ -1,5 +1,6 @@
 // === MINI GIOCO ARENA — versione “solo arena” (IIFE) ======================
 // === Leaderboard Arena =====================================================
+// === Leaderboard Arena =====================================================
 async function openArenaLeaderboard(){
   const modal = document.getElementById('arena-leaderboard-modal');
   const body  = document.getElementById('arena-lb-body');
@@ -9,38 +10,82 @@ async function openArenaLeaderboard(){
   modal.classList.remove('hidden');
 
   try {
-    const { data, error } = await supabaseClient
-      .from('leaderboard_arena') // 👈 usa la tua tabella
-      .select('user_id, username_snapshot, best_score, best_wave, best_at')
+    // 1) Prendiamo top 100 + count totale
+    const { data: topRows, error: e1, count: totalCount } = await supabaseClient
+      .from('leaderboard_arena')
+      .select('user_id, username_snapshot, best_score, best_wave, best_at', { count: 'exact' })
       .order('best_score', { ascending:false })
       .order('best_wave',  { ascending:false })
       .limit(100);
 
-    if (error) throw error;
+    if (e1) throw e1;
 
-    // mappa alle colonne attese dal renderer
-    const rows = (data || []).map((r, i) => ({
+    // 2) Prendiamo utente loggato e sua riga (se esiste)
+    let myRank = null, tot = totalCount ?? (topRows?.length || 0);
+    let meRow = null;
+
+    // Supabase v2:
+    const { data: auth } = await supabaseClient.auth.getUser();
+    const myId = auth?.user?.id || auth?.user?.user_metadata?.sub; // fallback prudente
+
+    if (myId) {
+      // prendi il best dell'utente
+      const { data: me, error: e2 } = await supabaseClient
+        .from('leaderboard_arena')
+        .select('best_score, best_wave')
+        .eq('user_id', myId)
+        .maybeSingle();
+      if (e2) console.warn('[Arena LB] me-row warn:', e2);
+      meRow = me || null;
+
+      // 3) Calcolo posizione: quante righe sono "migliori" (score desc, wave desc)
+      if (meRow && Number.isFinite(meRow.best_score)) {
+        const s = meRow.best_score|0;
+        const w = meRow.best_wave|0;
+
+        // conta: (best_score > s) OR (best_score = s AND best_wave > w)
+        const { count: betterCnt, error: e3 } = await supabaseClient
+          .from('leaderboard_arena')
+          .select('user_id', { count: 'exact', head: true })
+          .or(`best_score.gt.${s},and(best_score.eq.${s},best_wave.gt.${w})`);
+
+        if (e3) console.warn('[Arena LB] rank-count warn:', e3);
+        myRank = (betterCnt ?? 0) + 1;
+      }
+    }
+
+    // 4) Mappiamo e render
+    const rows = (topRows || []).map((r, i) => ({
       rank: i + 1,
       username: r.username_snapshot || 'Player',
       score: r.best_score || 0,
-      wave: r.best_wave || 0,
+      wave: r.best_wave  || 0,
       created_at: r.best_at
     }));
 
-    renderArenaLeaderboard(body, rows);
+    renderArenaLeaderboard(body, rows, { myRank, total: tot, myId });
   } catch (err) {
     console.error('[Arena LB] fetch', err);
     body.innerHTML = `<div style="padding:16px;color:#fca5a5">Errore nel caricamento.</div>`;
   }
 }
 
-function renderArenaLeaderboard(container, rows){
-  const fmt = (d)=> d ? new Date(d).toLocaleString() : '-';
+function renderArenaLeaderboard(container, rows, opts={}){
+  const { myRank=null, total=rows.length, myId=null } = opts;
+  const fmtDate = (d)=> d ? new Date(d).toLocaleString() : '—';
+
+  // chip “La tua posizione”
+  const chipText = (myRank && total)
+    ? `La tua posizione: ${myRank} di ${total}`
+    : `La tua posizione: —`;
+
+  // costruiamo tabella con classi identiche alla leaderboard già esistente
   const html = `
-    <table class="arena-lb-table">
+    <div class="arena-self-rank ${myRank? '' : 'muted'}">${chipText}</div>
+    <table class="lb-table">
       <thead>
         <tr>
-          <th class="rank">#</th>
+          <th>#</th>
           <th>Giocatore</th>
           <th>Punti</th>
           <th>Wave</th>
@@ -50,17 +95,21 @@ function renderArenaLeaderboard(container, rows){
       <tbody>
         ${rows.map(r=>`
           <tr>
-            <td class="rank">${r.rank}</td>
+            <td>${r.rank}</td>
             <td>${escapeHtml(r.username)}</td>
-            <td>${r.score|0}</td>
-            <td>${r.wave|0}</td>
-            <td>${fmt(r.created_at)}</td>
+            <td style="text-align:right">${r.score|0}</td>
+            <td style="text-align:right">${r.wave|0}</td>
+            <td>${fmtDate(r.created_at)}</td>
           </tr>`).join('')}
+        ${rows.length ? '' : `
+          <tr><td colspan="5" class="muted" style="text-align:center;padding:14px;">Nessun dato</td></tr>
+        `}
       </tbody>
     </table>
   `;
   container.innerHTML = html;
 }
+
 // wiring UI leaderboard (al load del DOM)
 document.addEventListener('DOMContentLoaded', () => {
   const btn   = document.getElementById('btn-open-leaderboard-arena');

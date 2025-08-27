@@ -322,7 +322,7 @@ const DECOR_DESKTOP = {
 
   // bordi (un singolo tile “corpo muro”). Se il tuo atlas ha cap e body separati,
   // metti il tile del "corpo". La parte “alta” la disegniamo con il fore-layer.
-  top:    [ pick(  4,  0), pick(  5,  0) ],
+  top:    [ pick(  1,  9), pick(  1,  7) ],
   bottom: [ pick(  4,  4), pick(  5,  4) ],
   left:   [ pick(  3,  2), pick(  3,  3) ],
   right:  [ pick(  6,  2), pick(  6,  3) ],

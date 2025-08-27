@@ -186,6 +186,24 @@ G.renderCache = {
   tile: 0
 };
 
+function getPlayBounds() {
+  // area interna “camminabile” in pixel
+  const t = G.tile;
+  return {
+    minX: (1 + ARENA_DEPTH.sides) * t,
+    maxX: (Cfg.roomW - 2 - ARENA_DEPTH.sides) * t,
+    minY: (1 + ARENA_DEPTH.top) * t,
+    maxY: (Cfg.roomH - 2 - ARENA_DEPTH.bottom) * t
+  };
+}
+
+function clampToBounds(obj) {
+  const b = getPlayBounds();
+  obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
+  obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
+}
+
+
 async function enterFullscreen() {
   try {
     const root = DOM.modal || document.documentElement;
@@ -722,6 +740,10 @@ function drawTileType(x, y, type, tile) {
 
 const pickVar = (entry, i) => Array.isArray(entry) ? entry[i % entry.length] : entry;
 
+// Profondità usate sia nel bake sia per i bounds
+
+
+
 function bakeArenaLayer() {
   const tile = G.tile;
   if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
@@ -1019,6 +1041,24 @@ G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py));
   function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
     return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
+const ARENA_DEPTH = { top: 2, bottom: 1, sides: 1 };
+
+function getPlayBounds(){
+  const t = G.tile;
+  return {
+    minX: (1 + ARENA_DEPTH.sides)  * t,
+    maxX: (Cfg.roomW - 2 - ARENA_DEPTH.sides) * t,
+    minY: (1 + ARENA_DEPTH.top)    * t,
+    maxY: (Cfg.roomH - 2 - ARENA_DEPTH.bottom) * t
+  };
+}
+
+// Clampa un oggetto con {px,py} ai bounds
+function clampToBounds(obj){
+  const b = getPlayBounds();
+  obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
+  obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
+}
 
   // ---------- Loop ----------
   function update(dt) {
@@ -1056,8 +1096,10 @@ if (Math.abs(dx) > Math.abs(dy)) {
 }
 
     const spd = petSpeed();
-    G.pet.px = Math.max(G.tile, Math.min((Cfg.roomW-2)*G.tile, G.pet.px + dx * spd * dt));
-    G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py + dy * spd * dt));
+G.pet.px += dx * spd * dt;
+G.pet.py += dy * spd * dt;
+clampToBounds(G.pet);        // ⬅️ nuovo clamp sui bounds camminabili
+
 
     // --- animazione pet (walk 2-frame) ---
 if (G.pet.moving) {
@@ -1112,12 +1154,8 @@ for (const e of G.enemies) {
   const dTiles = d / G.tile;
 
   // clampa ai confini dell’arena (lascia un margine)
-  const clampToArena = () => {
-    const minX = 1 * G.tile, maxX = (Cfg.roomW - 2) * G.tile;
-    const minY = 1 * G.tile, maxY = (Cfg.roomH - 2) * G.tile;
-    e.px = Math.max(minX, Math.min(maxX, e.px));
-    e.py = Math.max(minY, Math.min(maxY, e.py));
-  };
+ const clampToArena = () => clampToBounds(e);
+
 
   // helper per danno nello swing: piccola hitbox frontale rispetto al nemico
 const tryHitPetDuringSwing = () => {
@@ -1235,10 +1273,8 @@ case 'windup': {
     }
   }
 }
-for (const e of G.enemies) {
-  e.px = Math.max(G.tile, Math.min((Cfg.roomW - 2) * G.tile, e.px));
-  e.py = Math.max(G.tile, Math.min((Cfg.roomH - 2) * G.tile, e.py));
-}
+for (const e of G.enemies) clampToBounds(e);
+
 
     // rimuovi morti
     G.enemies = G.enemies.filter(e => e.hp > 0);

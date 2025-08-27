@@ -1201,24 +1201,8 @@ for (const e of G.enemies) {
 
   // clampa ai confini dell’arena (lascia un margine)
  // al posto di: const clampToArena = () => clampToBounds(e);
-const clampToArena = () => {
-  // durante l’ingresso lascio “sfondare” il bound top
-  if (e.enteringViaGate) {
-    const b = getPlayBounds();
-    // clamp solo X e bottom, ma NON il top
-    e.px = Math.max(b.minX, Math.min(b.maxX, e.px));
-    e.py = Math.min(b.maxY, e.py); // niente minY
-    // quando supera la soglia, entra “ufficialmente”
-    if (e.py >= gateIngressY()) {
-      e.enteringViaGate = false;
-      // uno in meno che deve entrare
-      if (Gates.pendingIngress > 0) Gates.pendingIngress--;
-    }
-  } else {
-    // clamp normale
-    clampToBounds(e);
-  }
-};
+const clampToArena = () => clampToBounds(e);
+
 
   // helper per danno nello swing: piccola hitbox frontale rispetto al nemico
 const tryHitPetDuringSwing = () => {
@@ -1260,6 +1244,22 @@ const tryHitPetDuringSwing = () => {
   G.pet.iFrameUntil = now + EnemyTuning.iframesMs;
   syncHUD();
 };
+// --- FASE INGRESS: scendi dritto dal cancello ---
+if (e.enteringViaGate || e.state === 'ingress') {
+  const ingressSpeed = enemySpd;   // o basePet * 0.9 se vuoi più rapido
+  e.px = (e.spawnPx ?? e.px);      // blocca la X al varco
+  e.py += ingressSpeed * dt;       // solo in giù
+
+  // quando supera la soglia d'ingresso, entra in arena e passa alla chase
+  if (e.py >= gateIngressY() + G.tile * 0.2) {
+    e.enteringViaGate = false;
+    e.state = 'chase';
+    if (Gates.pendingIngress > 0) Gates.pendingIngress--;
+  }
+
+  clampToArena();
+  continue; // salta il resto dell'AI in questo tick
+}
 
 
   // FSM
@@ -1388,25 +1388,37 @@ function updateGates(dt){
   }
 
   // Spawn quando i cancelli sono “open” e non abbiamo ancora ingressi pendenti
-  if (Gates.state === 'open' && Gates.pendingIngress === 0) {
-    Gates.pendingIngress = spawnWaveViaGates(G.wave);
-    // Se per qualche motivo non è stato spawnato nessuno, richiudi subito
-    if (Gates.pendingIngress === 0) Gates.state = 'raising';
-  }
+ if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
+  Gates.pendingIngress = spawnWaveViaGates(G.wave);
+  Gates._spawnedThisOpen = true;           // ← blocca doppi spawn
+  if (Gates.pendingIngress === 0) Gates.state = 'raising';
+}
 
-  // Chiudi appena tutti quelli “throughGate” sono entrati nell’arena
-  if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
-    Gates.state = 'raising';
-  }
+ 
+  // Chiudi quando tutti hanno varcato la soglia
+if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
+  Gates.state = 'raising';
+  Gates._spawnedThisOpen = false;          // reset al ciclo successivo
+}
+// Quando chiusi, prepara prossima wave
+if (Gates.state === 'idleUp' && !G.enemies.length && !Gates.spawnedThisWave) {
+  Gates.state = 'lowering';
+  Gates.spawnedThisWave = true;
+  Gates._spawnedThisOpen = false;          // sicurezza
+  G.wave++;
+  syncHUD?.();
+}
+if (Gates.state === 'idleUp' && G.enemies.length) {
+  Gates.spawnedThisWave = false;           // se qualcuno resta, consenti nuova apertura dopo
+}
 }
 
 function waveEnemyTotal(n){
-  if (n <= 1) return 3;        // Wave 1: 3
-  if (n === 2) return 6;       // Wave 2: 6
-  // Dalla 3 in poi: cresce ~2.5 a wave, con un pizzico di jitter
+  if (n <= 1) return 3;
+  if (n === 2) return 6;
   const base = 6 + Math.round((n - 2) * 2.5);
   const jitter = (Math.random() < 0.5 ? 0 : 1);
-  return Math.min(base + jitter, 24);  // cap di sicurezza
+  return Math.min(base + jitter, 24);
 }
 function waveBatCount(n, total){
   // Pipistrelli solo ogni 3 wave a partire dalla 3, max ~20% del totale
@@ -1448,9 +1460,14 @@ function spawnWaveViaGates(n){
     e.px = startX;
     e.py = startY;
 
-    e.enteringViaGate = true;   // niente clamp sul minY finché non varca la soglia
-    e.state = 'chase';
-    e.tState = 0;
+    e.spawnPx = startX;      // bloccheremo la X durante l’ingresso
+e.enteringViaGate = true;
+e.state = 'ingress';     // ← nuovo stato iniziale
+e.tState = 0;
+
+   // e.enteringViaGate = true;   // niente clamp sul minY finché non varca la soglia
+    //e.state = 'chase';
+    //e.tState = 0;
     e.nextAtkReadyTs = 0;
     e.lastHitTs = 0;
 

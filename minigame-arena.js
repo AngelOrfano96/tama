@@ -356,45 +356,53 @@ let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 
 
-// --- Atlas base ---
-const ATLAS_TILE = 32;
-const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
-const pick = (c, r, w=1, h=1) => ({ sx:c*ATLAS_TILE, sy:r*ATLAS_TILE, sw:w*ATLAS_TILE, sh:h*ATLAS_TILE });
+// === ATLAS base ===
+const ATLAS_TILE = 32;                        // ⬅️ prima era 16
+const atlasBase  = isMobileOrTablet()
+  ? 'assets/mobile/atlas'
+  : 'assets/desktop/atlas';
+
+// ritaglio generico da atlas 32×32
+const pick = (c, r, w = 1, h = 1) => ({
+  sx: c * ATLAS_TILE,
+  sy: r * ATLAS_TILE,
+  sw: w * ATLAS_TILE,
+  sh: h * ATLAS_TILE,
+});
+
 
 // ⚠️ floor: usa i tasselli piatti (non i brick del muro).
 // Questi indici sono per l’area “liscia” a destra dell’atlas.
 // Se uno non ti convince, prova a commentarlo/variare: sono tutte 16×16.
 const DECOR_DESKTOP = {
-  floor: [
-    pick(6,0), pick(6,1),
-    pick(7,0), pick(7,1),
-  ],
+  floor: [ pick(0,6), pick(1,6), pick(0,7), pick(1,7) ],
 
-  // corpo muro (il “primo blocco”, quello a contatto col pavimento)
   wallBody: {
-    top:    [ pick(4,1)],
-    bottom: [ pick(4,4)],
-    left:   [ pick(3,2)],
-    right:  [ pick(4,1)],
+    top:    [ pick(4,0), pick(5,0) ],
+    bottom: [ pick(4,4), pick(5,4) ],
+    left:   [ pick(3,2), pick(3,3) ],
+    right:  [ pick(6,2), pick(6,3) ],
     corner_tl: pick(3,1),
     corner_tr: pick(6,1),
     corner_bl: pick(3,4),
     corner_br: pick(6,4),
   },
 
-  // “cap” del muro (il tassello che disegniamo UNA riga sopra per effetto 2-blocchi)
-  // Se non hai un cap diverso, puoi riusare i body o prenderne di più scuri/chiari.
   wallCap: {
-    top:    [ pick(3,0)  ],
-    bottom: [ pick(4,5)  ],
-    left:   [ pick(2,2)              ],
-    right:  [ pick(5,2)              ],
+    top:    [ pick(4,1) ],
+    bottom: [ pick(4,5) ],
+    left:   [ pick(2,2) ],
+    right:  [ pick(7,2) ],
     corner_tl: pick(2,1),
     corner_tr: pick(7,1),
     corner_bl: pick(2,4),
     corner_br: pick(7,4),
   },
+
+  // opzionale: banda soffitto interna
+  ceiling: [ pick(8,6) ]
 };
+
 const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 

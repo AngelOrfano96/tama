@@ -1386,6 +1386,14 @@ updateGates(dt);
   if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
     Gates.state = 'raising';
   }
+  // wave conclusa: cancello su e nessun nemico → pronta la prossima
+if (Gates.state === 'idleUp' && G.enemies.length === 0 && Gates.spawnedThisWave) {
+  Gates.spawnedThisWave = false;                 // permette il prossimo lowering
+  // ricompensina tra le ondate (opzionale):
+  G.hpCur = Math.min(G.hpMax, Math.round(G.hpCur + G.hpMax * 0.07));
+  syncHUD();
+}
+
 }
 
 function spawnWaveViaGates(n){
@@ -1469,7 +1477,7 @@ function render() {
   if (G.renderCache.arenaLayer) {
     ctx.drawImage(G.renderCache.arenaLayer.canvas, 0, 0);
     // drawGatesOnTopWall();
-    drawInspectorGrid(ctx); ////////////////////////////////////////////////////////////////////
+    //drawInspectorGrid(ctx); ////////////////////////////////////////////////////////////////////
   } else {
     // fallback (se atlas non pronto): rettangoli come prima
     ctx.fillStyle = '#111';

@@ -524,13 +524,47 @@ function buildBatFromAtlas() {
 }
 
 function buildDecorFromAtlas() {
-  G.sprites.decor = {
-    floor: DECOR.floor,
-    top: DECOR.top, bottom: DECOR.bottom, left: DECOR.left, right: DECOR.right,
-    corner_tl: DECOR.corner_tl, corner_tr: DECOR.corner_tr,
-    corner_bl: DECOR.corner_bl, corner_br: DECOR.corner_br
-  };
+  // normalizza qualunque DECOR in { floor, wallBody:{...}, wallCap:{...} }
+  G.sprites.decor = normalizeDecor(DECOR);
 }
+
+/** Accetta sia lo schema vecchio (top/bottom/...) che quello nuovo.
+ *  Restituisce sempre { floor, wallBody:{...}, wallCap:{...} } */
+function normalizeDecor(S) {
+  const out = { floor: S?.floor || [], wallBody: {}, wallCap: {} };
+
+  // Se è già nello schema nuovo, usa quello
+  if (S?.wallBody) {
+    out.wallBody = S.wallBody;
+    out.wallCap  = S.wallCap || S.wallBody;   // fallback: cap = body
+    // assicurati di avere i corner
+    for (const k of ['corner_tl','corner_tr','corner_bl','corner_br']) {
+      out.wallCap[k]  = out.wallCap[k]  || out.wallBody[k];
+    }
+    return out;
+  }
+
+  // --- Schema vecchio -> mappa in quello nuovo ---
+  const sides = ['top','bottom','left','right'];
+  for (const side of sides) {
+    const arr = S?.[side] || [];
+    out.wallBody[side] = arr;
+    out.wallCap[side]  = (S?.cap?.[side]) || arr;  // se non hai cap separati, usa body
+  }
+  // corner
+  out.wallBody.corner_tl = S?.corner_tl;
+  out.wallBody.corner_tr = S?.corner_tr;
+  out.wallBody.corner_bl = S?.corner_bl;
+  out.wallBody.corner_br = S?.corner_br;
+
+  out.wallCap.corner_tl = (S?.cap?.corner_tl) || out.wallBody.corner_tl;
+  out.wallCap.corner_tr = (S?.cap?.corner_tr) || out.wallBody.corner_tr;
+  out.wallCap.corner_bl = (S?.cap?.corner_bl) || out.wallBody.corner_bl;
+  out.wallCap.corner_br = (S?.cap?.corner_br) || out.wallBody.corner_br;
+
+  return out;
+}
+
 
 function drawTileType(x, y, type, tile) {
   const entry = G.sprites.decor?.[type];
@@ -596,7 +630,7 @@ function bakeArenaLayer() {
   };
 
   // Angoli
-  //drawWall2(D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    'top');
+  drawWall2(D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    'top');
   drawWall2(D.wallBody.corner_tr, D.wallCap.corner_tr, right*tile, top*tile,    'top');
   drawWall2(D.wallBody.corner_bl, D.wallCap.corner_bl, left*tile,  bottom*tile, 'bottom');
   drawWall2(D.wallBody.corner_br, D.wallCap.corner_br, right*tile, bottom*tile, 'bottom');

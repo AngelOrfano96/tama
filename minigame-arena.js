@@ -308,7 +308,7 @@ function resizeCanvas() {
 
 
 
-  
+
 /*
 // === ATLAS base ===
 const ATLAS_TILE = 16;
@@ -366,16 +366,16 @@ const pick = (c, r, w=1, h=1) => ({ sx:c*ATLAS_TILE, sy:r*ATLAS_TILE, sw:w*ATLAS
 // Se uno non ti convince, prova a commentarlo/variare: sono tutte 16×16.
 const DECOR_DESKTOP = {
   floor: [
-    pick(9,6), pick(10,6),
-    pick(9,7), pick(10,7),
+    pick(6,0), pick(6,1),
+    pick(7,0), pick(7,1),
   ],
 
   // corpo muro (il “primo blocco”, quello a contatto col pavimento)
   wallBody: {
-    top:    [ pick(4,0),  pick(5,0)  ],
-    bottom: [ pick(4,4),  pick(5,4)  ],
-    left:   [ pick(3,2),  pick(3,3)  ],
-    right:  [ pick(6,2),  pick(6,3)  ],
+    top:    [ pick(4,1)],
+    bottom: [ pick(4,4)],
+    left:   [ pick(3,2)],
+    right:  [ pick(6,2)],
     corner_tl: pick(3,1),
     corner_tr: pick(6,1),
     corner_bl: pick(3,4),
@@ -385,8 +385,8 @@ const DECOR_DESKTOP = {
   // “cap” del muro (il tassello che disegniamo UNA riga sopra per effetto 2-blocchi)
   // Se non hai un cap diverso, puoi riusare i body o prenderne di più scuri/chiari.
   wallCap: {
-    top:    [ pick(4,1),  pick(5,1)  ],
-    bottom: [ pick(4,5),  pick(5,5)  ],
+    top:    [ pick(3,0)  ],
+    bottom: [ pick(4,5)  ],
     left:   [ pick(2,2)              ],
     right:  [ pick(7,2)              ],
     corner_tl: pick(2,1),

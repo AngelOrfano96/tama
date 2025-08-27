@@ -185,23 +185,33 @@ G.renderCache = {
   arenaForeLayer: null,
   tile: 0
 };
+// --- Profondità di rendering (solo grafica) e limiti di movimento ---
+const RENDER_DEPTH = { top: 2, bottom: 1, sides: 1 }; // quanti "blocchi" disegniamo
+const WALK_BOUNDS  = { top: 2, bottom: 0, sides: 0 }; // dove può camminare il pet
+const PAD_X = 2;                                      // margine laterale visivo (px)
 
-function getPlayBounds() {
-  // area interna “camminabile” in pixel
+// Area camminabile in pixel
+function getPlayBounds(){
   const t = G.tile;
   return {
-    minX: (1 + ARENA_DEPTH.sides) * t,
-    maxX: (Cfg.roomW - 2 - ARENA_DEPTH.sides) * t,
-    minY: (1 + ARENA_DEPTH.top) * t,
-    maxY: (Cfg.roomH - 2 - ARENA_DEPTH.bottom) * t
+    // laterali: può toccare quasi i muri (con 2px di aria)
+    minX: 1 * t + PAD_X,
+    maxX: (Cfg.roomW - 2) * t - PAD_X,
+    // top: fermati dopo 2 file di muro
+    minY: (1 + WALK_BOUNDS.top) * t,
+    // bottom: nessun rientro
+    maxY: (Cfg.roomH - 2 - WALK_BOUNDS.bottom) * t
   };
 }
 
-function clampToBounds(obj) {
+// Clampa un oggetto {px,py} ai bounds
+function clampToBounds(obj){
   const b = getPlayBounds();
   obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
   obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
 }
+
+
 
 
 async function enterFullscreen() {
@@ -748,16 +758,15 @@ function bakeArenaLayer() {
   const tile = G.tile;
   if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
 
-  const wpx = Cfg.roomW * tile;
-  const hpx = Cfg.roomH * tile;
+  const wpx = Cfg.roomW * tile, hpx = Cfg.roomH * tile;
 
-  // base: floor + corpi
+  // --- canvas base (pavimento + corpi muro)
   const cvBase = document.createElement('canvas');
   cvBase.width = wpx; cvBase.height = hpx;
   const bctx = cvBase.getContext('2d');
   bctx.imageSmoothingEnabled = false;
 
-  // front: i coperchi che devono stare sopra a pet/nemici
+  // --- canvas front (coperchi che stanno sopra a pet/nemici)
   const cvFront = document.createElement('canvas');
   cvFront.width = wpx; cvFront.height = hpx;
   const fctx = cvFront.getContext('2d');
@@ -766,53 +775,41 @@ function bakeArenaLayer() {
   const D = G.sprites.decor;
   const left = 0, right = Cfg.roomW - 1, top = 0, bottom = Cfg.roomH - 1;
 
-  // profondità per lato
-//  const DEPTH_TOP    = 2; // TOP: 2 corpi + cap = 3 blocchi
- // const DEPTH_BOTTOM = 1; // BOTTOM: 1 corpo + cap = 2 blocchi
-  //const DEPTH_SIDES  = 1; // LATI: 1 corpo + cap = 2 blocchi
-const DEPTH_TOP    = RENDER_DEPTH.top;
-const DEPTH_BOTTOM = RENDER_DEPTH.bottom;
-const DEPTH_SIDES  = RENDER_DEPTH.sides;
+  // profondità: le legge DAL GLOBALE RENDER_DEPTH
+  const DEPTH_TOP    = (RENDER_DEPTH.top    | 0);
+  const DEPTH_BOTTOM = (RENDER_DEPTH.bottom | 0);
+  const DEPTH_SIDES  = (RENDER_DEPTH.sides  | 0);
 
-  // Profondità usate SOLO per il disegno dei muri
-const RENDER_DEPTH = { top: 2, bottom: 1, sides: 1 };
-
-// Limiti di movimento (indipendenti dal disegno)
-const WALK_BOUNDS  = { top: 2, bottom: 0, sides: 0 };
-//  top: 2 -> non oltrepassa le due file del muro alto
-//  bottom: 0 -> può scendere fino al bordo interno
-//  sides: 0 -> può toccare i muri laterali
-
-
-  // dove finisce il cap (foreground?) per ogni lato
+  // dove disegnare i "cap"
   const CAP_IN_FRONT = {
-    top:    false,  // ⬅️ cap del top nel BASE (non copre i personaggi)
-    bottom: true,   // cap del bottom nel FRONT (copre un pochino i piedi)
-    left:   false,   // puoi mettere false se non vuoi occlusione laterale
+    top:    false,  // top nel base (non occlude il personaggio)
+    bottom: true,   // bottom nel front (occlude un po' i piedi)
+    left:   false,
     right:  false
   };
 
   const pickVar = (entry, i) => Array.isArray(entry) ? entry[i % entry.length] : entry;
 
-  // -------- floor: taglia solo top/bottom (niente buchi laterali) ----
+  // --- floor (riempi solo tra banda top e banda bottom)
   const entryFloor = D?.floor || [];
   for (let y = 1 + DEPTH_TOP; y < Cfg.roomH - 1 - DEPTH_BOTTOM; y++) {
     for (let x = 1; x < Cfg.roomW - 1; x++) {
-      let d = entryFloor[(x + y) % entryFloor.length];
-      if (Array.isArray(entryFloor)) d = entryFloor[variantIndex(x, y, entryFloor.length)];
-      if (!d) continue;
+      if (!entryFloor.length) continue;
+      const d = Array.isArray(entryFloor)
+        ? entryFloor[variantIndex(x, y, entryFloor.length)]
+        : entryFloor;
       bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, x*tile, y*tile, tile, tile);
     }
   }
 
-  // -------- stack: N corpi (base) + 1 cap (base o front) --------------
+  // --- helper: pila di N corpi + 1 cap
   function drawWallStack(edge, bodyEntry, capEntry, xTile, yTile, depth, capInFront) {
     if (!bodyEntry) return;
 
     const body = (i)=> pickVar(bodyEntry, i);
     const cap  = pickVar(capEntry || bodyEntry, 0);
 
-    // verso verso l'interno
+    // direzione verso l'interno
     const sgn = (edge === 'top') ? +1 :
                 (edge === 'bottom') ? -1 :
                 (edge === 'left') ? +1 : -1;
@@ -822,50 +819,50 @@ const WALK_BOUNDS  = { top: 2, bottom: 0, sides: 0 };
       const d = body(i);
       const ox = (edge === 'left'  || edge === 'right') ? sgn * i * tile : 0;
       const oy = (edge === 'top'   || edge === 'bottom') ? sgn * i * tile : 0;
-      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh,
-                     xTile + ox, yTile + oy, tile, tile);
+      bctx.drawImage(G.sprites.atlas, d.sx, d.sy, d.sw, d.sh, xTile + ox, yTile + oy, tile, tile);
     }
 
-    // cap: 1 step oltre i corpi
+    // cap: un passo oltre i corpi
     const capOff = depth * tile;
     const offX = (edge === 'left'  || edge === 'right') ? sgn * capOff : 0;
     const offY = (edge === 'top'   || edge === 'bottom') ? sgn * capOff : 0;
-
-    const ctxCap = capInFront ? fctx : bctx; // ⬅️ qui scegli il layer
-    ctxCap.drawImage(G.sprites.atlas, cap.sx, cap.sy, cap.sw, cap.sh,
-                     xTile + offX, yTile + offY, tile, tile);
+    const ctxCap = capInFront ? fctx : bctx;
+    ctxCap.drawImage(G.sprites.atlas, cap.sx, cap.sy, cap.sw, cap.sh, xTile + offX, yTile + offY, tile, tile);
   }
 
-  // Angoli (usa la regola del lato corrispondente)
+  // --- angoli
   drawWallStack('top',    D.wallBody.corner_tl, D.wallCap.corner_tl, left*tile,  top*tile,    DEPTH_TOP,    CAP_IN_FRONT.top);
   drawWallStack('top',    D.wallBody.corner_tr, D.wallCap.corner_tr, right*tile, top*tile,    DEPTH_TOP,    CAP_IN_FRONT.top);
   drawWallStack('bottom', D.wallBody.corner_bl, D.wallCap.corner_bl, left*tile,  bottom*tile, DEPTH_BOTTOM, CAP_IN_FRONT.bottom);
   drawWallStack('bottom', D.wallBody.corner_br, D.wallCap.corner_br, right*tile, bottom*tile, DEPTH_BOTTOM, CAP_IN_FRONT.bottom);
 
-  // Lati orizzontali
+  // --- lati orizzontali
   for (let x = 1; x <= Cfg.roomW - 2; x++) {
     drawWallStack('top',    D.wallBody.top,    D.wallCap.top,    x*tile, top*tile,    DEPTH_TOP,    CAP_IN_FRONT.top);
     drawWallStack('bottom', D.wallBody.bottom, D.wallCap.bottom, x*tile, bottom*tile, DEPTH_BOTTOM, CAP_IN_FRONT.bottom);
   }
 
-  // Lati verticali
+  // --- lati verticali
   for (let y = 1; y <= Cfg.roomH - 2; y++) {
     drawWallStack('left',  D.wallBody.left,  D.wallCap.left,  left*tile,  y*tile, DEPTH_SIDES, CAP_IN_FRONT.left);
     drawWallStack('right', D.wallBody.right, D.wallCap.right, right*tile, y*tile, DEPTH_SIDES, CAP_IN_FRONT.right);
   }
 
-  // (facoltativo) leggerissima ombra sotto il bordo alto
-  bctx.save();
-  bctx.globalAlpha = 0.18;
-  bctx.fillStyle = '#000';
-  bctx.fillRect(1*tile, (1 + DEPTH_TOP)*tile, (Cfg.roomW-2)*tile, Math.round(tile*0.32));
-  bctx.restore();
+  // ombra morbida sotto alla banda top
+  if (DEPTH_TOP > 0) {
+    bctx.save();
+    bctx.globalAlpha = 0.18;
+    bctx.fillStyle = '#000';
+    bctx.fillRect(1*tile, (1 + DEPTH_TOP)*tile, (Cfg.roomW-2)*tile, Math.round(tile*0.32));
+    bctx.restore();
+  }
 
   G.renderCache.arenaLayer     = { canvas: cvBase,  tile };
   G.renderCache.arenaForeLayer = { canvas: cvFront, tile };
   G.renderCache.tile = tile;
   return G.renderCache.arenaLayer;
 }
+
 
 
 
@@ -1045,8 +1042,7 @@ function syncHUD(){
     G.pet.px += nx * dist;
     G.pet.py += ny * dist;
     // clamp ai confini dell’arena
-G.pet.px = Math.max(G.tile, Math.min((Cfg.roomW-2)*G.tile, G.pet.px));
-G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py));
+clampToBounds(G.pet);
 
   }
 
@@ -1054,39 +1050,6 @@ G.pet.py = Math.max(G.tile, Math.min((Cfg.roomH-2)*G.tile, G.pet.py));
   function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
     return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
-const ARENA_DEPTH = { top: 2, bottom: 1, sides: 1 };
-
-function getPlayBounds(){
-  const t = G.tile;
-  const PAD = 2; // margine di sicurezza in pixel
-
-  return {
-    // laterali: può toccare i muri, ma con un piccolo margine
-    minX: 1 * t + PAD,
-    maxX: (Cfg.roomW - 2) * t - PAD,
-
-    // top: rientra di WALK_BOUNDS.top file
-    minY: (1 + WALK_BOUNDS.top) * t,
-
-    // bottom: nessun rientro (può scendere fino al bordo interno)
-    maxY: (Cfg.roomH - 2 - WALK_BOUNDS.bottom) * t
-  };
-}
-
-
-function clampToBounds(obj){
-  const b = getPlayBounds();
-  obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
-  obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
-}
-
-
-// Clampa un oggetto con {px,py} ai bounds
-function clampToBounds(obj){
-  const b = getPlayBounds();
-  obj.px = Math.max(b.minX, Math.min(b.maxX, obj.px));
-  obj.py = Math.max(b.minY, Math.min(b.maxY, obj.py));
-}
 
   // ---------- Loop ----------
   function update(dt) {

@@ -2195,7 +2195,7 @@ function useArenaMove(p, moveKey) {
 // --- Attacco base: cono corto davanti al player
 // --- Attacco base: cono corto davanti al player
 function move_basic_attack(p) {
-  const base  = 10;
+  const base  = 20;
   const bonus = G.playerAtkBonus || 0;       // se lo imposti quando entri in arena
   const dmgPerHit = base + bonus;
 

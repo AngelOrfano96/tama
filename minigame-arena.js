@@ -1670,7 +1670,7 @@ function render() {
   }
 renderGates();
 
-  drawAtlasPickerOverlay(ctx);
+  //drawAtlasPickerOverlay(ctx);
 }
 
 function renderGates(){

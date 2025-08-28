@@ -1219,6 +1219,14 @@ if (G.pet.moving) {
   G.pet.stepFrame = 0;
 }
 
+// applica velocità residuali/knockback con attrito
+for (const e of G.enemies) {
+  e.vx = (e.vx || 0) * 0.90;
+  e.vy = (e.vy || 0) * 0.90;
+  e.px += (e.vx || 0) * dt;
+  e.py += (e.vy || 0) * dt;
+  clampToBounds(e);
+}
 
     // nemici: muoviti verso il pet + attaccare se vicini
 // ---------- ENEMIES: separation + FSM attack ----------
@@ -1262,7 +1270,9 @@ for (const e of G.enemies) {
  // al posto di: const clampToArena = () => clampToBounds(e);
 const clampToArena = () => clampToBounds(e);
 
-
+if (e.stunUntil && now < e.stunUntil) {
+    continue; // resterà spinto solo dal knockback + attrito
+  }
   // helper per danno nello swing: piccola hitbox frontale rispetto al nemico
 const tryHitPetDuringSwing = () => {
   // skip se in i-frames (dash)
@@ -1556,6 +1566,25 @@ function drawGatesOnTopWall(){
     // 2×2 tile scalati alla tua tile size corrente
     ctx.drawImage(img, fr.sx, fr.sy, fr.sw, fr.sh, g.x * t, g.y * t, 2 * t, 2 * t);
   }
+}
+function spawnShockwave(x, y, R) {
+  const tStart = performance.now();
+  const D = 220; // durata ms
+  const anim = () => {
+    const t = performance.now() - tStart;
+    if (t > D) return;
+    const k = t / D;
+    ctx.save();
+    ctx.globalAlpha = 0.35 * (1 - k);
+    ctx.lineWidth = 2 + 2*k;
+    ctx.strokeStyle = '#8ecae6';
+    ctx.beginPath();
+    ctx.arc(x + G.tile/2, y + G.tile/2, R * (0.4 + 0.6*k), 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+    requestAnimationFrame(anim);
+  };
+  requestAnimationFrame(anim);
 }
 
 
@@ -1894,6 +1923,12 @@ function unloadArenaCSS() {
   arenaStyleEl = null;
 }
 
+function prettifyName(key) {
+  return ({
+    basic_attack: 'Attacco',
+    repulse: 'Repulsione'
+  })[key] || key.replace(/_/g, ' ');
+}
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
@@ -1935,6 +1970,31 @@ ctx = DOM.canvas.getContext('2d');
       .single();
 
     if (error) throw error;
+  // Carica le due mosse in base agli slot equipaggiati
+  const [moveA, moveB] = await window.getEquippedMovesForArena();
+  const atkBonus = await window.getArenaPlayerAttackStat(); // opzionale
+
+  // Salva in stato globale dell’arena
+  G.playerMoves = { A: moveA, B: moveB };
+  G.playerAtkBonus = atkBonus; // usalo nella formula danno
+
+  // (facoltativo) mostra il nome mossa sui bottoni
+  const btnA = document.getElementById('arena-attack-btn');
+  const btnB = document.getElementById('arena-charge-btn');
+  if (btnA) btnA.textContent = prettifyName(moveA);
+  if (btnB) btnB.textContent = prettifyName(moveB);
+   // ✅ qui inserisci la guardia
+  if (!DOM._abBound) {
+    btnA?.addEventListener('click', () => useArenaMove(G.pet, G.playerMoves.A));
+    btnB?.addEventListener('click', () => useArenaMove(G.pet, G.playerMoves.B));
+    window.addEventListener('keydown', (e) => {
+      if (!G.playing || e.repeat) return;
+      if (e.key === 'z' || e.key === 'Z') useArenaMove(G.pet, G.playerMoves.A);
+      if (e.key === 'x' || e.key === 'X') useArenaMove(G.pet, G.playerMoves.B);
+    }, { passive: true });
+    DOM._abBound = true;
+  }
+
 
     // HP: usa hp_max come "massimo" e anche come "current" a inizio arena
     const hpMax = Math.max(1, Math.round(Number(data?.hp_max ?? 100)));
@@ -2042,9 +2102,9 @@ if (!DOM._arenaBound) {
     );
   };
 
-  bindTap(DOM.btnAtk,  tryAttackBasic);
-  bindTap(DOM.btnChg,  tryAttackCharged);
-  bindTap(DOM.btnDash, tryDash);
+  //bindTap(DOM.btnAtk,  tryAttackBasic);
+  //bindTap(DOM.btnChg,  tryAttackCharged);
+  //bindTap(DOM.btnDash, tryDash);
 
   DOM._arenaBound = true;
 }
@@ -2124,7 +2184,111 @@ async function gameOver() {
 
   G.keys.clear();
 }
+//////////////////////MOSSE//////////////////////////
+function useArenaMove(p, moveKey) {
+  if (!p || !G.playing) return;
 
+  // --- cooldown semplice per mossa
+  const now = performance.now();
+  const cd  = (p._cooldowns ??= {});
+  const CD_MS = { basic_attack: 300, repulse: 900 };
+  const until = cd[moveKey] || 0;
+  if (now < until) return;               // ancora in cooldown
+  cd[moveKey] = now + (CD_MS[moveKey] || 400);
+
+  // --- esegui la mossa e raccogli il risultato
+  let res = { damageDealt: 0 };
+  switch (moveKey) {
+    case 'basic_attack': res = move_basic_attack(p) || res; break;
+    case 'repulse':      res = move_repulse(p)      || res; break;
+    default:             res = move_basic_attack(p) || res; break;
+  }
+
+  // --- aggiorna punteggio se hai fatto danno
+  if (res.damageDealt > 0) {
+    // stesso schema che usavi: 1 punto + 1 ogni 5 danni
+    G.score += 1 + Math.floor(res.damageDealt / 5);
+    syncHUD?.();
+  }
+}
+
+
+// --- Attacco base: cono corto davanti al player
+// --- Attacco base: cono corto davanti al player
+function move_basic_attack(p) {
+  const base  = 10;
+  const bonus = G.playerAtkBonus || 0;       // se lo imposti quando entri in arena
+  const dmgPerHit = base + bonus;
+
+  const reach = 1.1 * G.tile;                // raggio melee
+  const cone  = Math.PI / 2;                 // 90°
+
+  // angolo centrale del cono in base al facing
+  const dirAngle = (
+    p.facing === 'right' ? 0 :
+    p.facing === 'down'  ? Math.PI/2 :
+    p.facing === 'left'  ? Math.PI :
+                           -Math.PI/2
+  );
+
+  let total = 0;
+  for (const e of G.enemies) {
+    if (e.dead || e.hp <= 0) continue;
+
+    const dx = e.px - p.px;
+    const dy = e.py - p.py;
+    const dist = Math.hypot(dx, dy);
+    if (dist > reach) continue;
+
+    const a = Math.atan2(dy, dx) - dirAngle;
+    const inCone = Math.abs(normalizeAngle(a)) <= cone * 0.5;
+    if (!inCone) continue;
+
+    // applica danno
+    const before = e.hp;
+    e.hp = Math.max(0, e.hp - dmgPerHit);
+    total += (before - e.hp);
+
+    // (facoltativo) effetto/hit-stop/knockback leggero
+    // spawnHitSpark?.(e.px, e.py);
+  }
+
+  return { damageDealt: total };
+}
+
+
+
+// --- Repulsione: nessun danno, solo knockback ad area
+// --- Repulsione: nessun danno, solo knockback ad area
+function move_repulse(p) {
+  const R = 2.2 * G.tile;   // raggio
+  const K = 600;            // intensità
+  const now = performance.now();
+
+  for (const e of G.enemies) {
+    if (e.dead || e.hp <= 0) continue;
+    const dx = e.px - p.px, dy = e.py - p.py;
+    const d  = Math.hypot(dx, dy);
+    if (d === 0 || d > R) continue;
+
+    const nx = dx / d, ny = dy / d;
+    e.vx = (e.vx || 0) + nx * K;
+    e.vy = (e.vy || 0) + ny * K;
+    e.stunUntil = Math.max(e.stunUntil || 0, now + 200);
+  }
+
+  // niente danno → niente score
+  spawnShockwave?.(p.px, p.py, R); // opzionale
+  return { damageDealt: 0 };
+}
+
+
+// Utility angolo
+function normalizeAngle(a) {
+  while (a >  Math.PI) a -= 2*Math.PI;
+  while (a < -Math.PI) a += 2*Math.PI;
+  return a;
+}
   // Expose
   window.startArenaMinigame = startArenaMinigame;
 
@@ -2151,8 +2315,8 @@ async function gameOver() {
     if (!m) return;
     e.preventDefault();
     if (!G.playing) return;
-    if (m === 'atk') return tryAttackBasic();
-    if (m === 'chg') return tryAttackCharged();
+    //if (m === 'atk') return tryAttackBasic();
+    //if (m === 'chg') return tryAttackCharged();
     if (m === 'dash') return tryDash();
     G.keys.add(m);
   });
@@ -2170,3 +2334,8 @@ async function gameOver() {
 
   window.addEventListener('resize', () => { if (G.playing) { resizeCanvas(); syncHUD(); } });
 })();
+
+
+
+
+

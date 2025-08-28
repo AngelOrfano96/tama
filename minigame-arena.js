@@ -2245,7 +2245,7 @@ function move_repulse(p) {
   const now = performance.now();
 
   // potenza “bassa” per chip damage
-  const BASE_POWER = 6;     // ritocca 4–8 se vuoi più/meno danno
+  const BASE_POWER = 12;     // ritocca 4–8 se vuoi più/meno danno
 
   let total = 0;
 

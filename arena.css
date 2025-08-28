@@ -116,3 +116,27 @@
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+
+/* il joystick deve gestire drag senza far scattare zoom/scroll */
+#arena-joy-base {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* i bottoni devono “attivarsi” subito al tocco */
+#arena-attack-btn,
+#arena-charge-btn,
+#arena-dash-btn {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto; /* nel dubbio, esplicitalo */
+  z-index: 10;          /* assicurati stiano sopra l’overlay del joy */
+}
+
+/* se hai un overlay che copre i bottoni, lascia passare gli eventi */
+#arena-joystick-overlay {
+  pointer-events: none; /* gli elementi interattivi interni (joy-base, bottoni) devono avere pointer-events:auto */
+}

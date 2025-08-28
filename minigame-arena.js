@@ -1789,16 +1789,23 @@ function setupMobileControlsArena(){
     stick.style.transform = `translate(-50%, -50%)`;
   };
 
+  // Blocca gesture/scroll nel joystick
+  base.style.touchAction = 'none';
+
   const start = (e) => {
     if (joyPointerId !== null) return;
+    if (HAS_POINTER) e.preventDefault();
     joyPointerId = HAS_POINTER ? e.pointerId : 'touch';
     G.joy.active = true;
-    if (HAS_POINTER) base.setPointerCapture?.(joyPointerId);
     setStick(0,0);
   };
+
   const move = (e) => {
     if (!G.joy.active) return;
-    if (HAS_POINTER && e.pointerId !== joyPointerId) return;
+    if (HAS_POINTER) {
+      if (e.pointerId !== joyPointerId) return;
+      if (HAS_POINTER) e.preventDefault();
+    }
     const rect = base.getBoundingClientRect();
     const radius = Math.max(1, rect.width * 0.5);
     const cx = rect.left + rect.width/2;
@@ -1818,28 +1825,32 @@ function setupMobileControlsArena(){
     G.joy.vy = Number.isFinite(vy) ? vy : 0;
     setStick(G.joy.vx * 0.35, G.joy.vy * 0.35);
   };
+
   const end = (e) => {
     if (HAS_POINTER && e.pointerId !== joyPointerId) return;
     joyPointerId = null;
     G.joy.active = false;
     G.joy.vx = 0; G.joy.vy = 0;
     setStick(0,0);
-    if (HAS_POINTER) base.releasePointerCapture?.(e.pointerId);
+    // niente releasePointerCapture: non stiamo più catturando
   };
 
   if (HAS_POINTER) {
-    base.addEventListener('pointerdown', start, {passive:false});
-    base.addEventListener('pointermove',  move,  {passive:false});
-    base.addEventListener('pointerup',    end,   {passive:false});
-    base.addEventListener('pointercancel',end,   {passive:false});
+    base.addEventListener('pointerdown',  start, { passive:false });
+    base.addEventListener('pointermove',  move,  { passive:false });
+    base.addEventListener('pointerup',    end,   { passive:false });
+    base.addEventListener('pointercancel',end,   { passive:false });
+    // opzionale: se esce dall’area col dito
+    base.addEventListener('pointerleave', end,   { passive:false });
   } else {
-    base.addEventListener('touchstart',  start, {passive:true});
-    base.addEventListener('touchmove',   move,  {passive:true});
-    base.addEventListener('touchend',    end,   {passive:true});
-    base.addEventListener('touchcancel', end,   {passive:true});
+    // Con touch, lasciamo passive:true (il touch-action:none fa il blocco gesture)
+    base.addEventListener('touchstart',  start, { passive:true });
+    base.addEventListener('touchmove',   move,  { passive:true });
+    base.addEventListener('touchend',    end,   { passive:true });
+    base.addEventListener('touchcancel', end,   { passive:true });
   }
-
 }
+
 
 
 
@@ -1920,16 +1931,33 @@ ctx = DOM.canvas.getContext('2d');
   if (btnA) btnA.textContent = prettifyName(moveA);
   if (btnB) btnB.textContent = prettifyName(moveB);
    // ✅ qui inserisci la guardia
-  if (!DOM._abBound) {
-    btnA?.addEventListener('click', () => useArenaMove(G.pet, G.playerMoves.A));
-    btnB?.addEventListener('click', () => useArenaMove(G.pet, G.playerMoves.B));
-    window.addEventListener('keydown', (e) => {
-      if (!G.playing || e.repeat) return;
-      if (e.key === 'z' || e.key === 'Z') useArenaMove(G.pet, G.playerMoves.A);
-      if (e.key === 'x' || e.key === 'X') useArenaMove(G.pet, G.playerMoves.B);
-    }, { passive: true });
-    DOM._abBound = true;
-  }
+if (!DOM._abBound) {
+  const bindAction = (el, handler) => {
+    if (!el) return;
+    const fire = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (G.playing) handler();
+    };
+    el.addEventListener('pointerdown', fire, { passive: false });
+    el.addEventListener('touchstart',  fire, { passive: false }); // fallback
+  };
+
+  // azioni (niente click)
+  bindAction(DOM.btnAtk,  () => useArenaMove(G.pet, G.playerMoves.A));
+  bindAction(DOM.btnChg,  () => useArenaMove(G.pet, G.playerMoves.B));
+  bindAction(DOM.btnDash, () => tryDash());
+
+  // tastiera
+  window.addEventListener('keydown', (e) => {
+    if (!G.playing || e.repeat) return;
+    if (e.key === 'z' || e.key === 'Z') useArenaMove(G.pet, G.playerMoves.A);
+    if (e.key === 'x' || e.key === 'X') useArenaMove(G.pet, G.playerMoves.B);
+  }, { passive: true });
+
+  DOM._abBound = true; // previene doppi binding a run successivi
+}
+
 
 
     // HP: usa hp_max come "massimo" e anche come "current" a inizio arena
@@ -2044,6 +2072,21 @@ if (!DOM._arenaBound) {
 
   DOM._arenaBound = true;
 }
+const bindAction = (el, handler) => {
+  if (!el) return;
+  const fire = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (G.playing) handler();
+  };
+  el.addEventListener('pointerdown', fire, { passive: false });
+  el.addEventListener('touchstart',  fire, { passive: false }); // fallback vecchi browser
+};
+
+// azioni
+bindAction(DOM.btnAtk,  () => useArenaMove(G.pet, G.playerMoves.A));
+bindAction(DOM.btnChg,  () => useArenaMove(G.pet, G.playerMoves.B));
+bindAction(DOM.btnDash, () => tryDash());
 
 G.lastT = performance.now();
 G.playing = true;

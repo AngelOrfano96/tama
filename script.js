@@ -942,10 +942,22 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     return;
   }
   petId = data.id;
-  showOnly('game');
-  await supabaseClient.from('pet_states').insert({
+   await supabaseClient.from('pet_states').insert({
     pet_id: petId, hunger: 100, fun: 100, clean: 100, level: 1, exp: 0, updated_at: new Date()
   });
+
+    // ✅ MOSSE DI DEFAULT (slot 1 e 2 già equipaggiate)
+  try {
+    await supabaseClient.from('pet_moves').insert([
+      { pet_id: petId, move_key: 'basic_attack', equipped: true, slot: 1 },
+      { pet_id: petId, move_key: 'repulse',      equipped: true, slot: 2 },
+    ]);
+  } catch (e) {
+    console.error('[default moves insert]', e);
+  }
+
+  showOnly('game');
+ 
   document.getElementById('pet').src = `assets/pets/pet_${eggType}.png`;
   alive = true;
   document.getElementById('game-over').classList.add('hidden');
@@ -955,6 +967,8 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   await refreshUsernameBadge();
   await promptUsernameIfMissing();
 });
+
+
 
 // --- LOGOUT ---
 const logoutBtn = document.getElementById('logout-btn');

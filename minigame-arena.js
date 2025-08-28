@@ -79,6 +79,45 @@ function renderArenaLeaderboard(container, rows, opts = {}){
   container.innerHTML = selfPill + table;
 }
 
+// da mettere in un file condiviso o in minigame-arena.js
+const MOVE_DEFS = {
+  basic_attack: {
+    label: 'Attacco Base',
+    baseDamage: 10,
+    scale: 'attack',     // scala con attack_power
+    cooldown: 0.35
+  },
+  repulse: {
+    label: 'Repulsione',
+    knockback: 290,      // forza respinta (px/s circa)
+    radius: 52,          // raggio effetto (px)
+    cooldown: 3.0
+  }
+};
+function calcBasicAttackDamage(stats){
+  const base = 10;
+  const atk  = Number(stats.attack_power ?? stats.attack ?? 0);
+  // scala leggera: +1 danno ogni 20 punti di power
+  const scale = Math.floor(atk / 20);
+  return base + scale;
+}
+function castRepulse(player, enemies, stats){
+  const def = MOVE_DEFS.repulse;
+  for (const e of enemies){
+    const dx = e.px - player.px;
+    const dy = e.py - player.py;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= def.radius){
+      const nx = dx / (dist || 1);
+      const ny = dy / (dist || 1);
+      // applica una velocità/impulso all’indietro
+      e.vx = (e.vx || 0) + nx * def.knockback;
+      e.vy = (e.vy || 0) + ny * def.knockback;
+      // opzionale: piccola invulnerabilità/slowdown/”stun”
+      e.staggerTs = performance.now();
+    }
+  }
+}
 
 // wiring UI leaderboard (al load del DOM)
 document.addEventListener('DOMContentLoaded', () => {

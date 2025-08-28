@@ -1885,13 +1885,13 @@ DOM.joyStick= document.getElementById('arena-joy-stick');
 DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
 DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
 // bind del picker SOLO ora che il canvas esiste
-if (!DOM._pickerBound && DOM.canvas) {
+/*if (!DOM._pickerBound && DOM.canvas) {
   // meglio usare pointerdown per catturare sempre
   DOM.canvas.addEventListener('pointerdown', handleAtlasPickerClick, { capture: true, passive: false });
   DOM._pickerBound = true;
   // debug utile:
   console.log('[Picker] bound on canvas. ATLAS_TILE =', ATLAS_TILE);
-}
+}*/
 
 if (!DOM.canvas) { console.error('[Arena] canvas mancante'); return; }
 ctx = DOM.canvas.getContext('2d');
@@ -2197,26 +2197,49 @@ function move_basic_attack(p) {
 // --- Repulsione: nessun danno, solo knockback ad area
 // --- Repulsione: nessun danno, solo knockback ad area
 function move_repulse(p) {
-  const R = 2.2 * G.tile;   // raggio
-  const K = 600;            // intensità
+  const R = 2.2 * G.tile;   // raggio dell’onda
+  const K = 600;            // intensità knockback
   const now = performance.now();
+
+  // potenza “bassa” per chip damage
+  const BASE_POWER = 6;     // ritocca 4–8 se vuoi più/meno danno
+
+  let total = 0;
 
   for (const e of G.enemies) {
     if (e.dead || e.hp <= 0) continue;
+
     const dx = e.px - p.px, dy = e.py - p.py;
     const d  = Math.hypot(dx, dy);
     if (d === 0 || d > R) continue;
 
+    // knockback + breve stun, come prima
     const nx = dx / d, ny = dy / d;
     e.vx = (e.vx || 0) + nx * K;
     e.vy = (e.vy || 0) + ny * K;
     e.stunUntil = Math.max(e.stunUntil || 0, now + 200);
+
+    // ---- chip damage con lieve falloff sulla distanza ----
+    // falloff 0.5..1.0 (più vicino = più danno, ma mai 0)
+    const falloff = 0.5 + 0.5 * (1 - d / R);
+
+    // scala con atk/def usando la tua computeDamage
+    const raw = computeDamage(BASE_POWER, G.atkP || 50, e.defP || 50);
+
+    // danno finale arrotondato e min 1
+    const dmg = Math.max(1, Math.round(raw * falloff));
+
+    const before = e.hp;
+    e.hp = Math.max(0, e.hp - dmg);
+    total += (before - e.hp);
   }
 
-  // niente danno → niente score
-  spawnShockwave?.(p.px, p.py, R); // opzionale
-  return { damageDealt: 0 };
+  // effetto visivo (opzionale)
+  spawnShockwave?.(p.px, p.py, R);
+
+  return { damageDealt: total };
 }
+
 
 
 // Utility angolo

@@ -114,16 +114,28 @@
   --action-gap:  15%;                        /* quanto “apre” il triangolo */
 }
 
+/* Bloccali davvero all’angolo */
 #arena-actions-overlay{
   position: fixed;
-  right: calc(env(safe-area-inset-right, 0px) + 12px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  right: 12px;            /* ← niente env() */
+  bottom: 12px;           /* ← niente env() */
   width: var(--actions-box);
   height: var(--actions-box);
-  z-index: 10000;
-  pointer-events: none;        /* i figli riattivano */
-  touch-action: none;          /* niente pinch/scroll qui sopra */
+  z-index: 10030;
+  pointer-events: none;
+  touch-action: none;
 }
+
+/* (opzionale) piccola “manopola” per micro-spostamenti senza toccare il resto */
+:root{
+  --actions-offset-x: 0px;   /* + verso il centro, - verso il bordo */
+  --actions-offset-y: 0px;   /* + verso l’alto,  - verso il basso */
+}
+#arena-actions-overlay{
+  right: calc(12px + var(--actions-offset-x));
+  bottom: calc(12px + var(--actions-offset-y));
+}
+
 
 #arena-actions-overlay .action-btn{
   position: absolute;

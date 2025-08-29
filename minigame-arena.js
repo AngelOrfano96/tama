@@ -2230,7 +2230,7 @@ async function gameOver() {
 }
 //////////////////////MOSSE//////////////////////////
 // tienilo in uno scope accessibile sia a useArenaMove che qui
-const CD_MS = { basic_attack: 300, repulse: 2500 }; // <-- imposta qui i tuoi valori
+const CD_MS = { basic_attack: 300, repulse: 3500 }; // <-- imposta qui i tuoi valori
 
 function useArenaMove(p, moveKey) {
   if (!p || !G.playing) return;

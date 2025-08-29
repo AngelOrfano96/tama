@@ -46,7 +46,7 @@
 /* NB: il contenitore overlay NON prende eventi, i figli sì. */
 #arena-joystick-overlay,
 #arena-actions-overlay{
-  position:fixed; z-index:10010; pointer-events:none;
+  position:fixed; z-index:10020; pointer-events:none;
 }
 
 /* Joystick: in basso a sinistra */

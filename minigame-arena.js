@@ -1084,6 +1084,7 @@ function syncHUD(){
   function tryDash() {
     if (G.pet.cdDash > 0) return;
     G.pet.cdDash = Cfg.dashCd;
+    startCooldownUIByKey('dash', CD_MS.dash); // se mappi anche 'dash' in ACTION_BTN_ID
     G.pet.iFrameUntil = performance.now() + Cfg.dashIFrame * 1000;
     // spostino un pochino il pet nella direzione
     const dist = G.tile * 0.9;
@@ -1919,6 +1920,15 @@ function updateCooldownUI(){
   const remDashMs = Math.max(0, (G.pet.cdDash || 0) * 1000);
   setBtnCooldownUI(DOM.btnDash, remDashMs, (Cfg.dashCd || 2.5) * 1000);
 }
+function hydrateActionButtons(){
+  const ids = ['arena-attack-btn','arena-charge-btn','arena-dash-btn'];
+  for (const id of ids){
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.classList.add('action-btn');
+    if (!el.querySelector('.cd')) el.insertAdjacentHTML('beforeend','<div class="cd"></div><div class="cd-txt"></div>');
+  }
+}
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
@@ -1938,6 +1948,7 @@ DOM.joyBase = document.getElementById('arena-joy-base');
 DOM.joyStick= document.getElementById('arena-joy-stick');
 DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
 DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
+hydrateActionButtons();
 // bind del picker SOLO ora che il canvas esiste
 /*if (!DOM._pickerBound && DOM.canvas) {
   // meglio usare pointerdown per catturare sempre
@@ -2230,20 +2241,74 @@ async function gameOver() {
 }
 //////////////////////MOSSE//////////////////////////
 // tienilo in uno scope accessibile sia a useArenaMove che qui
-const CD_MS = { basic_attack: 300, repulse: 3500 }; // <-- imposta qui i tuoi valori
 
+// *** Cooldown config (ms) – tienilo in scope globale ***
+const CD_MS = {
+  basic_attack: 300,
+  repulse: 3500,
+  dash: Math.round((Cfg?.dashCd ?? 2.5) * 1000) // se vuoi usarlo in tryDash
+};
+
+// mappa mossa → id bottone
+const ACTION_BTN_ID = {
+  basic_attack: 'arena-attack-btn',
+  repulse: 'arena-charge-btn',
+  dash: 'arena-dash-btn'
+};
+
+// UI cooldown helper
+function startCooldownUIByKey(moveKey, ms){
+  const id = ACTION_BTN_ID[moveKey];
+  if (!id) return;
+  const el  = document.getElementById(id);
+  if (!el) return;
+
+  const bar = el.querySelector('.cd') || el.querySelector('.arena-cd');
+  const txt = el.querySelector('.cd-txt') || el.querySelector('.arena-cd-txt');
+  if (!bar || !txt) return;
+
+  el.classList.add('on-cd');
+  const t0 = performance.now();
+
+  function tick(){
+    if (!el.isConnected) return; // il bottone non c'è più
+    const elapsed = performance.now() - t0;
+    const k = Math.min(1, elapsed / ms);
+
+    // riempi dall’alto verso il basso (0%→100%)
+    bar.style.height = Math.round(k * 100) + '%';
+
+    const left = Math.max(0, ms - elapsed);
+    // 1 decimale sotto i 10s, intero sopra
+    txt.textContent = left >= 10000 ? String(Math.ceil(left/1000))
+                                    : (left/1000).toFixed(1);
+
+    if (k < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      // reset a fine cooldown
+      el.classList.remove('on-cd');
+      bar.style.height = '0%';
+      txt.textContent = '';
+    }
+  }
+  tick();
+}
+
+// --- FUNZIONE SISTEMATA ---
 function useArenaMove(p, moveKey) {
   if (!p || !G.playing) return;
 
-  // --- cooldown semplice per mossa
+  // cooldown
   const now = performance.now();
   const cd  = (p._cooldowns ??= {});
-  //const CD_MS = { basic_attack: 300, repulse: 1550 };
-  const until = cd[moveKey] || 0;
-  if (now < until) return;               // ancora in cooldown
-  cd[moveKey] = now + (CD_MS[moveKey] || 400);
+  const ms  = CD_MS[moveKey] || 400;
 
-  // --- esegui la mossa e raccogli il risultato
+  if ((cd[moveKey] || 0) > now) return;   // ancora in cooldown
+  cd[moveKey] = now + ms;                 // metti in cooldown
+  startCooldownUIByKey(moveKey, ms);      // avvia overlay UI
+
+  // esegui la mossa
   let res = { damageDealt: 0 };
   switch (moveKey) {
     case 'basic_attack': res = move_basic_attack(p) || res; break;
@@ -2251,13 +2316,13 @@ function useArenaMove(p, moveKey) {
     default:             res = move_basic_attack(p) || res; break;
   }
 
-  // --- aggiorna punteggio se hai fatto danno
+  // punteggio
   if (res.damageDealt > 0) {
-    // stesso schema che usavi: 1 punto + 1 ogni 5 danni
     G.score += 1 + Math.floor(res.damageDealt / 5);
     syncHUD?.();
   }
 }
+
 
 
 // --- Attacco base: cono corto davanti al player
@@ -2351,6 +2416,29 @@ function move_repulse(p) {
   return { damageDealt: total };
 }
 
+function setBtnCooldown(btnEl, ms){
+  if (!btnEl) return;
+  const cd = btnEl.querySelector('.cd');
+  const txt = btnEl.querySelector('.cd-txt');
+  if (!cd || !txt) return;
+
+  btnEl.classList.add('on-cd');
+  const start = performance.now();
+  const dur = Math.max(1, ms);
+  const tick = () => {
+    const t = performance.now() - start;
+    const k = Math.min(1, t / dur);
+    cd.style.height = `${Math.round(k*100)}%`;
+    txt.textContent = `${Math.ceil((dur - t)/1000)}`;
+    if (k < 1) requestAnimationFrame(tick);
+    else {
+      btnEl.classList.remove('on-cd');
+      cd.style.height = '0%';
+      txt.textContent = '';
+    }
+  };
+  tick();
+}
 
 
 // Utility angolo

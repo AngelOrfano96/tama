@@ -1933,6 +1933,19 @@ function hydrateActionButtons(){
     if (!el.querySelector('.cd')) el.insertAdjacentHTML('beforeend','<div class="cd"></div><div class="cd-txt"></div>');
   }
 }
+function positionActionOverlay() {
+  const ov = DOM.actionsOverlay;
+  const cv = DOM.canvas;
+  if (!ov || !cv) return;
+
+  const rect = cv.getBoundingClientRect();
+  // spazio nero a dx e sx perché il canvas è centrato
+  const sideGutter = Math.max(0, (window.innerWidth - rect.width) / 2);
+
+  // 12px di margine dal bordo del canvas
+  ov.style.right = (sideGutter + 12) + 'px';
+  ov.style.bottom = '12px'; // puoi modulare se vuoi salire/scendere
+}
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
@@ -2127,6 +2140,7 @@ setupMobileControlsArena();
 
   await enterFullscreen?.(); // opzionale
   resizeCanvas();
+  positionActionOverlay();
   syncHUD();
   //spawnWave(G.wave);
 
@@ -2497,7 +2511,7 @@ function normalizeAngle(a) {
 //  DOM.btnChg?.addEventListener('click', () => { if (G.playing) tryAttackCharged(); });
 //  DOM.btnDash?.addEventListener('click', () => { if (G.playing) tryDash(); });
 
-  window.addEventListener('resize', () => { if (G.playing) { resizeCanvas(); syncHUD(); } });
+  window.addEventListener('resize', () => { if (G.playing) { resizeCanvas(); positionActionOverlay(); syncHUD(); } });
 })();
 
 

@@ -2170,7 +2170,7 @@ function useArenaMove(p, moveKey) {
   // --- cooldown semplice per mossa
   const now = performance.now();
   const cd  = (p._cooldowns ??= {});
-  const CD_MS = { basic_attack: 300, repulse: 900 };
+  const CD_MS = { basic_attack: 300, repulse: 1550 };
   const until = cd[moveKey] || 0;
   if (now < until) return;               // ancora in cooldown
   cd[moveKey] = now + (CD_MS[moveKey] || 400);

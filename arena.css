@@ -2,7 +2,7 @@
 #arena-minigame-modal{
   position:fixed; inset:0;
   display:flex; align-items:center; justify-content:center;
-  background:rgba(0, 0, 0, 0.781);
+  background:rgba(0, 0, 0, 0.952);
   z-index:10000;
 }
 #arena-minigame-modal.hidden{ display:none !important; }
@@ -46,7 +46,7 @@
 /* NB: il contenitore overlay NON prende eventi, i figli sì. */
 #arena-joystick-overlay,
 #arena-actions-overlay{
-  position:fixed; z-index:10020; pointer-events:none;
+  position:fixed; z-index:10030; pointer-events:none;
 }
 
 /* Joystick: in basso a sinistra */

@@ -2001,8 +2001,18 @@ ctx = DOM.canvas.getContext('2d');
   // (facoltativo) mostra il nome mossa sui bottoni
   const btnA = document.getElementById('arena-attack-btn');
   const btnB = document.getElementById('arena-charge-btn');
-  if (btnA) btnA.textContent = prettifyName(moveA);
-  if (btnB) btnB.textContent = prettifyName(moveB);
+  const setBtnLabel = (btn, txt) => {
+  let span = btn.querySelector('.lbl');
+  if (!span) {
+    span = document.createElement('span');
+    span.className = 'lbl';
+    btn.insertBefore(span, btn.firstChild);
+  }
+  span.textContent = txt;
+};
+
+setBtnLabel(btnA, prettifyName(moveA));
+setBtnLabel(btnB, prettifyName(moveB));
    // ✅ qui inserisci la guardia
 if (!DOM._abBound) {
   const bindAction = (el, handler) => {

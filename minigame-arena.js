@@ -1939,13 +1939,14 @@ function positionActionOverlay() {
   if (!ov || !cv) return;
 
   const rect = cv.getBoundingClientRect();
-  // spazio nero a dx e sx perché il canvas è centrato
-  const sideGutter = Math.max(0, (window.innerWidth - rect.width) / 2);
+  const gutter = Math.max(0, (window.innerWidth - rect.width) / 2);
 
-  // 12px di margine dal bordo del canvas
-  ov.style.right = (sideGutter + 12) + 'px';
-  ov.style.bottom = '12px'; // puoi modulare se vuoi salire/scendere
+  // pulisci qualsiasi left e usa solo right
+  ov.style.setProperty('left', 'auto', 'important');
+  ov.style.setProperty('right', (gutter + 12) + 'px', 'important');
+  ov.style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 12px)';
 }
+
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {

@@ -68,43 +68,7 @@
   pointer-events:none;
 }
 
-/* Bottoni: in basso a destra, triangolo compatto */
-#arena-actions-overlay{
-  right:max(16px, env(safe-area-inset-right));
-  bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
-  width:180px; height:180px;
-}
-#arena-actions-overlay .action-triangle{
-  position:relative; width:100%; height:100%;
-}
 
-:root{ --arena-btn: clamp(54px, 12vw, 64px); --arena-gap: 10px; }
-
-.arena-action-btn{
-  position:absolute;
-  width:var(--arena-btn); height:var(--arena-btn);
-  border-radius:50%;
-  border:2px solid rgba(255,255,255,.25);
-  background:rgba(17,25,40,.75);
-  color:#fff; font-weight:700; font-size:18px;
-  box-shadow:0 8px 24px rgba(0,0,0,.35);
-  backdrop-filter:blur(6px);
-  pointer-events:auto; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
-}
-.arena-action-btn:active{ transform:scale(.96); }
-
-.arena-action-btn.btn-a{
-  left: calc(50% - var(--arena-btn) - var(--arena-gap));
-  top:  calc(50% + var(--arena-btn)/2);
-}
-.arena-action-btn.btn-b{
-  left: calc(50% + var(--arena-gap));
-  top:  calc(50% + var(--arena-btn)/2);
-}
-.arena-action-btn.btn-dash{
-  left: calc(50% - var(--arena-btn)/2);
-  top:  calc(50% - var(--arena-btn) - var(--arena-gap));
-}
 
 /* Desktop: nascondi controlli mobili */
 @media (min-width:851px){
@@ -228,7 +192,18 @@
 }
 
 /* stato disabilitato/ cooldown (se lo usi) */
-#arena-actions-overlay .action-btn.is-disabled{
-  opacity: 0.55;
-  filter: grayscale(0.4);
+/* --- Cooldown overlay per bottoni (versione aggiornata) --- */
+#arena-actions-overlay .action-btn { position: relative; overflow: hidden; }
+#arena-actions-overlay .action-btn .cd {
+  position: absolute; inset: 0;
+  background: rgba(236, 222, 17, 0.45);
+  height: 0%;
+  pointer-events: none;
+  transition: height 80ms linear;
 }
+#arena-actions-overlay .action-btn .cd-txt{
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.45);
+  pointer-events: none; opacity: 0; transition: opacity 120ms ease;
+}
+#arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity: 1; }

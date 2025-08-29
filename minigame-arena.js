@@ -1878,10 +1878,11 @@ function prettifyName(key) {
     repulse: 'Repulsione'
   })[key] || key.replace(/_/g, ' ');
 }
+// sostituisci la tua setBtnCooldownUI con questa
 function setBtnCooldownUI(btn, remainingMs, totalMs){
   if (!btn) return;
-  const ov  = btn.querySelector('.arena-cd');
-  const txt = btn.querySelector('.arena-cd-txt');
+  const ov  = btn.querySelector('.cd')      || btn.querySelector('.arena-cd');
+  const txt = btn.querySelector('.cd-txt')  || btn.querySelector('.arena-cd-txt');
   if (!ov || !txt) return;
 
   const r = Math.max(0, remainingMs);
@@ -1896,10 +1897,13 @@ function setBtnCooldownUI(btn, remainingMs, totalMs){
   const k = Math.max(0, Math.min(1, r / Math.max(1, totalMs)));
   ov.style.height = `${k * 100}%`;
 
-  // mostra tempo rimanente in secondi (una cifra decimale se > 1s, altrimenti decimi)
   const secs = r / 1000;
-  txt.textContent = secs >= 1 ? secs.toFixed(1) : (Math.ceil(secs * 10) / 10).toFixed(1);
+  txt.textContent = secs >= 10 ? String(Math.ceil(secs))
+                               : secs.toFixed(1);
 }
+
+
+
 
 function updateCooldownUI(){
   const now = performance.now();
@@ -1957,18 +1961,11 @@ hydrateActionButtons();
   // debug utile:
   console.log('[Picker] bound on canvas. ATLAS_TILE =', ATLAS_TILE);
 }*/
+// cerca prima .cd/.cd-txt; se non ci sono li crea
 function ensureCooldownOverlay(btn){
   if (!btn) return;
-  if (btn.querySelector('.arena-cd')) return;
-
-  const ov  = document.createElement('div');
-  ov.className = 'arena-cd';
-  const txt = document.createElement('div');
-  txt.className = 'arena-cd-txt';
-  txt.textContent = '';
-
-  btn.appendChild(ov);
-  btn.appendChild(txt);
+  if (btn.querySelector('.cd, .arena-cd')) return; // già presente
+  btn.insertAdjacentHTML('beforeend','<div class="cd"></div><div class="cd-txt"></div>');
 }
 
 function installCooldownOverlays(){

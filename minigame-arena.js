@@ -1720,6 +1720,7 @@ function renderGates(){
 
     update(dt);
     render();
+    if (isMobile) updateCooldownUI();
     requestAnimationFrame(loop);
   }
 
@@ -1876,6 +1877,48 @@ function prettifyName(key) {
     repulse: 'Repulsione'
   })[key] || key.replace(/_/g, ' ');
 }
+function setBtnCooldownUI(btn, remainingMs, totalMs){
+  if (!btn) return;
+  const ov  = btn.querySelector('.arena-cd');
+  const txt = btn.querySelector('.arena-cd-txt');
+  if (!ov || !txt) return;
+
+  const r = Math.max(0, remainingMs);
+  if (r <= 0) {
+    btn.classList.remove('on-cd');
+    ov.style.height = '0%';
+    txt.textContent = '';
+    return;
+  }
+
+  btn.classList.add('on-cd');
+  const k = Math.max(0, Math.min(1, r / Math.max(1, totalMs)));
+  ov.style.height = `${k * 100}%`;
+
+  // mostra tempo rimanente in secondi (una cifra decimale se > 1s, altrimenti decimi)
+  const secs = r / 1000;
+  txt.textContent = secs >= 1 ? secs.toFixed(1) : (Math.ceil(secs * 10) / 10).toFixed(1);
+}
+
+function updateCooldownUI(){
+  const now = performance.now();
+
+  // A
+  const keyA = G?.playerMoves?.A || 'basic_attack';
+  const untilA = G.pet._cooldowns?.[keyA] || 0;
+  const remA = Math.max(0, untilA - now);
+  setBtnCooldownUI(DOM.btnAtk, remA, CD_MS[keyA] || 400);
+
+  // B
+  const keyB = G?.playerMoves?.B || 'repulse';
+  const untilB = G.pet._cooldowns?.[keyB] || 0;
+  const remB = Math.max(0, untilB - now);
+  setBtnCooldownUI(DOM.btnChg, remB, CD_MS[keyB] || 400);
+
+  // Dash (usa i tuoi secondi → ms)
+  const remDashMs = Math.max(0, (G.pet.cdDash || 0) * 1000);
+  setBtnCooldownUI(DOM.btnDash, remDashMs, (Cfg.dashCd || 2.5) * 1000);
+}
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
@@ -1903,6 +1946,28 @@ DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
   // debug utile:
   console.log('[Picker] bound on canvas. ATLAS_TILE =', ATLAS_TILE);
 }*/
+function ensureCooldownOverlay(btn){
+  if (!btn) return;
+  if (btn.querySelector('.arena-cd')) return;
+
+  const ov  = document.createElement('div');
+  ov.className = 'arena-cd';
+  const txt = document.createElement('div');
+  txt.className = 'arena-cd-txt';
+  txt.textContent = '';
+
+  btn.appendChild(ov);
+  btn.appendChild(txt);
+}
+
+function installCooldownOverlays(){
+  ensureCooldownOverlay(DOM.btnAtk);
+  ensureCooldownOverlay(DOM.btnChg);
+  ensureCooldownOverlay(DOM.btnDash);
+}
+
+installCooldownOverlays();
+
 
 if (!DOM.canvas) { console.error('[Arena] canvas mancante'); return; }
 ctx = DOM.canvas.getContext('2d');
@@ -2164,13 +2229,16 @@ async function gameOver() {
   G.keys.clear();
 }
 //////////////////////MOSSE//////////////////////////
+// tienilo in uno scope accessibile sia a useArenaMove che qui
+const CD_MS = { basic_attack: 300, repulse: 1550 }; // <-- imposta qui i tuoi valori
+
 function useArenaMove(p, moveKey) {
   if (!p || !G.playing) return;
 
   // --- cooldown semplice per mossa
   const now = performance.now();
   const cd  = (p._cooldowns ??= {});
-  const CD_MS = { basic_attack: 300, repulse: 1550 };
+  //const CD_MS = { basic_attack: 300, repulse: 1550 };
   const until = cd[moveKey] || 0;
   if (now < until) return;               // ancora in cooldown
   cd[moveKey] = now + (CD_MS[moveKey] || 400);

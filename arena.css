@@ -140,3 +140,36 @@
 #arena-joystick-overlay {
   pointer-events: none; /* gli elementi interattivi interni (joy-base, bottoni) devono avere pointer-events:auto */
 }
+
+
+/* --- Cooldown overlay per bottoni --- */
+.arena-action-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.arena-cd {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  height: 0%;             /* viene aggiornato via JS */
+  pointer-events: none;
+  transition: height 80ms linear;
+}
+
+.arena-cd-txt {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.45);
+  pointer-events: none;
+  opacity: 0;             /* visibile solo quando in cooldown */
+  transition: opacity 120ms ease;
+}
+
+.arena-action-btn.on-cd .arena-cd-txt {
+  opacity: 1;
+}

@@ -151,7 +151,7 @@
 .arena-cd {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,.45);
+  background: rgba(236, 222, 17, 0.45);
   height: 0%;             /* viene aggiornato via JS */
   pointer-events: none;
   transition: height 80ms linear;
@@ -172,4 +172,63 @@
 
 .arena-action-btn.on-cd .arena-cd-txt {
   opacity: 1;
+}
+
+/* ---- ACTIONS OVERLAY (mobile) ---- */
+:root{
+  /* scala responsive */
+  --actions-box: clamp(180px, 34vw, 240px);  /* quadrato che contiene il triangolo */
+  --action-size: clamp(56px, 9vw, 76px);     /* diametro dei tasti */
+  --action-gap:  15%;                        /* quanto “apre” il triangolo */
+}
+
+#arena-actions-overlay{
+  position: fixed;
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  width: var(--actions-box);
+  height: var(--actions-box);
+  z-index: 10000;
+  pointer-events: none;        /* i figli riattivano */
+  touch-action: none;          /* niente pinch/scroll qui sopra */
+}
+
+#arena-actions-overlay .action-btn{
+  position: absolute;
+  width: var(--action-size);
+  height: var(--action-size);
+  border-radius: 9999px;
+  background: rgba(20,22,27,0.85);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  color: #e6e7eb;
+  font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  pointer-events: auto;        /* riattiva sui bottoni */
+  touch-action: manipulation;  /* riduce ritardi su tap */
+}
+
+/* Posizioni a triangolo (↘️) */
+#arena-attack-btn{            /* destro centrale */
+  right: 0;
+  top: 50%;
+  transform: translate(0, -50%);
+}
+#arena-charge-btn{            /* alto-sinistra */
+  right: calc(28% + var(--action-gap));
+  top:   calc(15% - var(--action-gap));
+  transform: translate(50%, -50%);
+}
+#arena-dash-btn{              /* basso-sinistra */
+  right: calc(28% + var(--action-gap));
+  bottom: calc(15% - var(--action-gap));
+  transform: translate(50%, 50%);
+}
+
+/* stato disabilitato/ cooldown (se lo usi) */
+#arena-actions-overlay .action-btn.is-disabled{
+  opacity: 0.55;
+  filter: grayscale(0.4);
 }

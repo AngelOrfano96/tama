@@ -106,13 +106,13 @@
 }
 
 
-/* === ACTIONS (mobile) – layout a croce tipo PlayStation === */
+/* === ACTIONS (mobile) – layout a croce tipo PlayStation (robusto) === */
 :root{
-  --actions-box: clamp(180px, 34vw, 240px);     /* lato del quadrato overlay  */
-  --action-size: clamp(56px, 9vw, 76px);        /* diametro bottoni           */
-  --actions-offset-x: 0px;                      /* + verso il centro          */
-  --actions-offset-y: 48px;                     /* ↑ alza il gruppo dal fondo */
-  --spread: calc(var(--action-size) * 1.25);    /* raggio della croce         */
+  --actions-box: clamp(180px, 34vw, 240px);
+  --action-size: clamp(56px, 9vw, 76px);
+  --actions-offset-x: 0px;        /* + verso il centro, - verso il bordo */
+  --actions-offset-y: 48px;       /* ↑ alza il gruppo dal fondo          */
+  --spread: calc(var(--action-size) * 1.25); /* raggio della croce        */
 }
 
 #arena-actions-overlay{
@@ -126,7 +126,6 @@
   touch-action: none;
 }
 
-/* stile base dei bottoni + reset posizioni */
 #arena-actions-overlay .action-btn{
   position: absolute;
   width: var(--action-size);
@@ -143,14 +142,12 @@
   pointer-events: auto;
   touch-action: manipulation;
 
-  /* centro TUTTI i bottoni al centro dell'overlay */
-  left: 50% !important;
-  top:  50% !important;
-  right: auto !important;
-  bottom: auto !important;
-  transform: translate(-50%, -50%) !important;
+  /* Centro TUTTI i bottoni e applico offset via variabili */
+  left: 50%;
+  top: 50%;
+  transform: translate(calc(-50% + var(--ox, 0px)), calc(-50% + var(--oy, 0px)));
 
-  /* cooldown overlay */
+  /* cooldown UI */
   overflow: hidden;
 }
 #arena-actions-overlay .action-btn .cd{
@@ -165,10 +162,11 @@
 }
 #arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity:1; }
 
-/* ── Offset a croce dal centro (non verranno mai “in colonna”) ── */
-#arena-attack-btn{  transform: translate(calc(-50% +  var(--spread)), -50%) !important; } /* destra */
-#arena-charge-btn{  transform: translate(-50%, calc(-50% - var(--spread))) !important; }  /* su     */
-#arena-dash-btn{    transform: translate(-50%, calc(-50% + var(--spread))) !important; }  /* giù    */
-#arena-skill-btn{   transform: translate(calc(-50% -  var(--spread)), -50%) !important; } /* sinistra (opz.) */
+/* Offsets a croce dal centro (nessuna !important necessaria) */
+#arena-attack-btn{ --ox:  var(--spread); --oy: 0; }              /* destra  */
+#arena-charge-btn{ --ox:  0;            --oy: calc(-1*var(--spread)); } /* su      */
+#arena-dash-btn  { --ox:  0;            --oy:  var(--spread); }  /* giù     */
+#arena-skill-btn { --ox: calc(-1*var(--spread)); --oy: 0; }      /* sinistra (opz.) */
+
 
 

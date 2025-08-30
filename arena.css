@@ -133,7 +133,7 @@
 }
 #arena-actions-overlay{
   right: calc(12px + var(--actions-offset-x));
-  bottom: calc(25px + var(--actions-offset-y));
+  bottom: calc(12px + var(--actions-offset-y));
 }
 
 

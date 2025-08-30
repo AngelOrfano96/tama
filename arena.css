@@ -129,7 +129,7 @@
 /* (opzionale) piccola “manopola” per micro-spostamenti senza toccare il resto */
 :root{
   --actions-offset-x: 0px;   /* + verso il centro, - verso il bordo */
-  --actions-offset-y: 0px;   /* + verso l’alto,  - verso il basso */
+  --actions-offset-y: 30px;   /* + verso l’alto,  - verso il basso */
 }
 #arena-actions-overlay{
   right: calc(12px + var(--actions-offset-x));
@@ -260,4 +260,13 @@
 #arena-dash-btn{
   right: var(--spread);
   top: calc(50% + var(--spread));
+}
+
+
+/* quarto tasto: diagonale in basso a destra del gruppo */
+#arena-skill-btn{
+  /* leggermente più verso l’angolo rispetto al “dash” */
+  right: 8%;
+  bottom: 6%;
+  transform: translate(50%, 50%);
 }

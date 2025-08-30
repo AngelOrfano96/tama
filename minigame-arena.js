@@ -1925,7 +1925,7 @@ function updateCooldownUI(){
   setBtnCooldownUI(DOM.btnDash, remDashMs, (Cfg.dashCd || 2.5) * 1000);
 }
 function hydrateActionButtons(){
-  const ids = ['arena-attack-btn','arena-charge-btn','arena-dash-btn'];
+  const ids = ['arena-attack-btn','arena-charge-btn','arena-dash-btn','arena-skill-btn'];
   for (const id of ids){
     const el = document.getElementById(id);
     if (!el) continue;

@@ -111,7 +111,7 @@
   /* scala responsive */
   --actions-box: clamp(180px, 34vw, 240px);  /* quadrato che contiene il triangolo */
   --action-size: clamp(56px, 9vw, 76px);     /* diametro dei tasti */
-  --action-gap:  15%;                        /* quanto “apre” il triangolo */
+   --actions-offset-y: 42px;                  /* ↑ alza il gruppo dal fondo  */
 }
 
 /* Bloccali davvero all’angolo */
@@ -295,3 +295,73 @@
   top: 50%;
   transform: translate(0, -50%);
 }
+#arena-actions-overlay{
+  position: fixed;
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--actions-offset-y));
+  width: var(--actions-box);
+  height: var(--actions-box);
+  z-index: 10030;
+  pointer-events: none;
+  touch-action: none;
+}
+
+/* stile base dei bottoni (non cambiare) */
+#arena-actions-overlay .action-btn{
+  position: absolute;
+  width: var(--action-size);
+  height: var(--action-size);
+  border-radius: 9999px;
+  background: rgba(20,22,27,0.85);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  color: #e6e7eb;
+  font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  pointer-events: auto;
+  touch-action: manipulation;
+
+  /* 🧼 reset di qualunque posizionamento precedente */
+  top:auto; right:auto; bottom:auto; left:auto; transform:none;
+}
+
+/* ✚ Croce simmetrica ----------------------------------------------- */
+/* destra (Attacco) */
+#arena-attack-btn{
+  right: 0;
+  top: 50%;
+  transform: translate(0, -50%);
+}
+/* sinistra (Skill / nuova mossa) */
+#arena-skill-btn{
+  left: 0;
+  top: 50%;
+  transform: translate(0, -50%);
+}
+/* sopra (Repulsione) */
+#arena-charge-btn{
+  right: 50%;
+  top: 0;
+  transform: translate(50%, 0);
+}
+/* sotto (Dash) */
+#arena-dash-btn{
+  right: 50%;
+  bottom: 0;
+  transform: translate(50%, 0);
+}
+
+/* cooldown overlay già ok: (se lo usi) */
+#arena-actions-overlay .action-btn { position: relative; overflow: hidden; }
+#arena-actions-overlay .action-btn .cd{
+  position:absolute; inset:0; background:rgba(236,222,17,0.45);
+  height:0%; pointer-events:none; transition:height 80ms linear;
+}
+#arena-actions-overlay .action-btn .cd-txt{
+  position:absolute; inset:0; display:grid; place-items:center;
+  font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(232,255,20,.75);
+  pointer-events:none; opacity:0; transition:opacity 120ms ease;
+}
+#arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity:1; }

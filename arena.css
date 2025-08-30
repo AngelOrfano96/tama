@@ -195,3 +195,21 @@
   right: 12px;             /* base, poi il JS la sovrascrive */
   bottom: 12px;
 }
+
+
+
+/* ► FISSA l’overlay in basso a destra e annulla qualsiasi 'left' rimasto */
+#arena-actions-overlay{
+  position: fixed !important;
+  left: auto !important;        /* <- se c’era un left da qualche parte, lo spegne */
+  right: 12px !important;
+  bottom: 12px !important;
+  width: var(--actions-box);
+  height: var(--actions-box);
+  z-index: 10030;
+  pointer-events: none;
+  touch-action: none;
+}
+
+/* (debug temporaneo)
+#arena-actions-overlay{ outline: 1px dashed rgba(255,0,0,.5); } */

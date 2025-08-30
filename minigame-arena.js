@@ -1938,12 +1938,13 @@ function positionActionOverlay() {
   const cv = DOM.canvas;
   if (!ov || !cv) return;
 
-  const rect = cv.getBoundingClientRect();
+  const rect   = cv.getBoundingClientRect();
   const gutter = Math.max(0, (window.innerWidth - rect.width) / 2);
 
-  // pulisci qualsiasi left e usa solo right
-  ov.style.setProperty('left', 'auto', 'important');
-  ov.style.setProperty('right', (gutter + 12) + 'px', 'important');
+  // reset totale dei lati opposti, poi usa solo 'right'
+  ov.style.left = 'auto';
+  ov.style.top = '';
+  ov.style.right  = Math.round(gutter + 12) + 'px';
   ov.style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 12px)';
 }
 

@@ -106,262 +106,67 @@
 }
 
 
-/* ---- ACTIONS OVERLAY (mobile) ---- */
+/* === ACTIONS (mobile) — versione pulita a croce tipo PlayStation ========== */
 :root{
-  /* scala responsive */
-  --actions-box: clamp(180px, 34vw, 240px);  /* quadrato che contiene il triangolo */
-  --action-size: clamp(56px, 9vw, 76px);     /* diametro dei tasti */
-   --actions-offset-y: 42px;                  /* ↑ alza il gruppo dal fondo  */
+  --actions-box: clamp(180px, 34vw, 240px);   /* lato del quadrato overlay   */
+  --action-size: clamp(56px, 9vw, 76px);      /* diametro dei bottoni        */
+  --actions-offset-x: 0px;                    /* + verso il centro, - verso il bordo */
+  --actions-offset-y: 42px;                   /* ↑ alza il gruppo dal fondo          */
 }
 
-/* Bloccali davvero all’angolo */
 #arena-actions-overlay{
   position: fixed;
-  right: 12px;            /* ← niente env() */
-  bottom: 12px;           /* ← niente env() */
+  right: calc(env(safe-area-inset-right, 0px) + 12px + var(--actions-offset-x));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px + var(--actions-offset-y));
   width: var(--actions-box);
   height: var(--actions-box);
   z-index: 10030;
-  pointer-events: none;
+  pointer-events: none;   /* i figli riattivano */
   touch-action: none;
 }
 
-/* (opzionale) piccola “manopola” per micro-spostamenti senza toccare il resto */
-:root{
-  --actions-offset-x: 0px;   /* + verso il centro, - verso il bordo */
-  --actions-offset-y: 30px;   /* + verso l’alto,  - verso il basso */
-}
-#arena-actions-overlay{
-  right: calc(12px + var(--actions-offset-x));
-  bottom: calc(12px + var(--actions-offset-y));
-}
-
-
+/* stile base bottoni */
 #arena-actions-overlay .action-btn{
   position: absolute;
   width: var(--action-size);
   height: var(--action-size);
   border-radius: 9999px;
-  background: rgba(20,22,27,0.85);
-  border: 1px solid rgba(255,255,255,0.15);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  background: rgba(20,22,27,.85);
+  border: 1px solid rgba(255,255,255,.15);
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
   color: #e6e7eb;
-  font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  display: flex; align-items: center; justify-content: center;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  pointer-events: auto;        /* riattiva sui bottoni */
-  touch-action: manipulation;  /* riduce ritardi su tap */
-}
-
-/* Posizioni a triangolo (↘️) */
-#arena-attack-btn{            /* destro centrale */
-  right: 0;
-  top: 50%;
-  transform: translate(0, -50%);
-}
-#arena-charge-btn{            /* alto-sinistra */
-  right: calc(28% + var(--action-gap));
-  top:   calc(15% - var(--action-gap));
-  transform: translate(50%, -50%);
-}
-#arena-dash-btn{              /* basso-sinistra */
-  right: calc(28% + var(--action-gap));
-  bottom: calc(15% - var(--action-gap));
-  transform: translate(50%, 50%);
-}
-
-/* stato disabilitato/ cooldown (se lo usi) */
-/* --- Cooldown overlay per bottoni (versione aggiornata) --- */
-#arena-actions-overlay .action-btn { position: relative; overflow: hidden; }
-#arena-actions-overlay .action-btn .cd {
-  position: absolute; inset: 0;
-  background: rgba(236, 222, 17, 0.45);
-  height: 0%;
-  pointer-events: none;
-  transition: height 80ms linear;
-}
-#arena-actions-overlay .action-btn .cd-txt{
-  position: absolute; inset: 0; display: grid; place-items: center;
-  font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(232, 255, 20, 0.753);
-  pointer-events: none; opacity: 0; transition: opacity 120ms ease;
-}
-#arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity: 1; }
-
-
-/* forza il posizionamento sul bordo destro del canvas/schermo */
-#arena-actions-overlay{
-  left: auto !important;   /* <-- cancella qualsiasi left residuo */
-  right: 12px;             /* base, poi il JS la sovrascrive */
-  bottom: 12px;
-}
-
-
-
-/* ► FISSA l’overlay in basso a destra e annulla qualsiasi 'left' rimasto */
-#arena-actions-overlay{
-  position: fixed !important;
-  left: auto !important;        /* <- se c’era un left da qualche parte, lo spegne */
-  right: 12px !important;
-  bottom: 12px !important;
-  width: var(--actions-box);
-  height: var(--actions-box);
-  z-index: 10030;
-  pointer-events: none;
-  touch-action: none;
-}
-
-/* (debug temporaneo)
-#arena-actions-overlay{ outline: 1px dashed rgba(255,0,0,.5); } */
-
-
-/* ── Overlay: sempre in basso-destra dello SCHERMO ───────────────── */
-#arena-actions-overlay{
-  position: fixed !important;
-  left: auto !important;
-  right: 12px !important;
-  bottom: calc(env(safe-area-inset-bottom,0px) + 12px) !important;
-  width: clamp(200px, 32vw, 260px);
-  height: clamp(200px, 32vw, 260px);
-  z-index: 10030;
-  pointer-events: none;
-  touch-action: none;
-}
-
-/* Bottoni: niente trasformazioni strane, triangolo semplice */
-#arena-actions-overlay .action-btn{
-  position: absolute;
-  width: var(--action-size);
-  height: var(--action-size);
-  transform: none !important;   /* <— spegne translate(...) precedenti */
-  pointer-events: auto;
-}
-
-/* Geometria del triangolo (⚫ Attacco a destra, gli altri due a sinistra) */
-:root{
-  --action-size: clamp(56px, 9vw, 76px);
-  --spread: calc(var(--action-size) * 1.15);   /* apertura del triangolo */
-}
-
-/* Attacco: a metà altezza, tutto a destra */
-#arena-attack-btn{
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%) !important;   /* solo centratura verticale */
-}
-
-/* Repulsione: in alto-sinistra rispetto ad Attacco */
-#arena-charge-btn{
-  right: var(--spread);
-  top: calc(50% - var(--spread));
-}
-
-/* Dash: in basso-sinistra rispetto ad Attacco */
-#arena-dash-btn{
-  right: var(--spread);
-  top: calc(50% + var(--spread));
-}
-
-
-/* quarto tasto: diagonale in basso a destra del gruppo */
-#arena-skill-btn{
-  /* leggermente più verso l’angolo rispetto al “dash” */
-  right: 8%;
-  bottom: 6%;
-  transform: translate(50%, 50%);
-}
-
-/* === Layout a croce (stile PlayStation) === */
-#arena-attack-btn {
-  right: 0;
-  top: 50%;
-  transform: translate(0, -50%);
-}
-
-#arena-charge-btn {
-  right: 50%;
-  top: 0;
-  transform: translate(50%, 0);
-}
-
-#arena-dash-btn {
-  right: 50%;
-  bottom: 0;
-  transform: translate(50%, 0);
-}
-
-#arena-skill-btn {
-  left: 0;
-  top: 50%;
-  transform: translate(0, -50%);
-}
-#arena-actions-overlay{
-  position: fixed;
-  right: calc(env(safe-area-inset-right, 0px) + 12px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--actions-offset-y));
-  width: var(--actions-box);
-  height: var(--actions-box);
-  z-index: 10030;
-  pointer-events: none;
-  touch-action: none;
-}
-
-/* stile base dei bottoni (non cambiare) */
-#arena-actions-overlay .action-btn{
-  position: absolute;
-  width: var(--action-size);
-  height: var(--action-size);
-  border-radius: 9999px;
-  background: rgba(20,22,27,0.85);
-  border: 1px solid rgba(255,255,255,0.15);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-  color: #e6e7eb;
-  font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font: 600 14px/1 system-ui,-apple-system, Segoe UI, Roboto, Arial;
   display: flex; align-items: center; justify-content: center;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   pointer-events: auto;
   touch-action: manipulation;
 
-  /* 🧼 reset di qualunque posizionamento precedente */
+  /* reset di qualsiasi posizionamento precedente */
   top:auto; right:auto; bottom:auto; left:auto; transform:none;
 }
 
-/* ✚ Croce simmetrica ----------------------------------------------- */
-/* destra (Attacco) */
-#arena-attack-btn{
-  right: 0;
-  top: 50%;
-  transform: translate(0, -50%);
-}
-/* sinistra (Skill / nuova mossa) */
-#arena-skill-btn{
-  left: 0;
-  top: 50%;
-  transform: translate(0, -50%);
-}
-/* sopra (Repulsione) */
-#arena-charge-btn{
-  right: 50%;
-  top: 0;
-  transform: translate(50%, 0);
-}
-/* sotto (Dash) */
-#arena-dash-btn{
-  right: 50%;
-  bottom: 0;
-  transform: translate(50%, 0);
-}
+/* ✚ Layout a croce --------------------------------------------------------- */
+/* destra = Attacco */
+#arena-attack-btn{ right:0; top:50%; transform:translate(0,-50%); }
+/* su = Repulsione */
+#arena-charge-btn{ right:50%; top:0; transform:translate(50%,0); }
+/* giù = Dash */
+#arena-dash-btn  { right:50%; bottom:0; transform:translate(50%,0); }
+/* sinistra = Skill (facoltativo, puoi tenerlo anche vuoto per ora) */
+#arena-skill-btn { left:0; top:50%; transform:translate(0,-50%); }
 
-/* cooldown overlay già ok: (se lo usi) */
-#arena-actions-overlay .action-btn { position: relative; overflow: hidden; }
+/* Cooldown overlay (se usi la UI di cooldown) */
+#arena-actions-overlay .action-btn{ position:relative; overflow:hidden; }
 #arena-actions-overlay .action-btn .cd{
-  position:absolute; inset:0; background:rgba(236,222,17,0.45);
+  position:absolute; inset:0;
+  background:rgba(236,222,17,.45);
   height:0%; pointer-events:none; transition:height 80ms linear;
 }
 #arena-actions-overlay .action-btn .cd-txt{
   position:absolute; inset:0; display:grid; place-items:center;
   font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(232,255,20,.75);
-  pointer-events:none; opacity:0; transition:opacity 120ms ease;
+  pointer-events:none; opacity:0; transition:opacity .12s ease;
 }
 #arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity:1; }
+

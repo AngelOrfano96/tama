@@ -1935,18 +1935,12 @@ function hydrateActionButtons(){
 }
 function positionActionOverlay() {
   const ov = DOM.actionsOverlay;
-  const cv = DOM.canvas;
-  if (!ov || !cv) return;
-
-  const rect   = cv.getBoundingClientRect();
-  const gutter = Math.max(0, (window.innerWidth - rect.width) / 2);
-
-  // reset totale dei lati opposti, poi usa solo 'right'
+  if (!ov) return;
   ov.style.left = 'auto';
-  ov.style.top = '';
-  ov.style.right  = Math.round(gutter + 12) + 'px';
+  ov.style.right = '12px';  // niente gutter
   ov.style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 12px)';
 }
+
 
 
   // ---------- Start / End ----------

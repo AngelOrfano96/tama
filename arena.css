@@ -213,3 +213,51 @@
 
 /* (debug temporaneo)
 #arena-actions-overlay{ outline: 1px dashed rgba(255,0,0,.5); } */
+
+
+/* ── Overlay: sempre in basso-destra dello SCHERMO ───────────────── */
+#arena-actions-overlay{
+  position: fixed !important;
+  left: auto !important;
+  right: 12px !important;
+  bottom: calc(env(safe-area-inset-bottom,0px) + 12px) !important;
+  width: clamp(200px, 32vw, 260px);
+  height: clamp(200px, 32vw, 260px);
+  z-index: 10030;
+  pointer-events: none;
+  touch-action: none;
+}
+
+/* Bottoni: niente trasformazioni strane, triangolo semplice */
+#arena-actions-overlay .action-btn{
+  position: absolute;
+  width: var(--action-size);
+  height: var(--action-size);
+  transform: none !important;   /* <— spegne translate(...) precedenti */
+  pointer-events: auto;
+}
+
+/* Geometria del triangolo (⚫ Attacco a destra, gli altri due a sinistra) */
+:root{
+  --action-size: clamp(56px, 9vw, 76px);
+  --spread: calc(var(--action-size) * 1.15);   /* apertura del triangolo */
+}
+
+/* Attacco: a metà altezza, tutto a destra */
+#arena-attack-btn{
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) !important;   /* solo centratura verticale */
+}
+
+/* Repulsione: in alto-sinistra rispetto ad Attacco */
+#arena-charge-btn{
+  right: var(--spread);
+  top: calc(50% - var(--spread));
+}
+
+/* Dash: in basso-sinistra rispetto ad Attacco */
+#arena-dash-btn{
+  right: var(--spread);
+  top: calc(50% + var(--spread));
+}

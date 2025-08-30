@@ -106,15 +106,16 @@
 }
 
 
-/* === ACTIONS (mobile) – layout a croce tipo PlayStation (robusto) === */
+/* === ACTIONS (mobile) — layout a croce tipo PlayStation ========== */
 :root{
-  --actions-box: clamp(180px, 34vw, 240px);
-  --action-size: clamp(56px, 9vw, 76px);
-  --actions-offset-x: 0px;        /* + verso il centro, - verso il bordo */
-  --actions-offset-y: 48px;       /* ↑ alza il gruppo dal fondo          */
-  --spread: calc(var(--action-size) * 1.25); /* raggio della croce        */
+  --actions-box: clamp(180px, 34vw, 240px); /* lato del quadrato invisibile */
+  --action-size: clamp(56px, 9vw, 76px);    /* diametro bottoni             */
+  --actions-offset-x: 0px;                  /* + verso il centro            */
+  --actions-offset-y: 48px;                 /* ↑ alza il gruppo dal fondo   */
+  --spread: calc(var(--action-size) * 1.25);/* raggio della croce           */
 }
 
+/* Contenitore fisso in basso-destra (non blocca i tocchi) */
 #arena-actions-overlay{
   position: fixed;
   right: calc(env(safe-area-inset-right, 0px) + 12px + var(--actions-offset-x));
@@ -122,14 +123,17 @@
   width: var(--actions-box);
   height: var(--actions-box);
   z-index: 10030;
-  pointer-events: none;
+  pointer-events: none;     /* i figli riattivano */
   touch-action: none;
 }
 
+/* Stile base di TUTTI i bottoni + centratura assoluta */
 #arena-actions-overlay .action-btn{
   position: absolute;
+  left: 50%; top: 50%;
   width: var(--action-size);
   height: var(--action-size);
+  transform: translate(calc(-50% + var(--ox,0px)), calc(-50% + var(--oy,0px)));
   border-radius: 9999px;
   background: rgba(20,22,27,.85);
   border: 1px solid rgba(255,255,255,.15);
@@ -139,21 +143,22 @@
   display: flex; align-items: center; justify-content: center;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-  pointer-events: auto;
+  pointer-events: auto;     /* riattiva sui bottoni */
   touch-action: manipulation;
-
-  /* Centro TUTTI i bottoni e applico offset via variabili */
-  left: 50%;
-  top: 50%;
-  transform: translate(calc(-50% + var(--ox, 0px)), calc(-50% + var(--oy, 0px)));
-
-  /* cooldown UI */
-  overflow: hidden;
+  overflow: hidden;         /* per overlay cooldown */
 }
+
+/* Offset a croce dal centro (destra / su / giù / sinistra) */
+#arena-attack-btn{ --ox:  var(--spread);  --oy: 0; }
+#arena-charge-btn{ --ox:  0;              --oy: calc(-1*var(--spread)); }
+#arena-dash-btn  { --ox:  0;              --oy:   var(--spread); }
+#arena-skill-btn { --ox: calc(-1*var(--spread)); --oy: 0; }
+
+/* Cooldown overlay (se lo usi) */
 #arena-actions-overlay .action-btn .cd{
   position:absolute; inset:0;
-  background:rgba(236,222,17,.45);
-  height:0%; pointer-events:none; transition:height 80ms linear;
+  background: rgba(236,222,17,.45);
+  height:0%; pointer-events:none; transition: height 80ms linear;
 }
 #arena-actions-overlay .action-btn .cd-txt{
   position:absolute; inset:0; display:grid; place-items:center;
@@ -162,11 +167,6 @@
 }
 #arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity:1; }
 
-/* Offsets a croce dal centro (nessuna !important necessaria) */
-#arena-attack-btn{ --ox:  var(--spread); --oy: 0; }              /* destra  */
-#arena-charge-btn{ --ox:  0;            --oy: calc(-1*var(--spread)); } /* su      */
-#arena-dash-btn  { --ox:  0;            --oy:  var(--spread); }  /* giù     */
-#arena-skill-btn { --ox: calc(-1*var(--spread)); --oy: 0; }      /* sinistra (opz.) */
 
 
 

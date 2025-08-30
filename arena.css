@@ -133,7 +133,7 @@
 }
 #arena-actions-overlay{
   right: calc(12px + var(--actions-offset-x));
-  bottom: calc(12px + var(--actions-offset-y));
+  bottom: calc(25px + var(--actions-offset-y));
 }
 
 
@@ -269,4 +269,29 @@
   right: 8%;
   bottom: 6%;
   transform: translate(50%, 50%);
+}
+
+/* === Layout a croce (stile PlayStation) === */
+#arena-attack-btn {
+  right: 0;
+  top: 50%;
+  transform: translate(0, -50%);
+}
+
+#arena-charge-btn {
+  right: 50%;
+  top: 0;
+  transform: translate(50%, 0);
+}
+
+#arena-dash-btn {
+  right: 50%;
+  bottom: 0;
+  transform: translate(50%, 0);
+}
+
+#arena-skill-btn {
+  left: 0;
+  top: 50%;
+  transform: translate(0, -50%);
 }

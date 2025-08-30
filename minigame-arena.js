@@ -1933,6 +1933,8 @@ function hydrateActionButtons(){
     if (!el.querySelector('.cd')) el.insertAdjacentHTML('beforeend','<div class="cd"></div><div class="cd-txt"></div>');
   }
 }
+
+/*
 function positionActionOverlay() {
   const ov = DOM.actionsOverlay;
   if (!ov) return;
@@ -1940,7 +1942,7 @@ function positionActionOverlay() {
   ov.style.right = '12px';  // niente gutter
   ov.style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 12px)';
 }
-
+*/
 
 
   // ---------- Start / End ----------
@@ -2136,7 +2138,7 @@ setupMobileControlsArena();
 
   await enterFullscreen?.(); // opzionale
   resizeCanvas();
-  positionActionOverlay();
+  //positionActionOverlay();
   syncHUD();
   //spawnWave(G.wave);
 
@@ -2507,7 +2509,7 @@ function normalizeAngle(a) {
 //  DOM.btnChg?.addEventListener('click', () => { if (G.playing) tryAttackCharged(); });
 //  DOM.btnDash?.addEventListener('click', () => { if (G.playing) tryDash(); });
 
-  window.addEventListener('resize', () => { if (G.playing) { resizeCanvas(); positionActionOverlay(); syncHUD(); } });
+  window.addEventListener('resize', () => { if (G.playing) { resizeCanvas(); syncHUD(); } });
 })();
 
 

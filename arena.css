@@ -106,12 +106,13 @@
 }
 
 
-/* === ACTIONS (mobile) — versione pulita a croce tipo PlayStation ========== */
+/* === ACTIONS (mobile) – layout a croce tipo PlayStation === */
 :root{
-  --actions-box: clamp(180px, 34vw, 240px);   /* lato del quadrato overlay   */
-  --action-size: clamp(56px, 9vw, 76px);      /* diametro dei bottoni        */
-  --actions-offset-x: 0px;                    /* + verso il centro, - verso il bordo */
-  --actions-offset-y: 42px;                   /* ↑ alza il gruppo dal fondo          */
+  --actions-box: clamp(180px, 34vw, 240px);     /* lato del quadrato overlay  */
+  --action-size: clamp(56px, 9vw, 76px);        /* diametro bottoni           */
+  --actions-offset-x: 0px;                      /* + verso il centro          */
+  --actions-offset-y: 48px;                     /* ↑ alza il gruppo dal fondo */
+  --spread: calc(var(--action-size) * 1.25);    /* raggio della croce         */
 }
 
 #arena-actions-overlay{
@@ -121,11 +122,11 @@
   width: var(--actions-box);
   height: var(--actions-box);
   z-index: 10030;
-  pointer-events: none;   /* i figli riattivano */
+  pointer-events: none;
   touch-action: none;
 }
 
-/* stile base bottoni */
+/* stile base dei bottoni + reset posizioni */
 #arena-actions-overlay .action-btn{
   position: absolute;
   width: var(--action-size);
@@ -142,22 +143,16 @@
   pointer-events: auto;
   touch-action: manipulation;
 
-  /* reset di qualsiasi posizionamento precedente */
-  top:auto; right:auto; bottom:auto; left:auto; transform:none;
+  /* centro TUTTI i bottoni al centro dell'overlay */
+  left: 50% !important;
+  top:  50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+
+  /* cooldown overlay */
+  overflow: hidden;
 }
-
-/* ✚ Layout a croce --------------------------------------------------------- */
-/* destra = Attacco */
-#arena-attack-btn{ right:0; top:50%; transform:translate(0,-50%); }
-/* su = Repulsione */
-#arena-charge-btn{ right:50%; top:0; transform:translate(50%,0); }
-/* giù = Dash */
-#arena-dash-btn  { right:50%; bottom:0; transform:translate(50%,0); }
-/* sinistra = Skill (facoltativo, puoi tenerlo anche vuoto per ora) */
-#arena-skill-btn { left:0; top:50%; transform:translate(0,-50%); }
-
-/* Cooldown overlay (se usi la UI di cooldown) */
-#arena-actions-overlay .action-btn{ position:relative; overflow:hidden; }
 #arena-actions-overlay .action-btn .cd{
   position:absolute; inset:0;
   background:rgba(236,222,17,.45);
@@ -169,4 +164,11 @@
   pointer-events:none; opacity:0; transition:opacity .12s ease;
 }
 #arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity:1; }
+
+/* ── Offset a croce dal centro (non verranno mai “in colonna”) ── */
+#arena-attack-btn{  transform: translate(calc(-50% +  var(--spread)), -50%) !important; } /* destra */
+#arena-charge-btn{  transform: translate(-50%, calc(-50% - var(--spread))) !important; }  /* su     */
+#arena-dash-btn{    transform: translate(-50%, calc(-50% + var(--spread))) !important; }  /* giù    */
+#arena-skill-btn{   transform: translate(calc(-50% -  var(--spread)), -50%) !important; } /* sinistra (opz.) */
+
 

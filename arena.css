@@ -7,7 +7,7 @@
 }
 #arena-minigame-modal.hidden{ display:none !important; }
 
-/* Wrap centrale che fa da “area di gioco” */
+/* Wrap centrale che fa da area di gioco */
 #arena-minigame-modal .arena-wrap{
   position:relative;
   width:100vw; height:100vh;
@@ -68,72 +68,55 @@
   pointer-events:none;
 }
 
-
-
 /* Desktop: nascondi controlli mobili */
 @media (min-width:851px){
   #arena-joy-base, #arena-actions-overlay, #arena-hud{ display:none !important; }
 }
 
-
-#arena-canvas {
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-}
-
-
 /* il joystick deve gestire drag senza far scattare zoom/scroll */
-#arena-joy-base {
-  touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
+#arena-joy-base { touch-action: none; -webkit-user-select: none; user-select: none; }
 
-/* i bottoni devono “attivarsi” subito al tocco */
-#arena-attack-btn,
-#arena-charge-btn,
-#arena-dash-btn {
+/* i bottoni devono attivarsi subito al tocco */
+#arena-attack-btn, #arena-charge-btn, #arena-dash-btn, #arena-skill-btn{
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
-  pointer-events: auto; /* nel dubbio, esplicitalo */
-  z-index: 10;          /* assicurati stiano sopra l’overlay del joy */
+  pointer-events: auto;
+  z-index: 10;
 }
 
 /* se hai un overlay che copre i bottoni, lascia passare gli eventi */
-#arena-joystick-overlay {
-  pointer-events: none; /* gli elementi interattivi interni (joy-base, bottoni) devono avere pointer-events:auto */
-}
+#arena-joystick-overlay { pointer-events: none; }
 
-
-/* === ACTIONS (mobile) — layout a croce tipo PlayStation ========== */
+/* ========= ACTIONS (mobile) — layout a croce tipo PlayStation ========= */
+/* TUNING rapido: cambia qui */
 :root{
-  --actions-box: clamp(180px, 34vw, 240px); /* lato del quadrato invisibile */
-  --action-size: clamp(56px, 9vw, 76px);    /* diametro bottoni             */
-  --actions-offset-x: 0px;                  /* + verso il centro            */
-  --actions-offset-y: 48px;                 /* ↑ alza il gruppo dal fondo   */
-  --spread: calc(var(--action-size) * 1.25);/* raggio della croce           */
+  --actions-box: 200px;                 /* lato del quadrato invisibile */
+  --action-size: 66px;                  /* diametro bottoni */
+  --actions-offset-x: 0px;              /* + verso il centro (orizzontale) */
+  --actions-offset-y: 56px;             /* ↑ alza il gruppo dal fondo */
 }
 
 /* Contenitore fisso in basso-destra (non blocca i tocchi) */
 #arena-actions-overlay{
   position: fixed;
   right: calc(env(safe-area-inset-right, 0px) + 12px + var(--actions-offset-x));
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px + var(--actions-offset-y));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--actions-offset-y));
   width: var(--actions-box);
   height: var(--actions-box);
   z-index: 10030;
-  pointer-events: none;     /* i figli riattivano */
+  pointer-events: none;
   touch-action: none;
 }
 
-/* Stile base di TUTTI i bottoni + centratura assoluta */
+/* Reset totale dei bottoni (annulla vecchie posizioni/transform) */
 #arena-actions-overlay .action-btn{
-  position: absolute;
-  left: 50%; top: 50%;
-  width: var(--action-size);
-  height: var(--action-size);
-  transform: translate(calc(-50% + var(--ox,0px)), calc(-50% + var(--oy,0px)));
+  position: absolute !important;
+  left: auto !important; right: auto !important;
+  top: auto !important;  bottom: auto !important;
+  transform: none !important;
+
+  width: var(--action-size); height: var(--action-size);
   border-radius: 9999px;
   background: rgba(20,22,27,.85);
   border: 1px solid rgba(255,255,255,.15);
@@ -141,24 +124,41 @@
   color: #e6e7eb;
   font: 600 14px/1 system-ui,-apple-system, Segoe UI, Roboto, Arial;
   display: flex; align-items: center; justify-content: center;
+  pointer-events: auto;                 /* riattiva sui bottoni */
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-  pointer-events: auto;     /* riattiva sui bottoni */
-  touch-action: manipulation;
-  overflow: hidden;         /* per overlay cooldown */
+  overflow: hidden;                     /* per overlay cooldown */
 }
 
-/* Offset a croce dal centro (destra / su / giù / sinistra) */
-#arena-attack-btn{ --ox:  var(--spread);  --oy: 0; }
-#arena-charge-btn{ --ox:  0;              --oy: calc(-1*var(--spread)); }
-#arena-dash-btn  { --ox:  0;              --oy:   var(--spread); }
-#arena-skill-btn { --ox: calc(-1*var(--spread)); --oy: 0; }
+/* Posizioni a CROCE (stile PlayStation) */
+#arena-attack-btn{  /* destra */
+  right: 0 !important;
+  top: 50% !important;
+  transform: translate(0, -50%) !important;
+}
+#arena-charge-btn{  /* su */
+  right: 50% !important;
+  top: 0 !important;
+  transform: translate(50%, 0) !important;
+}
+#arena-dash-btn{    /* giù */
+  right: 50% !important;
+  bottom: 0 !important;
+  transform: translate(50%, 0) !important;
+}
+#arena-skill-btn{   /* sinistra (facoltativo) */
+  left: 0 !important;
+  top: 50% !important;
+  transform: translate(0, -50%) !important;
+}
 
-/* Cooldown overlay (se lo usi) */
+/* Overlay cooldown (se lo usi) */
 #arena-actions-overlay .action-btn .cd{
   position:absolute; inset:0;
   background: rgba(236,222,17,.45);
-  height:0%; pointer-events:none; transition: height 80ms linear;
+  height: 0%;
+  pointer-events: none;
+  transition: height 80ms linear;
 }
 #arena-actions-overlay .action-btn .cd-txt{
   position:absolute; inset:0; display:grid; place-items:center;
@@ -166,7 +166,3 @@
   pointer-events:none; opacity:0; transition:opacity .12s ease;
 }
 #arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity:1; }
-
-
-
-

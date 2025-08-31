@@ -556,18 +556,24 @@ async function loadMoves(){
 
   const eqWrap = document.getElementById('moves-equipped');
   const unWrap = document.getElementById('moves-unlocked');
-  if (eqWrap) {
-    eqWrap.innerHTML = '';
-    for (let i=1;i<=3;i++){
-      const m = eq.find(x => x.slot === i);
-      const div = document.createElement('div');
-      div.className = 'move-slot';
-      div.dataset.slot = String(i);
-      div.innerHTML = m ? `<span class="move-chip" data-move="${m.id}">${m.move_key}</span>`
-                        : `<span class="slot-plus">+</span>`;
-      eqWrap.appendChild(div);
-    }
+if (eqWrap) {
+  eqWrap.innerHTML = '';
+  for (let i=1;i<=3;i++){
+    const m = eq.find(x => x.slot === i);
+    const div = document.createElement('div');
+    div.className = 'move-slot';
+    div.dataset.slot = String(i);
+    div.innerHTML = m
+      ? `
+        <span class="move-chip equipped" data-move="${m.id}">
+          <span class="move-name">${m.move_key}</span>
+          <button type="button" class="move-remove" title="Rimuovi mossa" aria-label="Rimuovi mossa">&times;</button>
+        </span>`
+      : `<span class="slot-plus">+</span>`;
+    eqWrap.appendChild(div);
   }
+}
+
   if (unWrap) {
     unWrap.innerHTML = '';
     un.forEach(m => {
@@ -580,6 +586,21 @@ async function loadMoves(){
   }
 }
 window.loadMoves = loadMoves;
+
+async function unequipMove(moveId){
+  if (!petId) return;
+  try {
+    await sb()
+      .from('pet_moves')
+      .update({ equipped: false, slot: null })
+      .eq('id', moveId)
+      .eq('pet_id', petId);
+    await loadMoves();
+  } catch (e) {
+    console.error('[unequipMove]', e);
+  }
+}
+
 async function equipMove(moveId, slot){
   if (!petId) return;
 
@@ -633,6 +654,14 @@ function bindMoveUIOnce(){
   document.body._movesBound = true;
 
   document.body.addEventListener('click', (e) => {
+    // clic sulla X rossa per rimuovere
+  const removeBtn = e.target.closest('.move-remove');
+  if (removeBtn){
+    const chip = removeBtn.closest('.move-chip');
+    const moveId = chip?.dataset.move;
+    if (moveId) unequipMove(moveId);
+    return; // impedisce che il click propaghi ad altri handler
+  }
     const slotEl = e.target.closest('#moves-equipped .move-slot');
     if (slotEl){
       const slot = parseInt(slotEl.dataset.slot, 10);
@@ -702,11 +731,6 @@ async function equipItem(itemId, slot){
     .eq('pet_id', petId).eq('slot', slot);
   if (e1) { console.error('[equipItem-clear]', e1); }
 
-  const { error: e2 } = await sb()
-    .from('pet_items').update({ equipped:true, slot })
-    .eq('id', itemId).eq('pet_id', petId);
-  if (e2) { console.error('[equipItem-set]', e2); }
-  await loadItems();
 }
 
 function bindItemUIOnce(){

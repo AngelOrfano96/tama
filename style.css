@@ -1763,3 +1763,20 @@ button, .ui-btn { touch-action: manipulation; }
   background:#ecfdf5;
   box-shadow: inset 0 0 0 2px #34d399;
 }
+
+
+
+
+/*X ROSSA DELL'INVENTARIO*/
+.move-chip.equipped { position: relative; padding-right: 28px; }
+.move-chip .move-remove{
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 20px; height: 20px;
+  border: 0; border-radius: 50%;
+  background: #e11d48; /* rosso */
+  color: #fff; font-weight: 700;
+  line-height: 20px; cursor: pointer;
+}
+.move-chip .move-remove:focus { outline: 2px solid rgba(0,0,0,.2); }
+.move-chip .move-remove:hover { filter: brightness(.9); }

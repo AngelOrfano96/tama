@@ -543,7 +543,7 @@ function initGateSprite(){
 }
 
 // === DROP CONFIG ===
-const DROP_CHANCE   = 0.02;   // 2%
+const DROP_CHANCE   = 0.10;   // 2%
 const DROP_TTL_MS   = 15000;  // scade dopo 15s
 const DROP_RADIUS   = 0.36;   // collisione in tile
 const DROP_DRAW_SZ  = 0.55;   // grandezza grafica (tile)
@@ -609,17 +609,20 @@ async function awardMoveToInventory(moveKey){
   if (!window.petId) return;
   try {
     const { data, error } = await supabaseClient.rpc('award_move_drop', {
-      p_pet_id: petId, p_move_key: moveKey
+      p_pet_id: petId,
+      p_move_key: moveKey
     });
     if (error) throw error;
 
-    await window.loadMoves?.(); // aggiorna UI inventario
-    showArenaToast(`Nuova mossa: ${moveKey}`);
+    console.log('[DROP] awarded', data);  // <- vedi subito cosa è entrato
+    await window.loadMoves?.();           // aggiorna lista
+    showArenaToast(`Nuova mossa: ${data?.move_key || moveKey}`);
   } catch (e) {
     console.error('[award_move_drop]', e);
     showArenaToast('Errore salvataggio mossa', true);
   }
 }
+
 
 function showArenaToast(text, isErr=false){
   const el = document.createElement('div');

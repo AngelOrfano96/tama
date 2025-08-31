@@ -1232,28 +1232,25 @@ document.addEventListener('dblclick', function (e) {
 })();
 
 // Ritorna le prime 2 mosse equipaggiate in ordine di slot (1..3)
+// prima limit(2) → ora 3
 window.getEquippedMovesForArena = async function () {
-  if (!window.petId) return ['basic_attack', 'repulse']; // fallback
+  if (!window.petId) return ['basic_attack', 'repulse', null];
   try {
-    const { data, error } = await supabaseClient
+    const { data } = await supabaseClient
       .from('pet_moves')
-      .select('move_key, slot, equipped')
+      .select('move_key, slot')
       .eq('pet_id', petId)
       .eq('equipped', true)
       .order('slot', { ascending: true })
-      .limit(2);
-    if (error) throw error;
+      .limit(3);
 
     const keys = (data || []).map(r => r.move_key);
-    // fallback intelligenti
-    if (keys.length === 0) return ['basic_attack', 'repulse'];
-    if (keys.length === 1) return [keys[0], 'repulse'];
-    return keys;
-  } catch (e) {
-    console.error('[getEquippedMovesForArena]', e);
-    return ['basic_attack', 'repulse'];
+    return [ keys[0] || 'basic_attack', keys[1] || 'repulse', keys[2] || null ];
+  } catch {
+    return ['basic_attack', 'repulse', null];
   }
 };
+
 
 // (opzionale) Stat d’attacco per scalare il danno
 window.getArenaPlayerAttackStat = async function () {

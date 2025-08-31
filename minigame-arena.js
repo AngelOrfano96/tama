@@ -1986,7 +1986,9 @@ function getMoveCDMs(key){
 
 function updateCooldownUI(){
   const now = performance.now();
-
+const keyC   = G?.playerMoves?.C || null;
+const untilC = keyC ? (G.pet._cooldowns?.[keyC] || 0) : 0;
+setBtnCooldownUI(DOM.btnSkill, Math.max(0, untilC - now), keyC ? getMoveCDMs(keyC) : 0);
   const keyA   = G?.playerMoves?.A || 'basic_attack';
   const untilA = G.pet._cooldowns?.[keyA] || 0;
   setBtnCooldownUI(DOM.btnAtk, Math.max(0, untilA - now), getMoveCDMs(keyA));
@@ -2067,6 +2069,8 @@ DOM.joyBase = document.getElementById('arena-joy-base');
 DOM.joyStick= document.getElementById('arena-joy-stick');
 DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
 DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
+DOM.btnSkill = document.getElementById('arena-skill-btn');
+
 forceArenaActionCrossLayout();
 hydrateActionButtons();
 
@@ -2100,40 +2104,33 @@ ctx = DOM.canvas.getContext('2d');
 
     if (error) throw error;
   // Carica le due mosse in base agli slot equipaggiati
-  const [moveA, moveB] = await window.getEquippedMovesForArena();
+  const [moveA, moveB, moveC] = await window.getEquippedMovesForArena();
   const atkBonus = await window.getArenaPlayerAttackStat(); // opzionale
 
   // Salva in stato globale dell’arena
-  G.playerMoves = { A: moveA, B: moveB };
+  G.playerMoves = { A: moveA, B: moveB, C: moveC };
   G.playerAtkBonus = atkBonus; // usalo nella formula danno
 
   // (facoltativo) mostra il nome mossa sui bottoni
   const btnA = document.getElementById('arena-attack-btn');
   const btnB = document.getElementById('arena-charge-btn');
-  const setBtnLabel = (btn, txt) => {
+const setBtnLabel = (btn, txt) => {
+  if (!btn) return;
   let span = btn.querySelector('.lbl');
-  if (!span) {
-    span = document.createElement('span');
-    span.className = 'lbl';
-    btn.insertBefore(span, btn.firstChild);
-  }
+  if (!span) { span = document.createElement('span'); span.className = 'lbl'; btn.insertBefore(span, btn.firstChild); }
   span.textContent = txt;
 };
 
 setBtnLabel(btnA, prettifyName(moveA));
 setBtnLabel(btnB, prettifyName(moveB));
+setBtnLabel(btnC, moveC ? prettifyName(moveC) : '—');
    // ✅ qui inserisci la guardia
 if (!DOM._abBound) {
-  const bindAction = (el, handler) => {
-    if (!el) return;
-    const fire = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (G.playing) handler();
-    };
-    el.addEventListener('pointerdown', fire, { passive: false });
-    el.addEventListener('touchstart',  fire, { passive: false }); // fallback
-  };
+const bindAction = (el, handler) => { if (!el) return; const fire = (e)=>{ e.preventDefault(); e.stopPropagation(); if (G.playing) handler(); }; el.addEventListener('pointerdown', fire, { passive:false }); el.addEventListener('touchstart', fire, { passive:false }); };
+
+bindAction(DOM.btnAtk,   () => useArenaMove(G.pet, G.playerMoves.A));
+bindAction(DOM.btnChg,   () => useArenaMove(G.pet, G.playerMoves.B));
+bindAction(DOM.btnSkill, () => { if (G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C); });
 
   // azioni (niente click)
   bindAction(DOM.btnAtk,  () => useArenaMove(G.pet, G.playerMoves.A));
@@ -2483,42 +2480,35 @@ const ACTION_BTN_ID = {
 
 // UI cooldown helper
 function startCooldownUIByKey(moveKey, ms){
-  const id = ACTION_BTN_ID[moveKey];
+  // risolvi bottone per slot A/B/C o dash
+  let id = null;
+  if (G.playerMoves?.A === moveKey) id = 'arena-attack-btn';
+  else if (G.playerMoves?.B === moveKey) id = 'arena-charge-btn';
+  else if (G.playerMoves?.C === moveKey) id = 'arena-skill-btn';
+  else if (moveKey === 'dash') id = 'arena-dash-btn';
   if (!id) return;
+
   const el  = document.getElementById(id);
   if (!el) return;
-
   const bar = el.querySelector('.cd') || el.querySelector('.arena-cd');
   const txt = el.querySelector('.cd-txt') || el.querySelector('.arena-cd-txt');
   if (!bar || !txt) return;
 
   el.classList.add('on-cd');
   const t0 = performance.now();
-
   function tick(){
-    if (!el.isConnected) return; // il bottone non c'è più
+    if (!el.isConnected) return;
     const elapsed = performance.now() - t0;
     const k = Math.min(1, elapsed / ms);
-
-    // riempi dall’alto verso il basso (0%→100%)
     bar.style.height = Math.round(k * 100) + '%';
-
     const left = Math.max(0, ms - elapsed);
-    // 1 decimale sotto i 10s, intero sopra
-    txt.textContent = left >= 10000 ? String(Math.ceil(left/1000))
-                                    : (left/1000).toFixed(1);
-
-    if (k < 1) {
-      requestAnimationFrame(tick);
-    } else {
-      // reset a fine cooldown
-      el.classList.remove('on-cd');
-      bar.style.height = '0%';
-      txt.textContent = '';
-    }
+    txt.textContent = left >= 10000 ? String(Math.ceil(left/1000)) : (left/1000).toFixed(1);
+    if (k < 1) requestAnimationFrame(tick);
+    else { el.classList.remove('on-cd'); bar.style.height = '0%'; txt.textContent = ''; }
   }
   tick();
 }
+
 
 
 // Utility angolo

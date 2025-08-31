@@ -553,7 +553,7 @@ function initGateSprite(){
 }
 
 // === DROP CONFIG ===
-const DROP_CHANCE   = 0.002;   // 2%
+const DROP_CHANCE   = 0.004;   // 2%
 const DROP_TTL_MS   = 15000;  // scade dopo 15s
 const DROP_RADIUS   = 0.36;   // collisione in tile
 const DROP_DRAW_SZ  = 0.55;   // grandezza grafica (tile)

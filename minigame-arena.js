@@ -2145,6 +2145,7 @@ bindAction(DOM.btnSkill, () => { if (G.playerMoves.C) useArenaMove(G.pet, G.play
     if (!G.playing || e.repeat) return;
     if (e.key === 'z' || e.key === 'Z') useArenaMove(G.pet, G.playerMoves.A);
     if (e.key === 'x' || e.key === 'X') useArenaMove(G.pet, G.playerMoves.B);
+    if (k === 'c' && G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C);
   }, { passive: true });
 
   DOM._abBound = true; // previene doppi binding a run successivi

@@ -1,3 +1,4 @@
+import { MOVES } from './mosse.js';
 // === Leaderboard Arena =====================================================
 async function openArenaLeaderboard(){
   const modal = document.getElementById('arena-leaderboard-modal');
@@ -79,45 +80,8 @@ function renderArenaLeaderboard(container, rows, opts = {}){
   container.innerHTML = selfPill + table;
 }
 
-// da mettere in un file condiviso o in minigame-arena.js
-const MOVE_DEFS = {
-  basic_attack: {
-    label: 'Attacco Base',
-    baseDamage: 10,
-    scale: 'attack',     // scala con attack_power
-    cooldown: 0.35
-  },
-  repulse: {
-    label: 'Repulsione',
-    knockback: 290,      // forza respinta (px/s circa)
-    radius: 52,          // raggio effetto (px)
-    cooldown: 3.0
-  }
-};
-function calcBasicAttackDamage(stats){
-  const base = 10;
-  const atk  = Number(stats.attack_power ?? stats.attack ?? 0);
-  // scala leggera: +1 danno ogni 20 punti di power
-  const scale = Math.floor(atk / 20);
-  return base + scale;
-}
-function castRepulse(player, enemies, stats){
-  const def = MOVE_DEFS.repulse;
-  for (const e of enemies){
-    const dx = e.px - player.px;
-    const dy = e.py - player.py;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= def.radius){
-      const nx = dx / (dist || 1);
-      const ny = dy / (dist || 1);
-      // applica una velocità/impulso all’indietro
-      e.vx = (e.vx || 0) + nx * def.knockback;
-      e.vy = (e.vy || 0) + ny * def.knockback;
-      // opzionale: piccola invulnerabilità/slowdown/”stun”
-      e.staggerTs = performance.now();
-    }
-  }
-}
+
+
 
 // wiring UI leaderboard (al load del DOM)
 document.addEventListener('DOMContentLoaded', () => {
@@ -798,10 +762,6 @@ function drawTileType(x, y, type, tile) {
   ctx.drawImage(G.sprites.atlas, sx, sy, sw, sh, x*tile, y*tile, tile, tile);
 }
 
-const pickVar = (entry, i) => Array.isArray(entry) ? entry[i % entry.length] : entry;
-
-// Profondità usate sia nel bake sia per i bounds
-
 
 
 function bakeArenaLayer() {
@@ -914,29 +874,6 @@ function bakeArenaLayer() {
 }
 
 
-
-
-
-
-
-
-
-
-function loadEnemySprites() {
-  const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
-  G.sprites.enemies = {
-    goblin: {
-      idle: new Image(),
-    },
-    bat: {
-      idle: new Image(),
-    }
-  };
-  G.sprites.enemies.goblin.idle.src = `${assetBase}/enemies/goblin.png`;
-  G.sprites.enemies.bat.idle.src = `${assetBase}/enemies/bat.png`;
-}
-
-
 function loadPetSprites(petNum = '1') {
   const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
   const mkImg = (path) => { const i = new Image(); i.src = `${assetBase}/pets/${path}?v=7`; return i; };
@@ -1031,55 +968,7 @@ function syncHUD(){
     return Math.max(1, Math.round(base * variance * crit));
   }
 
-  // ---------- Attacchi ----------
-  function tryAttackBasic() {
-    if (G.pet.cdAtk > 0) return;
-    G.pet.cdAtk = Cfg.attackCd;
 
-    // hitbox frontale di 1 tile circa
-    const r = G.tile * 0.8;
-    let hx = G.pet.px, hy = G.pet.py;
-    if (G.pet.facing === 'right') hx += G.tile;
-    if (G.pet.facing === 'left')  hx -= r;
-    if (G.pet.facing === 'down')  hy += G.tile;
-    if (G.pet.facing === 'up')    hy -= r;
-
-    const power = 10; // Mossa Base
-    for (const e of G.enemies) {
-      if (rectOverlap(hx, hy, r, r, e.px, e.py, G.tile, G.tile)) {
-        const dmg = computeDamage(power, G.atkP, e.defP);
-        e.hp -= dmg;
-        G.score += 1 + Math.floor(dmg / 5);
-        syncHUD();
-      }
-    }
-  }
-
-  function tryAttackCharged() {
-    if (G.pet.cdChg > 0) return;
-    G.pet.cdChg = Cfg.chargeCd;
-
-    const r = G.tile * 1.1;
-    let hx = G.pet.px, hy = G.pet.py;
-    if (G.pet.facing === 'right') hx += G.tile;
-    if (G.pet.facing === 'left')  hx -= r;
-    if (G.pet.facing === 'down')  hy += G.tile;
-    if (G.pet.facing === 'up')    hy -= r;
-
-    const power = 20;
-    for (const e of G.enemies) {
-      if (rectOverlap(hx, hy, r, r, e.px, e.py, G.tile, G.tile)) {
-        const dmg = computeDamage(power, G.atkP, e.defP);
-        e.hp -= dmg;
-        // piccolo knockback
-        const k = 10;
-        const nx = Math.sign(e.px - G.pet.px), ny = Math.sign(e.py - G.pet.py);
-        e.px += nx * k; e.py += ny * k;
-        G.score += 3 + Math.floor(dmg / 4);
-        syncHUD();
-      }
-    }
-  }
 
   function tryDash() {
     if (G.pet.cdDash > 0) return;
@@ -1095,11 +984,6 @@ function syncHUD(){
     // clamp ai confini dell’arena
 clampToBounds(G.pet);
 
-  }
-
-  // ---------- Overlap helper ----------
-  function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
-    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
   // ---------- Loop ----------
@@ -1493,17 +1377,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x + w, y, rr);
   ctx.closePath();
 }
-function drawGatesOnTopWall(){
-  const img = G.sprites.gate;
-  const fr  = G.sprites.gateFrame;
-  if (!img || !img.complete || !fr) return;
 
-  const t = G.tile;
-  for (const g of ARENA_GATES) {
-    // 2×2 tile scalati alla tua tile size corrente
-    ctx.drawImage(img, fr.sx, fr.sy, fr.sw, fr.sh, g.x * t, g.y * t, 2 * t, 2 * t);
-  }
-}
 function spawnShockwave(x, y, R) {
   const tStart = performance.now();
   const D = 220; // durata ms
@@ -1535,8 +1409,7 @@ function render() {
   }
   if (G.renderCache.arenaLayer) {
     ctx.drawImage(G.renderCache.arenaLayer.canvas, 0, 0);
-    // drawGatesOnTopWall();
-    //drawInspectorGrid(ctx); ////////////////////////////////////////////////////////////////////
+   
   } else {
     // fallback (se atlas non pronto): rettangoli come prima
     ctx.fillStyle = '#111';
@@ -1671,7 +1544,7 @@ function render() {
   }
 renderGates();
 
-  //drawAtlasPickerOverlay(ctx);
+
 }
 
 function renderGates(){
@@ -1724,58 +1597,6 @@ function renderGates(){
     if (isMobile) updateCooldownUI();
     requestAnimationFrame(loop);
   }
-
-  // ---------- Wave spawning ----------
-
-function spawnWave(n) {
-  // safety cap: evita ondate troppo dense
-  const MAX_ENEMIES = 20;
-  if (G.enemies.length >= MAX_ENEMIES) return;
-
-  // scala lieve
-  const scale = 1 + (n - 1) * 0.06;
-  const count = 2 + Math.floor(n * 0.8);
-  const bats = (n % 3 === 0) ? 1 : 0;
-
-  // blueprint dell’ondata
-  const blueprints = [];
-  for (let i = 0; i < count; i++) blueprints.push(makeGoblin(scale));
-  for (let i = 0; i < bats; i++)  blueprints.push(makeBat(Math.max(1, scale * 0.95)));
-
-  const spawned = [];
-  const minDist = 2.0 * G.tile;
-
-  for (const e of blueprints) {
-    // non superare il cap totale
-    if (G.enemies.length + spawned.length >= MAX_ENEMIES) break;
-
-    // prova qualche volta a trovare uno spawn lontano dal pet
-    let ok = false;
-    for (let tries = 0; tries < 8; tries++) {
-      const s = randSpawn(true);
-      const px = s.x * G.tile;
-      const py = s.y * G.tile;
-      if (Math.hypot(px - G.pet.px, py - G.pet.py) >= minDist) {
-        e.x = s.x; e.y = s.y;
-        e.px = px;  e.py = py;
-
-        // --- campi per la FSM di combattimento ---
-        e.state = 'chase';         // 'chase' | 'windup' | 'attack' | 'recover'
-        e.tState = 0;              // timer stato corrente (ms)
-        e.nextAtkReadyTs = 0;      // cooldown tra attacchi
-        e.lastHitTs = 0;           // anti multi-hit nello stesso swing
-
-        spawned.push(e);
-        ok = true;
-        break;
-      }
-    }
-    // se dopo i tentativi non trovi un punto valido, semplicemente salta questo nemico
-    if (!ok) { /* skipped spawn */ }
-  }
-
-  if (spawned.length) G.enemies.push(...spawned);
-}
 
 function setupMobileControlsArena(){
   const base  = DOM.joyBase;
@@ -1903,27 +1724,25 @@ function setBtnCooldownUI(btn, remainingMs, totalMs){
 }
 
 
-
+function getMoveCDMs(key){
+  return (MOVES[key]?.cooldownMs) ?? 400;
+}
 
 function updateCooldownUI(){
   const now = performance.now();
 
-  // A
-  const keyA = G?.playerMoves?.A || 'basic_attack';
+  const keyA   = G?.playerMoves?.A || 'basic_attack';
   const untilA = G.pet._cooldowns?.[keyA] || 0;
-  const remA = Math.max(0, untilA - now);
-  setBtnCooldownUI(DOM.btnAtk, remA, CD_MS[keyA] || 400);
+  setBtnCooldownUI(DOM.btnAtk, Math.max(0, untilA - now), getMoveCDMs(keyA));
 
-  // B
-  const keyB = G?.playerMoves?.B || 'repulse';
+  const keyB   = G?.playerMoves?.B || 'repulse';
   const untilB = G.pet._cooldowns?.[keyB] || 0;
-  const remB = Math.max(0, untilB - now);
-  setBtnCooldownUI(DOM.btnChg, remB, CD_MS[keyB] || 400);
+  setBtnCooldownUI(DOM.btnChg, Math.max(0, untilB - now), getMoveCDMs(keyB));
 
-  // Dash (usa i tuoi secondi → ms)
-  const remDashMs = Math.max(0, (G.pet.cdDash || 0) * 1000);
-  setBtnCooldownUI(DOM.btnDash, remDashMs, (Cfg.dashCd || 2.5) * 1000);
+  const dashMs = Math.max(0, (G.pet.cdDash || 0) * 1000);
+  setBtnCooldownUI(DOM.btnDash, dashMs, (Cfg.dashCd || 2.5) * 1000);
 }
+
 function hydrateActionButtons(){
   const ids = ['arena-attack-btn','arena-charge-btn','arena-dash-btn','arena-skill-btn'];
   for (const id of ids){
@@ -1934,15 +1753,6 @@ function hydrateActionButtons(){
   }
 }
 
-/*
-function positionActionOverlay() {
-  const ov = DOM.actionsOverlay;
-  if (!ov) return;
-  ov.style.left = 'auto';
-  ov.style.right = '12px';  // niente gutter
-  ov.style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 12px)';
-}
-*/
 // Forza layout a croce in basso-destra anche se altri stili JS li spostano
 function forceArenaActionCrossLayout() {
   const ov = document.getElementById('arena-actions-overlay');
@@ -2003,14 +1813,7 @@ DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
 DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
 forceArenaActionCrossLayout();
 hydrateActionButtons();
-// bind del picker SOLO ora che il canvas esiste
-/*if (!DOM._pickerBound && DOM.canvas) {
-  // meglio usare pointerdown per catturare sempre
-  DOM.canvas.addEventListener('pointerdown', handleAtlasPickerClick, { capture: true, passive: false });
-  DOM._pickerBound = true;
-  // debug utile:
-  console.log('[Picker] bound on canvas. ATLAS_TILE =', ATLAS_TILE);
-}*/
+
 // cerca prima .cd/.cd-txt; se non ci sono li crea
 function ensureCooldownOverlay(btn){
   if (!btn) return;
@@ -2206,21 +2009,7 @@ if (!DOM._arenaBound) {
 
   DOM._arenaBound = true;
 }
-const bindAction = (el, handler) => {
-  if (!el) return;
-  const fire = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (G.playing) handler();
-  };
-  el.addEventListener('pointerdown', fire, { passive: false });
-  el.addEventListener('touchstart',  fire, { passive: false }); // fallback vecchi browser
-};
 
-// azioni
-bindAction(DOM.btnAtk,  () => useArenaMove(G.pet, G.playerMoves.A));
-bindAction(DOM.btnChg,  () => useArenaMove(G.pet, G.playerMoves.B));
-bindAction(DOM.btnDash, () => tryDash());
 
 G.lastT = performance.now();
 G.playing = true;
@@ -2298,12 +2087,103 @@ async function gameOver() {
   G.keys.clear();
 }
 //////////////////////MOSSE//////////////////////////
+
 // tienilo in uno scope accessibile sia a useArenaMove che qui
+const arenaAPI = {
+  tileSize: () => G.tile,
+  getAtk: () => G.atkP,
+  getDef: (e) => e.defP ?? 50,
+  computeDamage, // tua funzione
+
+  targetsInCone(self, reachTiles, coneDeg){
+    const R = reachTiles * G.tile;
+    const half = (coneDeg * Math.PI / 180) / 2;
+
+    const dirAngle =
+      self.facing === 'right' ? 0 :
+      self.facing === 'down'  ?  Math.PI/2 :
+      self.facing === 'left'  ?  Math.PI   :
+                                -Math.PI/2;
+
+    const out = [];
+    for (const e of G.enemies){
+      if (!e || e.hp <= 0) continue;
+      const dx = e.px - self.px, dy = e.py - self.py;
+      const d  = Math.hypot(dx, dy);
+      if (d > R) continue;
+      let a = Math.atan2(dy, dx) - dirAngle;
+      while (a >  Math.PI) a -= 2*Math.PI;
+      while (a < -Math.PI) a += 2*Math.PI;
+      if (Math.abs(a) <= half) out.push(e);
+    }
+    return out;
+  },
+
+  targetsInRadius(self, radiusTiles){
+    const R = radiusTiles * G.tile;
+    const out = [];
+    for (const e of G.enemies){
+      if (!e || e.hp <= 0) continue;
+      const dx = e.px - self.px, dy = e.py - self.py;
+      if (dx*dx + dy*dy <= R*R) out.push(e);
+    }
+    return out;
+  },
+
+  dirFromTo(a,b){
+    const dx = b.px - a.px, dy = b.py - a.py;
+    const d  = Math.hypot(dx, dy) || 1;
+    return { x: dx/d, y: dy/d };
+  },
+
+  addVelocity(e, dir, k){
+    e.vx = (e.vx || 0) + dir.x * k;
+    e.vy = (e.vy || 0) + dir.y * k;
+  },
+
+  falloff(self, t, Rtiles, min=0.5, max=1){
+    const R = Rtiles * G.tile;
+    const dx = t.px - self.px, dy = t.py - self.py;
+    const d  = Math.hypot(dx, dy);
+    const k  = Math.max(0, Math.min(1, 1 - d / R)); // 0..1 (vicino=1)
+    return min + (max - min) * k;
+  },
+
+  applyDamage(target, dmg){
+    const before = target.hp|0;
+    target.hp = Math.max(0, before - (dmg|0));
+    return before - target.hp;
+  },
+
+  playFX(key, self){
+    if (key === 'shockwave') spawnShockwave(self.px, self.py, 2.2 * G.tile);
+  },
+};
+
+
+// 3) uso: le chiavi arrivano dalla home (equip A/B)
+function useArenaMove(p, moveKey){
+  if (!p || !G.playing) return;
+  const def = MOVES[moveKey] || MOVES.basic_attack;
+
+  const now = performance.now();
+  const cd  = (p._cooldowns ??= {});
+  const ms  = def.cooldownMs ?? 400;
+
+  if ((cd[moveKey] || 0) > now) return; // ancora in CD
+  cd[moveKey] = now + ms;
+  startCooldownUIByKey(moveKey, ms);
+
+  const res = def.run(arenaAPI, p) || { damageDealt: 0 };
+  if (res.damageDealt > 0) {
+    G.score += 1 + Math.floor(res.damageDealt/5);
+    syncHUD?.();
+  }
+}
+
 
 // *** Cooldown config (ms) – tienilo in scope globale ***
 const CD_MS = {
-  basic_attack: 300,
-  repulse: 3500,
   dash: Math.round((Cfg?.dashCd ?? 2.5) * 1000) // se vuoi usarlo in tryDash
 };
 
@@ -2350,151 +2230,6 @@ function startCooldownUIByKey(moveKey, ms){
       txt.textContent = '';
     }
   }
-  tick();
-}
-
-// --- FUNZIONE SISTEMATA ---
-function useArenaMove(p, moveKey) {
-  if (!p || !G.playing) return;
-
-  // cooldown
-  const now = performance.now();
-  const cd  = (p._cooldowns ??= {});
-  const ms  = CD_MS[moveKey] || 400;
-
-  if ((cd[moveKey] || 0) > now) return;   // ancora in cooldown
-  cd[moveKey] = now + ms;                 // metti in cooldown
-  startCooldownUIByKey(moveKey, ms);      // avvia overlay UI
-
-  // esegui la mossa
-  let res = { damageDealt: 0 };
-  switch (moveKey) {
-    case 'basic_attack': res = move_basic_attack(p) || res; break;
-    case 'repulse':      res = move_repulse(p)      || res; break;
-    default:             res = move_basic_attack(p) || res; break;
-  }
-
-  // punteggio
-  if (res.damageDealt > 0) {
-    G.score += 1 + Math.floor(res.damageDealt / 5);
-    syncHUD?.();
-  }
-}
-
-
-
-// --- Attacco base: cono corto davanti al player
-// --- Attacco base: cono corto davanti al player
-function move_basic_attack(p) {
-  const base  = 20;
-  const bonus = G.playerAtkBonus || 0;       // se lo imposti quando entri in arena
-  const dmgPerHit = base + bonus;
-
-  const reach = 1.1 * G.tile;                // raggio melee
-  const cone  = Math.PI / 2;                 // 90°
-
-  // angolo centrale del cono in base al facing
-  const dirAngle = (
-    p.facing === 'right' ? 0 :
-    p.facing === 'down'  ? Math.PI/2 :
-    p.facing === 'left'  ? Math.PI :
-                           -Math.PI/2
-  );
-
-  let total = 0;
-  for (const e of G.enemies) {
-    if (e.dead || e.hp <= 0) continue;
-
-    const dx = e.px - p.px;
-    const dy = e.py - p.py;
-    const dist = Math.hypot(dx, dy);
-    if (dist > reach) continue;
-
-    const a = Math.atan2(dy, dx) - dirAngle;
-    const inCone = Math.abs(normalizeAngle(a)) <= cone * 0.5;
-    if (!inCone) continue;
-
-    // applica danno
-    const before = e.hp;
-    e.hp = Math.max(0, e.hp - dmgPerHit);
-    total += (before - e.hp);
-
-    // (facoltativo) effetto/hit-stop/knockback leggero
-    // spawnHitSpark?.(e.px, e.py);
-  }
-
-  return { damageDealt: total };
-}
-
-
-
-// --- Repulsione: nessun danno, solo knockback ad area
-// --- Repulsione: nessun danno, solo knockback ad area
-function move_repulse(p) {
-  const R = 2.2 * G.tile;   // raggio dell’onda
-  const K = 600;            // intensità knockback
-  const now = performance.now();
-
-  // potenza “bassa” per chip damage
-  const BASE_POWER = 12;     // ritocca 4–8 se vuoi più/meno danno
-
-  let total = 0;
-
-  for (const e of G.enemies) {
-    if (e.dead || e.hp <= 0) continue;
-
-    const dx = e.px - p.px, dy = e.py - p.py;
-    const d  = Math.hypot(dx, dy);
-    if (d === 0 || d > R) continue;
-
-    // knockback + breve stun, come prima
-    const nx = dx / d, ny = dy / d;
-    e.vx = (e.vx || 0) + nx * K;
-    e.vy = (e.vy || 0) + ny * K;
-    e.stunUntil = Math.max(e.stunUntil || 0, now + 200);
-
-    // ---- chip damage con lieve falloff sulla distanza ----
-    // falloff 0.5..1.0 (più vicino = più danno, ma mai 0)
-    const falloff = 0.5 + 0.5 * (1 - d / R);
-
-    // scala con atk/def usando la tua computeDamage
-    const raw = computeDamage(BASE_POWER, G.atkP || 50, e.defP || 50);
-
-    // danno finale arrotondato e min 1
-    const dmg = Math.max(1, Math.round(raw * falloff));
-
-    const before = e.hp;
-    e.hp = Math.max(0, e.hp - dmg);
-    total += (before - e.hp);
-  }
-
-  // effetto visivo (opzionale)
-  spawnShockwave?.(p.px, p.py, R);
-
-  return { damageDealt: total };
-}
-
-function setBtnCooldown(btnEl, ms){
-  if (!btnEl) return;
-  const cd = btnEl.querySelector('.cd');
-  const txt = btnEl.querySelector('.cd-txt');
-  if (!cd || !txt) return;
-
-  btnEl.classList.add('on-cd');
-  const start = performance.now();
-  const dur = Math.max(1, ms);
-  const tick = () => {
-    const t = performance.now() - start;
-    const k = Math.min(1, t / dur);
-    cd.style.height = `${Math.round(k*100)}%`;
-    txt.textContent = `${Math.ceil((dur - t)/1000)}`;
-    if (k < 1) requestAnimationFrame(tick);
-    else {
-      btnEl.classList.remove('on-cd');
-      cd.style.height = '0%';
-      txt.textContent = '';
-    }
-  };
   tick();
 }
 

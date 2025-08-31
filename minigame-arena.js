@@ -1943,6 +1943,44 @@ function positionActionOverlay() {
   ov.style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 12px)';
 }
 */
+// Forza layout a croce in basso-destra anche se altri stili JS li spostano
+function forceArenaActionCrossLayout() {
+  const ov = document.getElementById('arena-actions-overlay');
+  if (!ov) return;
+
+  // Contenitore in basso-destra
+  ov.style.setProperty('position','fixed','important');
+  ov.style.setProperty('right','calc(env(safe-area-inset-right,0px) + 12px)','important');
+  ov.style.setProperty('bottom','calc(env(safe-area-inset-bottom,0px) + 56px)','important');
+  ov.style.setProperty('width','200px','important');
+  ov.style.setProperty('height','200px','important');
+  ov.style.setProperty('pointer-events','none','important');
+  ov.style.setProperty('z-index','10030','important');
+
+  const place = (id, rules) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.setProperty('position','absolute','important');
+    el.style.setProperty('width','66px','important');
+    el.style.setProperty('height','66px','important');
+    el.style.setProperty('border-radius','9999px','important');
+    el.style.setProperty('left','auto','important');
+    el.style.setProperty('right','auto','important');
+    el.style.setProperty('top','auto','important');
+    el.style.setProperty('bottom','auto','important');
+    el.style.setProperty('transform','none','important');
+    for (const [k,v] of Object.entries(rules)) el.style.setProperty(k, v, 'important');
+  };
+
+  // → destra (Attacco)
+  place('arena-attack-btn', { right:'0', top:'50%', transform:'translate(0,-50%)' });
+  // ↑ su (Repulsione)
+  place('arena-charge-btn', { right:'50%', top:'0', transform:'translate(50%,0)' });
+  // ↓ giù (Dash)
+  place('arena-dash-btn',   { right:'50%', bottom:'0', transform:'translate(50%,0)' });
+  // ← sinistra (Skill)
+  place('arena-skill-btn',  { left:'0', top:'50%', transform:'translate(0,-50%)' });
+}
 
 
   // ---------- Start / End ----------
@@ -1963,6 +2001,7 @@ DOM.joyBase = document.getElementById('arena-joy-base');
 DOM.joyStick= document.getElementById('arena-joy-stick');
 DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
 DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
+forceArenaActionCrossLayout();
 hydrateActionButtons();
 // bind del picker SOLO ora che il canvas esiste
 /*if (!DOM._pickerBound && DOM.canvas) {

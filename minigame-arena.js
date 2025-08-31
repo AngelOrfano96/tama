@@ -2,8 +2,13 @@
 import { MOVES } from './mosse.js';
 
 // bridge: prendi il client attaccato al window
-const supabaseClient = window.supabaseClient;
-if (!supabaseClient) console.error('[Arena] window.supabaseClient mancante: carica prima lo script che crea il client!');
+const sb = () => {
+  const c = window.supabaseClient;
+  if (!c) throw new Error('[Arena] Supabase client non pronto');
+  return c;
+};
+const getPid = () => window.petId;
+if (!window.supabaseClient) console.error('[Arena] window.supabaseClient mancante: carica prima lo script che crea il client!');
 // === Leaderboard Arena =====================================================
 async function openArenaLeaderboard(){
   const modal = document.getElementById('arena-leaderboard-modal');
@@ -15,10 +20,10 @@ async function openArenaLeaderboard(){
 
   try {
     // utente loggato (per highlight + posizione)
-    const { data:auth } = await supabaseClient.auth.getUser();
+    const { data:auth } = await sb().auth.getUser();
     const meId = auth?.user?.id || null;
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await sb()
       .from('leaderboard_arena')
       .select('user_id, username_snapshot, best_score, best_wave, best_at')
       .order('best_score', { ascending:false })
@@ -615,7 +620,7 @@ async function awardMoveToInventory(moveKey){
   if (!pid) { console.warn('[award_move_drop] missing petId'); return; }
 
   try {
-    const { error } = await supabaseClient.rpc('award_move_drop', {
+    const { error } = await sb().rpc('award_move_drop', {
       p_pet_id: pid,
       p_move_key: moveKey
     });
@@ -1293,50 +1298,8 @@ if (e.enteringViaGate || e.state === 'ingress') {
   clampToArena();
   continue; // salta il resto dell'AI in questo tick
 }
-// --- PROIETTILI ---
-{
-  const t = G.tile;
-  const bounds = getPlayBounds();
-  for (let i = G.projectiles.length - 1; i >= 0; i--) {
-    const p = G.projectiles[i];
-    const dx = p.vx * dt, dy = p.vy * dt;
-    p.x += dx; p.y += dy;
-    p.leftPx -= Math.hypot(dx, dy);
 
-    // fuori arena → despawn
-    if (p.x < bounds.minX || p.x > bounds.maxX || p.y < bounds.minY || p.y > bounds.maxY || p.leftPx <= 0) {
-      G.projectiles.splice(i,1);
-      continue;
-    }
 
-    // collisione con nemici (un colpo per nemico)
-    for (const e of G.enemies) {
-      if (!e || e.hp <= 0 || p.hitSet.has(e)) continue;
-      const ex = e.px + t/2, ey = e.py + t/2;
-      const er = t * 0.35; // raggio “approssimato” nemico
-      const dist = Math.hypot(p.x - ex, p.y - ey);
-      if (dist <= (p.r + er)) {
-        const atk = arenaAPI.getAtk();           // efficacia d’attacco del player
-        const def = arenaAPI.getDef(e);          // difesa nemico
-        const dmg = arenaAPI.computeDamage(p.base, atk, def);
-        const dealt = arenaAPI.applyDamage(e, dmg);
-
-        if (dealt > 0) {
-          // punti (qui, perché il danno è differito)
-          G.score += 1 + Math.floor(dealt/5);
-          syncHUD?.();
-        }
-
-        p.hitSet.add(e);
-        // se non è “piercing”, il proiettile si ferma al primo colpito
-        if (!p.pierce) {
-          G.projectiles.splice(i,1);
-          break;
-        }
-      }
-    }
-  }
-}
 
   // FSM
   switch (e.state) {
@@ -1417,6 +1380,39 @@ case 'windup': {
 
     // rimuovi morti
     G.enemies = G.enemies.filter(e => e.hp > 0);
+
+    // 2) projectiles (FUORI dal loop dei nemici)
+{
+  const t = G.tile;
+  const bounds = getPlayBounds();
+  for (let i = G.projectiles.length - 1; i >= 0; i--) {
+    const p = G.projectiles[i];
+    const dx = p.vx * dt, dy = p.vy * dt;
+    p.x += dx; p.y += dy;
+    p.leftPx -= Math.hypot(dx, dy);
+
+    if (p.x < bounds.minX || p.x > bounds.maxX || p.y < bounds.minY || p.y > bounds.maxY || p.leftPx <= 0) {
+      G.projectiles.splice(i,1);
+      continue;
+    }
+    for (const e of G.enemies) {
+      if (!e || e.hp <= 0 || p.hitSet.has(e)) continue;
+      const ex = e.px + t/2, ey = e.py + t/2;
+      const er = t * 0.35;
+      if (Math.hypot(p.x - ex, p.y - ey) <= (p.r + er)) {
+        const dmg = arenaAPI.computeDamage(p.base, arenaAPI.getAtk(), arenaAPI.getDef(e));
+        const dealt = arenaAPI.applyDamage(e, dmg);
+        if (dealt > 0) { G.score += 1 + Math.floor(dealt/5); syncHUD?.(); }
+        p.hitSet.add(e);
+        if (!p.pierce) { G.projectiles.splice(i,1); break; }
+      }
+    }
+  }
+}
+// 3) AI per singolo nemico
+for (const e of G.enemies) {
+  // FSM ...
+}
 
     // wave clear?
    /* if (!G.enemies.length) {
@@ -1952,9 +1948,10 @@ function unloadArenaCSS() {
 function prettifyName(key) {
   return ({
     basic_attack: 'Attacco',
-    repulse: 'Repulsione'
-  })[key] || key.replace(/_/g, ' ');
-}
+   repulse: 'Repulsione',
+    ball: 'Ball'
+   })[key] || key.replace(/_/g, ' ');
+  }
 // sostituisci la tua setBtnCooldownUI con questa
 function setBtnCooldownUI(btn, remainingMs, totalMs){
   if (!btn) return;
@@ -2085,6 +2082,7 @@ function installCooldownOverlays(){
   ensureCooldownOverlay(DOM.btnAtk);
   ensureCooldownOverlay(DOM.btnChg);
   ensureCooldownOverlay(DOM.btnDash);
+  ensureCooldownOverlay(DOM.btnSkill);
 }
 
 installCooldownOverlays();
@@ -2096,11 +2094,14 @@ ctx = DOM.canvas.getContext('2d');
 
   // 1) Leggi le stat dal DB
   try {
-    const { data, error } = await supabaseClient
-      .from('pet_states')
-      .select('hp_max, attack_power, defense_power, speed_power')
-      .eq('pet_id', petId)
-      .single();
+ const pid = getPid();
+if (!pid) { showArenaToast('Crea il pet prima di entrare nell\'arena', true); return; }
+
+const { data, error } = await sb()
+  .from('pet_states')
+  .select('hp_max, attack_power, defense_power, speed_power')
+  .eq('pet_id', pid)
+  .single();
 
     if (error) throw error;
   // Carica le due mosse in base agli slot equipaggiati
@@ -2114,6 +2115,7 @@ ctx = DOM.canvas.getContext('2d');
   // (facoltativo) mostra il nome mossa sui bottoni
   const btnA = document.getElementById('arena-attack-btn');
   const btnB = document.getElementById('arena-charge-btn');
+  const btnC = document.getElementById('arena-skill-btn');
 const setBtnLabel = (btn, txt) => {
   if (!btn) return;
   let span = btn.querySelector('.lbl');
@@ -2135,6 +2137,7 @@ bindAction(DOM.btnSkill, () => { if (G.playerMoves.C) useArenaMove(G.pet, G.play
   // azioni (niente click)
   bindAction(DOM.btnAtk,  () => useArenaMove(G.pet, G.playerMoves.A));
   bindAction(DOM.btnChg,  () => useArenaMove(G.pet, G.playerMoves.B));
+  //bindAction(DOM.btnDash, () => tryDash());
   bindAction(DOM.btnDash, () => tryDash());
 
   // tastiera
@@ -2329,7 +2332,7 @@ async function gameOver() {
     if (typeof window.updateFunAndExpFromMiniGame === 'function') {
       await window.updateFunAndExpFromMiniGame(fun, exp);
     }
-    await supabaseClient.rpc('submit_arena_score', { p_wave: G.wave|0, p_score: G.score|0 });
+    await sb().rpc('submit_arena_score', { p_wave: G.wave|0, p_score: G.score|0 });
 
     const coins = Math.floor(G.score / 10);
     if (coins > 0) await window.addGettoniSupabase?.(coins);
@@ -2564,12 +2567,6 @@ function normalizeAngle(a) {
 })();
 
 
-function prettifyName(key) {
-  return ({
-    basic_attack: 'Attacco',
-    repulse: 'Repulsione',
-    ball: 'Ball'
-  })[key] || key.replace(/_/g, ' ');
-}
+
 
 

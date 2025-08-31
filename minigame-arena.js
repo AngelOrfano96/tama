@@ -1,3 +1,4 @@
+
 import { MOVES } from './mosse.js';
 
 // bridge: prendi il client attaccato al window

@@ -390,22 +390,20 @@
 
 
 
-  <!-- Supabase JS (v2) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   window.SUPABASE_URL = 'https://jfycifybshoawhwechdd.supabase.co';
-  window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
-
-  // 🔧 crea il client e attaccalo al global
-  const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-  window.supabaseClient = supabaseClient;
+  window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWNpZnlic2hvYXdod2VjaGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNzM0MDQsImV4cCI6MjA2OTY0OTQwNH0.Gsttr6PLvWIcdwum1WUQXml6BjHsXwYn94BEcyPaZHg';
+  // ✅ crea/riusa SOLO la globale
+  window.supabaseClient = window.supabaseClient
+    || supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 </script>
 
-<!-- Ora puoi caricare i tuoi script che lo usano -->
 <script src="minigame-cacciaTesoro.js"></script>
 <script type="module" src="minigame-arena.js"></script>
 <script src="script.js"></script>
+
 <script>
 // Blocca la propagazione dei keydown/keypress/keyup verso i minigiochi quando si sta scrivendo in input/textarea/contenteditable
 (function () {

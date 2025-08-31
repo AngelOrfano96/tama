@@ -1,5 +1,7 @@
-const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-window.supabaseClient = supabaseClient;
+//const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+// usa quello globale creato nell’HTML
+const supabaseClient = window.supabaseClient;
+
 
 // === RESOURCES (Gettoni/Ottoni) =============================================
 

@@ -1951,7 +1951,7 @@ function forceArenaActionCrossLayout() {
   // Contenitore in basso-destra
   ov.style.setProperty('position','fixed','important');
   ov.style.setProperty('right','calc(env(safe-area-inset-right,0px) + 12px)','important');
-  ov.style.setProperty('bottom','calc(env(safe-area-inset-bottom,0px) + 56px)','important');
+  ov.style.setProperty('bottom','calc(env(safe-area-inset-bottom,0px) + 12px)','important');
   ov.style.setProperty('width','200px','important');
   ov.style.setProperty('height','200px','important');
   ov.style.setProperty('pointer-events','none','important');

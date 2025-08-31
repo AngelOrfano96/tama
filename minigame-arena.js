@@ -2249,7 +2249,7 @@ function normalizeAngle(a) {
     ArrowRight:'right', d: 'right',
     ArrowUp:   'up',    w: 'up',
     ArrowDown: 'down',  s: 'down',
-    j: 'atk', k: 'chg', ' ': 'dash'
+    ' ': 'dash'
   };
 
   const isFormish = (el) =>

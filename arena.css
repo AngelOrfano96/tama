@@ -88,28 +88,29 @@
 /* se hai un overlay che copre i bottoni, lascia passare gli eventi */
 #arena-joystick-overlay { pointer-events: none; }
 
-/* ========= ACTIONS (mobile) — layout a croce tipo PlayStation ========= */
-/* TUNING rapido: cambia qui */
+/* ===== ARENA – Pulsanti azione in basso a destra, layout a croce ===== */
+
+/* Tuning rapido */
 :root{
-  --actions-box: 200px;                 /* lato del quadrato invisibile */
-  --action-size: 66px;                  /* diametro bottoni */
-  --actions-offset-x: 0px;              /* + verso il centro (orizzontale) */
-  --actions-offset-y: 56px;             /* ↑ alza il gruppo dal fondo */
+  --actions-box: 200px;   /* lato del quadrato “invisibile” */
+  --action-size: 66px;    /* diametro dei bottoni */
+  --actions-offset-x: 0px;/* >0 sposta verso il centro */
+  --actions-offset-y: 56px;/* alza/abbassa dal bordo inferiore */
 }
 
-/* Contenitore fisso in basso-destra (non blocca i tocchi) */
+/* Contenitore fisso in basso-destra */
 #arena-actions-overlay{
-  position: fixed;
-  right: calc(env(safe-area-inset-right, 0px) + 12px + var(--actions-offset-x));
-  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--actions-offset-y));
-  width: var(--actions-box);
-  height: var(--actions-box);
-  z-index: 10030;
-  pointer-events: none;
+  position: fixed !important;
+  right: calc(env(safe-area-inset-right, 0px) + 12px + var(--actions-offset-x)) !important;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--actions-offset-y)) !important;
+  width: var(--actions-box) !important;
+  height: var(--actions-box) !important;
+  z-index: 10030 !important;
+  pointer-events: none !important; /* i click passano solo ai figli */
   touch-action: none;
 }
 
-/* Reset totale dei bottoni (annulla vecchie posizioni/transform) */
+/* Reset aggressivo dei bottoni (per annullare vecchi posizionamenti) */
 #arena-actions-overlay .action-btn{
   position: absolute !important;
   left: auto !important; right: auto !important;
@@ -124,35 +125,35 @@
   color: #e6e7eb;
   font: 600 14px/1 system-ui,-apple-system, Segoe UI, Roboto, Arial;
   display: flex; align-items: center; justify-content: center;
-  pointer-events: auto;                 /* riattiva sui bottoni */
+  pointer-events: auto;     /* riabilita il tocco sui bottoni */
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-  overflow: hidden;                     /* per overlay cooldown */
+  overflow: hidden;         /* per overlay cooldown .cd */
 }
 
-/* Posizioni a CROCE (stile PlayStation) */
-#arena-attack-btn{  /* destra */
+/* Posizioni a croce */
+#arena-attack-btn{  /* → destra */
   right: 0 !important;
   top: 50% !important;
-  transform: translate(0, -50%) !important;
+  transform: translateY(-50%) !important;
 }
-#arena-charge-btn{  /* su */
+#arena-charge-btn{  /* ↑ su (Repulsione) */
   right: 50% !important;
   top: 0 !important;
-  transform: translate(50%, 0) !important;
+  transform: translateX(50%) !important;
 }
-#arena-dash-btn{    /* giù */
+#arena-dash-btn{    /* ↓ giù (⚡) */
   right: 50% !important;
   bottom: 0 !important;
-  transform: translate(50%, 0) !important;
+  transform: translateX(50%) !important;
 }
-#arena-skill-btn{   /* sinistra (facoltativo) */
+#arena-skill-btn{   /* ← sinistra */
   left: 0 !important;
   top: 50% !important;
-  transform: translate(0, -50%) !important;
+  transform: translateY(-50%) !important;
 }
 
-/* Overlay cooldown (se lo usi) */
+/* Overlay cooldown già previsto nel tuo JS */
 #arena-actions-overlay .action-btn .cd{
   position:absolute; inset:0;
   background: rgba(236,222,17,.45);
@@ -166,3 +167,9 @@
   pointer-events:none; opacity:0; transition:opacity .12s ease;
 }
 #arena-actions-overlay .action-btn.on-cd .cd-txt{ opacity:1; }
+
+/* Desktop: nascondi controlli mobili */
+@media (min-width:851px){
+  #arena-actions-overlay{ display:none !important; }
+}
+

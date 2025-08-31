@@ -1,6 +1,10 @@
-//const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+//const sb() = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 // usa quello globale creato nell’HTML
-const supabaseClient = window.supabaseClient;
+const sb = () => {
+  const c = window.supabaseClient;
+  if (!c) throw new Error('[App] Supabase client non pronto');
+  return c;
+};
 
 
 // === RESOURCES (Gettoni/Ottoni) =============================================
@@ -11,10 +15,10 @@ const supabaseClient = window.supabaseClient;
 // Legge il totale dal DB (gestisce anche il caso "nessuna riga")
 async function loadResourcesForHome() {
   try {
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user } } = await sb().auth.getUser();
     if (!user) return { gettoni: 0, ottoni: 0 };
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await sb()
       .from('resources')
       .select('gettoni, ottoni')
       .eq('user_id', user.id)
@@ -54,7 +58,7 @@ window.refreshResourcesWidget = async function () {
 window.addGettoniSupabase = async function (delta) {
   if (!delta || delta <= 0) return;
   try {
-    const { error } = await supabaseClient.rpc('increment_resources', {
+    const { error } = await sb().rpc('increment_resources', {
       p_gettoni_delta: delta,
       p_ottoni_delta: 0
     });
@@ -71,16 +75,16 @@ window.addGettoniSupabase = async function (delta) {
 // Assicura che esista la riga del profilo per l’utente corrente
 async function ensureProfileRow(userId) {
   // crea la riga se non c'è (senza username)
-  await supabaseClient.from('profiles')
+  await sb().from('profiles')
     .upsert({ user_id: userId }, { onConflict: 'user_id' });
 }
 
 // Aggiorna il badge vicino al livello
 async function refreshUsernameBadge() {
   try {
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user } } = await sb().auth.getUser();
     if (!user) return;
-    const { data, error } = await supabaseClient
+    const { data, error } = await sb()
       .from('profiles')
       .select('username')
       .eq('user_id', user.id)
@@ -95,12 +99,12 @@ async function refreshUsernameBadge() {
 
 // Mostra la modal se manca l'username
 async function promptUsernameIfMissing() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { data: { user } } = await sb().auth.getUser();
   if (!user) return;
 
   await ensureProfileRow(user.id);
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await sb()
     .from('profiles')
     .select('username')
     .eq('user_id', user.id)
@@ -144,7 +148,7 @@ async function promptUsernameIfMissing() {
   input.classList.remove('is-invalid');
 
   try {
-    const { error: upErr } = await supabaseClient
+    const { error: upErr } = await sb()
       .from('profiles')
       .upsert({ user_id: user.id, username: v }, { onConflict: 'user_id' });
 
@@ -176,7 +180,7 @@ async function promptUsernameIfMissing() {
 
   // handler "Esci" (logout)
   const onLogout = async () => {
-    await supabaseClient.auth.signOut();
+    await sb().auth.signOut();
     showOnly('login-container');
     modal.classList.add('hidden');
   };
@@ -214,7 +218,7 @@ window.submitTreasureScoreSupabase = async function(score, level) {
   try {
     // la RPC filtra già p_level < 2, qui è solo ulteriore guard
     if (!Number.isFinite(score) || !Number.isFinite(level)) return;
-    const { error } = await supabaseClient.rpc('submit_treasure_score', {
+    const { error } = await sb().rpc('submit_treasure_score', {
       p_score: Math.max(0, score|0),
       p_level: Math.max(0, level|0),
     });
@@ -226,7 +230,7 @@ window.submitTreasureScoreSupabase = async function(score, level) {
 
 async function loadLeaderboardTop(limit = 20) {
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await sb()
       .from('leaderboard_tesoro')
       .select('username_snapshot, best_score, best_level, best_at')
       .order('best_score', { ascending: false })
@@ -245,7 +249,7 @@ async function loadLeaderboardTop(limit = 20) {
 const TOP_N = 20;
 
 async function fetchLeaderboardTopN(n = TOP_N) {
-  const { data, error } = await supabaseClient
+  const { data, error } = await sb()
     .from('leaderboard_tesoro')
     // alias: username <- username_snapshot
     .select('user_id, username:username_snapshot, best_score, best_level')
@@ -258,11 +262,11 @@ async function fetchLeaderboardTopN(n = TOP_N) {
 
 
 async function fetchMyRank() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { data: { user } } = await sb().auth.getUser();
   if (!user) return null;
 
   // usa la RPC creata sopra
-  const { data, error } = await supabaseClient.rpc('get_treasure_rank', { p_user: user.id });
+  const { data, error } = await sb().rpc('get_treasure_rank', { p_user: user.id });
   if (error) {
     console.error('[get_treasure_rank]', error);
     return null;
@@ -287,7 +291,7 @@ window.openLeaderboardModal = async function () {
     const top = await fetchLeaderboardTopN(TOP_N);
     tbody.innerHTML = ''; // pulisci
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user } } = await sb().auth.getUser();
 
     if (!top.length) {
       tbody.innerHTML = `<tr><td colspan="4" class="muted">Ancora nessun punteggio.</td></tr>`;
@@ -368,7 +372,7 @@ function showOnly(id) {
 // Rende disponibile al minigioco l'aggiornamento di FUN + EXP
 window.updateFunAndExpFromMiniGame = async function(funDelta = 0, expDelta = 0) {
   try {
-    const { data: state } = await supabaseClient
+    const { data: state } = await sb()
       .from('pet_states')
       .select('hunger, fun, clean, level, exp')
       .eq('pet_id', petId)
@@ -380,11 +384,11 @@ window.updateFunAndExpFromMiniGame = async function(funDelta = 0, expDelta = 0) 
 
     await addExpAndMaybeLevelUp(state, expDelta);
 
-    await supabaseClient.from('pet_states')
+    await sb().from('pet_states')
       .update({ fun: newFun, updated_at: new Date() })
       .eq('pet_id', petId);
 
-    const { data: updated } = await supabaseClient
+    const { data: updated } = await sb()
       .from('pet_states')
       .select('hunger, fun, clean, level, exp')
       .eq('pet_id', petId)
@@ -468,7 +472,7 @@ function updateCombatBars(stats) {
 
 async function loadCombatStats(){
   if (!petId) return;
-  const { data, error } = await supabaseClient
+  const { data, error } = await sb()
     .from('pet_states')
     .select('hp, attack, defense, speed, stat_points, hp_max, attack_power, defense_power, speed_power')
     .eq('pet_id', petId)
@@ -505,7 +509,7 @@ document.body.addEventListener('click', async (e) => {
   if (delta < 0) return;
 
   try {
-    const { data, error } = await supabaseClient.rpc('allocate_stat_point', {
+    const { data, error } = await sb().rpc('allocate_stat_point', {
       p_pet_id: petId,
       p_field: stat
     });
@@ -541,7 +545,7 @@ function togglePlusButtons(disable){
 // ---------- MOSSE ----------
 async function loadMoves(){
   if (!petId) return;
-  const { data, error } = await supabaseClient
+  const { data, error } = await sb()
     .from('pet_moves')
     .select('id, move_key, equipped, slot')
     .eq('pet_id', petId);
@@ -575,13 +579,13 @@ async function loadMoves(){
     });
   }
 }
-
+window.loadMoves = loadMoves;
 async function equipMove(moveId, slot){
   if (!petId) return;
 
   try {
     // chiave della mossa scelta
-    const { data: row, error: e0 } = await supabaseClient
+    const { data: row, error: e0 } = await sb()
       .from('pet_moves')
       .select('move_key')
       .eq('id', moveId)
@@ -590,7 +594,7 @@ async function equipMove(moveId, slot){
     const key = row.move_key;
 
     // già equipaggiata altrove?
-    const { data: clash, error: eC } = await supabaseClient
+    const { data: clash, error: eC } = await sb()
       .from('pet_moves')
       .select('id, slot')
       .eq('pet_id', petId)
@@ -605,12 +609,12 @@ async function equipMove(moveId, slot){
     }
 
     // libera lo slot target
-    await supabaseClient
+    await sb()
       .from('pet_moves').update({ equipped:false, slot:null })
       .eq('pet_id', petId).eq('slot', slot);
 
     // equipaggia questa
-    await supabaseClient
+    await sb()
       .from('pet_moves').update({ equipped:true, slot })
       .eq('id', moveId).eq('pet_id', petId);
 
@@ -618,13 +622,7 @@ async function equipMove(moveId, slot){
   } catch (err) {
     console.error('[equipMove guarded]', err);
   }
-  const { error: e2 } = await supabaseClient
-  .from('pet_moves').update({ equipped:true, slot })
-  .eq('id', itemId).eq('pet_id', petId);
-if (e2) {
-  if (e2.code === '23505') showArenaToast('Questa mossa è già equipaggiata', true);
-  else console.error('[equipMove-set]', e2);
-}
+
 
 }
 
@@ -663,7 +661,7 @@ function bindMoveUIOnce(){
 // ---------- INVENTARIO ----------
 async function loadItems(){
   if (!petId) return;
-  const { data, error } = await supabaseClient
+  const { data, error } = await sb()
     .from('pet_items')
     .select('id, item_key, equipped, slot')
     .eq('pet_id', petId);
@@ -699,12 +697,12 @@ async function loadItems(){
 }
 
 async function equipItem(itemId, slot){
-  const { error: e1 } = await supabaseClient
+  const { error: e1 } = await sb()
     .from('pet_items').update({ equipped:false, slot:null })
     .eq('pet_id', petId).eq('slot', slot);
   if (e1) { console.error('[equipItem-clear]', e1); }
 
-  const { error: e2 } = await supabaseClient
+  const { error: e2 } = await sb()
     .from('pet_items').update({ equipped:true, slot })
     .eq('id', itemId).eq('pet_id', petId);
   if (e2) { console.error('[equipItem-set]', e2); }
@@ -744,7 +742,7 @@ function expForNextLevel(level) {
 
 async function getStateFromDb() {
   if (!petId) return;
-  const { data: state } = await supabaseClient
+  const { data: state } = await sb()
     .from('pet_states')
     .select('hunger, fun, clean, level, exp')
     .eq('pet_id', petId)
@@ -767,13 +765,13 @@ function startAutoRefresh() {
 }
 
 async function initFlow() {
-  const { data: sessionData } = await supabaseClient.auth.getUser();
+  const { data: sessionData } = await sb().auth.getUser();
   user = sessionData.user;
   if (!user) {
     showOnly('login-container');
     return;
   }
-  const { data: pet } = await supabaseClient
+  const { data: pet } = await sb()
     .from('pets')
     .select('id, egg_type')
     .eq('user_id', user.id)
@@ -844,16 +842,16 @@ async function addExpAndMaybeLevelUp(state, inc = 0) {
   while (exp >= expNext) {
     exp -= expNext;
     level++;
-    await supabaseClient.rpc('increment_stat_points', { p_pet_id: petId, p_amount: 1 });
+    await sb().rpc('increment_stat_points', { p_pet_id: petId, p_amount: 1 });
     leveledUp = true;
     expNext = expForNextLevel(level);
   }
-  await supabaseClient.from('pet_states').update({
+  await sb().from('pet_states').update({
     level, exp, updated_at: new Date()
   }).eq('pet_id', petId);
 
   // Aggiorna UI
-  const { data: updatedState } = await supabaseClient
+  const { data: updatedState } = await sb()
     .from('pet_states')
     .select('hunger, fun, clean, level, exp')
     .eq('pet_id', petId)
@@ -878,7 +876,7 @@ function showLevelUpMessage() {
 ['feed', 'play', 'clean'].forEach(action => {
   document.getElementById(`${action}-btn`).addEventListener('click', async () => {
     if (!alive) return;
-    const { data: state } = await supabaseClient
+    const { data: state } = await sb()
       .from('pet_states')
       .select('hunger, fun, clean, level, exp')
       .eq('pet_id', petId)
@@ -912,7 +910,7 @@ function showLevelUpMessage() {
         clean = Math.min(100, clean + 20);
       }
     }
-    await supabaseClient.from('pet_states').update({
+    await sb().from('pet_states').update({
       hunger, fun, clean, updated_at: new Date()
     }).eq('pet_id', petId);
 
@@ -920,7 +918,7 @@ function showLevelUpMessage() {
       await addExpAndMaybeLevelUp(state, expInc);
       showExpGainLabel(expInc);
     } else {
-      const { data: updatedState } = await supabaseClient
+      const { data: updatedState } = await sb()
         .from('pet_states')
         .select('hunger, fun, clean, level, exp')
         .eq('pet_id', petId)
@@ -970,13 +968,13 @@ document.querySelectorAll('.egg.selectable').forEach(img =>
 );
 
 document.getElementById('confirm-egg-btn').addEventListener('click', async () => {
-  const { data: sessionData } = await supabaseClient.auth.getUser();
+  const { data: sessionData } = await sb().auth.getUser();
   user = sessionData.user;
   if (!eggType || !user || !user.id) {
     alert("Utente non autenticato!");
     return;
   }
-  const { data, error } = await supabaseClient
+  const { data, error } = await sb()
     .from('pets')
     .insert({ user_id: user.id, egg_type: eggType })
     .select('id')
@@ -987,13 +985,13 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
   }
   petId = data.id;
   window.petId = petId;
-   await supabaseClient.from('pet_states').insert({
+   await sb().from('pet_states').insert({
     pet_id: petId, hunger: 100, fun: 100, clean: 100, level: 1, exp: 0, updated_at: new Date()
   });
 
     // ✅ MOSSE DI DEFAULT (slot 1 e 2 già equipaggiate)
   try {
-    await supabaseClient.from('pet_moves').insert([
+    await sb().from('pet_moves').insert([
       { pet_id: petId, move_key: 'basic_attack', equipped: true, slot: 1 },
       { pet_id: petId, move_key: 'repulse',      equipped: true, slot: 2 },
     ]);
@@ -1019,7 +1017,7 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
 logoutBtn.addEventListener('click', async () => {
-  await supabaseClient.auth.signOut();
+  await sb().auth.signOut();
 
   const setText = (id, val) => {
     const el = document.getElementById(id);
@@ -1051,9 +1049,9 @@ authForm.addEventListener('submit', async e => {
   const email = document.getElementById('email-input').value.trim();
   const password = document.getElementById('password-input').value;
   try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb().auth.signInWithPassword({ email, password });
     if (error) throw error;
-    const { data: sessionData } = await supabaseClient.auth.getUser();
+    const { data: sessionData } = await sb().auth.getUser();
     user = sessionData.user;
     //showOnly('egg-selection');
     await initFlow();
@@ -1065,9 +1063,9 @@ signupBtn.addEventListener('click', async () => {
   const email = document.getElementById('email-input').value.trim();
   const password = document.getElementById('password-input').value;
   try {
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    const { data, error } = await sb().auth.signUp({ email, password });
     if (error) throw error;
-    const { data: sessionData } = await supabaseClient.auth.getUser();
+    const { data: sessionData } = await sb().auth.getUser();
     user = sessionData.user;
     showOnly('egg-selection');
     await initFlow();
@@ -1078,7 +1076,7 @@ signupBtn.addEventListener('click', async () => {
 
 // --- AUTO LOGIN SE GIA' LOGGATO ---
 window.addEventListener('DOMContentLoaded', async () => {
-  const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
+  const { data: { user: currentUser } } = await sb().auth.getUser();
   if (currentUser) {
     user = currentUser;
     await initFlow();
@@ -1166,7 +1164,7 @@ document.getElementById('choose-egg-btn').addEventListener('click', () => {
   document.getElementById('confirm-egg-btn').disabled = true;
 });
 document.getElementById('exit-btn').addEventListener('click', async () => {
-  await supabaseClient.auth.signOut();
+  await sb().auth.signOut();
   showOnly('login-container');
 });
 
@@ -1184,9 +1182,9 @@ document.addEventListener('dblclick', function (e) {
 
 
 // Assumo che tu abbia già creato il client altrove come:
-// const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// const sb() = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Se non esiste, scommenta questa riga:
-// const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+// const sb() = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
 (function setupForgotPasswordUI(){
   const link   = document.getElementById('forgot-link');
@@ -1221,7 +1219,7 @@ document.addEventListener('dblclick', function (e) {
     msg.textContent = 'Se esiste un account con questa email, riceverai un link di reset.';
 
     try {
-      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+      const { error } = await sb().auth.resetPasswordForEmail(email, { redirectTo });
       if (error) console.error('[resetPasswordForEmail]', error);
       setTimeout(()=> modal.classList.add('hidden'), 1000);
     } catch (err) {
@@ -1236,7 +1234,7 @@ document.addEventListener('dblclick', function (e) {
 window.getEquippedMovesForArena = async function () {
   if (!window.petId) return ['basic_attack', 'repulse', null];
   try {
-    const { data } = await supabaseClient
+    const { data } = await sb()
       .from('pet_moves')
       .select('move_key, slot')
       .eq('pet_id', petId)
@@ -1256,7 +1254,7 @@ window.getEquippedMovesForArena = async function () {
 window.getArenaPlayerAttackStat = async function () {
   if (!window.petId) return 0;
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await sb()
       .from('pet_states')
       .select('attack, attack_power')
       .eq('pet_id', petId)

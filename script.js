@@ -1,4 +1,5 @@
 const supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+window.supabaseClient = supabaseClient;sù
 
 // === RESOURCES (Gettoni/Ottoni) =============================================
 
@@ -783,6 +784,7 @@ async function initFlow() {
     return;
   }
   petId = pet.id;
+  window.petId = petId;
   eggType = pet.egg_type;
   bindStatButtonsOnce();
 bindMoveUIOnce();
@@ -982,6 +984,7 @@ document.getElementById('confirm-egg-btn').addEventListener('click', async () =>
     return;
   }
   petId = data.id;
+  window.petId = petId;
    await supabaseClient.from('pet_states').insert({
     pet_id: petId, hunger: 100, fun: 100, clean: 100, level: 1, exp: 0, updated_at: new Date()
   });
@@ -1152,6 +1155,7 @@ document.addEventListener('keydown', (e) => {
 // --- SCEGLI NUOVO UOVO / LOGOUT PERSONALIZZATO ---
 document.getElementById('choose-egg-btn').addEventListener('click', () => {
   petId = null;
+  window.petId = null;
   eggType = null;
   alive = true;
   showOnly('egg-selection');

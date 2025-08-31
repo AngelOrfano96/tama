@@ -606,22 +606,22 @@ function spawnMoveDropAt(px, py){
 
 // RPC → inserisce in pet_moves (duplicati consentiti)
 async function awardMoveToInventory(moveKey){
-  if (!window.petId) return;
+  const pid = window.petId;
+  if (!pid) { console.warn('[award_move_drop] missing petId'); return; }
   try {
     const { data, error } = await supabaseClient.rpc('award_move_drop', {
-      p_pet_id: petId,
-      p_move_key: moveKey
+      p_pet_id: pid, p_move_key: moveKey
     });
     if (error) throw error;
-
-    console.log('[DROP] awarded', data);  // <- vedi subito cosa è entrato
-    await window.loadMoves?.();           // aggiorna lista
+    console.log('[DROP] awarded', data);
+    await window.loadMoves?.();
     showArenaToast(`Nuova mossa: ${data?.move_key || moveKey}`);
   } catch (e) {
     console.error('[award_move_drop]', e);
     showArenaToast('Errore salvataggio mossa', true);
   }
 }
+
 
 
 function showArenaToast(text, isErr=false){

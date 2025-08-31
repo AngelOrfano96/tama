@@ -1,4 +1,8 @@
 import { MOVES } from './mosse.js';
+
+// bridge: prendi il client attaccato al window
+const supabaseClient = window.supabaseClient;
+if (!supabaseClient) console.error('[Arena] window.supabaseClient mancante: carica prima lo script che crea il client!');
 // === Leaderboard Arena =====================================================
 async function openArenaLeaderboard(){
   const modal = document.getElementById('arena-leaderboard-modal');
@@ -608,19 +612,23 @@ function spawnMoveDropAt(px, py){
 async function awardMoveToInventory(moveKey){
   const pid = window.petId;
   if (!pid) { console.warn('[award_move_drop] missing petId'); return; }
+
   try {
-    const { data, error } = await supabaseClient.rpc('award_move_drop', {
-      p_pet_id: pid, p_move_key: moveKey
+    const { error } = await supabaseClient.rpc('award_move_drop', {
+      p_pet_id: pid,
+      p_move_key: moveKey
     });
     if (error) throw error;
-    console.log('[DROP] awarded', data);
-    await window.loadMoves?.();
-    showArenaToast(`Nuova mossa: ${data?.move_key || moveKey}`);
+
+    console.log('[DROP] awarded', moveKey);
+    await window.loadMoves?.(); // ricarica l’inventario
+    showArenaToast(`Nuova mossa: ${moveKey}`);
   } catch (e) {
     console.error('[award_move_drop]', e);
     showArenaToast('Errore salvataggio mossa', true);
   }
 }
+
 
 
 

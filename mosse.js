@@ -36,4 +36,30 @@ export const MOVES = {
       return { damageDealt: total };
     }
   },
+  // …le altre mosse…
+  ball: {
+    cooldownMs: 3500,
+    run(api, self) {
+      const t = api.tileSize();
+      const speedPx   = 520;         // velocità proiettile
+      const rangeTiles= 7;           // distanza percorsa
+      const radiusPx  = t * 0.28;    // “hitbox” della palla
+      const basePower = 50;          // ~50 di potenza di mossa
+
+      api.spawnProjectile?.({
+        owner: 'pet',
+        x: self.px + t/2,
+        y: self.py + t/2,
+        facing: self.facing,     // 'up' | 'down' | 'left' | 'right'
+        speed: speedPx,
+        maxDistPx: rangeTiles * t,
+        radiusPx,
+        basePower,
+        pierce: true             // attraversa i nemici
+      });
+
+      // il danno è “differito” durante il volo
+      return { damageDealt: 0 };
+    }
+  }
 };

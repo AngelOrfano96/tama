@@ -574,18 +574,58 @@ async function loadMoves(){
 }
 
 async function equipMove(moveId, slot){
-  // libera eventuale mossa nello stesso slot e metti questa
-  const { error: e1 } = await supabaseClient
-    .from('pet_moves').update({ equipped:false, slot:null })
-    .eq('pet_id', petId).eq('slot', slot);
-  if (e1) { console.error('[equipMove-clear]', e1); }
+  if (!petId) return;
 
+  try {
+    // chiave della mossa scelta
+    const { data: row, error: e0 } = await supabaseClient
+      .from('pet_moves')
+      .select('move_key')
+      .eq('id', moveId)
+      .single();
+    if (e0 || !row) { console.error('[equipMove get key]', e0); return; }
+    const key = row.move_key;
+
+    // già equipaggiata altrove?
+    const { data: clash, error: eC } = await supabaseClient
+      .from('pet_moves')
+      .select('id, slot')
+      .eq('pet_id', petId)
+      .eq('equipped', true)
+      .eq('move_key', key)
+      .neq('id', moveId);
+    if (eC) console.error('[equipMove clash]', eC);
+
+    if (Array.isArray(clash) && clash.length){
+      alert('Questa mossa è già equipaggiata in un altro slot.');
+      return;
+    }
+
+    // libera lo slot target
+    await supabaseClient
+      .from('pet_moves').update({ equipped:false, slot:null })
+      .eq('pet_id', petId).eq('slot', slot);
+
+    // equipaggia questa
+    await supabaseClient
+      .from('pet_moves').update({ equipped:true, slot })
+      .eq('id', moveId).eq('pet_id', petId);
+
+    await loadMoves();
+  } catch (err) {
+    console.error('[equipMove guarded]', err);
+  }
   const { error: e2 } = await supabaseClient
-    .from('pet_moves').update({ equipped:true, slot })
-    .eq('id', moveId).eq('pet_id', petId);
-  if (e2) { console.error('[equipMove-set]', e2); }
-  await loadMoves();
+  .from('pet_moves').update({ equipped:true, slot })
+  .eq('id', itemId).eq('pet_id', petId);
+if (e2) {
+  if (e2.code === '23505') showArenaToast('Questa mossa è già equipaggiata', true);
+  else console.error('[equipMove-set]', e2);
 }
+
+}
+
+
 
 function bindMoveUIOnce(){
   if (document.body._movesBound) return;

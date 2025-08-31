@@ -199,6 +199,9 @@ const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
     // input
     keys: new Set(),
     lastT: performance.now(),
+
+
+    projectiles: [],
   };
 
   // --- SPRITES & CACHE (arena) ---
@@ -539,6 +542,109 @@ function initGateSprite(){
   Gates.sheet.src = GATE_CFG.src;
 }
 
+// === DROP CONFIG ===
+const DROP_CHANCE   = 0.02;   // 2%
+const DROP_TTL_MS   = 15000;  // scade dopo 15s
+const DROP_RADIUS   = 0.36;   // collisione in tile
+const DROP_DRAW_SZ  = 0.55;   // grandezza grafica (tile)
+G.drops = [];                   // array dei drop attivi
+
+const MOVE_DROP_CFG = {
+  tile: 16,
+  // cambia il nome file se diverso (stessa cartella di Dungeon_2.png)
+  src: `${atlasBase}/LL_fantasy_dungeons.png`
+};
+G.sprites.moveSheet = null;
+
+// mapping: move_key -> ritaglio sull’atlas delle droppabili
+// METTI qui le celle giuste; fallback: lettera "M" se manca la mappa.
+const MOVE_ICON_MAP = {
+  basic_attack: { c:0, r:0, w:1, h:1 },
+  repulse:      { c:1, r:0, w:1, h:1 },
+  ball:         { c:12, r:5, w:1, h:1 },
+  // ... aggiungi le altre mosse che possono droppare
+};
+// helper pick per l’atlas mosse (usa la stessa unità dell’altro atlas)
+const pickMove = (c, r, w=1, h=1) => ({
+  sx: c * MOVE_DROP_CFG.tile,
+  sy: r * MOVE_DROP_CFG.tile,
+  sw: w * MOVE_DROP_CFG.tile,
+  sh: h * MOVE_DROP_CFG.tile,
+});
+
+// opzionale: registrare al volo una nuova icona
+function registerMoveIcon(moveKey, c, r, w=1, h=1){
+  MOVE_ICON_MAP[moveKey] = { c, r, w, h };
+}
+
+function getMoveIconRect(moveKey){
+  const m = MOVE_ICON_MAP[moveKey];
+  if (!m) return null;
+  return pickMove(m.c, m.r, m.w, m.h);
+}
+
+function initMoveDropSprite(){
+  if (G.sprites.moveSheet) return;
+  const img = new Image();
+  img.onload  = () => console.log('[MoveDrop] sheet ok', img.naturalWidth, 'x', img.naturalHeight);
+  img.onerror = (e) => console.warn('[MoveDrop] sheet fail', e);
+  img.src = MOVE_DROP_CFG.src;
+  G.sprites.moveSheet = img;
+}
+
+function getDroppableMoves(){
+  return ['ball']; // oggi solo Ball
+}
+
+
+function spawnMoveDropAt(px, py){
+  const pool = getDroppableMoves();
+  if (!pool.length) return;
+  const moveKey = pool[(Math.random()*pool.length)|0];
+  G.drops.push({ kind:'move', moveKey, px, py, bornAt: performance.now(), ttl: DROP_TTL_MS });
+}
+
+// RPC → inserisce in pet_moves (duplicati consentiti)
+async function awardMoveToInventory(moveKey){
+  if (!window.petId) return;
+  try {
+    const { data, error } = await supabaseClient.rpc('award_move_drop', {
+      p_pet_id: petId, p_move_key: moveKey
+    });
+    if (error) throw error;
+
+    await window.loadMoves?.(); // aggiorna UI inventario
+    showArenaToast(`Nuova mossa: ${moveKey}`);
+  } catch (e) {
+    console.error('[award_move_drop]', e);
+    showArenaToast('Errore salvataggio mossa', true);
+  }
+}
+
+function showArenaToast(text, isErr=false){
+  const el = document.createElement('div');
+  el.className = 'arena-toast';
+  Object.assign(el.style, {
+    position:'fixed', left:'50%', top:'12%', transform:'translateX(-50%)',
+    padding:'10px 14px', borderRadius:'10px',
+    background: isErr ? '#8b1f1f' : '#0f172a', color:'#fff',
+    font:'600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial',
+    boxShadow:'0 6px 18px rgba(0,0,0,.22)', zIndex:10050,
+    opacity:'0', transition:'opacity .15s ease'
+  });
+  el.textContent = text;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=> el.style.opacity='1');
+  setTimeout(()=> { el.style.opacity='0'; setTimeout(()=> el.remove(), 180); }, 1300);
+}
+
+// chiamata quando un nemico muore: rolla il drop
+function onEnemyKilled(e){
+  if (Math.random() < DROP_CHANCE){
+    // centra il drop nel tile del nemico
+    spawnMoveDropAt(e.px + G.tile/2, e.py + G.tile/2);
+  }
+}
 
 
 // ===== DEV: Atlas Inspector =====
@@ -1027,6 +1133,31 @@ G.pet.py += dy * spd * dt;
 clampToBounds(G.pet);        // ⬅️ nuovo clamp sui bounds camminabili
 
 
+// --- PICKUP drop ---
+{
+  const PCX = G.pet.px + G.tile/2, PCY = G.pet.py + G.tile/2;
+  const R = DROP_RADIUS * G.tile;
+  const now = performance.now();
+
+  for (let i = G.drops.length - 1; i >= 0; i--){
+    const d = G.drops[i];
+
+    // scadenza
+    if (now - d.bornAt > d.ttl) { G.drops.splice(i,1); continue; }
+
+    // raggio su raggio
+    const dx = d.px - PCX, dy = d.py - PCY;
+    if (dx*dx + dy*dy <= R*R){
+      const moveKey = d.moveKey;
+      G.drops.splice(i,1);
+      awardMoveToInventory(moveKey); // RPC
+      G.score += 5;                  // bonus opzionale
+      syncHUD?.();
+    }
+  }
+}
+
+
     // --- animazione pet (walk 2-frame) ---
 if (G.pet.moving) {
   G.pet.animTime += dt;
@@ -1150,7 +1281,50 @@ if (e.enteringViaGate || e.state === 'ingress') {
   clampToArena();
   continue; // salta il resto dell'AI in questo tick
 }
+// --- PROIETTILI ---
+{
+  const t = G.tile;
+  const bounds = getPlayBounds();
+  for (let i = G.projectiles.length - 1; i >= 0; i--) {
+    const p = G.projectiles[i];
+    const dx = p.vx * dt, dy = p.vy * dt;
+    p.x += dx; p.y += dy;
+    p.leftPx -= Math.hypot(dx, dy);
 
+    // fuori arena → despawn
+    if (p.x < bounds.minX || p.x > bounds.maxX || p.y < bounds.minY || p.y > bounds.maxY || p.leftPx <= 0) {
+      G.projectiles.splice(i,1);
+      continue;
+    }
+
+    // collisione con nemici (un colpo per nemico)
+    for (const e of G.enemies) {
+      if (!e || e.hp <= 0 || p.hitSet.has(e)) continue;
+      const ex = e.px + t/2, ey = e.py + t/2;
+      const er = t * 0.35; // raggio “approssimato” nemico
+      const dist = Math.hypot(p.x - ex, p.y - ey);
+      if (dist <= (p.r + er)) {
+        const atk = arenaAPI.getAtk();           // efficacia d’attacco del player
+        const def = arenaAPI.getDef(e);          // difesa nemico
+        const dmg = arenaAPI.computeDamage(p.base, atk, def);
+        const dealt = arenaAPI.applyDamage(e, dmg);
+
+        if (dealt > 0) {
+          // punti (qui, perché il danno è differito)
+          G.score += 1 + Math.floor(dealt/5);
+          syncHUD?.();
+        }
+
+        p.hitSet.add(e);
+        // se non è “piercing”, il proiettile si ferma al primo colpito
+        if (!p.pierce) {
+          G.projectiles.splice(i,1);
+          break;
+        }
+      }
+    }
+  }
+}
 
   // FSM
   switch (e.state) {
@@ -1503,6 +1677,76 @@ function render() {
     ctx.fillStyle = '#4ade80';
     ctx.fillRect(e.px + 8, e.py + 4, hpw, 3);
   }
+// --- DROPS ---
+for (const d of G.drops){
+  const size = DROP_DRAW_SZ * G.tile;
+  const x = d.px - size/2;
+  const y = d.py - size/2;
+
+  // glow a terra
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#60a5fa';
+  ctx.beginPath();
+  ctx.ellipse(d.px, d.py + size*0.18, size*0.52, size*0.22, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // bobbing
+  ctx.save();
+  const t = (performance.now() - d.bornAt) / 1000;
+  const bob = Math.sin(t * 4) * (G.tile * 0.03);
+  ctx.translate(0, -bob);
+
+  const icon = getMoveIconRect(d.moveKey);
+  const sheet = G.sprites.moveSheet;
+  if (icon && sheet && sheet.complete){
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sheet, icon.sx, icon.sy, icon.sw, icon.sh, x, y, size, size);
+    // piccolo contorno
+    ctx.strokeStyle = '#93c5fd';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, size, size, size*0.22); ctx.stroke();
+  } else {
+    // fallback “cartuccia” blu con lettera M
+    ctx.beginPath();
+    ctx.fillStyle = '#2563eb';
+    ctx.strokeStyle = '#93c5fd';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, size, size, size*0.25);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = `700 ${Math.round(size*0.42)}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('M', d.px, d.py);
+  }
+  ctx.restore();
+}
+// --- PROJECTILES ---
+for (const p of G.projectiles) {
+  // scia semplice
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r * 1.25, 0, Math.PI * 2);
+  ctx.fillStyle = '#93c5fd';
+  ctx.fill();
+  ctx.restore();
+
+  // palla
+  ctx.save();
+  const grad = ctx.createRadialGradient(p.x, p.y, p.r*0.1, p.x, p.y, p.r);
+  grad.addColorStop(0, '#f8fafc');
+  grad.addColorStop(1, '#3b82f6');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 
   // --- PET (con texture) ---
   {
@@ -1974,6 +2218,7 @@ setupMobileControlsArena();
   buildDecorFromAtlas();
   buildGoblinFromAtlas?.();
   buildBatFromAtlas?.();
+  initMoveDropSprite();
 
   const petNum = detectPetNumFromDom();
   loadPetSprites(petNum);
@@ -2149,15 +2394,45 @@ const arenaAPI = {
     return min + (max - min) * k;
   },
 
-  applyDamage(target, dmg){
-    const before = target.hp|0;
-    target.hp = Math.max(0, before - (dmg|0));
-    return before - target.hp;
-  },
+applyDamage(target, dmg){
+  const before = target.hp|0;
+  target.hp = Math.max(0, before - (dmg|0));
+
+  // se è un nemico ed è appena morto → 2% drop
+  if (before > 0 && target.hp <= 0 && target.type) {
+    if (Math.random() < DROP_CHANCE) {
+      // centra nel tile del nemico
+      spawnMoveDropAt(target.px + G.tile/2, target.py + G.tile/2);
+    }
+  }
+  return before - target.hp;
+},
+
 
   playFX(key, self){
     if (key === 'shockwave') spawnShockwave(self.px, self.py, 2.2 * G.tile);
   },
+};
+// direzione -> vettore normalizzato
+function facingToVec(face){
+  return face === 'right' ? {x: 1, y: 0}
+       : face === 'left'  ? {x:-1, y: 0}
+       : face === 'down'  ? {x: 0, y: 1}
+       :                     {x: 0, y:-1};
+}
+
+arenaAPI.spawnProjectile = function(spec){
+  const dir = facingToVec(spec.facing || 'right');
+  G.projectiles.push({
+    x: spec.x, y: spec.y,
+    vx: dir.x * (spec.speed || 500),
+    vy: dir.y * (spec.speed || 500),
+    leftPx: Math.max(1, spec.maxDistPx || (6 * G.tile)),
+    r: Math.max(2, spec.radiusPx || (0.25 * G.tile)),
+    base: Math.max(1, spec.basePower || 50),
+    pierce: !!spec.pierce,
+    hitSet: new WeakSet(),       // per non colpire lo stesso nemico 2 volte
+  });
 };
 
 
@@ -2287,6 +2562,12 @@ function normalizeAngle(a) {
 })();
 
 
-
+function prettifyName(key) {
+  return ({
+    basic_attack: 'Attacco',
+    repulse: 'Repulsione',
+    ball: 'Ball'
+  })[key] || key.replace(/_/g, ' ');
+}
 
 

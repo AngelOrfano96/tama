@@ -302,36 +302,34 @@ const pick = (c, r, w = 1, h = 1) => ({
 });
 
  // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
+// ESEMPIO: aggiorna con le tue coordinate (colonna, riga) reali!
 const DECOR_DESKTOP = {
-  top1:    pick(11,1),
-  top2:    pick(12,1),
-  bottom:  pick(11,4),
-  bottom2: pick(12,4),
-  left1:   pick(10,2),
-  left2:   pick(10,3),
-  left3:   pick(10,2),
-  right1:  pick(13,2),
-  right2:  pick(13,3),
-  right3:  pick(13,2),
+  // corpo inferiore (vicino al pavimento)
+  top_base:  pick(11,1),   // <- PRIMA ERA top1
 
-  corner_tl: pick(10,1),
-  corner_tr: pick(13,1),
-  corner_bl: pick(10,4),
-  corner_br: pick(13,4),
+  // corpo superiore (secondo “blocco”)
+  top_upper: pick(12,1),   // <- PRIMA ERA top2 (se non esiste, riusa top_base)
 
-  corner_tl_door: pick(9,5),
-  corner_tr_door: pick(8,5),
-  corner_bl_door: pick(9,3),
-  corner_br_door: pick(8,3),
+  // tappo/coperchio (bordino alto)
+  top_cap:   pick(11,0),   // <- se non esiste, lo lasceremo facoltativo
 
-  floor: [
-    pick(11,2), pick(11,3), pick(12,2), pick(12,3) // 4 varianti 16×16
-  ],
+  // resto invariato...
+  bottom:  pick(11,4), bottom2: pick(12,4),
+  left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
+  right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
 
-  door_h1: pick(7,7),  // porta orizzontale (varco su top/bottom)
-  door_h2: pick(7,6),
+  corner_tl: pick(10,1), corner_tr: pick(13,1),
+  corner_bl: pick(10,4), corner_br: pick(13,4),
 
+  corner_tl_door: pick(9,5), corner_tr_door: pick(8,5),
+  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
+
+  floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
+  door_h1: pick(7,7), door_h2: pick(7,6),
 };
+
+// se ti serve, copia le stesse tre chiavi anche in DECOR_MOBILE
+
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
   // esempio: su mobile usi una riga diversa per il top1/top2
@@ -377,29 +375,27 @@ function variantIndex(x, y, len) {
 // costruisce la tabella usata dal renderer
 function buildDecorFromAtlas() {
   G.sprites.decor = {
-    top:    [DECOR.top1, DECOR.top2],
+    // Nord spezzato in 3 parti
+    top_base:  DECOR.top_base  || DECOR.top1, // fallback al vecchio
+    top_upper: DECOR.top_upper || DECOR.top1, // se non hai un secondo tassello, riusa il base
+    top_cap:   DECOR.top_cap   || null,       // può mancare (lo simuleremo)
+
+    // Lati e sud come prima
     bottom: [DECOR.bottom, DECOR.bottom2],
     left:   [DECOR.left1, DECOR.left2, DECOR.left3],
     right:  [DECOR.right1, DECOR.right2, DECOR.right3],
 
-    corner_tl: DECOR.corner_tl,
-    corner_tr: DECOR.corner_tr,
-    corner_bl: DECOR.corner_bl,
-    corner_br: DECOR.corner_br,
+    corner_tl: DECOR.corner_tl, corner_tr: DECOR.corner_tr,
+    corner_bl: DECOR.corner_bl, corner_br: DECOR.corner_br,
 
-    corner_tl_door: DECOR.corner_tl_door,
-    corner_tr_door: DECOR.corner_tr_door,
-    corner_bl_door: DECOR.corner_bl_door,
-    corner_br_door: DECOR.corner_br_door,
+    corner_tl_door: DECOR.corner_tl_door, corner_tr_door: DECOR.corner_tr_door,
+    corner_bl_door: DECOR.corner_bl_door, corner_br_door: DECOR.corner_br_door,
 
-     exitClosed: DECOR.door_h1,
-    exitOpen:   DECOR.door_h2,
-
-
-
+    exitClosed: DECOR.door_h1, exitOpen: DECOR.door_h2,
     floor: DECOR.floor,
   };
 }
+
 
 function debugAtlas(tag = '') {
   const d = G?.sprites?.decor;
@@ -1588,24 +1584,32 @@ function bakeRoomLayer(key, room) {
     }
   }
 
-  // 3) EXTRA STRATO NORD (muro alto 2) + "cap"
-  //    Per ogni cella di muro sul bordo alto (y=0) ripeto un'altra fascia a y=1.
-  //    Evito le aperture (lì tiles[0][x] è null).
-  for (let x = 0; x < W; x++) {
-    const t = tiles[0][x];
-    if (!t) continue; // apertura (porta in alto)
-    // usa la stessa texture 'top' anche per il secondo "corpo" di muro
-    // (se agli angoli in alto hai 'corner_tl'/'corner_tr', forzo comunque 'top')
-    drawTileTypeOn(bctx, x, 1, 'top', tile);
+ // dentro bakeRoomLayer, dopo aver calcolato `tiles` e disegnato pavimento+muri standard…
 
-    // "cap" interno: piccola ombra a cavallo della riga 2 per dare spessore
-    // (solo sotto segmenti realmente pieni in alto)
+// Extra Nord: base (riga 0), upper (riga 1), cap (bordino)
+for (let x = 0; x < Cfg.roomW; x++) {
+  const isWallTopRow = !!tiles[0][x];       // null = apertura/porta, truthy = muro/angolo
+  if (!isWallTopRow) continue;
+
+  // 1) corpo inferiore (sostituisce la "top" standard)
+  drawTileTypeOn(bctx, x, 0, 'top_base', tile);
+
+  // 2) corpo superiore (secondo blocco)
+  drawTileTypeOn(bctx, x, 1, 'top_upper', tile);
+
+  // 3) tappo/cap (se ce l’hai)
+  if (G.sprites.decor.top_cap) {
+    drawTileTypeOn(bctx, x, 0, 'top_cap', tile); // overlay sopra il base
+  } else {
+    // fallback: una strisciolina d’ombra come coprifilo
     bctx.save();
     bctx.globalAlpha = 0.18;
     bctx.fillStyle = '#000';
-    bctx.fillRect(x * tile, 2 * tile - Math.max(3, Math.round(tile * 0.05)), tile, Math.max(3, Math.round(tile * 0.05)));
+    const h = Math.max(3, Math.round(tile * 0.05));
+    bctx.fillRect(x * tile, 2 * tile - h, tile, h);
     bctx.restore();
   }
+}
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;

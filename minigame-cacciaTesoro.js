@@ -1560,8 +1560,8 @@ function bakeRoomLayer(key, room) {
   const tile = window.treasureTile || 64;
   if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
 
-  const wpx = Cfg.roomW * tile;
-  const hpx = Cfg.roomH * tile;
+  const W = Cfg.roomW, H = Cfg.roomH;
+  const wpx = W * tile, hpx = H * tile;
 
   const cv = document.createElement('canvas');
   cv.width = wpx;
@@ -1569,27 +1569,49 @@ function bakeRoomLayer(key, room) {
   const bctx = cv.getContext('2d');
   bctx.imageSmoothingEnabled = false;
 
-  // 1) pavimento
-  for (let y = 0; y < room.length; y++) {
-    for (let x = 0; x < room[0].length; x++) {
+  // 0) mappa tipi (serve per capire dove c'è muro/porta)
+  const tiles = generateRoomTiles(room);
+
+  // 1) PAVIMENTO
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
       if (room[y][x] === 0) drawTileTypeOn(bctx, x, y, 'floor', tile);
     }
   }
 
-  // 2) muri/angoli una volta sola
-  const tiles = generateRoomTiles(room);
-  for (let y = 0; y < tiles.length; y++) {
-    for (let x = 0; x < tiles[y].length; x++) {
+  // 2) MURI STANDARD (laterali, sud, angoli, nord "base")
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
       const t = tiles[y][x];
       if (!t || t === 'center') continue;
       drawTileTypeOn(bctx, x, y, t, tile);
     }
   }
 
+  // 3) EXTRA STRATO NORD (muro alto 2) + "cap"
+  //    Per ogni cella di muro sul bordo alto (y=0) ripeto un'altra fascia a y=1.
+  //    Evito le aperture (lì tiles[0][x] è null).
+  for (let x = 0; x < W; x++) {
+    const t = tiles[0][x];
+    if (!t) continue; // apertura (porta in alto)
+    // usa la stessa texture 'top' anche per il secondo "corpo" di muro
+    // (se agli angoli in alto hai 'corner_tl'/'corner_tr', forzo comunque 'top')
+    drawTileTypeOn(bctx, x, 1, 'top', tile);
+
+    // "cap" interno: piccola ombra a cavallo della riga 2 per dare spessore
+    // (solo sotto segmenti realmente pieni in alto)
+    bctx.save();
+    bctx.globalAlpha = 0.18;
+    bctx.fillStyle = '#000';
+    bctx.fillRect(x * tile, 2 * tile - Math.max(3, Math.round(tile * 0.05)), tile, Math.max(3, Math.round(tile * 0.05)));
+    bctx.restore();
+  }
+
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;
   return baked;
 }
+
 
 
 function drawTile(sprite, tileX, tileY) {
@@ -1799,6 +1821,18 @@ function render() {
       }
     }
   }
+  // --- overlay "lip" sud (opzionale, effetto profondità)
+{
+  const room = G.rooms[G.petRoom.y][G.petRoom.x];
+  const tiles = generateRoomTiles(room);
+  for (let x = 0; x < tiles[0].length; x++) {
+    if (tiles[Cfg.roomH - 1][x] === 'bottom') {
+      // ridisegno SOLO il bordo inferiore davanti agli sprite
+      drawTileType(x, Cfg.roomH - 1, 'bottom', tile);
+    }
+  }
+}
+
 }
 
 

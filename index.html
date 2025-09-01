@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Tamagotchi Browser</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="minigame-treasure-theme.css">
   <style>
     .fullscreen {
       position: fixed;
@@ -211,7 +212,7 @@
     </div>
     <!-- Dungeon (canvas) -->
     <div class="treasure-dungeon-area" style="position:relative;">
-      <canvas id="treasure-canvas"></canvas>
+      <canvas id="treasure-canvas" width="320" height="180"></canvas>
       <span id="treasure-bonus-label"
         style="display:none; position:absolute; left:50%; top:24px; transform:translateX(-50%); font-size:2.2em; color:#ffe44c; font-family:'Luckiest Guy',cursive; text-shadow:2px 2px 6px #000,0 0 24px #fff"></span>
       <div id="treasure-feedback-label"></div>
@@ -415,26 +416,22 @@
 })();
 </script>
 <script>
-// Non far arrivare gli eventi touch/pointer globali ai minigiochi
-// quando il tap è su input / button / form / link / modali,
-// MA consenti SEMPRE i controlli dell’arena.
 (function () {
   const isFormish = (el) =>
     el && (el.closest('form, input, textarea, select, a, .form-box, .modal, button'));
 
-  const isArenaControl = (el) =>
-    el && el.closest('#arena-joy-base, #arena-actions-overlay');
+  // Estendi la whitelist ai controlli Treasure
+  const isGameControl = (el) =>
+    el && el.closest('#arena-joy-base, #arena-actions-overlay, #treasure-joystick-base');
 
   ['pointerdown','pointerup','touchstart','touchend','touchmove'].forEach(ev => {
     window.addEventListener(ev, (e) => {
-      // ⛔ non bloccare i controlli arena
-      if (isArenaControl(e.target)) return;
-      if (isFormish(e.target)) {
-        e.stopPropagation();              // ferma la propagazione globale
-      }
+      if (isGameControl(e.target)) return; // consenti sempre
+      if (isFormish(e.target)) e.stopPropagation();
     }, { capture:true, passive:false });
   });
 })();
 </script>
+
 </body>
 </html>

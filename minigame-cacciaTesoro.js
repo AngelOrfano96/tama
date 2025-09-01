@@ -335,6 +335,9 @@ const DECOR_DESKTOP = {
   corner_tr_door_upper: pick(8,4),
   corner_tr_door_cap:   pick(8,3),
 
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
+
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),
 };

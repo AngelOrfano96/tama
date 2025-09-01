@@ -316,7 +316,7 @@ const DECOR_DESKTOP = {
   // resto invariato...
   bottom:  pick(11,4), bottom2: pick(12,4),
   left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
-  right1: pick(13,2), right2: pick(13,3), right3: pick(13,4),
+  right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
 
   corner_tl_base:  pick(10,1),
   corner_tl_upper: pick(10,1), // seconda “fascia” verticale
@@ -335,8 +335,10 @@ const DECOR_DESKTOP = {
   corner_tr_door_upper: pick(8,4),
   corner_tr_door_cap:   pick(8,3),
 
+
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
+  corner_bl_door: pick(12,8), corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),

@@ -318,7 +318,7 @@ const DECOR_DESKTOP = {
   left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
   right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
 
-  corner_tl: pick(10,1), corner_tr: pick(13,1),
+  corner_tl: pick(10,0), corner_tr: pick(13,0),
   corner_bl: pick(10,4), corner_br: pick(13,4),
 
   corner_tl_door: pick(9,5), corner_tr_door: pick(8,5),

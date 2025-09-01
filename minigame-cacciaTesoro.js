@@ -316,13 +316,24 @@ const DECOR_DESKTOP = {
   // resto invariato...
   bottom:  pick(11,4), bottom2: pick(12,4),
   left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
-  right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
+  right1: pick(13,2), right2: pick(13,3), right3: pick(13,4),
 
-  corner_tl: pick(10,0), corner_tr: pick(13,0),
-  corner_bl: pick(10,4), corner_br: pick(13,4),
+  corner_tl_base:  pick(10,1),
+  corner_tl_upper: pick(10,0), // seconda “fascia” verticale
+  corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
 
-  corner_tl_door: pick(9,5), corner_tr_door: pick(8,5),
-  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
+  corner_tr_base:  pick(13,1),
+  corner_tr_upper: pick(13,0),
+  corner_tr_cap:   pick(13,0),
+
+  // varianti “porta” (se nel tuo atlas esistono)
+  corner_tl_door_base:  pick(9,5),
+  corner_tl_door_upper: pick(9,4),
+  corner_tl_door_cap:   pick(9,3),
+
+  corner_tr_door_base:  pick(8,5),
+  corner_tr_door_upper: pick(8,4),
+  corner_tr_door_cap:   pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),
@@ -375,26 +386,49 @@ function variantIndex(x, y, len) {
 // costruisce la tabella usata dal renderer
 function buildDecorFromAtlas() {
   G.sprites.decor = {
-    // Nord spezzato in 3 parti
-    top_base:  DECOR.top_base  || DECOR.top1, // fallback al vecchio
-    top_upper: DECOR.top_upper || DECOR.top1, // se non hai un secondo tassello, riusa il base
-    top_cap:   DECOR.top_cap   || null,       // può mancare (lo simuleremo)
+    // Nord a 2 blocchi + cap
+    top_base:  DECOR.top_base  || DECOR.top1,
+    top_upper: DECOR.top_upper || DECOR.top1,
+    top_cap:   DECOR.top_cap   || null,
 
-    // Lati e sud come prima
+    // Corner TL/TR (normali + door), con fallback progressivi
+    corner_tl_base:  DECOR.corner_tl_base  || DECOR.corner_tl || DECOR.top_base  || DECOR.top1,
+    corner_tl_upper: DECOR.corner_tl_upper || DECOR.corner_tl || DECOR.top_upper || DECOR.top1,
+    corner_tl_cap:   DECOR.corner_tl_cap   || null,
+
+    corner_tr_base:  DECOR.corner_tr_base  || DECOR.corner_tr || DECOR.top_base  || DECOR.top1,
+    corner_tr_upper: DECOR.corner_tr_upper || DECOR.corner_tr || DECOR.top_upper || DECOR.top1,
+    corner_tr_cap:   DECOR.corner_tr_cap   || null,
+
+    corner_tl_door_base:  DECOR.corner_tl_door_base  || DECOR.corner_tl_base  || DECOR.corner_tl,
+    corner_tl_door_upper: DECOR.corner_tl_door_upper || DECOR.corner_tl_upper || DECOR.corner_tl,
+    corner_tl_door_cap:   DECOR.corner_tl_door_cap   || DECOR.corner_tl_cap   || null,
+
+    corner_tr_door_base:  DECOR.corner_tr_door_base  || DECOR.corner_tr_base  || DECOR.corner_tr,
+    corner_tr_door_upper: DECOR.corner_tr_door_upper || DECOR.corner_tr_upper || DECOR.corner_tr,
+    corner_tr_door_cap:   DECOR.corner_tr_door_cap   || DECOR.corner_tr_cap   || null,
+
+    // Lati e Sud come prima
     bottom: [DECOR.bottom, DECOR.bottom2],
     left:   [DECOR.left1, DECOR.left2, DECOR.left3],
     right:  [DECOR.right1, DECOR.right2, DECOR.right3],
 
-    corner_tl: DECOR.corner_tl, corner_tr: DECOR.corner_tr,
-    corner_bl: DECOR.corner_bl, corner_br: DECOR.corner_br,
+    corner_tl: DECOR.corner_tl,
+    corner_tr: DECOR.corner_tr,
+    corner_bl: DECOR.corner_bl,
+    corner_br: DECOR.corner_br,
 
-    corner_tl_door: DECOR.corner_tl_door, corner_tr_door: DECOR.corner_tr_door,
-    corner_bl_door: DECOR.corner_bl_door, corner_br_door: DECOR.corner_br_door,
+    corner_tl_door: DECOR.corner_tl_door,
+    corner_tr_door: DECOR.corner_tr_door,
+    corner_bl_door: DECOR.corner_bl_door,
+    corner_br_door: DECOR.corner_br_door,
 
-    exitClosed: DECOR.door_h1, exitOpen: DECOR.door_h2,
-    floor: DECOR.floor,
+    exitClosed: DECOR.door_h1,
+    exitOpen:   DECOR.door_h2,
+    floor:      DECOR.floor,
   };
 }
+
 
 /*
 function debugAtlas(tag = '') {
@@ -1588,28 +1622,62 @@ function bakeRoomLayer(key, room) {
 
 // Extra Nord: base (riga 0), upper (riga 1), cap (bordino)
 for (let x = 0; x < Cfg.roomW; x++) {
-  const isWallTopRow = !!tiles[0][x];       // null = apertura/porta, truthy = muro/angolo
-  if (!isWallTopRow) continue;
+  const t0 = tiles[0][x];
+  if (!t0) continue;
 
-  // 1) corpo inferiore (sostituisce la "top" standard)
-  drawTileTypeOn(bctx, x, 0, 'top_base', tile);
+  const atLeftCorner  = (x === 0) && (t0 === 'corner_tl' || t0 === 'corner_tl_door');
+  const atRightCorner = (x === Cfg.roomW - 1) && (t0 === 'corner_tr' || t0 === 'corner_tr_door');
 
-  // 2) corpo superiore (secondo blocco)
+  if (atLeftCorner) {
+    const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
+    const upperK = (t0 === 'corner_tl_door') ? 'corner_tl_door_upper' : 'corner_tl_upper';
+    const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap'   : 'corner_tl_cap';
+
+    drawTileTypeOn(bctx, x, 0, baseK,  tile);
+    drawTileTypeOn(bctx, x, 1, upperK, tile);
+    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+    else {
+      // fallback: sottile ombra
+      bctx.save();
+      bctx.globalAlpha = 0.18; bctx.fillStyle = '#000';
+      const h = Math.max(3, Math.round(tile * 0.05));
+      bctx.fillRect(x * tile, 2 * tile - h, tile, h);
+      bctx.restore();
+    }
+    continue;
+  }
+
+  if (atRightCorner) {
+    const baseK  = (t0 === 'corner_tr_door') ? 'corner_tr_door_base'  : 'corner_tr_base';
+    const upperK = (t0 === 'corner_tr_door') ? 'corner_tr_door_upper' : 'corner_tr_upper';
+    const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap'   : 'corner_tr_cap';
+
+    drawTileTypeOn(bctx, x, 0, baseK,  tile);
+    drawTileTypeOn(bctx, x, 1, upperK, tile);
+    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+    else {
+      bctx.save();
+      bctx.globalAlpha = 0.18; bctx.fillStyle = '#000';
+      const h = Math.max(3, Math.round(tile * 0.05));
+      bctx.fillRect(x * tile, 2 * tile - h, tile, h);
+      bctx.restore();
+    }
+    continue;
+  }
+
+  // non-corner: normale muro Nord
+  drawTileTypeOn(bctx, x, 0, 'top_base',  tile);
   drawTileTypeOn(bctx, x, 1, 'top_upper', tile);
-
-  // 3) tappo/cap (se ce l’hai)
-  if (G.sprites.decor.top_cap) {
-    drawTileTypeOn(bctx, x, 0, 'top_cap', tile); // overlay sopra il base
-  } else {
-    // fallback: una strisciolina d’ombra come coprifilo
+  if (G.sprites.decor.top_cap) drawTileTypeOn(bctx, x, 0, 'top_cap', tile);
+  else {
     bctx.save();
-    bctx.globalAlpha = 0.18;
-    bctx.fillStyle = '#000';
+    bctx.globalAlpha = 0.18; bctx.fillStyle = '#000';
     const h = Math.max(3, Math.round(tile * 0.05));
     bctx.fillRect(x * tile, 2 * tile - h, tile, h);
     bctx.restore();
   }
 }
+
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;

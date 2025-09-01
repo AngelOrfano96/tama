@@ -735,7 +735,7 @@ function getCurrentPetSpeed() {
   // ---------- CANVAS SIZE ----------
 function resizeTreasureCanvas() {
 
-  debugAtlas('resize'); 
+  //debugAtlas('resize'); 
   maybeSwapDecorForDevice();
   const wWin = window.innerWidth;
   const hWin = window.innerHeight;
@@ -842,7 +842,7 @@ function startTreasureMinigame() {
   maybeSwapDecorForDevice();
   buildDecorFromAtlas();
   buildBatFromAtlas();
-  debugAtlas('start');
+  //debugAtlas('start');
 
   // stato base
   G.level = 1;

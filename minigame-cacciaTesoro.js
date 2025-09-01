@@ -338,7 +338,7 @@ const DECOR_DESKTOP = {
 
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
-  corner_bl_door: pick(12,8), corner_br_door: pick(8,3),
+  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),
@@ -1630,24 +1630,12 @@ for (let x = 0; x < Cfg.roomW; x++) {
   const t0 = tiles[0][x];
   if (!t0) continue;
 
-  const atLeftCorner  = (x === 0) && (t0 === 'corner_tl' || t0 === 'corner_tl_door');
-  const atRightCorner = (x === Cfg.roomW - 1) && (t0 === 'corner_tr' || t0 === 'corner_tr_door');
-
-  if (atLeftCorner) {
-    const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
-    const upperK = (t0 === 'corner_tl_door') ? 'corner_tl_door_upper' : 'corner_tl_upper';
-    const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap'   : 'corner_tl_cap';
-
-    drawTileTypeOn(bctx, x, 0, baseK,  tile);
-    drawTileTypeOn(bctx, x, 1, upperK, tile);
-    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
-    else {
-      // fallback: sottile ombra
-      bctx.save();
-      bctx.globalAlpha = 0.18; bctx.fillStyle = '#000';
-      const h = Math.max(3, Math.round(tile * 0.05));
-      bctx.fillRect(x * tile, 2 * tile - h, tile, h);
-      bctx.restore();
+  if (t0 === 'corner_tl_door' || t0 === 'corner_tr_door') {
+    const side = (t0 === 'corner_tl_door') ? 'tl' : 'tr';
+    drawTileTypeOn(bctx, x, 0, `corner_${side}_door_base`,  tile);
+    drawTileTypeOn(bctx, x, 1, `corner_${side}_door_upper`, tile);
+    if (G.sprites.decor[`corner_${side}_door_cap`]) {
+      drawTileTypeOn(bctx, x, 0, `corner_${side}_door_cap`, tile);
     }
     continue;
   }

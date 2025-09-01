@@ -396,7 +396,7 @@ function buildDecorFromAtlas() {
   };
 }
 
-
+/*
 function debugAtlas(tag = '') {
   const d = G?.sprites?.decor;
   if (!d) { console.warn('[debugAtlas] decor non pronto', tag); return; }
@@ -413,7 +413,7 @@ function debugAtlas(tag = '') {
     bottom: toCR(d.bottom),
   });
 }
-window.debugAtlas = debugAtlas; // comodo da console
+window.debugAtlas = debugAtlas; // comodo da console */
 
 
 const DEBUG_SIDES = false; // metti true per provare

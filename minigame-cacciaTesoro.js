@@ -304,7 +304,8 @@ const pick = (c, r, w = 1, h = 1) => ({
  // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
 // ESEMPIO: aggiorna con le tue coordinate (colonna, riga) reali!
 const DECOR_DESKTOP = {
-top_base:  pick(11,1),   // <- PRIMA ERA top1
+  // esempio: su mobile usi una riga diversa per il top1/top2
+  top_base:  pick(11,1),   // <- PRIMA ERA top1
 
   // corpo superiore (secondo “blocco”)
   top_upper: pick(12,1),   // <- PRIMA ERA top2 (se non esiste, riusa top_base)
@@ -326,13 +327,13 @@ top_base:  pick(11,1),   // <- PRIMA ERA top1
   corner_tr_cap:   pick(13,0),
 
   // varianti “porta” (se nel tuo atlas esistono)
-corner_tl_door_base:  pick(9,5),
-corner_tl_door_upper: pick(9,4), // ← riga 4
-corner_tl_door_cap:   pick(9,3), // ← riga 3
+  corner_tl_door_base:  pick(9,5),
+  corner_tl_door_upper: pick(9,5),
+  corner_tl_door_cap:   pick(9,4),
 
-corner_tr_door_base:  pick(8,5),
-corner_tr_door_upper: pick(8,4), // ← riga 4
-corner_tr_door_cap:   pick(8,3), // ← riga 3
+  corner_tr_door_base:  pick(8,5),
+  corner_tr_door_upper: pick(8,5),
+  corner_tr_door_cap:   pick(8,4),
 
 
   corner_bl: pick(10,4),

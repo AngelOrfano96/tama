@@ -326,13 +326,13 @@ top_base:  pick(11,1),   // <- PRIMA ERA top1
   corner_tr_cap:   pick(13,0),
 
   // varianti “porta” (se nel tuo atlas esistono)
-  corner_tl_door_base:  pick(9,5),
-  corner_tl_door_upper: pick(9,5),
-  corner_tl_door_cap:   pick(9,4),
+corner_tl_door_base:  pick(9,5),
+corner_tl_door_upper: pick(9,4), // ← riga 4
+corner_tl_door_cap:   pick(9,3), // ← riga 3
 
-  corner_tr_door_base:  pick(8,5),
-  corner_tr_door_upper: pick(8,5),
-  corner_tr_door_cap:   pick(8,4),
+corner_tr_door_base:  pick(8,5),
+corner_tr_door_upper: pick(8,4), // ← riga 4
+corner_tr_door_cap:   pick(8,3), // ← riga 3
 
 
   corner_bl: pick(10,4),
@@ -1694,6 +1694,19 @@ function bakeRoomLayer(key, room) {
     // altro: ignora
   }
 
+{
+  const openTop = [];
+  for (let x = 1; x <= W-2; x++) if (room[0][x] === 0) openTop.push(x);
+  if (openTop.length) {
+    const xLT = Math.max(1, Math.min(...openTop) - 1);
+    const xRT = Math.min(W-2, Math.max(...openTop) + 1);
+    const needFallback = !(G.sprites.decor.corner_tl_door_upper && G.sprites.decor.corner_tr_door_upper);
+    if (needFallback) {
+      drawTileTypeOn(bctx, xLT, 1, 'left',  tile);
+      drawTileTypeOn(bctx, xRT, 1, 'right', tile);
+    }
+  }
+}
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;

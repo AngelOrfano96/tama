@@ -328,8 +328,8 @@ const DECOR_DESKTOP = {
 
   // varianti “porta” (se nel tuo atlas esistono)
   corner_tl_door_base:  pick(9,5),
-  corner_tl_door_upper: pick(9,4),
-  corner_tl_door_cap:   pick(9,3),
+  corner_tl_door_upper: pick(9,5),
+  corner_tl_door_cap:   pick(9,4),
 
   corner_tr_door_base:  pick(8,5),
   corner_tr_door_upper: pick(8,4),

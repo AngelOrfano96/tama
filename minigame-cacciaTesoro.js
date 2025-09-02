@@ -1693,6 +1693,24 @@ function bakeRoomLayer(key, room) {
 
     // altro: ignora
   }
+// --- Spallette interne della porta NORD (riuso dei tasselli left/right) ---
+{
+  // trova l'apertura sulla riga nord guardando la mappa tipi
+  const openTop = [];
+  for (let x = 1; x <= W - 2; x++) if (!tiles[0][x]) openTop.push(x); // null ⇒ apertura
+
+  if (openTop.length && G.sprites.decor.left && G.sprites.decor.right) {
+    const xLT = Math.max(1, Math.min(...openTop) - 1);   // colonna subito a sinistra dell'apertura
+    const xRT = Math.min(W - 2, Math.max(...openTop) + 1); // colonna subito a destra
+
+    drawTileTypeOn(bctx, xLT, 1, 'left',  tile);  // spalletta sinistra
+    drawTileTypeOn(bctx, xRT, 1, 'right', tile);  // spalletta destra
+
+    // opzionale: farle scendere di un altro tassello
+    // drawTileTypeOn(bctx, xLT, 2, 'left',  tile);
+    // drawTileTypeOn(bctx, xRT, 2, 'right', tile);
+  }
+}
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;

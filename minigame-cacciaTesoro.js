@@ -304,41 +304,44 @@ const pick = (c, r, w = 1, h = 1) => ({
  // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
 // ESEMPIO: aggiorna con le tue coordinate (colonna, riga) reali!
 const DECOR_DESKTOP = {
-top_base:  pick(11,1),
-  top_upper: pick(12,1),
-  top_cap:   pick(11,0),
+top_base:  pick(11,1),   // <- PRIMA ERA top1
 
-  // lati/sud come prima
+  // corpo superiore (secondo “blocco”)
+  top_upper: pick(12,1),   // <- PRIMA ERA top2 (se non esiste, riusa top_base)
+
+  // tappo/coperchio (bordino alto)
+  top_cap:   pick(11,0),   // <- se non esiste, lo lasceremo facoltativo
+
+  // resto invariato...
   bottom:  pick(11,4), bottom2: pick(12,4),
   left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
   right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
 
-  // angoli nord normali (stesso aspetto di prima)
   corner_tl_base:  pick(10,1),
-  corner_tl_upper: pick(10,1),
-  corner_tl_cap:   pick(10,0),
+  corner_tl_upper: pick(10,1), // seconda “fascia” verticale
+  corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
 
   corner_tr_base:  pick(13,1),
   corner_tr_upper: pick(13,1),
   corner_tr_cap:   pick(13,0),
 
-  // ✅ angoli porta nord: base=5, upper=4, cap=3
+  // varianti “porta” (se nel tuo atlas esistono)
   corner_tl_door_base:  pick(9,5),
-  corner_tl_door_upper: pick(9,4),
-  corner_tl_door_cap:   pick(9,3),
+  corner_tl_door_upper: pick(9,5),
+  corner_tl_door_cap:   pick(9,4),
 
   corner_tr_door_base:  pick(8,5),
-  corner_tr_door_upper: pick(8,4),
-  corner_tr_door_cap:   pick(8,3),
+  corner_tr_door_upper: pick(8,5),
+  corner_tr_door_cap:   pick(8,4),
 
-  // angoli sud
+
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
   corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
 
-  // varie
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),
+
 };
 
 // se ti serve, copia le stesse tre chiavi anche in DECOR_MOBILE

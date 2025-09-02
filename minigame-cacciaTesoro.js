@@ -402,49 +402,72 @@ function variantIndex(x, y, len) {
 }
 // costruisce la tabella usata dal renderer
 function buildDecorFromAtlas() {
+  const D = DECOR; // shorthand
+
   G.sprites.decor = {
     // Nord a 2 blocchi + cap
-    top_base:  DECOR.top_base  || DECOR.top1,
-    top_upper: DECOR.top_upper || DECOR.top1,
-    top_cap:   DECOR.top_cap   || null,
+    top_base:  D.top_base  || D.top1,
+    top_upper: D.top_upper || D.top1,
+    top_cap:   D.top_cap   || null,
 
-    // Corner TL/TR (normali + door), con fallback progressivi
-    corner_tl_base:  DECOR.corner_tl_base  || DECOR.corner_tl || DECOR.top_base  || DECOR.top1,
-    corner_tl_upper: DECOR.corner_tl_upper || DECOR.corner_tl || DECOR.top_upper || DECOR.top1,
-    corner_tl_cap:   DECOR.corner_tl_cap   || null,
+    // Corner TL/TR per il muro nord (usati dal pass a 3 layer)
+    corner_tl_base:  D.corner_tl_base  || D.corner_tl || D.top_base  || D.top1,
+    corner_tl_upper: D.corner_tl_upper || D.corner_tl || D.top_upper || D.top1,
+    corner_tl_cap:   D.corner_tl_cap   || null,
 
-    corner_tr_base:  DECOR.corner_tr_base  || DECOR.corner_tr || DECOR.top_base  || DECOR.top1,
-    corner_tr_upper: DECOR.corner_tr_upper || DECOR.corner_tr || DECOR.top_upper || DECOR.top1,
-    corner_tr_cap:   DECOR.corner_tr_cap   || null,
+    corner_tr_base:  D.corner_tr_base  || D.corner_tr || D.top_base  || D.top1,
+    corner_tr_upper: D.corner_tr_upper || D.corner_tr || D.top_upper || D.top1,
+    corner_tr_cap:   D.corner_tr_cap   || null,
 
-    corner_tl_door_base:  DECOR.corner_tl_door_base  || DECOR.corner_tl_base  || DECOR.corner_tl,
-    corner_tl_door_upper: DECOR.corner_tl_door_upper || DECOR.corner_tl_upper || DECOR.corner_tl,
-    corner_tl_door_cap:   DECOR.corner_tl_door_cap   || DECOR.corner_tl_cap   || null,
+    // Varianti "porta" per il muro nord (pass a 3 layer)
+    corner_tl_door_base:  D.corner_tl_door_base  || D.corner_tl_base  || D.corner_tl,
+    corner_tl_door_upper: D.corner_tl_door_upper || D.corner_tl_upper || D.corner_tl,
+    corner_tl_door_cap:   D.corner_tl_door_cap   || D.corner_tl_cap   || null,
 
-    corner_tr_door_base:  DECOR.corner_tr_door_base  || DECOR.corner_tr_base  || DECOR.corner_tr,
-    corner_tr_door_upper: DECOR.corner_tr_door_upper || DECOR.corner_tr_upper || DECOR.corner_tr,
-    corner_tr_door_cap:   DECOR.corner_tr_door_cap   || DECOR.corner_tr_cap   || null,
+    corner_tr_door_base:  D.corner_tr_door_base  || D.corner_tr_base  || D.corner_tr,
+    corner_tr_door_upper: D.corner_tr_door_upper || D.corner_tr_upper || D.corner_tr,
+    corner_tr_door_cap:   D.corner_tr_door_cap   || D.corner_tr_cap   || null,
 
-    // Lati e Sud come prima
-    bottom: [DECOR.bottom, DECOR.bottom2],
-    left:   [DECOR.left1, DECOR.left2, DECOR.left3],
-    right:  [DECOR.right1, DECOR.right2, DECOR.right3],
+    // Lati e Sud
+    bottom: [D.bottom, D.bottom2],
+    left:   [D.left1, D.left2, D.left3],
+    right:  [D.right1, D.right2, D.right3],
 
-    corner_tl: DECOR.corner_tl,
-    corner_tr: DECOR.corner_tr,
-    corner_bl: DECOR.corner_bl,
-    corner_br: DECOR.corner_br,
+    // Corner normali (singolo tile)
+    corner_tl: D.corner_tl,
+    corner_tr: D.corner_tr,
+    corner_bl: D.corner_bl,
+    corner_br: D.corner_br,
 
-    corner_tl_door: DECOR.corner_tl_door,
-    corner_tr_door: DECOR.corner_tr_door,
-    corner_bl_door: DECOR.corner_bl_door,
-    corner_br_door: DECOR.corner_br_door,
+    // Corner "porta" (singolo tile) — usati sui LATI e in BASSO
+    // Fallback: se mancano, riusa le versioni base/standard
+    corner_tl_door: D.corner_tl_door
+                 || D.corner_tl_door_base
+                 || D.corner_tl_base
+                 || D.corner_tl,
 
-    exitClosed: DECOR.door_h1,
-    exitOpen:   DECOR.door_h2,
-    floor:      DECOR.floor,
+    corner_tr_door: D.corner_tr_door
+                 || D.corner_tr_door_base
+                 || D.corner_tr_base
+                 || D.corner_tr,
+
+    corner_bl_door: D.corner_bl_door
+                 || D.corner_bl
+                 || D.bottom
+                 || D.bottom2,
+
+    corner_br_door: D.corner_br_door
+                 || D.corner_br
+                 || D.bottom
+                 || D.bottom2,
+
+    // Varie
+    exitClosed: D.door_h1,
+    exitOpen:   D.door_h2,
+    floor:      D.floor,
   };
 }
+
 
 
 /*

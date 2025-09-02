@@ -304,41 +304,36 @@ const pick = (c, r, w = 1, h = 1) => ({
  // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
 // ESEMPIO: aggiorna con le tue coordinate (colonna, riga) reali!
 const DECOR_DESKTOP = {
-  // corpo inferiore (vicino al pavimento)
-  top_base:  pick(11,1),   // <- PRIMA ERA top1
+// Nord: usa lo stesso tile per base/upper (niente cap)
+  top_base:  pick(11,1),
+  top_upper: pick(11,1),   // oppure pick(12,1) se ti piace alternare ma senza stacchi
+  top_cap:   null,         // il (11,0) è un tile pieno, NON un cap → lascialo nullo
 
-  // corpo superiore (secondo “blocco”)
-  top_upper: pick(12,1),   // <- PRIMA ERA top2 (se non esiste, riusa top_base)
-
-  // tappo/coperchio (bordino alto)
-  top_cap:   pick(11,0),   // <- se non esiste, lo lasceremo facoltativo
-
-  // resto invariato...
   bottom:  pick(11,4), bottom2: pick(12,4),
   left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
   right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
 
   corner_tl_base:  pick(10,1),
-  corner_tl_upper: pick(10,1), // seconda “fascia” verticale
-  corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
+  corner_tl_upper: pick(10,1),
+  corner_tl_cap:   null,
 
   corner_tr_base:  pick(13,1),
   corner_tr_upper: pick(13,1),
-  corner_tr_cap:   pick(13,0),
+  corner_tr_cap:   null,
 
-  // varianti “porta” (se nel tuo atlas esistono)
+  // ANGOLI PORTA NORD: base=5, upper=4 (cap=3 solo se è davvero un lip)
   corner_tl_door_base:  pick(9,5),
-  corner_tl_door_upper: pick(9,5),
-  corner_tl_door_cap:   pick(9,4),
+  corner_tl_door_upper: pick(9,4),
+  corner_tl_door_cap:   null, // oppure pick(9,3) se è solo un bordino
 
   corner_tr_door_base:  pick(8,5),
-  corner_tr_door_upper: pick(8,5),
-  corner_tr_door_cap:   pick(8,4),
-
+  corner_tr_door_upper: pick(8,4),
+  corner_tr_door_cap:   null, // oppure pick(8,3)
 
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
-  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
+  corner_bl_door: pick(9,3),
+  corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),
@@ -1649,14 +1644,15 @@ function bakeRoomLayer(key, room) {
     const t0 = tiles[0][x];
     if (!t0) continue; // è apertura: nessun muro
 
-    const drawCapFallback = () => {
-      bctx.save();
-      bctx.globalAlpha = 0.18;
-      bctx.fillStyle = '#000';
-      const h = Math.max(3, Math.round(tile * 0.05));
-      bctx.fillRect(x * tile, 2 * tile - h, tile, h);
-      bctx.restore();
-    };
+  const drawCapFallback = () => {
+  bctx.save();
+  bctx.globalAlpha = 0.18;
+  bctx.fillStyle = '#000';
+  const h = Math.max(3, Math.round(tile * 0.05));
+  bctx.fillRect(x * tile, tile - h, tile, h); // <- prima era 2*tile - h
+  bctx.restore();
+};
+
 
     // Corner sinistro (normale o porta), ovunque sulla riga 0
     if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {

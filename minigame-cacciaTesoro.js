@@ -1717,6 +1717,29 @@ function bakeRoomLayer(key, room) {
 
     // altro: ignora
   }
+// --- Spallette interne della porta NORD (1 tile sotto il bordo) ---
+{
+  const W = Cfg.roomW;
+  // trova l'apertura sulla riga nord
+  const openTop = [];
+  for (let x = 1; x <= W - 2; x++) if (room[0][x] === 0) openTop.push(x);
+
+  if (openTop.length) {
+    const xLT = Math.max(1, Math.min(...openTop) - 1); // colonna subito a sinistra dell'apertura
+    const xRT = Math.min(W - 2, Math.max(...openTop) + 1); // colonna subito a destra
+
+    // se esistono i tasselli “curvi porta”, usali; altrimenti fallback a left/right
+    const leftKey  = G.sprites.decor.corner_tl_door ? 'corner_tl_door' : 'left';
+    const rightKey = G.sprites.decor.corner_tr_door ? 'corner_tr_door' : 'right';
+
+    drawTileTypeOn(bctx, xLT, 1, leftKey,  tile);
+    drawTileTypeOn(bctx, xRT, 1, rightKey, tile);
+
+    // opzionale: per far scendere la spalletta di un altro tassello
+    // drawTileTypeOn(bctx, xLT, 2, leftKey,  tile);
+    // drawTileTypeOn(bctx, xRT, 2, rightKey, tile);
+  }
+}
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;

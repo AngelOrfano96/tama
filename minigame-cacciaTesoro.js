@@ -1736,8 +1736,8 @@ function bakeRoomLayer(key, room) {
     drawTileTypeOn(bctx, xRT, 1, rightKey, tile);
 
     // opzionale: per far scendere la spalletta di un altro tassello
-    // drawTileTypeOn(bctx, xLT, 2, leftKey,  tile);
-    // drawTileTypeOn(bctx, xRT, 2, rightKey, tile);
+     drawTileTypeOn(bctx, xLT, 2, leftKey,  tile);
+     drawTileTypeOn(bctx, xRT, 2, rightKey, tile);
   }
 }
 

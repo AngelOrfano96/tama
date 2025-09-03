@@ -380,6 +380,11 @@ const DECOR_MOBILE = {
   corner_tr_door_upper: pick(8,5),
   corner_tr_door_cap:   pick(8,4),
 
+left_door_top:     pick(9,5),
+left_door_bottom:  pick(9,4),
+right_door_top:    pick(8,5),
+right_door_bottom: pick(8,4),
+
 
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
@@ -403,7 +408,8 @@ function variantIndex(x, y, len) {
 }
 // costruisce la tabella usata dal renderer
 function buildDecorFromAtlas() {
-  const D = DECOR; // shorthand
+  const D = DECOR;
+  const first = (...xs) => xs.find(Boolean) || null;
 
   G.sprites.decor = {
     // Nord a 2 blocchi + cap
@@ -411,7 +417,7 @@ function buildDecorFromAtlas() {
     top_upper: D.top_upper || D.top1,
     top_cap:   D.top_cap   || null,
 
-    // Corner TL/TR per il muro nord (usati dal pass a 3 layer)
+    // Corner TL/TR per il muro nord (pass a 3 layer)
     corner_tl_base:  D.corner_tl_base  || D.corner_tl || D.top_base  || D.top1,
     corner_tl_upper: D.corner_tl_upper || D.corner_tl || D.top_upper || D.top1,
     corner_tl_cap:   D.corner_tl_cap   || null,
@@ -430,9 +436,9 @@ function buildDecorFromAtlas() {
     corner_tr_door_cap:   D.corner_tr_door_cap   || D.corner_tr_cap   || null,
 
     // Lati e Sud
-    bottom: [D.bottom, D.bottom2],
-    left:   [D.left1, D.left2, D.left3],
-    right:  [D.right1, D.right2, D.right3],
+    bottom: [D.bottom, D.bottom2].filter(Boolean),
+    left:   [D.left1, D.left2, D.left3].filter(Boolean),
+    right:  [D.right1, D.right2, D.right3].filter(Boolean),
 
     // Corner normali (singolo tile)
     corner_tl: D.corner_tl,
@@ -440,27 +446,30 @@ function buildDecorFromAtlas() {
     corner_bl: D.corner_bl,
     corner_br: D.corner_br,
 
-    // Corner "porta" (singolo tile) — usati sui LATI e in BASSO
-    // Fallback: se mancano, riusa le versioni base/standard
+    // Corner "porta" (singolo tile) — per LATI e BASSO
     corner_tl_door: D.corner_tl_door
                  || D.corner_tl_door_base
                  || D.corner_tl_base
                  || D.corner_tl,
-
     corner_tr_door: D.corner_tr_door
                  || D.corner_tr_door_base
                  || D.corner_tr_base
                  || D.corner_tr,
-
     corner_bl_door: D.corner_bl_door
                  || D.corner_bl
                  || D.bottom
                  || D.bottom2,
-
     corner_br_door: D.corner_br_door
                  || D.corner_br
                  || D.bottom
                  || D.bottom2,
+
+    // --- NUOVO: spallette interne porte verticali (1 tile dentro la stanza)
+    // Se non definisci i pick dedicati in DECOR_*, vanno in fallback a left/right.
+    leftDoorTop:     first(D.left_door_top,    D.corner_tr_door, D.corner_tr_door_base, D.right1, D.right2, D.right3),
+    leftDoorBottom:  first(D.left_door_bottom, D.right1, D.right2, D.right3),
+    rightDoorTop:    first(D.right_door_top,   D.corner_tl_door, D.corner_tl_door_base, D.left1,  D.left2,  D.left3),
+    rightDoorBottom: first(D.right_door_bottom,D.left1,  D.left2,  D.left3),
 
     // Varie
     exitClosed: D.door_h1,
@@ -468,6 +477,7 @@ function buildDecorFromAtlas() {
     floor:      D.floor,
   };
 }
+
 
 
 
@@ -1719,10 +1729,11 @@ function bakeRoomLayer(key, room) {
   }
 // --- Spallette interne della porta NORD (1 tile sotto il bordo) ---
 // --- Spallette interne porte OVEST/EST (1 tile dentro la stanza) ---
+// --- Spallette interne delle porte OVEST/EST (1 tile dentro la stanza) ---
 {
   const H = Cfg.roomH, W = Cfg.roomW;
 
-  // trova l'apertura sul bordo sinistro e destro
+  // individua l'apertura sul bordo sinistro e destro
   const openLeft = [], openRight = [];
   for (let y = 1; y <= H - 2; y++) {
     if (room[y][0]   === 0) openLeft.push(y);
@@ -1731,30 +1742,21 @@ function bakeRoomLayer(key, room) {
 
   // OVEST: curva interna in x = 1
   if (openLeft.length) {
-    const yTop = Math.max(1, Math.min(...openLeft) - 1);   // subito sopra l'apertura
-    const yBot = Math.min(H-2, Math.max(...openLeft) + 1); // subito sotto l'apertura
-
-    // se i corner "porta" non esistono nell'atlas, fallback a 'right'
-    const topKey = G.sprites.decor.corner_tr_door ? 'corner_tr_door' : 'right';
-    const botKey = G.sprites.decor.corner_br_door ? 'corner_br_door' : 'right';
-
-    drawTileTypeOn(bctx, 1,   yTop, topKey, tile);
-    drawTileTypeOn(bctx, 1,   yBot, botKey, tile);
+    const yTop = Math.max(1, Math.min(...openLeft) - 1);
+    const yBot = Math.min(H-2, Math.max(...openLeft) + 1);
+    drawTileTypeOn(bctx, 1,   yTop, 'leftDoorTop',    tile);
+    drawTileTypeOn(bctx, 1,   yBot, 'leftDoorBottom', tile);
   }
 
   // EST: curva interna in x = W-2
   if (openRight.length) {
     const yTop = Math.max(1, Math.min(...openRight) - 1);
     const yBot = Math.min(H-2, Math.max(...openRight) + 1);
-
-    // se i corner "porta" non esistono, fallback a 'left'
-    const topKey = G.sprites.decor.corner_tl_door ? 'corner_tl_door' : 'left';
-    const botKey = G.sprites.decor.corner_bl_door ? 'corner_bl_door' : 'left';
-
-    drawTileTypeOn(bctx, W-2, yTop, topKey, tile);
-    drawTileTypeOn(bctx, W-2, yBot, botKey, tile);
+    drawTileTypeOn(bctx, W-2, yTop, 'rightDoorTop',    tile);
+    drawTileTypeOn(bctx, W-2, yBot, 'rightDoorBottom', tile);
   }
 }
+
 
 
   const baked = { canvas: cv, tile };

@@ -1718,28 +1718,44 @@ function bakeRoomLayer(key, room) {
     // altro: ignora
   }
 // --- Spallette interne della porta NORD (1 tile sotto il bordo) ---
+// --- Spallette interne porte OVEST/EST (1 tile dentro la stanza) ---
 {
-  const W = Cfg.roomW;
-  // trova l'apertura sulla riga nord
-  const openTop = [];
-  for (let x = 1; x <= W - 2; x++) if (room[0][x] === 0) openTop.push(x);
+  const H = Cfg.roomH, W = Cfg.roomW;
 
-  if (openTop.length) {
-    const xLT = Math.max(1, Math.min(...openTop) - 1); // colonna subito a sinistra dell'apertura
-    const xRT = Math.min(W - 2, Math.max(...openTop) + 1); // colonna subito a destra
+  // trova l'apertura sul bordo sinistro e destro
+  const openLeft = [], openRight = [];
+  for (let y = 1; y <= H - 2; y++) {
+    if (room[y][0]   === 0) openLeft.push(y);
+    if (room[y][W-1] === 0) openRight.push(y);
+  }
 
-    // se esistono i tasselli “curvi porta”, usali; altrimenti fallback a left/right
-    const leftKey  = G.sprites.decor.corner_tl_door ? 'corner_tl_door' : 'left';
-    const rightKey = G.sprites.decor.corner_tr_door ? 'corner_tr_door' : 'right';
+  // OVEST: curva interna in x = 1
+  if (openLeft.length) {
+    const yTop = Math.max(1, Math.min(...openLeft) - 1);   // subito sopra l'apertura
+    const yBot = Math.min(H-2, Math.max(...openLeft) + 1); // subito sotto l'apertura
 
-    drawTileTypeOn(bctx, xLT, 1, leftKey,  tile);
-    drawTileTypeOn(bctx, xRT, 1, rightKey, tile);
+    // se i corner "porta" non esistono nell'atlas, fallback a 'right'
+    const topKey = G.sprites.decor.corner_tr_door ? 'corner_tr_door' : 'right';
+    const botKey = G.sprites.decor.corner_br_door ? 'corner_br_door' : 'right';
 
-    // opzionale: per far scendere la spalletta di un altro tassello
-    // drawTileTypeOn(bctx, xLT, 2, leftKey,  tile);
-     //drawTileTypeOn(bctx, xRT, 2, rightKey, tile);
+    drawTileTypeOn(bctx, 1,   yTop, topKey, tile);
+    drawTileTypeOn(bctx, 1,   yBot, botKey, tile);
+  }
+
+  // EST: curva interna in x = W-2
+  if (openRight.length) {
+    const yTop = Math.max(1, Math.min(...openRight) - 1);
+    const yBot = Math.min(H-2, Math.max(...openRight) + 1);
+
+    // se i corner "porta" non esistono, fallback a 'left'
+    const topKey = G.sprites.decor.corner_tl_door ? 'corner_tl_door' : 'left';
+    const botKey = G.sprites.decor.corner_bl_door ? 'corner_bl_door' : 'left';
+
+    drawTileTypeOn(bctx, W-2, yTop, topKey, tile);
+    drawTileTypeOn(bctx, W-2, yBot, botKey, tile);
   }
 }
+
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;

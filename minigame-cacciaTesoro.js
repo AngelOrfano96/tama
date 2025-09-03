@@ -1727,35 +1727,30 @@ function bakeRoomLayer(key, room) {
 
     // altro: ignora
   }
-// --- Spallette interne della porta NORD (1 tile sotto il bordo) ---
-// --- Spallette interne porte OVEST/EST (1 tile dentro la stanza) ---
-// --- Spallette interne delle porte OVEST/EST (1 tile dentro la stanza) ---
+// --- Spallette interne delle porte OVEST/EST: SOLO in alto (y = 1) ---
 {
   const H = Cfg.roomH, W = Cfg.roomW;
 
-  // individua l'apertura sul bordo sinistro e destro
+  // rileva apertura sul bordo sinistro e destro
   const openLeft = [], openRight = [];
   for (let y = 1; y <= H - 2; y++) {
     if (room[y][0]   === 0) openLeft.push(y);
     if (room[y][W-1] === 0) openRight.push(y);
   }
 
-  // OVEST: curva interna in x = 1
+  // Se c'è porta a SINISTRA, disegna curva in x=1, y=1
   if (openLeft.length) {
-    const yTop = Math.max(1, Math.min(...openLeft) - 1);
-    const yBot = Math.min(H-2, Math.max(...openLeft) + 1);
-    drawTileTypeOn(bctx, 1,   yTop, 'leftDoorTop',    tile);
-    drawTileTypeOn(bctx, 1,   yBot, 'leftDoorBottom', tile);
+    const key = G.sprites.decor.corner_tr_door ? 'corner_tr_door' : 'right';
+    drawTileTypeOn(bctx, 1, 1, key, tile);
   }
 
-  // EST: curva interna in x = W-2
+  // Se c'è porta a DESTRA, disegna curva in x=W-2, y=1
   if (openRight.length) {
-    const yTop = Math.max(1, Math.min(...openRight) - 1);
-    const yBot = Math.min(H-2, Math.max(...openRight) + 1);
-    drawTileTypeOn(bctx, W-2, yTop, 'rightDoorTop',    tile);
-    drawTileTypeOn(bctx, W-2, yBot, 'rightDoorBottom', tile);
+    const key = G.sprites.decor.corner_tl_door ? 'corner_tl_door' : 'left';
+    drawTileTypeOn(bctx, W - 2, 1, key, tile);
   }
 }
+
 
 
 

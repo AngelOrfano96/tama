@@ -335,6 +335,11 @@ const DECOR_DESKTOP = {
   corner_tr_door_upper: pick(8,5),
   corner_tr_door_cap:   pick(8,4),
 
+   left_door_top:     pick(9,5),
+  left_door_bottom:  pick(9,4),
+  right_door_top:    pick(8,5),
+  right_door_bottom: pick(8,4),
+
 
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
@@ -380,10 +385,11 @@ const DECOR_MOBILE = {
   corner_tr_door_upper: pick(8,5),
   corner_tr_door_cap:   pick(8,4),
 
-left_door_top:     pick(9,5),
-left_door_bottom:  pick(9,4),
-right_door_top:    pick(8,5),
-right_door_bottom: pick(8,4),
+  // 👇 aggiungi questi 4 (come già in DECOR_MOBILE)
+  left_door_top:     pick(9,5),
+  left_door_bottom:  pick(9,4),
+  right_door_top:    pick(8,5),
+  right_door_bottom: pick(8,4),
 
 
   corner_bl: pick(10,4),
@@ -1731,27 +1737,29 @@ function bakeRoomLayer(key, room) {
 {
   const H = Cfg.roomH, W = Cfg.roomW;
 
-  // trova le celle aperte su sinistra e destra
   const openLeft = [], openRight = [];
   for (let y = 1; y <= H - 2; y++) {
     if (room[y][0]   === 0) openLeft.push(y);
     if (room[y][W-1] === 0) openRight.push(y);
   }
 
-  // SINISTRA → curva interna in x = 1, y = (inizio apertura) - 1
+  // SINISTRA → (x=1, y = inizio apertura - 1)
   if (openLeft.length) {
     const yTop = Math.max(1, Math.min(...openLeft) - 1);
-    const key  = G.sprites.decor.corner_tr_door ? 'corner_tr_door' : 'right';
-    drawTileTypeOn(bctx, 1, yTop, key, tile);
+    const key  = G.sprites.decor.leftDoorTop ? 'leftDoorTop'
+               : (G.sprites.decor.right?.length ? 'right' : null);
+    if (key) drawTileTypeOn(bctx, 1, yTop, key, tile);
   }
 
-  // DESTRA → curva interna in x = W-2, y = (inizio apertura) - 1
+  // DESTRA → (x=W-2, y = inizio apertura - 1)
   if (openRight.length) {
     const yTop = Math.max(1, Math.min(...openRight) - 1);
-    const key  = G.sprites.decor.corner_tl_door ? 'corner_tl_door' : 'left';
-    drawTileTypeOn(bctx, W - 2, yTop, key, tile);
+    const key  = G.sprites.decor.rightDoorTop ? 'rightDoorTop'
+               : (G.sprites.decor.left?.length ? 'left' : null);
+    if (key) drawTileTypeOn(bctx, W - 2, yTop, key, tile);
   }
 }
+
 
 
 

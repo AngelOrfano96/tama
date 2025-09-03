@@ -334,7 +334,8 @@ const DECOR_DESKTOP = {
   corner_tr_door_base:  pick(8,5),
   corner_tr_door_upper: pick(8,5),
   corner_tr_door_cap:   pick(8,4),
-
+corner_tl: pick(10,1),
+corner_tr: pick(13,1),
    left_door_top:     pick(9,5),
   left_door_bottom:  pick(9,4),
   right_door_top:    pick(8,5),
@@ -386,6 +387,8 @@ const DECOR_MOBILE = {
   corner_tl_door_base:  pick(9,5),
   corner_tl_door_upper: pick(9,5),
   corner_tl_door_cap:   pick(9,4),
+  corner_tl: pick(10,1),
+corner_tr: pick(13,1),
 
   corner_tr_door_base:  pick(8,5),
   corner_tr_door_upper: pick(8,5),
@@ -568,15 +571,14 @@ function maybeSwapDecorForDevice() {
 
 function initAtlasSprites() {
 
-  // carica l'immagine atlas
-  G.sprites.atlas = new Image();
-  G.sprites.atlas.onload  = () =>
-    console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
-  G.sprites.atlas.onerror = (e) =>
-    console.error('[ATLAS] failed to load', G.sprites.atlas?.src, e);
-
-  G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`; // verifica che il path esista davvero
-  //G.sprites.atlas.src = `${atlasBase}/Dungeon_1.png`; // verifica che il path esista davvero
+ G.sprites.atlas = new Image();
+G.sprites.atlas.onload  = () => {
+  console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+  G.renderCache.rooms = {}; // invalida i bake statici
+  render();                 // ridisegna con le spallette
+};
+G.sprites.atlas.onerror = (e) => console.error('[ATLAS] failed to load', G.sprites.atlas?.src, e);
+G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`;
 }
 
 
@@ -1747,7 +1749,8 @@ function bakeRoomLayer(key, room) {
 
     // altro: ignora
   }
-// --- Spallette interne porte verticali (curve): top (+ bottom opzionale) ---
+// --- Spallette interne porte verticali (curve): top + bottom ---
+// --- Spallette interne porte verticali (curve): top + bottom ---
 {
   const H = Cfg.roomH, W = Cfg.roomW;
 
@@ -1757,26 +1760,25 @@ function bakeRoomLayer(key, room) {
     if (room[y][W-1] === 0) openRight.push(y);
   }
 
-  // SINISTRA → spalletta interna in alto: curva TR (top-right)
+  // SINISTRA → tasselli dedicati
   if (openLeft.length) {
-    const yTop = Math.max(1, Math.min(...openLeft) - 1);
-    drawTileTypeOn(bctx, 1, yTop, 'corner_tr_door', tile);
-
-    // se vuoi anche la curva in basso, sblocca la riga seguente:
-    const yBot = Math.min(H - 2, Math.max(...openLeft) + 1);
-    // drawTileTypeOn(bctx, 1, yBot, 'corner_br_door', tile);
+    const top = Math.max(1, openLeft[0] - 1);
+    const bot = Math.min(H - 2, openLeft[openLeft.length - 1] + 1);
+    drawTileTypeOn(bctx, 1, top, 'leftDoorTop', tile);
+    drawTileTypeOn(bctx, 1, bot, 'leftDoorBottom', tile);
   }
 
-  // DESTRA → spalletta interna in alto: curva TL (top-left)
+  // DESTRA → tasselli dedicati
   if (openRight.length) {
-    const yTop = Math.max(1, Math.min(...openRight) - 1);
-    drawTileTypeOn(bctx, W - 2, yTop, 'corner_tl_door', tile);
-
-    // anche qui, opzionale la curva in basso:
-    const yBot = Math.min(H - 2, Math.max(...openRight) + 1);
-    // drawTileTypeOn(bctx, W - 2, yBot, 'corner_bl_door', tile);
+    const top = Math.max(1, openRight[0] - 1);
+    const bot = Math.min(H - 2, openRight[openRight.length - 1] + 1);
+    drawTileTypeOn(bctx, W - 2, top, 'rightDoorTop', tile);
+    drawTileTypeOn(bctx, W - 2, bot, 'rightDoorBottom', tile);
   }
 }
+
+
+
 
 
 

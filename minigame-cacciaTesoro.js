@@ -340,6 +340,12 @@ const DECOR_DESKTOP = {
   right_door_top:    pick(8,5),
   right_door_bottom: pick(8,4),
 
+// corner porta "singoli" (1 tile), usati per le spallette interne
+corner_tl_door: pick(9,5),
+corner_tr_door: pick(8,5),
+// (sotto li hai già)
+corner_bl_door: pick(9,3),
+corner_br_door: pick(8,3),
 
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
@@ -384,6 +390,14 @@ const DECOR_MOBILE = {
   corner_tr_door_base:  pick(8,5),
   corner_tr_door_upper: pick(8,5),
   corner_tr_door_cap:   pick(8,4),
+
+  // corner porta "singoli" (1 tile), usati per le spallette interne
+corner_tl_door: pick(9,5),
+corner_tr_door: pick(8,5),
+// (sotto li hai già)
+corner_bl_door: pick(9,3),
+corner_br_door: pick(8,3),
+
 
   // 👇 aggiungi questi 4 (come già in DECOR_MOBILE)
   left_door_top:     pick(9,5),
@@ -1733,7 +1747,7 @@ function bakeRoomLayer(key, room) {
 
     // altro: ignora
   }
-// --- Spallette interne delle porte OVEST/EST: SOLO la superiore, allineata alla porta ---
+// --- Spallette interne porte verticali (curve): top (+ bottom opzionale) ---
 {
   const H = Cfg.roomH, W = Cfg.roomW;
 
@@ -1743,22 +1757,27 @@ function bakeRoomLayer(key, room) {
     if (room[y][W-1] === 0) openRight.push(y);
   }
 
-  // SINISTRA → (x=1, y = inizio apertura - 1)
+  // SINISTRA → spalletta interna in alto: curva TR (top-right)
   if (openLeft.length) {
     const yTop = Math.max(1, Math.min(...openLeft) - 1);
-    const key  = G.sprites.decor.leftDoorTop ? 'leftDoorTop'
-               : (G.sprites.decor.right?.length ? 'right' : null);
-    if (key) drawTileTypeOn(bctx, 1, yTop, key, tile);
+    drawTileTypeOn(bctx, 1, yTop, 'corner_tr_door', tile);
+
+    // se vuoi anche la curva in basso, sblocca la riga seguente:
+    const yBot = Math.min(H - 2, Math.max(...openLeft) + 1);
+    // drawTileTypeOn(bctx, 1, yBot, 'corner_br_door', tile);
   }
 
-  // DESTRA → (x=W-2, y = inizio apertura - 1)
+  // DESTRA → spalletta interna in alto: curva TL (top-left)
   if (openRight.length) {
     const yTop = Math.max(1, Math.min(...openRight) - 1);
-    const key  = G.sprites.decor.rightDoorTop ? 'rightDoorTop'
-               : (G.sprites.decor.left?.length ? 'left' : null);
-    if (key) drawTileTypeOn(bctx, W - 2, yTop, key, tile);
+    drawTileTypeOn(bctx, W - 2, yTop, 'corner_tl_door', tile);
+
+    // anche qui, opzionale la curva in basso:
+    const yBot = Math.min(H - 2, Math.max(...openRight) + 1);
+    // drawTileTypeOn(bctx, W - 2, yBot, 'corner_bl_door', tile);
   }
 }
+
 
 
 

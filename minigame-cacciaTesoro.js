@@ -1600,12 +1600,12 @@ function generateRoomTiles(room) {
     return true;                             // muro
   };
 
+  // --- bordo esterno (muri + corner) ---
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
-      // ---- lati verticali vicino alle porte (bordo esterno) ----
-      // Usa i corner_*_door per la curva esterna sul top/bottom del varco
+      // verticali vicino porta (curva sul bordo esterno)
       if (openL.length && x === 0) {
         if (y === yTL) { tiles[y][x] = 'corner_tl_door'; continue; }
         if (y === yBL) { tiles[y][x] = 'corner_bl_door'; continue; }
@@ -1615,7 +1615,7 @@ function generateRoomTiles(room) {
         if (y === yBR) { tiles[y][x] = 'corner_br_door'; continue; }
       }
 
-      // ---- lati orizzontali vicino alle porte (invariati) ----
+      // orizzontali vicino porta (invariati)
       if (openT.length && y === 0) {
         if (x === xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
         if (x === xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
@@ -1625,13 +1625,13 @@ function generateRoomTiles(room) {
         if (x === xRB) { tiles[y][x] = 'corner_br_door'; continue; }
       }
 
-      // ---- angoli normali ----
+      // angoli normali
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
       if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // ---- lati normali ----
+      // lati normali
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
@@ -1641,27 +1641,24 @@ function generateRoomTiles(room) {
     }
   }
 
-  // --- spallette verticali interne: tratto dritto + curva ---
+  // --- spallette interne SOLO in alto (niente pezzo in basso) ---
   if (openL.length) {
-    const yTop = Math.max(1, openL[0] - 1);
-    const yBot = Math.min(H - 2, openL[openL.length - 1] + 1);
-
-    for (let yy = 1; yy < yTop; yy++) tiles[yy][1] = 'left';
-    tiles[yTop][1] = 'leftDoorTop';
-    tiles[yBot][1] = 'leftDoorBottom';
+    const yTop = Math.max(1, openL[0] - 1);     // riga subito sopra l'apertura
+    for (let yy = 1; yy < yTop; yy++) tiles[yy][1] = 'left';   // tratto dritto
+    tiles[yTop][1] = 'leftDoorTop';                               // curva alta
+    // (non mettiamo leftDoorBottom)
   }
 
   if (openR.length) {
     const yTop = Math.max(1, openR[0] - 1);
-    const yBot = Math.min(H - 2, openR[openR.length - 1] + 1);
-
     for (let yy = 1; yy < yTop; yy++) tiles[yy][W - 2] = 'right';
     tiles[yTop][W - 2] = 'rightDoorTop';
-    tiles[yBot][W - 2] = 'rightDoorBottom';
+    // (non mettiamo rightDoorBottom)
   }
 
   return tiles;
 }
+
 
 
 

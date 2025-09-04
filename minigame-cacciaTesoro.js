@@ -1575,11 +1575,11 @@ function generateRoomTiles(room) {
     if (room[H-1][x] === 0) openB.push(x);
   }
 
-  // 2) celle adiacenti alle aperture
-  const yTL = openL.length ? Math.max(1, openL[0]                - 1) : null; // sopra porta sx
-  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1] + 1) : null; // sotto porta sx
-  const yTR = openR.length ? Math.max(1, openR[0]                - 1) : null; // sopra porta dx
-  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1] + 1) : null; // sotto porta dx
+  // 2) celle adiacenti alle aperture (subito FUORI dall’apertura)
+  const yTL = openL.length ? Math.max(1, openL[0]                - 1) : null; // sopra porta sx (bordo)
+  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1] + 1) : null; // sotto porta sx (bordo)
+  const yTR = openR.length ? Math.max(1, openR[0]                - 1) : null; // sopra porta dx (bordo)
+  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1] + 1) : null; // sotto porta dx (bordo)
 
   const xLT = openT.length ? Math.max(1, openT[0]                - 1) : null;
   const xRT = openT.length ? Math.min(W-2, openT[openT.length-1] + 1) : null;
@@ -1594,17 +1594,17 @@ function generateRoomTiles(room) {
 
   const isSolid = (x, y) => {
     if (x < 0 || y < 0 || x >= W || y >= H) return false;
-    if (room[y][x] === 0) return false;     // interno
-    if (isDoorCell(x, y)) return false;     // apertura porta
-    return true;                             // muro
+    if (room[y][x] === 0) return false;   // interno
+    if (isDoorCell(x, y)) return false;   // apertura porta
+    return true;                           // muro
   };
 
-  // --- bordo esterno (muri + corner) ---
+  // 3) riempi bordi e angoli (senza usare leftDoorTop/rightDoorTop qui!)
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
-      // verticali vicino porta (curva sul bordo esterno)
+      // ––– angoli porta sui bordi verticali –––
       if (openL.length && x === 0) {
         if (y === yTL) { tiles[y][x] = 'corner_tl_door'; continue; }
         if (y === yBL) { tiles[y][x] = 'corner_bl_door'; continue; }
@@ -1614,7 +1614,7 @@ function generateRoomTiles(room) {
         if (y === yBR) { tiles[y][x] = 'corner_br_door'; continue; }
       }
 
-      // orizzontali vicino porta (invariati)
+      // ––– angoli porta sui bordi orizzontali –––
       if (openT.length && y === 0) {
         if (x === xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
         if (x === xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
@@ -1624,13 +1624,13 @@ function generateRoomTiles(room) {
         if (x === xRB) { tiles[y][x] = 'corner_br_door'; continue; }
       }
 
-      // angoli normali
+      // ––– angoli normali –––
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
       if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // lati normali
+      // ––– lati normali –––
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
@@ -1640,23 +1640,25 @@ function generateRoomTiles(room) {
     }
   }
 
-  // --- spallette interne SOLO in alto (niente pezzo in basso) ---
+  // 4) spallette interne (x=1 e x=W-2): curva + un tratto dritto prima
   if (openL.length) {
-    const yTop = Math.max(1, openL[0] - 1);     // riga subito sopra l'apertura
-    for (let yy = 1; yy < yTop; yy++) tiles[yy][1] = 'left';   // tratto dritto
-    tiles[yTop][1] = 'leftDoorTop';                               // curva alta
-    // (non mettiamo leftDoorBottom)
+    const yTop = Math.max(1, openL[0] - 1);
+    const yBot = Math.min(H - 2, openL[openL.length - 1] + 1);
+    for (let yy = 1; yy < yTop; yy++) tiles[yy][1] = 'left';            // tratto dritto
+    tiles[yTop][1] = 'leftDoorTop';                                     // curva alta
+    tiles[yBot][1] = 'leftDoorBottom';                                  // eventuale raccordo basso
   }
-
   if (openR.length) {
     const yTop = Math.max(1, openR[0] - 1);
-    for (let yy = 1; yy < yTop; yy++) tiles[yy][W - 2] = 'right';
-    tiles[yTop][W - 2] = 'rightDoorTop';
-    // (non mettiamo rightDoorBottom)
+    const yBot = Math.min(H - 2, openR[openR.length - 1] + 1);
+    for (let yy = 1; yy < yTop; yy++) tiles[yy][W - 2] = 'right';       // tratto dritto
+    tiles[yTop][W - 2] = 'rightDoorTop';                                // curva alta
+    tiles[yBot][W - 2] = 'rightDoorBottom';                             // eventuale raccordo basso
   }
 
   return tiles;
 }
+
 
 
 

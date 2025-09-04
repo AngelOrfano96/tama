@@ -361,7 +361,7 @@ const DECOR_DESKTOP = {
 // --- mappa mobile (metti qui le coordinate alternative)
 const DECOR_MOBILE = {
   // esempio: su mobile usi una riga diversa per il top1/top2
-  top_base:  pick(11,1),   // <- PRIMA ERA top1
+   top_base:  pick(11,1),   // <- PRIMA ERA top1
 
   // corpo superiore (secondo “blocco”)
   top_upper: pick(12,1),   // <- PRIMA ERA top2 (se non esiste, riusa top_base)
@@ -384,8 +384,8 @@ const DECOR_MOBILE = {
   corner_tl_door_inner: pick(9,5),  // scegli il tuo CR, questo è solo un esempio
   corner_tr_door_inner: pick(8,5),
   
-  corner_tl_upper_plain: pick(10,1),
-  corner_tr_upper_plain: pick(13,1),
+  corner_tl_upper_plain: pick(9,4),
+  corner_tr_upper_plain: pick(8,4),
 
 
   // varianti “porta” (se nel tuo atlas esistono)

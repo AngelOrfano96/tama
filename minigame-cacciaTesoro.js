@@ -1604,15 +1604,15 @@ function generateRoomTiles(room) {
     for (let x = 0; x < W; x++) {
       if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
-      // ---- lati verticali vicino alle porte ----
-      // CURVA solo in alto; in basso usa i corner porta come prima
+      // ---- lati verticali vicino alle porte (bordo esterno) ----
+      // Usa i corner_*_door per la curva esterna sul top/bottom del varco
       if (openL.length && x === 0) {
-        if (y === yTL) { tiles[y][x] = 'leftDoorTop';  continue; }   // ↑ sopra
-        if (y === yBL) { tiles[y][x] = 'corner_bl_door'; continue; } // ↓ sotto (com'era)
+        if (y === yTL) { tiles[y][x] = 'corner_tl_door'; continue; }
+        if (y === yBL) { tiles[y][x] = 'corner_bl_door'; continue; }
       }
       if (openR.length && x === W-1) {
-        if (y === yTR) { tiles[y][x] = 'rightDoorTop';  continue; }  // ↑ sopra
-        if (y === yBR) { tiles[y][x] = 'corner_br_door'; continue; } // ↓ sotto (com'era)
+        if (y === yTR) { tiles[y][x] = 'corner_tr_door'; continue; }
+        if (y === yBR) { tiles[y][x] = 'corner_br_door'; continue; }
       }
 
       // ---- lati orizzontali vicino alle porte (invariati) ----
@@ -1640,17 +1640,13 @@ function generateRoomTiles(room) {
       tiles[y][x] = 'center';
     }
   }
-  // --- spallette verticali: curva + tratto dritto che la precede ---
-  // lavoriamo dentro la stanza: x=1 (sinistra interna) e x=W-2 (destra interna)
 
+  // --- spallette verticali interne: tratto dritto + curva ---
   if (openL.length) {
-    const yTop = Math.max(1, openL[0] - 1);                 // subito sopra l'apertura
+    const yTop = Math.max(1, openL[0] - 1);
     const yBot = Math.min(H - 2, openL[openL.length - 1] + 1);
 
-    // tratto dritto che collega l'angolo alto alla curva
     for (let yy = 1; yy < yTop; yy++) tiles[yy][1] = 'left';
-
-    // curva della spalletta
     tiles[yTop][1] = 'leftDoorTop';
     tiles[yBot][1] = 'leftDoorBottom';
   }
@@ -1660,12 +1656,13 @@ function generateRoomTiles(room) {
     const yBot = Math.min(H - 2, openR[openR.length - 1] + 1);
 
     for (let yy = 1; yy < yTop; yy++) tiles[yy][W - 2] = 'right';
-
     tiles[yTop][W - 2] = 'rightDoorTop';
     tiles[yBot][W - 2] = 'rightDoorBottom';
   }
+
   return tiles;
 }
+
 
 
 

@@ -290,6 +290,13 @@
     const maxY = (CFG.roomTilesH-2 - CFG.wallDepthBottom)*t - pad;
     return { x: minX + Math.random()*(maxX-minX), y: minY + Math.random()*(maxY-minY) };
   }
+  function tooCloseToPlayer(x, y, minPx = G.tile * 1.5) {
+  const px = G?.pet?.px, py = G?.pet?.py;
+  if (!Number.isFinite(px) || !Number.isFinite(py)) return false;
+  const dx = x - px, dy = y - py;
+  return (dx * dx + dy * dy) < (minPx * minPx);
+}
+
 
   function makeEnemy(type, room){
     if (type === 'bat'){
@@ -300,11 +307,21 @@
       return { type:'bat', x, y, hp: 1, speed: CFG.batSpeed, noClip:true };
     }
     // goblin – near center, avoid doors & player spawn
-    for (let k=0;k<20;k++){
-      const p = randPointInInterior(1.0, room);
-      if (tooCloseToDoors(px, py, G.tile * 1.5, room)) continue;
-      return { type:'goblin', x:p.x, y:p.y, hp: 1, speed: CFG.petSpeedDesktop*CFG.goblinSpeedMul, noClip:false };
-    }
+ // goblin – near center, avoid doors & player spawn
+for (let k = 0; k < 20; k++) {
+  const p = randPointInInterior(1.0, room); // p = { x, y } in pixel
+  if (tooCloseToDoors(p.x, p.y, G.tile * 1.5, room)) continue;
+  if (tooCloseToPlayer(p.x, p.y, G.tile * 1.6)) continue; // opzionale, vedi helper sotto
+  return {
+    type: 'goblin',
+    x: p.x,
+    y: p.y,
+    hp: 1,
+    speed: CFG.petSpeedDesktop * CFG.goblinSpeedMul,
+    noClip: false
+  };
+}
+
     const fallback = randPointInInterior(0.5, room);
     return { type:'goblin', x:fallback.x, y:fallback.y, hp: 1, speed: CFG.petSpeedDesktop*CFG.goblinSpeedMul, noClip:false };
   }
@@ -320,10 +337,6 @@ function tooCloseToDoors(x, y, minPx = G.tile * 1.0, room = curRoom()) {
   return false;
 }
 
-  function tooCloseToPlayer(p){
-    const r2 = (CFG.avoidPlayerRadius*G.tile)**2;
-    return dist2(p.x,p.y,G.px,G.py) < r2;
-  }
 
 // SOSTITUISCI la tua doorCenters con questa
 function doorCenters(room = curRoom()) {

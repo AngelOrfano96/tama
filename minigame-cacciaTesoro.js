@@ -1776,41 +1776,6 @@ function bakeRoomLayer(key, room) {
 
     // altro: ignora
   }
-// --- Spallette interne porte verticali (curve): top + bottom ---
-// --- Spallette interne porte verticali (curve): top + bottom ---
-{
-  const H = Cfg.roomH, W = Cfg.roomW;
-
-  const openLeft = [], openRight = [];
-  for (let y = 1; y <= H - 2; y++) {
-    if (room[y][0]   === 0) openLeft.push(y);
-    if (room[y][W-1] === 0) openRight.push(y);
-  }
-
-  // SINISTRA → tasselli dedicati
-  if (openLeft.length) {
-    const top = Math.max(1, openLeft[0] - 1);
-    const bot = Math.min(H - 2, openLeft[openLeft.length - 1] + 1);
-    drawTileTypeOn(bctx, 1, top, 'leftDoorTop', tile);
-    drawTileTypeOn(bctx, 1, bot, 'leftDoorBottom', tile);
-  }
-
-  // DESTRA → tasselli dedicati
-  if (openRight.length) {
-    const top = Math.max(1, openRight[0] - 1);
-    const bot = Math.min(H - 2, openRight[openRight.length - 1] + 1);
-    drawTileTypeOn(bctx, W - 2, top, 'rightDoorTop', tile);
-    drawTileTypeOn(bctx, W - 2, bot, 'rightDoorBottom', tile);
-  }
-}
-
-
-
-
-
-
-
-
 
 
   const baked = { canvas: cv, tile };

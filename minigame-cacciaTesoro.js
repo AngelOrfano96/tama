@@ -302,33 +302,46 @@
     // goblin – near center, avoid doors & player spawn
     for (let k=0;k<20;k++){
       const p = randPointInInterior(1.0, room);
-      if (tooCloseToDoors(p) || tooCloseToPlayer(p)) continue;
+      if (tooCloseToDoors(px, py, G.tile * 1.5, room)) continue;
       return { type:'goblin', x:p.x, y:p.y, hp: 1, speed: CFG.petSpeedDesktop*CFG.goblinSpeedMul, noClip:false };
     }
     const fallback = randPointInInterior(0.5, room);
     return { type:'goblin', x:fallback.x, y:fallback.y, hp: 1, speed: CFG.petSpeedDesktop*CFG.goblinSpeedMul, noClip:false };
   }
 
-  function tooCloseToDoors(p){
-    const centers = doorCenters();
-    const r2 = (CFG.avoidDoorRadius*G.tile)**2;
-    for (const c of centers){ if (dist2(p.x,p.y,c.x,c.y) < r2) return true; }
-    return false;
+// SOSTITUISCI la tua tooCloseToDoors con questa
+function tooCloseToDoors(x, y, minPx = G.tile * 1.0, room = curRoom()) {
+  const ds = doorCenters(room);               // usa la stanza passata (o quella corrente)
+  const r2 = (minPx * minPx) | 0;
+  for (const d of ds) {
+    const dx = x - d.x, dy = y - d.y;
+    if (dx * dx + dy * dy < r2) return true;
   }
+  return false;
+}
+
   function tooCloseToPlayer(p){
     const r2 = (CFG.avoidPlayerRadius*G.tile)**2;
     return dist2(p.x,p.y,G.px,G.py) < r2;
   }
 
-  function doorCenters(){
-    const t = G.tile, cx = CFG.roomTilesW*t/2, cy = CFG.roomTilesH*t/2;
-    const list=[];
-    if (curRoom().doors.up)    list.push({x:cx, y:(1+CFG.wallDepthTop)*t});
-    if (curRoom().doors.down)  list.push({x:cx, y:(CFG.roomTilesH-2-CFG.wallDepthBottom)*t});
-    if (curRoom().doors.left)  list.push({x:1*t, y:cy});
-    if (curRoom().doors.right) list.push({x:(CFG.roomTilesW-2)*t, y:cy});
-    return list;
-  }
+// SOSTITUISCI la tua doorCenters con questa
+function doorCenters(room = curRoom()) {
+  const t  = G.tile;
+  const cx = (CFG.roomTilesW * t) / 2;
+  const cy = (CFG.roomTilesH * t) / 2;
+
+  // fallback: se room è null/undefined o non ha doors, ritorna lista vuota
+  if (!room || !room.doors) return [];
+
+  const list = [];
+  if (room.doors.up)    list.push({ x: cx, y: (1 + CFG.wallDepthTop) * t });
+  if (room.doors.down)  list.push({ x: cx, y: (CFG.roomTilesH - 2 - CFG.wallDepthBottom) * t });
+  if (room.doors.left)  list.push({ x: 1 * t, y: cy });
+  if (room.doors.right) list.push({ x: (CFG.roomTilesW - 2) * t, y: cy });
+  return list;
+}
+
 
   function curRoom(){ return G.rooms[G.curRY][G.curRX]; }
 

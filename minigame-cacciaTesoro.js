@@ -1640,6 +1640,30 @@ function generateRoomTiles(room) {
       tiles[y][x] = 'center';
     }
   }
+  // --- spallette verticali: curva + tratto dritto che la precede ---
+  // lavoriamo dentro la stanza: x=1 (sinistra interna) e x=W-2 (destra interna)
+
+  if (openL.length) {
+    const yTop = Math.max(1, openL[0] - 1);                 // subito sopra l'apertura
+    const yBot = Math.min(H - 2, openL[openL.length - 1] + 1);
+
+    // tratto dritto che collega l'angolo alto alla curva
+    for (let yy = 1; yy < yTop; yy++) tiles[yy][1] = 'left';
+
+    // curva della spalletta
+    tiles[yTop][1] = 'leftDoorTop';
+    tiles[yBot][1] = 'leftDoorBottom';
+  }
+
+  if (openR.length) {
+    const yTop = Math.max(1, openR[0] - 1);
+    const yBot = Math.min(H - 2, openR[openR.length - 1] + 1);
+
+    for (let yy = 1; yy < yTop; yy++) tiles[yy][W - 2] = 'right';
+
+    tiles[yTop][W - 2] = 'rightDoorTop';
+    tiles[yBot][W - 2] = 'rightDoorBottom';
+  }
   return tiles;
 }
 

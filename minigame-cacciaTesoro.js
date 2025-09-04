@@ -324,6 +324,9 @@ const DECOR_DESKTOP = {
   corner_tr_base:  pick(13,1),
   corner_tr_upper: pick(8,4),
   corner_tr_cap:   pick(13,0),
+
+  corner_tl_door_inner: pick(9,5),  // scegli il tuo CR, questo è solo un esempio
+  corner_tr_door_inner: pick(8,5),
   
   corner_tl_upper_plain: pick(10,1),
   corner_tr_upper_plain: pick(13,1),
@@ -458,6 +461,10 @@ function buildDecorFromAtlas() {
     corner_tr_door_base:  D.corner_tr_door_base  || D.corner_tr_base  || D.corner_tr,
     corner_tr_door_upper: D.corner_tr_door_upper || D.corner_tr_upper || D.corner_tr,
     corner_tr_door_cap:   D.corner_tr_door_cap   || D.corner_tr_cap   || null,
+
+    corner_tl_door_inner: D.corner_tl_door_inner || null,
+    corner_tr_door_inner: D.corner_tr_door_inner || null,
+
 
     // ── Lati e Sud ────────────────────────────────────────────────
     bottom: [D.bottom, D.bottom2].filter(Boolean),
@@ -1775,32 +1782,31 @@ for (let x = 0; x < W; x++) {
     bctx.restore();
   };
 
-  // --- Corner TL (normale o porta) ---
-  if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
-    const baseK = (t0 === 'corner_tl_door') ? 'corner_tl_door_base' : 'corner_tl_base';
-    // ⛔ per corner di PORTA non disegnare l'upper: niente colonna che sporge
-    const upperK = (t0 === 'corner_tl_door') ? null : 'corner_tl_upper';
-    const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap' : 'corner_tl_cap';
-
-    drawTileTypeOn(bctx, x, 0, baseK, tile);
-    if (upperK) drawTileTypeOn(bctx, x, 1, upperK, tile);
-    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
-    else drawCapFallback();
-    continue;
+// --- Corner TL (porta nord) ---
+if (t0 === 'corner_tl_door') {
+  drawTileTypeOn(bctx, x, 0, 'corner_tl_door_base',  tile);
+  // disegna il pick "inner" solo per la porta
+  if (G.sprites.decor.corner_tl_door_inner) {
+    drawTileTypeOn(bctx, x, 1, 'corner_tl_door_inner', tile);
   }
+  if (G.sprites.decor.corner_tl_door_cap) {
+    drawTileTypeOn(bctx, x, 0, 'corner_tl_door_cap', tile);
+  } else drawCapFallback();
+  continue;
+}
 
-  // --- Corner TR (normale o porta) ---
-  if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
-    const baseK = (t0 === 'corner_tr_door') ? 'corner_tr_door_base' : 'corner_tr_base';
-    const upperK = (t0 === 'corner_tr_door') ? null : 'corner_tr_upper';
-    const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap' : 'corner_tr_cap';
-
-    drawTileTypeOn(bctx, x, 0, baseK, tile);
-    if (upperK) drawTileTypeOn(bctx, x, 1, upperK, tile);
-    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
-    else drawCapFallback();
-    continue;
+// --- Corner TR (porta nord) ---
+if (t0 === 'corner_tr_door') {
+  drawTileTypeOn(bctx, x, 0, 'corner_tr_door_base',  tile);
+  if (G.sprites.decor.corner_tr_door_inner) {
+    drawTileTypeOn(bctx, x, 1, 'corner_tr_door_inner', tile);
   }
+  if (G.sprites.decor.corner_tr_door_cap) {
+    drawTileTypeOn(bctx, x, 0, 'corner_tr_door_cap', tile);
+  } else drawCapFallback();
+  continue;
+}
+
 
   // --- Segmento piatto del muro nord ---
   if (t0 === 'top') {

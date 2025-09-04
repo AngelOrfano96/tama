@@ -313,7 +313,6 @@ const DECOR_DESKTOP = {
   // tappo/coperchio (bordino alto)
   top_cap:   pick(11,0),   // <- se non esiste, lo lasceremo facoltativo
 
-  // resto invariato...
   bottom:  pick(11,4), bottom2: pick(12,4),
   left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
   right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
@@ -334,23 +333,19 @@ const DECOR_DESKTOP = {
   corner_tr_door_base:  pick(8,5),
   corner_tr_door_upper: pick(8,5),
   corner_tr_door_cap:   pick(8,4),
-corner_tl: pick(10,1),
-corner_tr: pick(13,1),
-  left_door_top:     pick(8,5),
-  left_door_bottom:  pick(9,4),
-  right_door_top:    pick(9,5),
-  right_door_bottom: pick(8,4),
+  corner_tl: pick(10,1),
+  corner_tr: pick(13,1),
 
-// corner porta "singoli" (1 tile), usati per le spallette interne
-corner_tl_door: pick(9,5),
-corner_tr_door: pick(8,5),
-// (sotto li hai già)
-corner_bl_door: pick(9,3),
-corner_br_door: pick(8,3),
+
+   // corner porta "singoli" (1 tile), usati per le spallette interne
+   corner_tl_door: pick(9,5),
+   corner_tr_door: pick(8,5),
+   // (sotto li hai già)
 
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
-  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
+  corner_bl_door: pick(9,3), 
+  corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),

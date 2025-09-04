@@ -39,7 +39,7 @@
     gridW: 3,
     gridH: 3,
     roomW: 8,
-    roomH: 7,
+    roomH: 8,
     petSpeedDesktop: 180,
     petSpeedMobile: 95,
     enemySpeedDesktop: 100,

@@ -1775,11 +1775,11 @@ for (let x = 0; x < W; x++) {
     bctx.restore();
   };
 
+// Corner sinistro (normale o porta), ovunque sulla riga 0
 if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
   const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
-  // se è angolo-PORTA uso la tua curva (corner_tl_upper),
-  // altrimenti uso il dritto (corner_tl_upper_plain)
-  const upperK = (t0 === 'corner_tl_door') ? 'corner_tl_upper' : 'corner_tl_upper_plain';
+  // ⬇️ per la porta usa upper piatto (niente “colonnina” che scende)
+  const upperK = (t0 === 'corner_tl_door') ? 'top_upper'            : 'corner_tl_upper';
   const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap'   : 'corner_tl_cap';
   drawTileTypeOn(bctx, x, 0, baseK,  tile);
   drawTileTypeOn(bctx, x, 1, upperK, tile);
@@ -1788,10 +1788,11 @@ if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
   continue;
 }
 
-// Corner destro (normale o porta)
+// Corner destro (normale o porta), ovunque sulla riga 0
 if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
   const baseK  = (t0 === 'corner_tr_door') ? 'corner_tr_door_base'  : 'corner_tr_base';
-  const upperK = (t0 === 'corner_tr_door') ? 'corner_tr_upper' : 'corner_tr_upper_plain';
+  // ⬇️ idem a destra
+  const upperK = (t0 === 'corner_tr_door') ? 'top_upper'            : 'corner_tr_upper';
   const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap'   : 'corner_tr_cap';
   drawTileTypeOn(bctx, x, 0, baseK,  tile);
   drawTileTypeOn(bctx, x, 1, upperK, tile);
@@ -1799,6 +1800,7 @@ if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
   else drawCapFallback();
   continue;
 }
+
 
   // Segmento piatto del muro nord
   if (t0 === 'top') {

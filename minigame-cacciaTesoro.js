@@ -1727,7 +1727,9 @@ function bakeRoomLayer(key, room) {
   const tile = window.treasureTile || 64;
   if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
 
+  // 🔴 DEVONO stare qui, prima di usarli
   const W = Cfg.roomW, H = Cfg.roomH;
+
   const wpx = W * tile, hpx = H * tile;
 
   const cv = document.createElement('canvas');
@@ -1746,8 +1748,7 @@ function bakeRoomLayer(key, room) {
     }
   }
 
-  // 2) MURI STANDARD (salta la riga nord e i corner-nord:
-  //    li disegniamo nel pass dedicato a 3 layer)
+  // 2) MURI STANDARD (salta la riga nord e i corner-nord)
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const t = tiles[y][x];
@@ -1764,77 +1765,81 @@ function bakeRoomLayer(key, room) {
     }
   }
 
-// 3) NORD in 3 layer: base (riga 0), upper (riga 1), cap (overlay)
-for (let x = 0; x < W; x++) {
-  const t0 = tiles[0][x];
-  if (!t0) continue; // è apertura: nessun muro
-
-  const drawCapFallback = () => {
-    bctx.save();
-    bctx.globalAlpha = 0.18;
-    bctx.fillStyle = '#000';
-    const h = Math.max(3, Math.round(tile * 0.05));
-    bctx.fillRect(x * tile, 2 * tile - h, tile, h);
-    bctx.restore();
-  };
-
-  // --- ANGOLI NORMALI (mancavano!) -------------------------------
-  if (t0 === 'corner_tl') {
-    drawTileTypeOn(bctx, x, 0, 'corner_tl_base',          tile);
-    drawTileTypeOn(bctx, x, 1, 'corner_tl_upper_plain',   tile);
-    if (G.sprites.decor.corner_tl_cap) drawTileTypeOn(bctx, x, 0, 'corner_tl_cap', tile);
-    else drawCapFallback();
-    continue;
+  // ➜ prima cella aperta sui lati SX/DX
+  const openL = [], openR = [];
+  for (let yy = 1; yy <= H - 2; yy++) {
+    if (room[yy][0]     === 0) openL.push(yy);
+    if (room[yy][W - 1] === 0) openR.push(yy);
   }
-  if (t0 === 'corner_tr') {
-    drawTileTypeOn(bctx, x, 0, 'corner_tr_base',          tile);
-    drawTileTypeOn(bctx, x, 1, 'corner_tr_upper_plain',   tile);
-    if (G.sprites.decor.corner_tr_cap) drawTileTypeOn(bctx, x, 0, 'corner_tr_cap', tile);
-    else drawCapFallback();
-    continue;
+  // distanza dalla cella (0,1)/(W-1,1) all’inizio della porta; 99 = nessuna porta
+  const gapFromTopLeft  = openL.length ? (openL[0] - 1) : 99;
+  const gapFromTopRight = openR.length ? (openR[0] - 1) : 99;
+
+  // 3) NORD in 3 layer: base (riga 0), upper (riga 1), cap (overlay)
+  for (let x = 0; x < W; x++) {
+    const t0 = tiles[0][x];
+    if (!t0) continue;
+
+    const drawCapFallback = () => {
+      bctx.save();
+      bctx.globalAlpha = 0.18;
+      bctx.fillStyle = '#000';
+      const h = Math.max(3, Math.round(tile * 0.05));
+      bctx.fillRect(x * tile, 2 * tile - h, tile, h);
+      bctx.restore();
+    };
+
+    // tassello "dritto" sotto al cap quando c'è spazio prima della porta
+    const tlStraight = G.sprites.decor.corner_tl_upper_plain ? 'corner_tl_upper_plain' : 'corner_tl_base';
+    const trStraight = G.sprites.decor.corner_tr_upper_plain ? 'corner_tr_upper_plain' : 'corner_tr_base';
+
+    // ---- TOP-LEFT CORNER
+    if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
+      const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
+      const upperK = (t0 === 'corner_tl_door')
+        ? 'corner_tl_door_upper'
+        : (gapFromTopLeft >= 1 ? tlStraight : 'corner_tl_upper'); // spazio→dritto, attaccata→curvo
+
+      const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap' : 'corner_tl_cap';
+
+      drawTileTypeOn(bctx, x, 0, baseK,  tile);
+      drawTileTypeOn(bctx, x, 1, upperK, tile);
+      if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+      else drawCapFallback();
+      continue;
+    }
+
+    // ---- TOP-RIGHT CORNER
+    if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
+      const baseK  = (t0 === 'corner_tr_door') ? 'corner_tr_door_base'  : 'corner_tr_base';
+      const upperK = (t0 === 'corner_tr_door')
+        ? 'corner_tr_door_upper'
+        : (gapFromTopRight >= 1 ? trStraight : 'corner_tr_upper');
+
+      const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap' : 'corner_tr_cap';
+
+      drawTileTypeOn(bctx, x, 0, baseK,  tile);
+      drawTileTypeOn(bctx, x, 1, upperK, tile);
+      if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+      else drawCapFallback();
+      continue;
+    }
+
+    // segmento piatto del muro nord
+    if (t0 === 'top') {
+      drawTileTypeOn(bctx, x, 0, 'top_base',  tile);
+      drawTileTypeOn(bctx, x, 1, 'top_upper', tile);
+      if (G.sprites.decor.top_cap) drawTileTypeOn(bctx, x, 0, 'top_cap', tile);
+      else drawCapFallback();
+      continue;
+    }
   }
-
-  // --- ANGOLI DI PORTA (con eventuale "inner" custom) ------------
-  if (t0 === 'corner_tl_door') {
-    drawTileTypeOn(bctx, x, 0, 'corner_tl_door_base',  tile);
-    if (G.sprites.decor.corner_tl_door_inner)
-      drawTileTypeOn(bctx, x, 1, 'corner_tl_door_inner', tile); // opzionale
-    else
-      drawTileTypeOn(bctx, x, 1, 'corner_tl_door_upper', tile); // fallback “classico”
-    if (G.sprites.decor.corner_tl_door_cap) drawTileTypeOn(bctx, x, 0, 'corner_tl_door_cap', tile);
-    else drawCapFallback();
-    continue;
-  }
-
-  if (t0 === 'corner_tr_door') {
-    drawTileTypeOn(bctx, x, 0, 'corner_tr_door_base',  tile);
-    if (G.sprites.decor.corner_tr_door_inner)
-      drawTileTypeOn(bctx, x, 1, 'corner_tr_door_inner', tile);
-    else
-      drawTileTypeOn(bctx, x, 1, 'corner_tr_door_upper', tile);
-    if (G.sprites.decor.corner_tr_door_cap) drawTileTypeOn(bctx, x, 0, 'corner_tr_door_cap', tile);
-    else drawCapFallback();
-    continue;
-  }
-
-  // --- Segmenti piatti del muro nord -----------------------------
-  if (t0 === 'top') {
-    drawTileTypeOn(bctx, x, 0, 'top_base',  tile);
-    drawTileTypeOn(bctx, x, 1, 'top_upper', tile);
-    if (G.sprites.decor.top_cap) drawTileTypeOn(bctx, x, 0, 'top_cap', tile);
-    else drawCapFallback();
-    continue;
-  }
-
-  // altro: ignora
-}
-
-
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;
   return baked;
 }
+
 
 
 

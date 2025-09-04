@@ -1,780 +1,2610 @@
-/*
-  Minigioco: Caccia al Tesoro (from scratch)
-  ---------------------------------------------------------
-  - Random dungeon (MxN) rooms (2x3, 3x3, 3x4, 4x4, ...)
-  - Doors always open; pet moves room→room
-  - Enemies: goblin (ground, collides walls), bat (spawns on/top of walls, no wall collisions)
-  - Coins & potions in rooms; collect all coins to open a trapdoor to next dungeon
-  - Low-chance ground drops for moves/items; award via RPC (server-side) like Arena
-  - Responsive canvas; mobile joystick; DOM infobox (timer/coins/level/score)
-  - Leaderboard submit via existing RPC: submit_treasure_score
-  - Rewards at end via window.updateFunAndExpFromMiniGame + addGettoniSupabase
 
-  NOTE: Graphic picks are placeholders—configure your atlas cells below.
-*/
-(function TreasureMinigame(){
-  'use strict';
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Supabase bridge (single source of truth)
-  // ────────────────────────────────────────────────────────────────────────────
-  const sb = () => {
-    const c = window.supabaseClient;
-    if (!c) throw new Error('[Treasure] Supabase client not ready');
-    return c;
-  };
+// --- Mobile error overlay (debug) ---
+// Incolla questo blocco in cima al file, fuori dalla tua IIFE
+(function mobileErrorOverlay(){
+  function install(){
+    const box = document.createElement('div');
+    box.id = '__errbox';
+    box.style.cssText =
+      'position:fixed;left:8px;bottom:8px;right:8px;max-height:40vh;overflow:auto;' +
+      'background:rgba(0,0,0,.8);color:#fff;font:12px/1.4 monospace;padding:8px;' +
+      'z-index:999999;border-radius:8px;display:none';
+    box.title = 'Tocca per nascondere';
+    box.addEventListener('click', ()=> box.style.display='none');
+    document.body.appendChild(box);
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // DOM wiring
-  // ────────────────────────────────────────────────────────────────────────────
-  const DOM = {
-    modal: null,
-    canvas: null,
-    ctx: null,
-    infoCoins: null,
-    infoTimer: null,
-    infoLevel: null,
-    infoScore: null,
-    btnExit: null,
-    joyBase: null,
-    joyStick: null,
-  };
+    function show(msg){
+      box.style.display = 'block';
+      box.textContent = String(msg);
+    }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Config
-  // ────────────────────────────────────────────────────────────────────────────
-  const CFG = {
-    // Canvas/grid
-    roomTilesW: 13,
-    roomTilesH: 10, // visible interior including floor; walls overlayed for depth
-    wallDepthTop: 2,   // visual depth in tiles (drawn above the pet)
-    wallDepthBottom: 1,
-    wallDepthSides: 1,
+    // intercetta errori JS e Promise rifiutate
+    window.onerror = (m, s, l, c) => { show(`[ERR] ${m} @ ${s}:${l}:${c}`); };
+    window.onunhandledrejection = (ev) => { show(`[Promise] ${ev.reason}`); };
 
-    // Game
-    baseTimePerDungeon: 60, // seconds
-    timeBonusPerDungeon: 6, // +sec every next dungeon
-    petSpeedDesktop: 150,
-    petSpeedMobile: 95,
-    touchDeadZone: 0.12,
+    // opzionale: per mostrare messaggi manualmente da console
+    window._showMobileError = show;
+  }
 
-    // Spawns
-    coinsPerRoom: [2,3,4],
-    potionChance: 0.18,
-    moveDropChance: 0.03,  // low chance static ground drop
-    itemDropChance: 0.03,
+  if (document.body) install();
+  else document.addEventListener('DOMContentLoaded', install, { once:true });
+})();
 
-    // Enemies
-    goblinPerRoom: [0,1,2],
-    batPerRoom: [0,1],
-    goblinSpeedMul: 0.85, // relative to pet desktop speed
-    batSpeed: 140,
-    avoidDoorRadius: 1.2, // tiles from door center
-    avoidPlayerRadius: 2.2, // min distance at spawn
 
-    // Collisions
-    petRadius: 0.34,
-    enemyRadius: 0.34,
-    coinRadius: 0.28,
-    potionRadius: 0.32,
-    pickupRadius: 0.30,
-
-    // UI / responsiveness
-    minTile: 32,
-    maxTileDesktop: 384,
-    maxTileMobile: 192,
-
-    // Scoring
-    scoreCoin: 5,
-    scorePotion: 8,
-    scoreDungeonClear: 50,
-
-    // Atlases
-    ATLAS_TILE: 16,
-  };
-
-  const isMobile = (() => (window.matchMedia?.('(pointer:coarse)')?.matches ?? false) || /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent))();
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Atlas & pick helpers (configure your cells below)
-  // ────────────────────────────────────────────────────────────────────────────
-  const assetRoot = isMobile ? 'assets/mobile' : 'assets/desktop';
-  const atlasRoot = `${assetRoot}/atlas`;
-  const enemyRoot = `${assetRoot}/enemies`;
-
-  const pick = (c, r, w=1, h=1) => ({ sx: c*CFG.ATLAS_TILE, sy: r*CFG.ATLAS_TILE, sw: w*CFG.ATLAS_TILE, sh: h*CFG.ATLAS_TILE });
-
-  const DECOR = {
-    // floor variants used inside room interior area
-    floor: [ pick(6,0), pick(6,1), pick(7,0), pick(7,1) ],
-    // walls body + caps to create depth; tweak to match your Dungeon_2.png
-    wallBody: {
-      top:    [ pick(1,4), pick(1,7) ],
-      bottom: [ pick(7,4) ],
-      left:   [ pick(4,2), pick(4,1) ],
-      right:  [ pick(4,2), pick(4,1) ],
-      corner_tl: pick(0,0),
-      corner_tr: pick(2,0),
-      corner_bl: pick(7,4),
-      corner_br: pick(6,4),
-    },
-    wallCap: {
-      top:    [ pick(1,7) ],
-      bottom: [ pick(1,4) ],
-      left:   [ pick(3,0) ],
-      right:  [ pick(3,0) ],
-      corner_tl: pick(0,0),
-      corner_tr: pick(2,0),
-      corner_bl: pick(0,2),
-      corner_br: pick(2,2),
-    },
-    // doors can simply be gaps; optionally draw frames here if desired
-  };
-
-  const SPRITES = {
-    atlas: null,     // rooms
-    goblinSheet: null,
-    batSheet: null,
-    // animation rows/cols; plug your own if different
-    goblin: { walkDown:2, walkRight:3, walkUp:4, idleRow:2, cols:[0,1,2,3], size:48 },
-    bat:    { flyDown:2,  flyRight:3,  flyUp:4,  idleRow:2, cols:[0,1,2,3], size:48 },
-  };
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Game state
-  // ────────────────────────────────────────────────────────────────────────────
-  const G = {
-    running: false,
-    tile: 64,
-    dpr: 1,
-    now: performance.now(),
-    last: performance.now(),
-
-    // dungeon
-    dungeonIndex: 1,
+// === MINI GIOCO CACCIA AL TESORO — versione “no-globals” (modulo IIFE) ===
+(() => {
+  // ---------- CONFIG ----------
+  const Cfg = {
     gridW: 3,
     gridH: 3,
-    rooms: [],       // 2D array of Room objects
-    curRX: 0,
-    curRY: 0,
-    totalCoins: 0,
-    collectedCoins: 0,
-    trapDoorOpen: false,
-
-    // player
-    px: 0, py: 0, vx: 0, vy: 0, facing: 'down',
-    speedBonusUntil: 0,
-
-    // enemies & pickups in current room (for perf; rooms also cache their content)
-    enemies: [], pickups: [],
-
-    // inputs
-    keys: new Set(),
-    joy: {active:false, vx:0, vy:0},
-
-    // meta
-    timeLeft: CFG.baseTimePerDungeon,
+    roomW: 8,
+    roomH: 7,
+    petSpeedDesktop: 180,
+    petSpeedMobile: 95,
+    enemySpeedDesktop: 100,
+    enemySpeedMobile: 35,
+    revealMs: 900,
+    powerupMs: 2000,
+    baseTimerMs: 1000,
+  };
+// Tuning collisioni (più permissive)
+////////////////////
+  const G = {
+    // dinamiche
+    hudDirty: true,
+    playing: false,
+    level: 1,
     score: 0,
+    timeLeft: 0,
+    speedMul: 1,
+    exiting: false,
+    timerId: null,
+    coinsCollected: 0,
+
+    // potenziamenti
+    activePowerup: null,     // 'speed' | 'slow' | null
+    powerupExpiresAt: 0,
+    slowExpiresAt: 0,
+
+    // mondo
+    rooms: [],
+    petRoom: { x: 0, y: 0 },
+    objects: {},
+    enemies: {},
+    powerups: {},
+    exitRoom: { x: 0, y: 0 },
+    exitTile: { x: 0, y: 0 },
+    skulls: [],
+
+    //talpa
+    mole: {
+    enabled: false,
+    roomX: 0, roomY: 0,
+    x: 0, y: 0,            // cella
+    phase: 'emerge1',      // 'emerge1'|'emerge2'|'hold'|'retreat2'|'retreat1'|'gap'
+    t: 0,                  // timer fase corrente
+      },
+
+    // pet
+    pet: {
+      x: 1, y: 1,
+      px: 0, py: 0,
+      animTime: 0,
+      dirX: 0, dirY: 0,
+      moving: false,
+      direction: 'down',
+      stepFrame: 0,
+    },
+
+   
+
+    // input
+    keysStack: [],
+
+    // sprites
+    sprites: {
+      pet: null,
+      goblin: null,
+      coin: null,
+      enemy: null,
+      exit: null,
+      wall: null,
+      bg: null,
+      powerup: null,
+    },
   };
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Utility
-  // ────────────────────────────────────────────────────────────────────────────
-  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-  const randInt = (a,b) => a + ((Math.random()*(b-a+1))|0);
-  const choice = (arr) => arr[(Math.random()*arr.length)|0];
-  const dist2 = (ax,ay,bx,by) => (ax-bx)*(ax-bx) + (ay-by)*(ay-by);
-  const nowMs = () => performance.now();
+  G.renderCache = {
+  rooms: {},   // { "x,y": { canvas, tile } }
+  tile: 0,
+};
+const roomKey = (x, y) => `${x},${y}`;
 
-  const petSpeed = () => {
-    const base = isMobile ? CFG.petSpeedMobile : CFG.petSpeedDesktop;
-    const bonus = (nowMs() < G.speedBonusUntil) ? 1.25 : 1.0;
-    return base * bonus;
+const PHYS = {
+  bodyShrink: 12, // prima usavi ~20 → più alto = hitbox più piccola = più permissivo
+  skin: 2,        // margine anti-incastro (prima 2). Più alto = più permissivo
+  maxStepFrac: 1/3,
+};
+
+// === BAT ATLAS (enemy sprites) ===
+const BAT_TILE = 48;
+const BAT_MARGIN_X = 0, BAT_MARGIN_Y = 0;
+const BAT_SPACING_X = 0, BAT_SPACING_Y = 0;
+
+const bPick = (c, r, w=1, h=1) => ({
+  sx: BAT_MARGIN_X + c * (BAT_TILE + BAT_SPACING_X),
+  sy: BAT_MARGIN_Y + r * (BAT_TILE + BAT_SPACING_Y),
+  sw: w * BAT_TILE,
+  sh: h * BAT_TILE,
+});
+
+function buildBatFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_bat.png`,
+    // stesse righe del goblin, sheet 48×48
+    rows: {
+      walkDown:  2,
+      walkRight: 3,
+      walkUp:    4,
+      atkDown:   5,
+      atkRight:  6,
+      atkUp:     7,
+    },
+    walkCols:   [0,1,2,3],
+    attackCols: [0,1,2,3],
+    // idle su due righe: 0 e 1 (3+3 frame)
+    idleMap: [
+      [0,0],[1,0],[2,0],
+      [0,1],[1,1],[2,1],
+    ],
   };
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Styles (lightweight injection, dedicated to this minigame)
-  // ────────────────────────────────────────────────────────────────────────────
-  function ensureStyles(){
-    if (document.getElementById('treasure-css')) return;
-    const css = `
-    #treasure-minigame-modal{position:fixed;inset:0;background:#0b0e13;display:none;align-items:center;justify-content:center;z-index:10000}
-    #treasure-minigame-modal.show{display:flex}
-    #treasure-canvas{image-rendering:pixelated;touch-action:none;}
-    .treasure-info-bar{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(13,15,18,.92);color:#e5e7eb;border:1px solid #2a2f36;border-radius:12px;padding:8px 12px;display:flex;gap:14px;align-items:center;z-index:10;font:600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .treasure-joystick-overlay{position:fixed;left:12px;bottom:12px;width:160px;height:160px;z-index:10010;pointer-events:none}
-    .treasure-joystick-base{position:absolute;left:0;bottom:0;width:160px;height:160px;border-radius:9999px;background:rgba(31,41,55,.25);backdrop-filter:blur(2px);pointer-events:auto;touch-action:none}
-    .treasure-joystick-stick{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:9999px;background:#1f2937;border:2px solid #374151}
-    .treasure-exit-btn{background:#111827;color:#e5e7eb;border:1px solid #374151;border-radius:8px;padding:6px 10px;font-weight:700}
-    .treasure-float-label{position:absolute;left:50%;top:22%;transform:translateX(-50%);font:700 28px system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#ffe44c;text-shadow:2px 2px 6px #000,0 0 24px #fff;pointer-events:none;opacity:0;transition:opacity .2s}
-    `;
-    const el = document.createElement('style');
-    el.id = 'treasure-css'; el.textContent = css;
-    document.head.appendChild(el);
+  if (!G.sprites.batSheet) {
+    G.sprites.batSheet = new Image();
+    G.sprites.batSheet.onload  = () => console.log('[BAT] atlas ready');
+    G.sprites.batSheet.onerror = (e) => console.error('[BAT] atlas load fail', e);
+    G.sprites.batSheet.src = cfg.sheetSrc;
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Room & dungeon generation
-  // ────────────────────────────────────────────────────────────────────────────
-  function chooseGridSize(){
-    const options = [ [2,3], [3,3], [3,4], [4,4] ];
-    return choice(options);
-  }
+  const mkRow   = (row, cols)   => cols.map(c => bPick(c, row));
+  const mkPairs = (pairs)       => pairs.map(([c, r]) => bPick(c, r));
+  const idle    = mkPairs(cfg.idleMap);
 
-  function makeEmptyRooms(w,h){
-    const arr = new Array(h);
-    for (let y=0;y<h;y++){ arr[y] = new Array(w).fill(null); }
-    return arr;
-  }
-
-  function newDungeon(){
-    const [gw, gh] = chooseGridSize();
-    G.gridW = gw; G.gridH = gh;
-    G.rooms = makeEmptyRooms(gw, gh);
-    G.curRX = (gw/2)|0; G.curRY = (gh/2)|0; // start from center-ish
-    G.totalCoins = 0; G.collectedCoins = 0; G.trapDoorOpen = false;
-    G.timeLeft = CFG.baseTimePerDungeon + (G.dungeonIndex-1) * CFG.timeBonusPerDungeon;
-
-    for (let ry=0; ry<gh; ry++){
-      for (let rx=0; rx<gw; rx++){
-        const room = buildRoom(rx, ry);
-        G.rooms[ry][rx] = room;
-        G.totalCoins += room.coins.length;
-      }
-    }
-
-    loadRoom(G.curRX, G.curRY);
-    centerPlayerInRoom();
-  }
-
-  function buildRoom(rx, ry){
-    const room = {
-      rx, ry,
-      // connectivity (doors) – open if neighbor exists in grid
-      doors: { up: ry>0, down: ry< G.gridH-1, left: rx>0, right: rx< G.gridW-1 },
-      coins: [],
-      potions: [],
-      drops: [], // ground move/item drops
-      enemies: [],
-      baked: null, // pre-rendered static layer
-    };
-
-    // coins
-    const nCoins = choice(CFG.coinsPerRoom);
-    for (let i=0;i<nCoins;i++){
-      room.coins.push(randPointInInterior(0.25, room));
-    }
-    // potion (chance)
-    if (Math.random() < CFG.potionChance){
-      room.potions.push(randPointInInterior(0.25, room));
-    }
-    // static move/item ground drops (low chance)
-    if (Math.random() < CFG.moveDropChance) room.drops.push({ kind:'move', key: choice(['ball','repulse','basic_attack']), ...randPointInInterior(0.25, room) });
-    if (Math.random() < CFG.itemDropChance) room.drops.push({ kind:'item', key: choice(['ring_speed','amulet_power']), ...randPointInInterior(0.25, room) });
-
-    // enemies – avoid doors & center, goblins on floor, bats on walls only
-    const nGob = choice(CFG.goblinPerRoom);
-    const nBat = choice(CFG.batPerRoom);
-    for (let i=0;i<nGob;i++) room.enemies.push(makeEnemy('goblin', room));
-    for (let i=0;i<nBat;i++) room.enemies.push(makeEnemy('bat', room));
-
-    return room;
-  }
-
-  function randPointInInterior(padTiles=0.2, room){
-    const t = G.tile;
-    const pad = padTiles * t;
-    const minX = 1*t + pad;
-    const maxX = (CFG.roomTilesW-2)*t - pad;
-    const minY = (1 + CFG.wallDepthTop)*t + pad;
-    const maxY = (CFG.roomTilesH-2 - CFG.wallDepthBottom)*t - pad;
-    return { x: minX + Math.random()*(maxX-minX), y: minY + Math.random()*(maxY-minY) };
-  }
-  function tooCloseToPlayer(x, y, minPx = G.tile * 1.5) {
-  const px = G?.pet?.px, py = G?.pet?.py;
-  if (!Number.isFinite(px) || !Number.isFinite(py)) return false;
-  const dx = x - px, dy = y - py;
-  return (dx * dx + dy * dy) < (minPx * minPx);
+  G.sprites.batFrames = {
+    idle: idle.length ? idle : mkRow(cfg.rows.walkDown, [0]),
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+    },
+  };
 }
 
 
-  function makeEnemy(type, room){
-    if (type === 'bat'){
-      // spawn on top band (over the walls); y anchored at top cap area
-      const t = G.tile;
-      const y = (1 + CFG.wallDepthTop - 0.6)*t; // slightly overlapping cap
-      const x = (1*t) + t + Math.random()*((CFG.roomTilesW-4)*t);
-      return { type:'bat', x, y, hp: 1, speed: CFG.batSpeed, noClip:true };
+
+// === GOBLIN ATLAS (enemy sprites) ===
+// Imposta alla cella del tuo foglio (16/24/32...). Se il tuo atlas è 32px, usa 32.
+const GOB_TILE = 48;
+
+const GOB_MARGIN_X = 0, GOB_MARGIN_Y = 0;
+const GOB_SPACING_X = 0, GOB_SPACING_Y = 0;
+
+// Base path per device (desktop/mobile)
+const enemyAtlasBase = isMobileOrTablet()
+  ? 'assets/mobile/enemies'
+  : 'assets/desktop/enemies';
+
+// pick per il foglio del goblin
+const gPick = (c, r, w=1, h=1) => ({
+  sx: GOB_MARGIN_X + c * (GOB_TILE + GOB_SPACING_X),
+  sy: GOB_MARGIN_Y + r * (GOB_TILE + GOB_SPACING_Y),
+  sw: w * GOB_TILE,
+  sh: h * GOB_TILE,
+});
+
+// draw con flip orizzontale (per "left")
+function drawSheetClipMaybeFlip(sheet, clip, dx, dy, dw, dh, flipH=false) {
+  if (!sheet || !sheet.complete || !clip) return;
+  if (!flipH) {
+    ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, dx, dy, dw, dh);
+    return;
+  }
+  ctx.save();
+  ctx.translate(dx + dw, dy);
+  ctx.scale(-1, 1);
+  ctx.drawImage(sheet, clip.sx, clip.sy, clip.sw, clip.sh, 0, 0, dw, dh);
+  ctx.restore();
+}
+
+/**
+ * Costruisce tutti i frame a partire dalla POSIZIONE delle righe/colonne del tuo atlas.
+ * Sotto trovi un mapping "tipico":
+ *   riga 0: idle (6 col)         riga 3: walk up (4 col)         riga 6: attack up (4 col)
+ *   riga 1: walk down (4 col)    riga 4: attack down (4 col)
+ *   riga 2: walk right (4 col)   riga 5: attack right (4 col)
+ *
+ * Se il tuo sheet è diverso, cambia SOLO gli indici riga/colonne nel cfg.
+ */
+function buildGoblinFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_orc.png`,
+
+    // RIGHE (lascia come sono se ti tornano)
+    rows: {
+      walkDown:  2,
+      walkRight: 3,
+      walkUp:    4,
+      atkDown:   5,
+      atkRight:  6,
+      atkUp:     7,
+    },
+
+    // Colonne standard per walk/attack
+    walkCols:   [0,1,2,3],
+    attackCols: [0,1,2,3],
+
+    // --- IDLE SU DUE RIGHE ---
+    // Metti l’ordine ESATTO dei frame che vuoi ciclare (colonna, riga)
+    // Esempio tipico: 3 frame in riga 0 + 3 frame in riga 1
+    // Se hai un layout diverso, basta cambiare queste coppie:
+    idleMap: [
+      [0,0],[1,0],[2,0],  // primi 3 frame in riga 0
+      [0,1],[1,1],[2,1],  // altri 3 frame in riga 1
+    ],
+  };
+  if (!G.sprites.goblinSheet) {
+    G.sprites.goblinSheet = new Image();
+    G.sprites.goblinSheet.onload  = () => console.log('[GOBLIN] atlas ready');
+    G.sprites.goblinSheet.onerror = (e) => console.error('[GOBLIN] atlas load fail', e);
+    G.sprites.goblinSheet.src = cfg.sheetSrc;
+  }
+
+  const mkRow  = (row, cols)  => cols.map(c => gPick(c, row));
+  const mkPairs = (pairs)     => pairs.map(([c, r]) => gPick(c, r));
+
+  const idleFrames = mkPairs(cfg.idleMap);
+  const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
+
+  G.sprites.goblinFrames = {
+    idle: safeIdle,
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+      // left = flip orizzontale di right (già gestito nel render)
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+      // left = flip orizzontale di right
+    },
+  };
+}
+
+
+// ---- ATLAS ----
+const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova 32 se serve)
+const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
+
+// helper: seleziona un rettangolo (w,h in celle, default 1×1)
+const pick = (c, r, w = 1, h = 1) => ({
+  sx: c * ATLAS_TILE,
+  sy: r * ATLAS_TILE,
+  sw: w * ATLAS_TILE,
+  sh: h * ATLAS_TILE,
+});
+
+ // --- mappa dei ritagli (coordinate nell’atlas in celle 16x16)
+// ESEMPIO: aggiorna con le tue coordinate (colonna, riga) reali!
+const DECOR_DESKTOP = {
+  // esempio: su mobile usi una riga diversa per il top1/top2
+  top_base:  pick(11,1),   // <- PRIMA ERA top1
+
+  // corpo superiore (secondo “blocco”)
+  top_upper: pick(12,1),   // <- PRIMA ERA top2 (se non esiste, riusa top_base)
+
+  // tappo/coperchio (bordino alto)
+  top_cap:   pick(11,0),   // <- se non esiste, lo lasceremo facoltativo
+
+  // resto invariato...
+  bottom:  pick(11,4), bottom2: pick(12,4),
+  left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
+  right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
+
+  corner_tl_base:  pick(10,1),
+  corner_tl_upper: pick(10,1), // seconda “fascia” verticale
+  corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
+
+  corner_tr_base:  pick(13,1),
+  corner_tr_upper: pick(13,1),
+  corner_tr_cap:   pick(13,0),
+
+  // varianti “porta” (se nel tuo atlas esistono)
+  corner_tl_door_base:  pick(9,5),
+  corner_tl_door_upper: pick(9,5),
+  corner_tl_door_cap:   pick(9,4),
+
+  corner_tr_door_base:  pick(8,5),
+  corner_tr_door_upper: pick(8,5),
+  corner_tr_door_cap:   pick(8,4),
+corner_tl: pick(10,1),
+corner_tr: pick(13,1),
+   left_door_top:     pick(9,5),
+  left_door_bottom:  pick(9,4),
+  right_door_top:    pick(8,5),
+  right_door_bottom: pick(8,4),
+
+// corner porta "singoli" (1 tile), usati per le spallette interne
+corner_tl_door: pick(9,5),
+corner_tr_door: pick(8,5),
+// (sotto li hai già)
+corner_bl_door: pick(9,3),
+corner_br_door: pick(8,3),
+
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
+  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
+
+  floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
+  door_h1: pick(7,7), door_h2: pick(7,6),
+
+};
+
+// se ti serve, copia le stesse tre chiavi anche in DECOR_MOBILE
+
+// --- mappa mobile (metti qui le coordinate alternative)
+const DECOR_MOBILE = {
+  // esempio: su mobile usi una riga diversa per il top1/top2
+  top_base:  pick(11,1),   // <- PRIMA ERA top1
+
+  // corpo superiore (secondo “blocco”)
+  top_upper: pick(12,1),   // <- PRIMA ERA top2 (se non esiste, riusa top_base)
+
+  // tappo/coperchio (bordino alto)
+  top_cap:   pick(11,0),   // <- se non esiste, lo lasceremo facoltativo
+
+  // resto invariato...
+  bottom:  pick(11,4), bottom2: pick(12,4),
+  left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
+  right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
+
+  corner_tl_base:  pick(10,1),
+  corner_tl_upper: pick(10,1), // seconda “fascia” verticale
+  corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
+
+  corner_tr_base:  pick(13,1),
+  corner_tr_upper: pick(13,1),
+  corner_tr_cap:   pick(13,0),
+
+  // varianti “porta” (se nel tuo atlas esistono)
+  corner_tl_door_base:  pick(9,5),
+  corner_tl_door_upper: pick(9,5),
+  corner_tl_door_cap:   pick(9,4),
+  corner_tl: pick(10,1),
+corner_tr: pick(13,1),
+
+  corner_tr_door_base:  pick(8,5),
+  corner_tr_door_upper: pick(8,5),
+  corner_tr_door_cap:   pick(8,4),
+
+  // corner porta "singoli" (1 tile), usati per le spallette interne
+corner_tl_door: pick(9,5),
+corner_tr_door: pick(8,5),
+// (sotto li hai già)
+corner_bl_door: pick(9,3),
+corner_br_door: pick(8,3),
+
+
+  // 👇 aggiungi questi 4 (come già in DECOR_MOBILE)
+  left_door_top:     pick(9,5),
+  left_door_bottom:  pick(9,4),
+  right_door_top:    pick(8,5),
+  right_door_bottom: pick(8,4),
+
+
+  corner_bl: pick(10,4),
+  corner_br: pick(13,4),
+  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
+
+  floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
+  door_h1: pick(7,7), door_h2: pick(7,6),
+
+};
+const IS_MOBILE = isMobileOrTablet(); // oppure metti direttamente il regex
+
+// scegli la mappa in base al device
+let DECOR = IS_MOBILE ? DECOR_MOBILE : DECOR_DESKTOP;
+
+
+function variantIndex(x, y, len) {
+  // hash veloce e stabile per (x,y)
+  let h = (x * 73856093) ^ (y * 19349663);
+  h = (h ^ (h >>> 13)) >>> 0;
+  return h % len;
+}
+// costruisce la tabella usata dal renderer
+function buildDecorFromAtlas() {
+  const D = DECOR;
+  const first = (...xs) => xs.find(Boolean) || null;
+
+  G.sprites.decor = {
+    // Nord a 2 blocchi + cap
+    top_base:  D.top_base  || D.top1,
+    top_upper: D.top_upper || D.top1,
+    top_cap:   D.top_cap   || null,
+
+    // Corner TL/TR per il muro nord (pass a 3 layer)
+    corner_tl_base:  D.corner_tl_base  || D.corner_tl || D.top_base  || D.top1,
+    corner_tl_upper: D.corner_tl_upper || D.corner_tl || D.top_upper || D.top1,
+    corner_tl_cap:   D.corner_tl_cap   || null,
+
+    corner_tr_base:  D.corner_tr_base  || D.corner_tr || D.top_base  || D.top1,
+    corner_tr_upper: D.corner_tr_upper || D.corner_tr || D.top_upper || D.top1,
+    corner_tr_cap:   D.corner_tr_cap   || null,
+
+    // Varianti "porta" per il muro nord (pass a 3 layer)
+    corner_tl_door_base:  D.corner_tl_door_base  || D.corner_tl_base  || D.corner_tl,
+    corner_tl_door_upper: D.corner_tl_door_upper || D.corner_tl_upper || D.corner_tl,
+    corner_tl_door_cap:   D.corner_tl_door_cap   || D.corner_tl_cap   || null,
+
+    corner_tr_door_base:  D.corner_tr_door_base  || D.corner_tr_base  || D.corner_tr,
+    corner_tr_door_upper: D.corner_tr_door_upper || D.corner_tr_upper || D.corner_tr,
+    corner_tr_door_cap:   D.corner_tr_door_cap   || D.corner_tr_cap   || null,
+
+    // Lati e Sud
+    bottom: [D.bottom, D.bottom2].filter(Boolean),
+    left:   [D.left1, D.left2, D.left3].filter(Boolean),
+    right:  [D.right1, D.right2, D.right3].filter(Boolean),
+
+    // Corner normali (singolo tile)
+    corner_tl: D.corner_tl,
+    corner_tr: D.corner_tr,
+    corner_bl: D.corner_bl,
+    corner_br: D.corner_br,
+
+    // Corner "porta" (singolo tile) — per LATI e BASSO
+    corner_tl_door: D.corner_tl_door
+                 || D.corner_tl_door_base
+                 || D.corner_tl_base
+                 || D.corner_tl,
+    corner_tr_door: D.corner_tr_door
+                 || D.corner_tr_door_base
+                 || D.corner_tr_base
+                 || D.corner_tr,
+    corner_bl_door: D.corner_bl_door
+                 || D.corner_bl
+                 || D.bottom
+                 || D.bottom2,
+    corner_br_door: D.corner_br_door
+                 || D.corner_br
+                 || D.bottom
+                 || D.bottom2,
+
+    // --- NUOVO: spallette interne porte verticali (1 tile dentro la stanza)
+    // Se non definisci i pick dedicati in DECOR_*, vanno in fallback a left/right.
+    leftDoorTop:     first(D.left_door_top,    D.corner_tr_door, D.corner_tr_door_base, D.right1, D.right2, D.right3),
+    leftDoorBottom:  first(D.left_door_bottom, D.right1, D.right2, D.right3),
+    rightDoorTop:    first(D.right_door_top,   D.corner_tl_door, D.corner_tl_door_base, D.left1,  D.left2,  D.left3),
+    rightDoorBottom: first(D.right_door_bottom,D.left1,  D.left2,  D.left3),
+
+    // Varie
+    exitClosed: D.door_h1,
+    exitOpen:   D.door_h2,
+    floor:      D.floor,
+  };
+}
+
+
+
+
+/*
+function debugAtlas(tag = '') {
+  const d = G?.sprites?.decor;
+  if (!d) { console.warn('[debugAtlas] decor non pronto', tag); return; }
+
+  const toCR = a => Array.isArray(a)
+    ? a.map(p => `${p.sx/16},${p.sy/16}`)
+    : `${a.sx/16},${a.sy/16}`;
+
+  console.log('--- DECOR', tag, '---');
+  console.table({
+    left:   toCR(d.left),
+    right:  toCR(d.right),
+    top:    toCR(d.top),
+    bottom: toCR(d.bottom),
+  });
+}
+window.debugAtlas = debugAtlas; // comodo da console */
+
+
+const DEBUG_SIDES = false; // metti true per provare
+function drawDebugSides(tiles, tile) {
+  if (!DEBUG_SIDES) return;
+  ctx.save(); ctx.globalAlpha = 0.25;
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const t = tiles[y][x];
+      if      (t === 'left')   ctx.fillStyle = '#00f';
+      else if (t === 'right')  ctx.fillStyle = '#f00';
+      else if (t === 'top')    ctx.fillStyle = '#0f0';
+      else if (t === 'bottom') ctx.fillStyle = '#ff0';
+      else continue;
+      ctx.fillRect(x*tile, y*tile, tile, tile);
     }
-    // goblin – near center, avoid doors & player spawn
- // goblin – near center, avoid doors & player spawn
-for (let k = 0; k < 20; k++) {
-  const p = randPointInInterior(1.0, room); // p = { x, y } in pixel
-  if (tooCloseToDoors(p.x, p.y, G.tile * 1.5, room)) continue;
-  if (tooCloseToPlayer(p.x, p.y, G.tile * 1.6)) continue; // opzionale, vedi helper sotto
+  }
+  ctx.restore();
+}
+
+
+function drawFloor(room) {
+  const tile = window.treasureTile || 64;
+  for (let y = 0; y < room.length; y++) {
+    for (let x = 0; x < room[0].length; x++) {
+      if (room[y][x] === 0) {                 // include anche le celle-bordo delle porte
+        drawTileType(x, y, 'floor', tile);
+      }
+    }
+  }
+}
+
+
+
+
+
+function maybeSwapDecorForDevice() {
+  const nowMobile = isMobileOrTablet();
+  const wanted = nowMobile ? DECOR_MOBILE : DECOR_DESKTOP;
+  if (DECOR !== wanted) {
+    DECOR = wanted;
+    buildDecorFromAtlas();
+    G.renderCache.rooms = {}; // cambia l’atlas/DECOR -> invalida i bake
+
+  }
+}
+
+function initAtlasSprites() {
+
+ G.sprites.atlas = new Image();
+G.sprites.atlas.onload  = () => {
+  console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+  G.renderCache.rooms = {}; // invalida i bake statici
+  render();                 // ridisegna con le spallette
+};
+G.sprites.atlas.onerror = (e) => console.error('[ATLAS] failed to load', G.sprites.atlas?.src, e);
+G.sprites.atlas.src = `${atlasBase}/LL_fantasy_dungeons.png`;
+}
+
+
+
+// ---- Door width per device ----
+const DOOR_SPAN_DESKTOP = 3;   // desktop: 3 celle
+const DOOR_SPAN_MOBILE  = 2;   // mobile: 2 celle (più strette)
+const getDoorSpan = () => (isMobileOrTablet() ? DOOR_SPAN_MOBILE : DOOR_SPAN_DESKTOP);
+
+// indice dell’apertura centrata (supporta span pari e dispari)
+function doorIndices(mid, span, min, max) {
+  const k = Math.floor(span / 2);
+  let start, end;
+  if (span % 2) {           // dispari: es. 3 → mid-1..mid+1
+    start = mid - k; end = mid + k;
+  } else {                  // pari: es. 2 → mid..mid+1
+    start = mid - (k - 1); end = mid + k;
+  }
+  start = Math.max(min, start);
+  end   = Math.min(max, end);
+  const arr = [];
+  for (let i = start; i <= end; i++) arr.push(i);
+  return arr;
+}
+
+const MoleCfg = {
+  emerge1: 0.5,   // terriccio
+  emerge2: 1.0,   // testa
+  hold:   0.8,    // tutta su (finestra di hit)
+  retreat1: 0.25, // torna testa -> terriccio
+  retreat2: 0.40, // terriccio -> sotto
+  gap: 0.30,      // pausa prima del prossimo spot
+};
+  function isMobileOrTablet() {
+    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+  }
+/*
+  // Mobile tweaks
+  if (isMobileOrTablet() || window.innerWidth < 800) {
+    Cfg.roomW = 7;
+    Cfg.roomH = 6;
+  } */
+
+      // Mobile tweaks
+  if (isMobileOrTablet() || window.innerWidth < 800) {
+    Cfg.roomW = 7;
+    Cfg.roomH = 8;
+  }
+
+  const GRID_POOL_DESKTOP = [[2,2],[3,2],[2,3],[3,3],[4,3],[3,4]];
+const GRID_POOL_MOBILE  = [[2,2],[3,2],[2,3],[3,3]];
+
+function pickGridForLevel(level) {
+  const pool = isMobileOrTablet() ? GRID_POOL_MOBILE : GRID_POOL_DESKTOP;
+  // bias semplice: ogni 3 livelli “sblocca” una taglia più grande
+  const band = Math.min(pool.length - 1, Math.floor((level - 1) / 3));
+  // tieni un po’ di varietà
+  const j = Math.max(0, band - 1);
+  const k = Math.min(pool.length - 1, band + 1);
+  const choice = pool[Math.floor(Math.random() * (k - j + 1)) + j];
+  return { w: choice[0], h: choice[1] };
+}
+
+function setGridForLevel(level) {
+  const { w, h } = pickGridForLevel(level);
+  Cfg.gridW = w;
+  Cfg.gridH = h;
+}
+
+
+  // ---------- DOM / HUD ----------
+  const DOM = {
+    coins: document.getElementById('treasure-minigame-coins'),
+    score: document.getElementById('treasure-minigame-score'),
+    level: document.getElementById('treasure-level'),
+    timer: document.getElementById('treasure-timer'),
+    modal: document.getElementById('treasure-minigame-modal'),
+    canvas: document.getElementById('treasure-canvas'),
+    bonus: document.getElementById('treasure-bonus-label'),
+    petImg: document.getElementById('pet'),
+    joyBase: document.getElementById('treasure-joystick-base'),
+    joyStick: document.getElementById('treasure-joystick-stick'),
+  };
+  let ctx = DOM.canvas.getContext('2d');
+  const isTouch = window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches;
+  // ---------- STATO GIOCO ----------
+
+// --- HUD compatto in alto a sinistra ---
+function ensureTinyHud() {
+  if (DOM.hudBox) return;
+
+  const box = document.createElement('div');
+  box.id = 'treasure-hud';
+  box.style.cssText = [
+    'position:absolute',
+    'top:10px',
+    'left:10px',
+    'z-index:50',
+    'min-width:160px',
+    'padding:10px 12px',
+    'color:#fff',
+    'background:rgba(0,0,0,.55)',
+    'backdrop-filter:blur(4px)',
+    '-webkit-backdrop-filter:blur(4px)',
+    'border-radius:12px',
+    'box-shadow:0 6px 20px rgba(0,0,0,.25)',
+    'font:600 12px/1.25 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+    'letter-spacing:.2px',
+    'user-select:none',
+    'pointer-events:none' // non blocca tocchi/click sul gioco
+  ].join(';');
+
+  box.innerHTML = `
+    <div class="row"><span class="lab">Punteggio</span><span id="hud-score" class="val">0</span></div>
+    <div class="row"><span class="lab">Livello</span><span id="hud-level" class="val">1</span></div>
+    <div class="row"><span class="lab">Tempo Rimanente</span><span id="hud-time" class="val">0:00</span></div>
+    <div class="row"><span class="lab">Monete da trovare</span><span id="hud-coins" class="val">0</span></div>
+  `;
+
+  // stile righe
+  [...box.querySelectorAll('.row')].forEach(r => {
+    r.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin:2px 0;gap:12px';
+  });
+  // stile label e value (piccolo tocco estetico)
+  [...box.querySelectorAll('.lab')].forEach(l => l.style.cssText = 'opacity:.9');
+  [...box.querySelectorAll('.val')].forEach(v => v.style.cssText = 'font-weight:800');
+
+  // su mobile più compatto
+  if (isMobileOrTablet()) {
+    box.style.fontSize = '11px';
+    box.style.padding = '8px 10px';
+    box.style.borderRadius = '10px';
+  }
+
+  // monta dentro il modal del minigioco (così sta sopra al canvas)
+  (DOM.modal || document.body).appendChild(box);
+
+  // salva riferimenti
+  DOM.hudBox   = box;
+  DOM.hudScore = box.querySelector('#hud-score');
+  DOM.hudLvl   = box.querySelector('#hud-level');
+  DOM.hudTime  = box.querySelector('#hud-time');
+  DOM.hudCoins = box.querySelector('#hud-coins');
+}
+
+// utilità: formatta secondi in mm:ss
+function fmtTime(sec) {
+  sec = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+// Carica tutti i frame del PET (idle + 2 frame per direzione)
+function buildPetSprites(petNum, assetBase) {
+  const base = `${assetBase}/pets`;
+  const CB = 'v=7'; // cache buster per forzare il refresh dei PNG
+
+  const mk = (path) => {
+    const img = new Image();
+    img.onload  = () => console.log('[PET] ok:', path);
+    img.onerror = (e) => console.error('[PET] fail:', path, e);
+    img.src = `${base}/${path}?${CB}`;
+    return img;
+  };
+
   return {
-    type: 'goblin',
-    x: p.x,
-    y: p.y,
-    hp: 1,
-    speed: CFG.petSpeedDesktop * CFG.goblinSpeedMul,
-    noClip: false
+    idle: mk(`pet_${petNum}.png`),
+    right: [ mk(`pet_${petNum}_right1.png`), mk(`pet_${petNum}_right2.png`) ],
+    left:  [ mk(`pet_${petNum}_left1.png`),  mk(`pet_${petNum}_left2.png`)  ],
+    down:  [ mk(`pet_${petNum}_down1.png`),  mk(`pet_${petNum}_down2.png`)  ],
+    up:    [ mk(`pet_${petNum}_up1.png`),    mk(`pet_${petNum}_up2.png`)    ],
   };
 }
 
-    const fallback = randPointInInterior(0.5, room);
-    return { type:'goblin', x:fallback.x, y:fallback.y, hp: 1, speed: CFG.petSpeedDesktop*CFG.goblinSpeedMul, noClip:false };
-  }
+/////MUSICA
+// --- AUDIO BGM ---
+G.bgm = null;
 
-// SOSTITUISCI la tua tooCloseToDoors con questa
-function tooCloseToDoors(x, y, minPx = G.tile * 1.0, room = curRoom()) {
-  const ds = doorCenters(room);               // usa la stanza passata (o quella corrente)
-  const r2 = (minPx * minPx) | 0;
-  for (const d of ds) {
-    const dx = x - d.x, dy = y - d.y;
-    if (dx * dx + dy * dy < r2) return true;
+function ensureBgm() {
+  if (!G.bgm) {
+    G.bgm = new Audio('assets/audio/treasure_theme.ogg'); // <-- tuo path .ogg
+    G.bgm.loop = true;
+    G.bgm.volume = 0.35;
+    G.bgm.preload = 'auto';
   }
-  return false;
+}
+function playBgm() {
+  ensureBgm();
+  try { G.bgm.currentTime = 0; G.bgm.play(); } catch (_) {}
+}
+function stopBgm() {
+  if (G.bgm) G.bgm.pause();
 }
 
 
-// SOSTITUISCI la tua doorCenters con questa
-function doorCenters(room = curRoom()) {
-  const t  = G.tile;
-  const cx = (CFG.roomTilesW * t) / 2;
-  const cy = (CFG.roomTilesH * t) / 2;
 
-  // fallback: se room è null/undefined o non ha doors, ritorna lista vuota
-  if (!room || !room.doors) return [];
+   function checkPickup(pet, powerup) {
+  const halfTile = G.tile / 2;
 
-  const list = [];
-  if (room.doors.up)    list.push({ x: cx, y: (1 + CFG.wallDepthTop) * t });
-  if (room.doors.down)  list.push({ x: cx, y: (CFG.roomTilesH - 2 - CFG.wallDepthBottom) * t });
-  if (room.doors.left)  list.push({ x: 1 * t, y: cy });
-  if (room.doors.right) list.push({ x: (CFG.roomTilesW - 2) * t, y: cy });
-  return list;
+  // bounding box del pet
+  const petBox = {
+    x: pet.x,
+    y: pet.y,
+    w: G.tile,
+    h: G.tile
+  };
+
+  // bounding box del power-up
+  const powerBox = {
+    x: powerup.x,
+    y: powerup.y,
+    w: G.tile,
+    h: G.tile
+  };
+
+  return (
+    petBox.x < powerBox.x + powerBox.w &&
+    petBox.x + petBox.w > powerBox.x &&
+    petBox.y < powerBox.y + powerBox.h &&
+    petBox.y + petBox.h > powerBox.y
+  );
+}
+
+  // velocità base
+  const enemyBaseSpeed = isMobileOrTablet() ? Cfg.enemySpeedMobile : Cfg.enemySpeedDesktop;
+  const basePetSpeed   = isMobileOrTablet() ? Cfg.petSpeedMobile   : Cfg.petSpeedDesktop;
+
+  // ---------- UTILS ----------
+  function getCurrentBaseSpeed() {
+    return isMobileOrTablet() ? Cfg.petSpeedMobile : Cfg.petSpeedDesktop;
+  }
+ function isPowerupActive(type = G.activePowerup) {
+  return G.activePowerup === type && performance.now() < G.powerupExpiresAt;
+}
+
+function getCurrentPetSpeed() {
+  return getCurrentBaseSpeed() * (G.speedMul || 1);
+}
+
+  function getAnimStep() {
+    return (G.activePowerup === 'speed' && isPowerupActive('speed')) ? 0.12 : 0.18;
+  }
+  function distCenter(a, b) {
+    const tile = window.treasureTile || 64;
+    return Math.hypot(
+      ((a.px ?? a.x * tile) + tile/2) / tile - ((b.px ?? b.x * tile) + tile/2) / tile,
+      ((a.py ?? a.y * tile) + tile/2) / tile - ((b.py ?? b.y * tile) + tile/2) / tile
+    );
+  }
+
+  function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
 
-  function curRoom(){ return G.rooms[G.curRY][G.curRX]; }
-
-  function loadRoom(rx, ry){
-    const room = G.rooms[ry][rx];
-    // create deep-ish copies for live entities/pickups per entry
-    G.enemies = room.enemies.map(e => ({...e}));
-    G.pickups = [
-      ...room.coins.map(c => ({kind:'coin', x:c.x, y:c.y})),
-      ...room.potions.map(p => ({kind:'potion', x:p.x, y:p.y})),
-      ...room.drops.map(d => ({kind:d.kind, key:d.key, x:d.x, y:d.y})),
-    ];
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(()=>{});
   }
 
-  function centerPlayerInRoom(){
-    G.px = (CFG.roomTilesW/2)*G.tile; G.py = (CFG.roomTilesH/2)*G.tile;
+  // ---------- CANVAS SIZE ----------
+function resizeTreasureCanvas() {
+
+  //debugAtlas('resize'); 
+  maybeSwapDecorForDevice();
+  const wWin = window.innerWidth;
+  const hWin = window.innerHeight;
+
+
+
+  // spazio effettivo: tolgo HUD ecc.
+  const hudH  = 70;
+  const safeB = (window.visualViewport ? (window.visualViewport.height - hWin) : 0) || 0;
+  let w = wWin;
+  let h = hWin - hudH - safeB;
+
+  // base tile calcolata sul room size logico (snap a multipli di 16)
+  let raw = Math.min(w / Cfg.roomW, h / Cfg.roomH);
+  if (isMobileOrTablet()) raw *= 0.82;
+
+  // usa min/max che siano multipli di 16 per non perdere nitidezza
+  const TILE_MIN = 32;   // 2×16
+  const TILE_MAX = 128;  // 8×16
+
+  // usa la costante globale ATLAS_TILE (definita in alto) oppure fallback a 16
+  const step = (typeof ATLAS_TILE !== 'undefined') ? ATLAS_TILE : 16;
+  let tile = Math.round(raw / step) * step; // snap a multipli di 16
+  tile = Math.max(TILE_MIN, Math.min(TILE_MAX, tile));
+
+  // retina: backing store ad alta risoluzione
+  const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const padX = Math.max(0, Math.floor((w - Cfg.roomW * tile) / 2));
+  const padY = Math.max(0, Math.floor((h - Cfg.roomH * tile) / 2));
+
+  const canvas = DOM.canvas;
+  canvas.width  = Cfg.roomW * tile * dpr;
+  canvas.height = Cfg.roomH * tile * dpr;
+
+  canvas.style.width  = `${Cfg.roomW * tile}px`;
+  canvas.style.height = `${Cfg.roomH * tile}px`;
+  canvas.style.marginLeft = `${padX}px`;
+  canvas.style.marginRight = `${padX}px`;
+  canvas.style.marginTop = `${padY}px`;
+  canvas.style.marginBottom = `${padY}px`;
+
+  ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+
+  window.treasureTile = tile;
+  G.renderCache.rooms = {};
+G.renderCache.tile = window.treasureTile || 64;
+  G.tileSize = tile;
+  G.roomWidth = Cfg.roomW;
+  G.roomHeight = Cfg.roomH;
+
+  const hudWrap = document.getElementById('treasure-hud') || DOM.modal;
+  if (hudWrap) {
+    if (isMobileOrTablet()) hudWrap.classList.add('hud-compact');
+    else hudWrap.classList.remove('hud-compact');
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Rendering (layered: static bake + actors)
-  // ────────────────────────────────────────────────────────────────────────────
-  function loadSprites(){
-    if (!SPRITES.atlas){ SPRITES.atlas = new Image(); SPRITES.atlas.src = `${atlasRoot}/Dungeon_2.png`; }
-    if (!SPRITES.goblinSheet){ SPRITES.goblinSheet = new Image(); SPRITES.goblinSheet.src = `${enemyRoot}/chara_orc.png`; }
-    if (!SPRITES.batSheet){ SPRITES.batSheet = new Image(); SPRITES.batSheet.src = `${enemyRoot}/chara_bat.png`; }
+  if (G?.pet) resyncPetToGrid();
+}
+
+
+
+
+  // ---------- HUD ----------
+  function countCoinsLeft() {
+    return Object.values(G.objects).flat().filter(o => o.type === 'coin' && !o.taken).length;
+  }
+function syncHud() {
+  // assicura l'HUD creato
+  ensureTinyHud();
+
+  // calcola monete rimaste
+  const coinsLeft = Object.values(G.objects)
+    .flat()
+    .filter(o => o.type === 'coin' && !o.taken).length;
+
+  // aggiorna il vecchio HUD se presente
+  DOM.coins && (DOM.coins.textContent = String(coinsLeft));
+  DOM.score && (DOM.score.textContent = String(G.score));
+  DOM.level && (DOM.level.textContent = String(G.level));
+  DOM.timer && (DOM.timer.textContent = String(G.timeLeft));
+
+  // aggiorna il nuovo HUD compatto
+  if (DOM.hudBox) {
+    if (DOM.hudScore) DOM.hudScore.textContent = String(G.score);
+    if (DOM.hudLvl)   DOM.hudLvl.textContent   = String(G.level);
+    if (DOM.hudTime)  DOM.hudTime.textContent  = fmtTime(G.timeLeft);
+    if (DOM.hudCoins) DOM.hudCoins.textContent = String(coinsLeft);
   }
 
-  function drawStaticLayer(){
-    const r = curRoom();
-    if (r.baked && r.baked.tile === G.tile) { DOM.ctx.drawImage(r.baked.canvas, 0, 0); return; }
+  G.hudDirty = false;
+}
 
-    const wpx = CFG.roomTilesW*G.tile, hpx = CFG.roomTilesH*G.tile;
-    const cv = document.createElement('canvas'); cv.width = wpx; cv.height = hpx;
-    const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
 
-    // floor interior only (between walls bands)
-    for (let ty=1+CFG.wallDepthTop; ty<CFG.roomTilesH-1-CFG.wallDepthBottom; ty++){
-      for (let tx=1; tx<CFG.roomTilesW-1; tx++){
-        const d = DECOR.floor[( (tx*73856093 ^ ty*19349663)>>>0 ) % DECOR.floor.length];
-        if (SPRITES.atlas?.complete) c.drawImage(SPRITES.atlas, d.sx,d.sy,d.sw,d.sh, tx*G.tile,ty*G.tile, G.tile,G.tile);
+  // ---------- AVVIO ----------
+function startTreasureMinigame() {
+  playBgm();
+  generateDungeon();
+  requestLandscape();
+  initAtlasSprites();
+
+  // atlas (muri/decor) + bake
+  maybeSwapDecorForDevice();
+  buildDecorFromAtlas();
+  buildBatFromAtlas();
+  //debugAtlas('start');
+
+  // stato base
+  G.level = 1;
+  G.score = 0;
+  G.coinsCollected = 0;
+  G.playing = true;
+  G.activePowerup = null;
+  G.powerupExpiresAt = 0;
+  G.slowExpiresAt = 0;
+
+  // HUD
+  ensureTinyHud();
+  document.querySelector('.treasure-info-bar')?.classList.add('hidden');
+
+  // ── helpers loader (con cache-buster) ───────────────────────────
+  const CB = 'v=7';
+  const mkImg = (src) => {
+    const img = new Image();
+    img.onload  = () => {/* console.log('[IMG ok]', src) */};
+    img.onerror = (e) => console.error('[IMG fail]', src, e);
+    img.src = src + (src.includes('?') ? '&' : '?') + CB;
+    return img;
+  };
+
+  // base path per device
+  const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
+
+  // ── ENEMY: atlas goblin + fallback singolo ─────────────────────
+  buildGoblinFromAtlas(); // usa enemyAtlasBase già definito sopra
+
+  // fallback singolo (se l'atlas non è pronto/404)
+  G.sprites.enemy = mkImg(`${assetBase}/enemies/goblin.png`);
+
+  // ── SPRITES comuni ─────────────────────────────────────────────
+  G.sprites.coin    = mkImg('assets/collectibles/coin.png');
+  G.sprites.exit    = mkImg('assets/icons/door.png');
+  G.sprites.wall    = mkImg('assets/tiles/wall2.png');
+  G.sprites.bg      = mkImg(`${assetBase}/backgrounds/dungeon3.png`);
+  G.sprites.powerup = mkImg('assets/bonus/powerup.png');
+
+  // talpa
+  G.sprites.mole = [
+    mkImg(`${assetBase}/enemies/talpa_1.png`),
+    mkImg(`${assetBase}/enemies/talpa_2.png`),
+    mkImg(`${assetBase}/enemies/talpa_3.png`),
+  ];
+
+  // ── PET: carica davvero i PNG (idle + due frame per direzione) ─
+  const petSrc = DOM.petImg?.src || '';
+  const m = petSrc.match(/pet_(\d+)/);
+  const petNum = m ? m[1] : '1';
+
+  const mkPet = (file) => mkImg(`${assetBase}/pets/${file}`);
+  G.sprites.pet = {
+    idle:  mkPet(`pet_${petNum}.png`),
+    right: [ mkPet(`pet_${petNum}_right1.png`), mkPet(`pet_${petNum}_right2.png`) ],
+    left:  [ mkPet(`pet_${petNum}_left1.png`),  mkPet(`pet_${petNum}_left2.png`)  ],
+    down:  [ mkPet(`pet_${petNum}_down1.png`),  mkPet(`pet_${petNum}_down2.png`)  ],
+    up:    [ mkPet(`pet_${petNum}_up1.png`),    mkPet(`pet_${petNum}_up2.png`)    ],
+  };
+
+  // ── PET stato iniziale ─────────────────────────────────────────
+  const tile = window.treasureTile || 64;
+  G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
+  G.pet = {
+    x: 1, y: 1,
+    px: 0, py: 0,          // verranno riallineati dopo il resize
+    animTime: 0,
+    dirX: 0, dirY: 0,
+    moving: false,
+    direction: 'down',
+    stepFrame: 0,
+  };
+
+  // evita spawn nemico sulla cella del pet
+  (function ensureSafeSpawn() {
+    const key = `${G.petRoom.x},${G.petRoom.y}`;
+    const list = G.enemies[key] || [];
+    G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
+  })();
+
+  // via!
+  startLevel();
+}
+
+  // *** NUOVO: scegli griglia e poi genera ***
+  //setGridForLevel(G.level);
+  //generateDungeon();
+
+  //startLevel();
+  // ---------- INPUT ----------
+  const dirMap = {
+    ArrowUp: 'up',    w: 'up',
+    ArrowDown: 'down', s: 'down',
+    ArrowLeft: 'left', a: 'left',
+    ArrowRight: 'right', d: 'right',
+  };
+
+function updatePetDirFromKeys() {
+  // calcolo assi in base ai tasti ancora premuti
+  const pressed = new Set(G.keysStack);
+
+  let dx = 0, dy = 0;
+  if (pressed.has('left'))  dx -= 1;
+  if (pressed.has('right')) dx += 1;
+  if (pressed.has('up'))    dy -= 1;
+  if (pressed.has('down'))  dy += 1;
+
+  // applica ai controlli del pet
+  G.pet.dirX = dx;
+  G.pet.dirY = dy;
+
+  // direzione “di faccia” (solo estetica): usa l’ultimo tasto premuto
+  if (G.keysStack.length) {
+    const last = G.keysStack[G.keysStack.length - 1];
+    if (last === 'left')  G.pet.direction = 'left';
+    if (last === 'right') G.pet.direction = 'right';
+    if (last === 'up')    G.pet.direction = 'up';
+    if (last === 'down')  G.pet.direction = 'down';
+  }
+}
+
+
+  // ---------- GAME LOOP ----------
+let lastT = performance.now();
+function gameLoop() {
+  const now = performance.now();
+  const dt = (now - lastT) / 1000;
+  lastT = now;
+
+  try {
+    if (G.playing) {
+      update(dt);
+      render();
+      if (G.hudDirty) syncHud();
+    }
+  } catch (err) {
+    console.error('[loop]', err);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+
+
+
+
+  // ---------- LOGICA ----------
+function movePet(dt) {
+  const tile = window.treasureTile || 64;
+
+  // --- scadenze powerup ---
+  if (G.activePowerup === 'slow'  && performance.now() >= G.slowExpiresAt) {
+    for (const list of Object.values(G.enemies)) for (const e of list) e.slow = false;
+    G.activePowerup = null;
+  }
+  if (G.activePowerup === 'speed' && performance.now() >= G.powerupExpiresAt) {
+    G.activePowerup = null;
+    G.speedMul = 1;
+  }
+
+  // --- input / direzione ---
+  let dx = G.pet.dirX, dy = G.pet.dirY;
+  if (dx === 0 && dy === 0) { G.pet.moving = false; return; }
+  if (dx !== 0 && dy !== 0) { const inv = 1/Math.sqrt(2); dx *= inv; dy *= inv; }
+
+  // --- stanza corrente (SAFE) ---
+  const room = G.rooms?.[G.petRoom.y]?.[G.petRoom.x];
+  if (!room) { G.pet.moving = false; return; }
+
+  // --- movimento con micro-step ---
+  const speed = getCurrentPetSpeed();
+
+  // hitbox (originale)
+  const size = Math.max(12, tile - 20);
+
+  // margini asimmetrici (originali)
+  const HIT_BASE = { top: 3, right: 1, bottom: 1, left: 1 };
+
+  const tryMove = (nx, ny, dirX = 0, dirY = 0) => {
+    // piccolo bias verso la direzione di marcia
+    const mL = Math.max(0, HIT_BASE.left   - (dirX < 0 ? 1 : 0));
+    const mR = Math.max(0, HIT_BASE.right  - (dirX > 0 ? 1 : 0));
+    const mT = Math.max(0, HIT_BASE.top    - (dirY < 0 ? 1 : 0));   // ← riduco se salgo
+    const mB = Math.max(0, HIT_BASE.bottom - (dirY > 0 ? 1 : 0));
+
+    const minX = Math.floor((nx + mL)        / tile);
+    const maxX = Math.floor((nx + size - mR) / tile);
+    const minY = Math.floor((ny + mT)        / tile);
+    const maxY = Math.floor((ny + size - mB) / tile);
+
+    if (minY < 0 || maxY >= Cfg.roomH || minX < 0 || maxX >= Cfg.roomW) return false;
+
+    return (
+      room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+      room[maxY][minX] === 0 && room[maxY][maxX] === 0
+    );
+  };
+
+  const totalDX = dx * speed * dt;
+  const totalDY = dy * speed * dt;
+  const maxStep = Math.max(8, tile * (PHYS?.maxStepFrac ?? 1/3));
+  const steps   = Math.max(1, Math.ceil(Math.hypot(totalDX, totalDY) / maxStep));
+  const stepDX  = totalDX / steps;
+  const stepDY  = totalDY / steps;
+
+  for (let i = 0; i < steps; i++) {
+    const tryPX = G.pet.px + stepDX;
+    if (tryMove(tryPX, G.pet.py, Math.sign(stepDX), 0)) G.pet.px = tryPX;
+
+    const tryPY = G.pet.py + stepDY;
+    if (tryMove(G.pet.px, tryPY, 0, Math.sign(stepDY))) G.pet.py = tryPY;
+  }
+
+  // aggiorna cella logica usando il centro dell'hitbox
+  G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
+  G.pet.y = Math.floor((G.pet.py + size / 2) / tile);
+
+  // animazione
+  G.pet.moving = true;
+  G.pet.animTime = (G.pet.animTime || 0) + dt;
+  if (G.pet.animTime > getAnimStep()) {
+    G.pet.stepFrame = 1 - G.pet.stepFrame;
+    G.pet.animTime = 0;
+  }
+
+  // --- passaggio stanza (porte) con soglia sul BORDO dell'hitbox
+  const ENTER_GAP = 8; // originale
+
+  // a Ovest
+  if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
+    G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+  }
+  // a Est
+  else if (G.pet.px + size >= (Cfg.roomW - 1) * tile - ENTER_GAP &&
+           G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y]?.[Cfg.roomW - 1] === 0) {
+    G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+  }
+  // a Nord
+  else if (G.pet.py <= ENTER_GAP && G.petRoom.y > 0 && room[0]?.[G.pet.x] === 0) {
+    G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+  }
+  // a Sud
+  else if (G.pet.py + size >= (Cfg.roomH - 1) * tile - ENTER_GAP &&
+           G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1]?.[G.pet.x] === 0) {
+    G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
+    const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+  }
+
+  // --- pickup (AABB in pixel) ---
+  const key     = `${G.petRoom.x},${G.petRoom.y}`;
+  const objects = G.objects[key]  || [];
+  const powers  = G.powerups[key] || [];
+
+  const petBox = { x: G.pet.px + 6, y: G.pet.py + 6, w: tile - 12, h: tile - 12 };
+  const overlap = (ax, ay, aw, ah, bx, by, bw, bh) =>
+    ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+
+  for (const o of objects) {
+    if (o.type !== 'coin' || o.taken) continue;
+    const bx = o.x * tile + tile / 4;
+    const by = o.y * tile + tile / 4;
+    if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
+      o.taken = true; G.score += 1; G.coinsCollected += 1; G.hudDirty = true;
+    }
+  }
+
+  for (const p of powers) {
+    if (p.taken) continue;
+    const bx = p.x * tile + tile / 4;
+    const by = p.y * tile + tile / 4;
+    if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
+      p.taken = true; G.score += 12; G.hudDirty = true;
+      if (p.type === 'speed') {
+        G.activePowerup = 'speed'; G.powerupExpiresAt = performance.now() + Cfg.powerupMs; G.speedMul = 3;
+        showTreasureBonus('SPEED!', '#22c55e');
+      } else {
+        for (const list of Object.values(G.enemies)) for (const e of list) e.slow = true;
+        G.activePowerup = 'slow'; G.slowExpiresAt = performance.now() + Cfg.powerupMs;
+        showTreasureBonus('SLOW!', '#3b82f6');
       }
+      break;
+    }
+  }
+
+  // --- uscita (tutte le monete prese) ---
+  const coinsLeft = countCoinsLeft();
+  const onExitTile =
+    G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y &&
+    Math.abs(G.pet.x - G.exitTile.x) < 1 && Math.abs(G.pet.y - G.exitTile.y) < 1;
+
+  if (!G.exiting && onExitTile && coinsLeft === 0) {
+    G.exiting = true;         // blocca trig multipli
+    G.playing = false;        // ferma subito l’update
+    G.level += 1;
+    G.hudDirty = true;
+    setGridForLevel(G.level);
+
+    setTimeout(() => {
+      generateDungeon();
+      startLevel();
+    }, 50);
+
+    return; // importantissimo
+  }
+
+  // --- collisione con nemici ---
+  const enemies = G.enemies[key] || [];
+  if (enemies.some(e => distCenter(G.pet, e) < 0.5)) {
+    G.playing = false;
+    showTreasureBonus('Game Over!', '#e74c3c');
+    if (G.timerId) clearInterval(G.timerId);
+    setTimeout(() => endTreasureMinigame(), 1500);
+  }
+}
+
+
+
+
+function moveEnemies(dt) {
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  const enemies = G.enemies[key];
+  if (!enemies) return;
+
+  const tile = window.treasureTile || 64;
+  const room = G.rooms[G.petRoom.y][G.petRoom.x];
+
+  // tempi animazioni
+  const ENEMY_ANIM_STEP_IDLE   = 0.20;
+  const ENEMY_ANIM_STEP_WALK   = 0.14;
+  const ENEMY_ANIM_STEP_ATTACK = 0.10;
+  const BAT_STEP_IDLE          = 0.18;
+  const BAT_STEP_WALK          = 0.10;
+  const BAT_STEP_ATTACK        = 0.09;
+
+  for (const e of enemies) {
+    if (e.reactDelay === undefined) e.reactDelay = 2;
+    if (e.attacking  === undefined) e.attacking  = false;
+    if (e.stepFrame  === undefined) e.stepFrame  = 0;
+    if (e.animTime   === undefined) e.animTime   = 0;
+
+    // pausa iniziale
+    if (e.reactDelay > 0) {
+      e.reactDelay -= dt;
+      e.isMoving = false;
+
+      // scrolla l'idle
+      const idleLen =
+        (e.type === 'bat' ? (G.sprites.batFrames?.idle?.length)
+                          : (G.sprites.goblinFrames?.idle?.length)) || 2;
+      e.animTime += dt;
+      const step = (e.type === 'bat') ? BAT_STEP_IDLE : ENEMY_ANIM_STEP_IDLE;
+      if (e.animTime > step) {
+        e.stepFrame = (e.stepFrame + 1) % idleLen;
+        e.animTime = 0;
+      }
+      continue;
     }
 
-    // walls stacks (body + cap) — top
-    stackWallBand(c, 'top',    0, 0, CFG.wallDepthTop);
-    stackWallBand(c, 'bottom', 0, CFG.roomTilesH-1, CFG.wallDepthBottom);
-    stackWallBand(c, 'left',   0, 0, CFG.wallDepthSides);
-    stackWallBand(c, 'right',  CFG.roomTilesW-1, 0, CFG.wallDepthSides);
+    // vettore verso il pet
+    let vx = G.pet.px - e.px, vy = G.pet.py - e.py;
+    const dist = Math.hypot(vx, vy) || 1;
+    vx /= dist; vy /= dist;
 
-    r.baked = { canvas: cv, tile: G.tile };
-    DOM.ctx.drawImage(cv, 0, 0);
-  }
+    if (e.type === 'bat') {
+      // --- BAT: niente collisioni; movimento a spirale verso il pet
+      const base = (e.slow ? enemyBaseSpeed * 0.6 : enemyBaseSpeed * 1.2);
+      e.waveT = (e.waveT || 0) + dt * (e.waveFreq || 6.0);
+      const sideSpeed = base * 0.45 * Math.sin(e.waveT); // componente laterale
 
-  function stackWallBand(c, side, tileX, tileY, depth){
-    const body = DECOR.wallBody[side], cap = DECOR.wallCap[side];
-    const t = G.tile, W = CFG.roomTilesW, H = CFG.roomTilesH;
-    if (!body) return;
-    const pickVar = (A, i) => Array.isArray(A) ? A[i%A.length] : A;
+      // perpendicolare (ruotato +90°): (-vy, vx)
+      const pxv = -vy, pyv = vx;
 
-    const drawAt = (sx,sy,dx,dy) => {
-      if (!SPRITES.atlas?.complete) return;
-      c.drawImage(SPRITES.atlas, sx,sy, CFG.ATLAS_TILE,CFG.ATLAS_TILE, dx,dy, t,t);
-    };
+      e.px += (vx * base + pxv * sideSpeed) * dt;
+      e.py += (vy * base + pyv * sideSpeed) * dt;
 
-    if (side==='top' || side==='bottom'){
-      const y0 = tileY*t;
-      for (let x=1; x<=W-2; x++){
-        for (let i=0;i<depth;i++){
-          const b = pickVar(body, i); drawAt(b.sx,b.sy, x*t, y0 + (side==='top'? i*t : -i*t));
+      // aggiorna cella/direzione
+      const size = tile - 18;
+      e.x = Math.floor((e.px + size/2) / tile);
+      e.y = Math.floor((e.py + size/2) / tile);
+      e.direction = (Math.abs(vx) > Math.abs(vy)) ? (vx > 0 ? 'right' : 'left')
+                                                  : (vy > 0 ? 'down' : 'up');
+      e.isMoving = true;
+
+      // stato “attacco” se molto vicino
+      e.attacking = (distCenter(e, G.pet) < 1.1);
+
+      // animazione bat
+      const bf = G.sprites.batFrames;
+      let framesLen = 2;
+      if (bf) {
+        if (e.attacking) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (bf.attack?.[dirAlias]?.length) || (bf.walk?.right?.length) || (bf.idle?.length) || 2;
+        } else if (e.isMoving) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (bf.walk?.[dirAlias]?.length) || (bf.walk?.right?.length) || (bf.idle?.length) || 2;
+        } else {
+          framesLen = (bf.idle?.length) || 2;
         }
-        const cp = pickVar(cap,0); drawAt(cp.sx,cp.sy, x*t, y0 + (side==='top'? depth*t : -depth*t));
       }
-      // corners
-      const corners = {
-        top:    ['corner_tl','corner_tr'],
-        bottom: ['corner_bl','corner_br'],
-      }[side];
-      const coords = side==='top' ? [[0,0],[W-1,0]] : [[0,(H-1)*t],[ (W-1)*t,(H-1)*t ]];
-      ['tl','tr','bl','br'];
-      const bodies = [ DECOR.wallBody[corners[0]], DECOR.wallBody[corners[1]] ];
-      const caps   = [ DECOR.wallCap[corners[0]],  DECOR.wallCap[corners[1]]  ];
-      for (let k=0;k<2;k++){
-        const [dx,dy] = coords[k];
-        for (let i=0;i<depth;i++){
-          const b = pickVar(bodies[k], i); drawAt(b.sx,b.sy, dx, dy + (side==='top'? i*t : -i*t));
-        }
-        const cp = pickVar(caps[k],0); drawAt(cp.sx,cp.sy, dx, dy + (side==='top'? depth*t : -depth*t));
-      }
-    } else { // left/right columns
-      const x0 = tileX*t;
-      for (let y=1; y<=H-2; y++){
-        for (let i=0;i<depth;i++){
-          const b = pickVar(body, i); drawAt(b.sx,b.sy, x0 + (side==='left'? i*t : -i*t), y*t);
-        }
-        const cp = pickVar(cap,0); drawAt(cp.sx,cp.sy, x0 + (side==='left'? depth*t : -depth*t), y*t);
-      }
-    }
-  }
-
-  function drawActors(){
-    const c = DOM.ctx, t = G.tile;
-
-    // trapdoor if open (center)
-    if (G.trapDoorOpen){
-      c.save(); c.globalAlpha = 0.9; c.fillStyle = '#0f172a';
-      const sz = t*0.9; c.fillRect((CFG.roomTilesW/2)*t - sz/2, (CFG.roomTilesH/2)*t - sz/2, sz, sz);
-      c.restore();
-    }
-
-    // coins & potions & ground drops
-    for (const p of G.pickups){
-      const x = p.x, y = p.y;
-      if (p.kind==='coin'){
-        // simple coin: yellow circle
-        c.save(); c.fillStyle='#fbbf24'; c.beginPath(); c.arc(x, y, CFG.coinRadius*t, 0, Math.PI*2); c.fill(); c.restore();
-      } else if (p.kind==='potion'){
-        c.save(); c.fillStyle='#60a5fa'; c.beginPath(); c.rect(x - 0.22*t, y - 0.28*t, 0.44*t, 0.56*t); c.fill(); c.restore();
-      } else if (p.kind==='move' || p.kind==='item'){
-        c.save(); c.globalAlpha = 0.9; c.fillStyle = p.kind==='move' ? '#22d3ee' : '#a78bfa';
-        c.beginPath(); c.arc(x, y, CFG.pickupRadius*t, 0, Math.PI*2); c.fill(); c.restore();
-      }
-    }
-
-    // enemies
-    for (const e of G.enemies){ drawEnemy(e); }
-
-    // player
-    drawPlayer();
-
-    // draw top wall cap overlay (depth)
-    drawTopForegroundOverlay();
-  }
-
-  function drawEnemy(e){
-    const c = DOM.ctx, t = G.tile, sz = t*0.78;
-    const dx = e.x - sz/2, dy = e.y - sz/2;
-    // sprite support (animated) – placeholder simple anim by time
-    const sheet = (e.type==='bat') ? SPRITES.batSheet : SPRITES.goblinSheet;
-    const meta  = (e.type==='bat') ? SPRITES.bat : SPRITES.goblin;
-    let frame = 0;
-    if (sheet?.complete){
-      const fps = 6, i = ((performance.now()*0.001*fps)|0) % meta.cols.length;
-      frame = meta.cols[i];
-      const row = meta.walkDown;
-      DOM.ctx.drawImage(sheet, frame*meta.size, row*meta.size, meta.size, meta.size, dx, dy, sz, sz);
+      const stepDur = e.attacking ? BAT_STEP_ATTACK : (e.isMoving ? BAT_STEP_WALK : BAT_STEP_IDLE);
+      e.animTime += dt;
+      if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
     } else {
-      // fallback colored block
-      c.fillStyle = e.type==='bat' ? '#a78bfa' : '#ef4444';
-      c.fillRect(dx, dy, sz, sz);
+      // --- GOBLIN: come prima, con collisioni sui muri
+      const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
+      if (dist > 2) {
+        const newPX = e.px + vx * spd * dt;
+        const newPY = e.py + vy * spd * dt;
+
+        const size = tile - 18;
+        const minX = Math.floor((newPX + 6) / tile);
+        const minY = Math.floor((newPY + 6) / tile);
+        const maxX = Math.floor((newPX + size - 6) / tile);
+        const maxY = Math.floor((newPY + size - 6) / tile);
+
+        if (room[minY][minX] === 0 && room[minY][maxX] === 0 &&
+            room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
+          e.px = newPX; e.py = newPY;
+          e.x = Math.floor((e.px + size/2) / tile);
+          e.y = Math.floor((e.py + size/2) / tile);
+          e.direction = (Math.abs(vx) > Math.abs(vy)) ? (vx > 0 ? 'right' : 'left')
+                                                      : (vy > 0 ? 'down' : 'up');
+          e.isMoving = true;
+        } else {
+          e.isMoving = false;
+        }
+      } else {
+        e.isMoving = false;
+      }
+
+      e.attacking = (distCenter(e, G.pet) < 1.1);
+
+      const gf = G.sprites.goblinFrames;
+      let framesLen = 2;
+      if (gf) {
+        if (e.attacking) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (gf.attack?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
+        } else if (e.isMoving) {
+          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+          framesLen = (gf.walk?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
+        } else {
+          framesLen = (gf.idle?.length) || 2;
+        }
+      }
+      const stepDur = e.attacking ? ENEMY_ANIM_STEP_ATTACK
+                    : e.isMoving  ? ENEMY_ANIM_STEP_WALK
+                                  : ENEMY_ANIM_STEP_IDLE;
+      e.animTime += dt;
+      if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
+    }
+
+    // hit col pet = game over
+    if (distCenter(e, G.pet) < 0.5) {
+      G.playing = false;
+      showTreasureBonus('Game Over!', '#e74c3c');
+      setTimeout(() => endTreasureMinigame(), 1500);
+      return;
+    }
+  }
+}
+
+
+
+function placeMoleAtRandomSpot() {
+  const room = G.rooms[G.mole.roomY][G.mole.roomX];
+  let tries = 0;
+  do {
+    G.mole.x = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+    G.mole.y = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+    tries++;
+  } while ((room[G.mole.y][G.mole.x] !== 0) && tries < 200);
+}
+
+  function update(dt) {
+    movePet(dt);
+    moveEnemies(dt);
+    updateMole(dt);
+  }
+
+  function updateMole(dt) {
+  if (!G.mole.enabled) return;
+
+  // la talpa progredisce anche se non sei in quella stanza,
+  // ma il game over si controlla solo quando è visibile e sei nella stanza
+  G.mole.t += dt;
+
+  switch (G.mole.phase) {
+    case 'emerge1': // terriccio
+      if (G.mole.t >= MoleCfg.emerge1) { G.mole.phase = 'emerge2'; G.mole.t = 0; }
+      break;
+
+    case 'emerge2': // testa
+      if (G.mole.t >= MoleCfg.emerge2) { G.mole.phase = 'hold'; G.mole.t = 0; }
+      break;
+
+    case 'hold': {  // tutta su (hit window)
+      // Se sei nella stessa stanza, controlla collisione
+      if (G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
+        const tile = window.treasureTile || 64;
+        const petBox = { x: G.pet.px + 6, y: G.pet.py + 6, w: tile - 12, h: tile - 12 };
+        const molePx = G.mole.x * tile;  // disegno centrato nella tile come i nemici
+        const molePy = G.mole.y * tile;
+        const moleBox = { x: molePx + 6, y: molePy + 6, w: tile - 12, h: tile - 12 };
+        const hit = (petBox.x < moleBox.x + moleBox.w && petBox.x + petBox.w > moleBox.x &&
+                     petBox.y < moleBox.y + moleBox.h && petBox.y + petBox.h > moleBox.y);
+        if (hit) {
+          G.playing = false;
+          showTreasureBonus('Game Over!', '#e74c3c');
+          if (G.timerId) clearInterval(G.timerId);
+          setTimeout(() => endTreasureMinigame(), 1500);
+          return;
+        }
+      }
+      if (G.mole.t >= MoleCfg.hold) { G.mole.phase = 'retreat2'; G.mole.t = 0; }
+      break;
+    }
+
+    case 'retreat2': // torna da full -> testa
+      if (G.mole.t >= MoleCfg.retreat2) { G.mole.phase = 'retreat1'; G.mole.t = 0; }
+      break;
+
+    case 'retreat1': // torna da testa -> terriccio
+      if (G.mole.t >= MoleCfg.retreat1) { G.mole.phase = 'gap'; G.mole.t = 0; }
+      break;
+
+    case 'gap': // pausa e poi teleporta in un altro spot della stessa stanza
+      if (G.mole.t >= MoleCfg.gap) {
+        placeMoleAtRandomSpot();
+        G.mole.phase = 'emerge1';
+        G.mole.t = 0;
+      }
+      break;
+  }
+}
+// --- helpers per disegnare i muri ---
+
+function resyncPetToGrid() {
+  const tile = window.treasureTile || 64;
+  // se per qualche motivo è su una cella muro, spostalo in (1,1)
+  const room = G.rooms?.[G.petRoom.y]?.[G.petRoom.x];
+  if (room && room[G.pet.y]?.[G.pet.x] !== 0) {
+    G.pet.x = 1; 
+    G.pet.y = 1;
+  }
+  G.pet.px = G.pet.x * tile;
+  G.pet.py = G.pet.y * tile;
+}
+
+
+// ---- DRAW HELPERS (safe) ----
+function canUse(img) {
+  return !!(img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
+}
+function drawImg(img, dx, dy, dw, dh) {
+  if (canUse(img)) ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+function drawAtlasClip(clip, x, y, tile) {
+  const atlas = G.sprites.atlas;
+  if (!atlas || !atlas.complete || !clip) return;
+  ctx.drawImage(atlas, clip.sx, clip.sy, clip.sw, clip.sh, x * tile, y * tile, tile, tile);
+}
+
+
+function drawTileType(x, y, type, tile) {
+  const entry = G.sprites.decor?.[type];
+  if (!entry) return;
+
+  let d = entry;
+  if (Array.isArray(entry)) {
+    // usa hash pseudo-random per il pavimento, alternanza semplice per i muri
+    const idx = (type === 'floor')
+      ? variantIndex(x, y, entry.length)
+      : (x + y) % entry.length;
+    d = entry[idx];
+  }
+
+  const atlas = G.sprites.atlas;
+  if (d && typeof d === 'object' && 'sx' in d) {
+    if (!atlas || !atlas.complete) return;
+    ctx.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
+  }
+}
+
+function drawTileTypeOn(ctx2, x, y, type, tile) {
+  const entry = G.sprites.decor?.[type];
+  if (!entry) return;
+
+  let d = entry;
+  if (Array.isArray(entry)) {
+    const idx = (type === 'floor')
+      ? variantIndex(x, y, entry.length)
+      : (x + y) % entry.length;
+    d = entry[idx];
+  }
+
+  const atlas = G.sprites.atlas;
+  if (d && typeof d === 'object' && 'sx' in d) {
+    if (!atlas || !atlas.complete) return;
+    ctx2.drawImage(atlas, d.sx, d.sy, d.sw, d.sh, x * tile, y * tile, tile, tile);
+  }
+}
+
+
+
+
+function generateRoomTiles(room) {
+  const H = room.length, W = room[0].length;
+  const tiles = Array.from({ length: H }, () => Array(W).fill(null));
+
+  // 1) Trova le celle aperte (0) sui quattro bordi
+  const openL=[], openR=[], openT=[], openB=[];
+  for (let y = 1; y <= H-2; y++) {
+    if (room[y][0]     === 0) openL.push(y);
+    if (room[y][W-1]   === 0) openR.push(y);
+  }
+  for (let x = 1; x <= W-2; x++) {
+    if (room[0][x]     === 0) openT.push(x);
+    if (room[H-1][x]   === 0) openB.push(x);
+  }
+
+  // 2) Coordinate degli angoli-PORTA: subito fuori dai capi dell'apertura
+  const yTL = openL.length ? Math.max(1, openL[0]                    - 1) : null;
+  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1]     + 1) : null;
+  const yTR = openR.length ? Math.max(1, openR[0]                    - 1) : null;
+  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1]     + 1) : null;
+
+  const xLT = openT.length ? Math.max(1, openT[0]                    - 1) : null;
+  const xRT = openT.length ? Math.min(W-2, openT[openT.length-1]     + 1) : null;
+  const xLB = openB.length ? Math.max(1, openB[0]                    - 1) : null;
+  const xRB = openB.length ? Math.min(W-2, openB[openB.length-1]     + 1) : null;
+
+  const isDoorCell = (x, y) =>
+    (openL.length && x === 0     && openL.includes(y)) ||
+    (openR.length && x === W-1   && openR.includes(y)) ||
+    (openT.length && y === 0     && openT.includes(x)) ||
+    (openB.length && y === H-1   && openB.includes(x));
+
+  const isSolid = (x, y) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return false;
+    if (room[y][x] === 0) return false;   // interno
+    if (isDoorCell(x, y)) return false;   // apertura porta
+    return true;                           // muro
+  };
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
+
+      // --- angoli "porta" (prima, così sovrascrivono i lati normali) ---
+      if (openL.length && x === 0     && y === yTL) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (openL.length && x === 0     && y === yBL) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (openR.length && x === W-1   && y === yTR) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (openR.length && x === W-1   && y === yBR) { tiles[y][x] = 'corner_br_door'; continue; }
+      if (openT.length && y === 0     && x === xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (openT.length && y === 0     && x === xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
+      if (openB.length && y === H-1   && x === xLB) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (openB.length && y === H-1   && x === xRB) { tiles[y][x] = 'corner_br_door'; continue; }
+
+      // --- angoli normali ---
+      if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
+      if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
+      if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
+      if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
+
+      // --- lati ---
+      if (y === 0)        { tiles[y][x] = 'top';    continue; }
+      if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
+      if (x === 0)        { tiles[y][x] = 'left';   continue; }
+      if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
+
+      tiles[y][x] = 'center';
+    }
+  }
+  return tiles;
+}
+
+
+// Celle apertura porta per una stanza (tutte le celle realmente aperte sul bordo)
+function listDoorCells(room){
+  const H = room.length, W = room[0].length;
+  const cells = [];
+  for (let y=0;y<H;y++){
+    if (room[y][0]   === 0) cells.push({x:0,   y});
+    if (room[y][W-1] === 0) cells.push({x:W-1, y});
+  }
+  for (let x=0;x<W;x++){
+    if (room[0][x]   === 0) cells.push({x, y:0});
+    if (room[H-1][x] === 0) cells.push({x, y:H-1});
+  }
+  return cells;
+}
+function isNearAnyDoor(rx, ry, tx, ty, dist=2){
+  const room = G.rooms[ry][rx];
+  const opens = listDoorCells(room);
+  return opens.some(p => (Math.abs(p.x - tx) + Math.abs(p.y - ty)) <= dist);
+}
+function distTiles(ax,ay,bx,by){ return Math.abs(ax-bx)+Math.abs(ay-by); }
+function isNearWalls(tx,ty,margin=2){
+  return (tx < margin || ty < margin || tx > Cfg.roomW-1-margin || ty > Cfg.roomH-1-margin);
+}
+function isNearCenter(tx,ty,rad=Math.floor(Math.min(Cfg.roomW, Cfg.roomH)/3)){
+  const cx = Math.floor(Cfg.roomW/2), cy = Math.floor(Cfg.roomH/2);
+  return (Math.abs(tx-cx) <= rad && Math.abs(ty-cy) <= rad);
+}
+
+
+
+function drawRoom(room) {
+  const tile = window.treasureTile || 64;
+
+  // 1) calcola la mappa dei tipi (prima di usarla!)
+  const tiles = generateRoomTiles(room);
+
+  // 2) pavimento (prima dei muri, così i muri coprono il bordo)
+  drawFloor(room);
+
+  // 3) overlay debug opzionale
+  drawDebugSides(tiles, tile);   // <-- ora è DOPO la definizione di tiles
+
+  // 4) disegna i muri/angoli dall’atlas
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const type = tiles[y][x];
+      if (!type || type === 'center') continue;
+      drawTileType(x, y, type, tile);
+    }
+  }
+}
+
+function bakeRoomLayer(key, room) {
+  const tile = window.treasureTile || 64;
+  if (!G.sprites?.atlas?.complete || !G.sprites?.decor) return null;
+
+  const W = Cfg.roomW, H = Cfg.roomH;
+  const wpx = W * tile, hpx = H * tile;
+
+  const cv = document.createElement('canvas');
+  cv.width = wpx;
+  cv.height = hpx;
+  const bctx = cv.getContext('2d');
+  bctx.imageSmoothingEnabled = false;
+
+  // 0) mappa tipi
+  const tiles = generateRoomTiles(room);
+
+  // 1) PAVIMENTO
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (room[y][x] === 0) drawTileTypeOn(bctx, x, y, 'floor', tile);
     }
   }
 
-  function drawPlayer(){
-    const c=DOM.ctx,t=G.tile,sz=t*0.8; c.save(); c.fillStyle='#ffd54f'; c.fillRect(G.px - sz/2, G.py - sz/2, sz, sz); c.restore();
+  // 2) MURI STANDARD (salta la riga nord e i corner-nord:
+  //    li disegniamo nel pass dedicato a 3 layer)
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const t = tiles[y][x];
+      if (!t || t === 'center') continue;
+
+      if (y === 0 && (
+          t === 'top' ||
+          t === 'corner_tl' || t === 'corner_tr' ||
+          t === 'corner_tl_door' || t === 'corner_tr_door'
+        )) {
+        continue;
+      }
+      drawTileTypeOn(bctx, x, y, t, tile);
+    }
   }
 
-  function drawTopForegroundOverlay(){
-    const c=DOM.ctx, t=G.tile; c.save(); c.globalAlpha=0.16; c.fillStyle='#000';
-    c.fillRect(1*t, (1+CFG.wallDepthTop)*t, (CFG.roomTilesW-2)*t, Math.round(t*0.28));
-    c.restore();
-  }
+  // 3) NORD in 3 layer: base (riga 0), upper (riga 1), cap (overlay)
+  for (let x = 0; x < W; x++) {
+    const t0 = tiles[0][x];
+    if (!t0) continue; // è apertura: nessun muro
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Physics & input
-  // ────────────────────────────────────────────────────────────────────────────
-  function update(dt){
-    // input vector
-    let ix=0, iy=0;
-    if (G.keys.has('left')) ix -= 1;
-    if (G.keys.has('right')) ix += 1;
-    if (G.keys.has('up')) iy -= 1;
-    if (G.keys.has('down')) iy += 1;
-    ix += G.joy.vx; iy += G.joy.vy;
-    const L = Math.hypot(ix, iy); if (L>1) { ix/=L; iy/=L; }
+    const drawCapFallback = () => {
+      bctx.save();
+      bctx.globalAlpha = 0.18;
+      bctx.fillStyle = '#000';
+      const h = Math.max(3, Math.round(tile * 0.05));
+      bctx.fillRect(x * tile, 2 * tile - h, tile, h);
+      bctx.restore();
+    };
 
-    const spd = petSpeed();
-    const nx = G.px + ix*spd*dt, ny = G.py + iy*spd*dt;
-
-    const after = clampToRoom(nx, ny);
-    G.px = after.x; G.py = after.y;
-
-    if (Math.abs(ix)>Math.abs(iy)) G.facing = ix>0?'right':'left'; else if (Math.abs(iy)>0.01) G.facing = iy>0?'down':'up';
-
-    // enemies home-in
-    for (const e of G.enemies){
-      const dx = G.px - e.x, dy = G.py - e.y; const d = Math.hypot(dx, dy) || 1;
-      const vx = (dx/d) * e.speed * dt, vy = (dy/d) * e.speed * dt;
-      let ex = e.x + vx, ey = e.y + vy;
-      if (!e.noClip){ const p = clampToRoom(ex, ey); ex = p.x; ey = p.y; }
-      e.x = ex; e.y = ey;
-      // touch kills
-      const touchR = (CFG.petRadius + CFG.enemyRadius)*G.tile;
-      if (dist2(G.px,G.py,e.x,e.y) < touchR*touchR){ endGame('Sei stato colpito!'); return; }
+    // Corner sinistro (normale o porta), ovunque sulla riga 0
+    if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
+      const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
+      const upperK = (t0 === 'corner_tl_door') ? 'corner_tl_door_upper' : 'corner_tl_upper';
+      const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap'   : 'corner_tl_cap';
+      drawTileTypeOn(bctx, x, 0, baseK,  tile);
+      drawTileTypeOn(bctx, x, 1, upperK, tile);
+      if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+      else drawCapFallback();
+      continue;
     }
 
-    // pickups
-    for (let i=G.pickups.length-1; i>=0; i--){
-      const p = G.pickups[i];
-      const R = (p.kind==='coin'?CFG.coinRadius:(p.kind==='potion'?CFG.potionRadius:CFG.pickupRadius))*G.tile;
-      if (dist2(G.px,G.py,p.x,p.y) <= R*R){
-        if (p.kind==='coin'){ G.collectedCoins++; G.score += CFG.scoreCoin; updateInfo(); checkTrapdoor(); }
-        else if (p.kind==='potion'){ G.speedBonusUntil = nowMs() + 6000; G.score += CFG.scorePotion; updateInfo(); showFloatLabel('+Velocità!'); }
-        else if (p.kind==='move'){ awardMove(p.key); showFloatLabel('Mossa!'); }
-        else if (p.kind==='item'){ awardItem(p.key); showFloatLabel('Oggetto!'); }
-        G.pickups.splice(i,1);
+    // Corner destro (normale o porta), ovunque sulla riga 0
+    if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
+      const baseK  = (t0 === 'corner_tr_door') ? 'corner_tr_door_base'  : 'corner_tr_base';
+      const upperK = (t0 === 'corner_tr_door') ? 'corner_tr_door_upper' : 'corner_tr_upper';
+      const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap'   : 'corner_tr_cap';
+      drawTileTypeOn(bctx, x, 0, baseK,  tile);
+      drawTileTypeOn(bctx, x, 1, upperK, tile);
+      if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+      else drawCapFallback();
+      continue;
+    }
+
+    // Segmento piatto del muro nord
+    if (t0 === 'top') {
+      drawTileTypeOn(bctx, x, 0, 'top_base',  tile);
+      drawTileTypeOn(bctx, x, 1, 'top_upper', tile);
+      if (G.sprites.decor.top_cap) drawTileTypeOn(bctx, x, 0, 'top_cap', tile);
+      else drawCapFallback();
+      continue;
+    }
+
+    // altro: ignora
+  }
+// --- Spallette interne porte verticali (curve): top + bottom ---
+// --- Spallette interne porte verticali (curve): top + bottom ---
+{
+  const H = Cfg.roomH, W = Cfg.roomW;
+
+  const openLeft = [], openRight = [];
+  for (let y = 1; y <= H - 2; y++) {
+    if (room[y][0]   === 0) openLeft.push(y);
+    if (room[y][W-1] === 0) openRight.push(y);
+  }
+
+  // SINISTRA → tasselli dedicati
+  if (openLeft.length) {
+    const top = Math.max(1, openLeft[0] - 1);
+    const bot = Math.min(H - 2, openLeft[openLeft.length - 1] + 1);
+    drawTileTypeOn(bctx, 1, top, 'leftDoorTop', tile);
+    drawTileTypeOn(bctx, 1, bot, 'leftDoorBottom', tile);
+  }
+
+  // DESTRA → tasselli dedicati
+  if (openRight.length) {
+    const top = Math.max(1, openRight[0] - 1);
+    const bot = Math.min(H - 2, openRight[openRight.length - 1] + 1);
+    drawTileTypeOn(bctx, W - 2, top, 'rightDoorTop', tile);
+    drawTileTypeOn(bctx, W - 2, bot, 'rightDoorBottom', tile);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+  const baked = { canvas: cv, tile };
+  G.renderCache.rooms[key] = baked;
+  return baked;
+}
+
+
+
+
+function drawTile(sprite, tileX, tileY) {
+  const tileSize = G.tileSize;
+  ctx.drawImage(sprite, tileX * tileSize, tileY * tileSize, tileSize, tileSize);
+}
+
+const ix = v => Math.round(v); // intero “pixel-perfect”
+
+  // ---------- RENDER ----------
+function render() {
+  // stanza corrente (safe guards)
+  const row = G.rooms?.[G.petRoom.y];
+  if (!row) return;
+  const room = row?.[G.petRoom.x];
+  if (!room) return;
+
+  const tile = window.treasureTile || 64;
+  const rk = roomKey(G.petRoom.x, G.petRoom.y);
+
+  // --- layer statico (baked) ---
+  let baked = G.renderCache.rooms[rk];
+  if (!baked || baked.tile !== tile) baked = bakeRoomLayer(rk, room);
+  if (baked) ctx.drawImage(baked.canvas, 0, 0);
+  else drawRoom(room); // fallback (atlas non pronto)
+
+  // --- COINS ---
+  if (G.objects[rk]) {
+    for (const obj of G.objects[rk]) {
+      if (obj.type === 'coin' && !obj.taken) {
+        if (G.sprites.coin?.complete) {
+          ctx.drawImage(G.sprites.coin, obj.x*tile + tile/4, obj.y*tile + tile/4, tile/2, tile/2);
+        } else {
+          ctx.fillStyle = '#FFA500';
+          ctx.beginPath();
+          ctx.arc(obj.x*tile + tile/2, obj.y*tile + tile/2, tile/4, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // --- POWERUPS ---
+  if (G.powerups[rk]) {
+    for (const pow of G.powerups[rk]) {
+      if (!pow.taken) {
+        if (G.sprites.powerup?.complete) {
+          ctx.drawImage(G.sprites.powerup, pow.x*tile + tile/4, pow.y*tile + tile/4, tile/2, tile/2);
+        } else {
+          ctx.fillStyle = '#0cf';
+          ctx.beginPath();
+          ctx.arc(pow.x*tile + tile/2, pow.y*tile + tile/2, tile/4, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // --- SKULLS ---
+  for (const s of (G.skulls || [])) {
+    if (s.roomX === G.petRoom.x && s.roomY === G.petRoom.y) {
+      if (s.img?.complete) ctx.drawImage(s.img, s.x*tile, s.y*tile, tile, tile);
+    }
+  }
+
+  // --- TALPA ---
+  if (G.mole.enabled && G.petRoom.x === G.mole.roomX && G.petRoom.y === G.mole.roomY) {
+    const mx = G.mole.x * tile, my = G.mole.y * tile;
+    let frame = null;
+    switch (G.mole.phase) {
+      case 'emerge1':
+      case 'retreat1': frame = 0; break;
+      case 'emerge2':
+      case 'retreat2': frame = 1; break;
+      case 'hold':     frame = 2; break;
+    }
+    if (frame !== null) {
+      const img = G.sprites.mole?.[frame];
+      if (img && img.complete) ctx.drawImage(img, mx + 6, my + 6, tile - 12, tile - 12);
+      else { ctx.fillStyle = '#7a4f2b'; ctx.fillRect(mx + 8, my + 8, tile - 16, tile - 16); }
+    }
+  }
+
+  // --- USCITA (botola) ---
+  if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
+    const coinsLeft = countCoinsLeft();
+    const type = (coinsLeft === 0) ? 'exitOpen' : 'exitClosed';
+    if (G.sprites.decor?.[type]) {
+      drawTileType(G.exitTile.x, G.exitTile.y, type, tile);
+    } else {
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = (coinsLeft === 0) ? '#22c55e' : '#6b7280';
+      ctx.fillRect(G.exitTile.x * tile + 6, G.exitTile.y * tile + 6, tile - 12, tile - 12);
+      ctx.restore();
+    }
+  }
+
+  // --- PET (SAFE PICK) ---
+  {
+    const px = G.pet.px, py = G.pet.py, sz = tile - 12;
+    const PET = G.sprites.pet;
+    let sPet = null;
+
+    if (PET) {
+      if (!G.pet.moving) {
+        sPet = PET.idle || null;
+      } else {
+        const dirArr = PET[G.pet.direction];
+        if (Array.isArray(dirArr) && dirArr.length) {
+          const idx = Math.abs(G.pet.stepFrame | 0) % dirArr.length;
+          sPet = dirArr[idx] || dirArr[0] || PET.idle || null;
+        } else {
+          sPet = PET.idle || null;
+        }
       }
     }
 
-    // door transitions
-    handleDoors();
-
-    // timer
-    G.timeLeft -= dt; if (G.timeLeft <= 0){ endGame('Tempo scaduto'); return; }
-  }
-
-  function clampToRoom(x,y){
-    const t=G.tile;
-    const bMinX = 1*t + CFG.petRadius*t, bMaxX = (CFG.roomTilesW-2)*t - CFG.petRadius*t;
-    const bMinY = (1+CFG.wallDepthTop)*t + CFG.petRadius*t, bMaxY = (CFG.roomTilesH-2-CFG.wallDepthBottom)*t - CFG.petRadius*t;
-    return { x: clamp(x,bMinX,bMaxX), y: clamp(y,bMinY,bMaxY) };
-  }
-
-  function handleDoors(){
-    const t=G.tile; const x=G.px, y=G.py; const room=curRoom();
-    const centerX = (CFG.roomTilesW/2)*t, centerY = (CFG.roomTilesH/2)*t;
-    const doorW = t*2.2, doorH = t*1.6;
-    const nearUp = room.doors.up && Math.abs(x-centerX) < doorW/2 && y <= (1+CFG.wallDepthTop)*t + doorH/2;
-    const nearDown = room.doors.down && Math.abs(x-centerX) < doorW/2 && y >= (CFG.roomTilesH-2-CFG.wallDepthBottom)*t - doorH/2;
-    const nearLeft = room.doors.left && Math.abs(y-centerY) < doorW/2 && x <= 1*t + doorH/2;
-    const nearRight= room.doors.right&& Math.abs(y-centerY) < doorW/2 && x >= (CFG.roomTilesW-2)*t - doorH/2;
-
-    if (nearUp){ G.curRY--; loadRoom(G.curRX,G.curRY); G.py = (CFG.roomTilesH-2-CFG.wallDepthBottom-0.6)*t; }
-    else if (nearDown){ G.curRY++; loadRoom(G.curRX,G.curRY); G.py = (1+CFG.wallDepthTop+0.6)*t; }
-    else if (nearLeft){ G.curRX--; loadRoom(G.curRX,G.curRY); G.px = (CFG.roomTilesW-2-0.6)*t; }
-    else if (nearRight){ G.curRX++; loadRoom(G.curRX,G.curRY); G.px = (1+0.6)*t; }
-  }
-
-  function checkTrapdoor(){
-    if (!G.trapDoorOpen && G.collectedCoins >= G.totalCoins){ G.trapDoorOpen = true; showFloatLabel('Botola Aperta!'); }
-    // if player on trapdoor → next dungeon
-    if (!G.trapDoorOpen) return;
-    const t=G.tile; const cx=(CFG.roomTilesW/2)*t, cy=(CFG.roomTilesH/2)*t; const R=t*0.6;
-    if (dist2(G.px,G.py,cx,cy) <= R*R){
-      // progress
-      G.score += CFG.scoreDungeonClear; G.dungeonIndex++;
-      updateInfo();
-      newDungeon();
+    if (sPet && sPet.complete) {
+      ctx.drawImage(sPet, px + 6, py + 6, sz, sz);
+    } else {
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(px + 8, py + 8, sz - 4, sz - 4);
     }
   }
 
-  function showFloatLabel(text){
-    let el = document.getElementById('treasure-bonus-label');
-    if (!el){
-      el = document.createElement('div'); el.id = 'treasure-bonus-label'; el.className='treasure-float-label';
-      DOM.modal.appendChild(el);
+  // --- ENEMIES (goblin + bat, con mirroring per 'left') ---
+  {
+    const gf = G.sprites.goblinFrames;
+    const gsheet = G.sprites.goblinSheet;
+
+    const bf = G.sprites.batFrames;     // <- serve buildBatFromAtlas()
+    const bsheet = G.sprites.batSheet;
+
+    for (const e of (G.enemies[rk] || [])) {
+      const ex = e.px, ey = e.py;
+      const drawW = tile - 12, drawH = tile - 12;
+
+      // seleziona atlas/frames in base al tipo
+      const type = e.type || 'goblin';
+      let framesRoot = null;
+      let sheet = null;
+
+      if (type === 'bat') {
+        framesRoot = bf;
+        sheet = bsheet;
+      } else {
+        framesRoot = gf;
+        sheet = gsheet;
+      }
+
+      // se abbiamo un atlas valido, scegli frames + flip
+      if (framesRoot && sheet && sheet.complete) {
+        const mode = e.attacking ? 'attack' : (e.isMoving ? 'walk' : 'idle');
+        const dir  = e.direction || 'down';
+
+        let frames = null;
+        let flip = false;
+
+        if (mode === 'idle' || !framesRoot[mode]) {
+          // per il bat, se non hai definito idle/attack, cadrà qui e userà idle se presente
+          frames = framesRoot.idle || null;
+        } else {
+          if (dir === 'left') {
+            frames = framesRoot[mode]?.right || null; // usa right e flippa
+            flip = true;
+          } else {
+            frames = framesRoot[mode]?.[dir] || null; // down/right/up
+          }
+        }
+
+        // fallback: se ancora nulla, prova idle ⇒ walk.right ⇒ qualunque
+        let arr =
+          (frames && frames.length) ? frames :
+          (framesRoot.idle && framesRoot.idle.length ? framesRoot.idle : null);
+
+        if (!arr) {
+          const wr = framesRoot.walk;
+          if (wr) {
+            arr = wr.right || wr.down || wr.up || null;
+          }
+        }
+
+        if (arr && arr.length) {
+          const len = Math.max(1, arr.length);
+          const idx = Math.abs((e.stepFrame | 0) % len);
+          const clip = arr[idx];
+
+          if (clip) {
+            drawSheetClipMaybeFlip(sheet, clip, ex + 6, ey + 6, drawW, drawH, flip);
+            continue; // disegnato con atlas
+          }
+        }
+      }
+
+      // --- fallback se atlas non pronto ---
+      if (type === 'bat') {
+        ctx.fillStyle = '#a78bfa'; // lilla
+        ctx.fillRect(ex + 10, ey + 10, drawW - 8, drawH - 8);
+      } else {
+        if (G.sprites.enemy?.complete) {
+          ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
+        } else {
+          ctx.fillStyle = '#e74c3c';
+          ctx.fillRect(ex + 8, ey + 8, drawW - 4, drawH - 4);
+        }
+      }
     }
-    el.textContent = text; el.style.opacity='1';
-    setTimeout(()=>{ el.style.opacity='0'; }, 900);
+  }
+  // --- overlay "lip" sud (opzionale, effetto profondità)
+{
+  const room = G.rooms[G.petRoom.y][G.petRoom.x];
+  const tiles = generateRoomTiles(room);
+  for (let x = 0; x < tiles[0].length; x++) {
+    if (tiles[Cfg.roomH - 1][x] === 'bottom') {
+      // ridisegno SOLO il bordo inferiore davanti agli sprite
+      drawTileType(x, Cfg.roomH - 1, 'bottom', tile);
+    }
+  }
+}
+
+}
+
+
+const isTyping = (e) =>
+  e.target && (e.target.matches('input, textarea, [contenteditable="true"]') ||
+               e.target.closest('input, textarea, [contenteditable="true"]'));
+
+const isFormish = (el) =>
+  el && (el.closest('form, input, textarea, select, button, a, .form-box, .modal'));
+
+document.addEventListener('keydown', (e) => {
+  if (!G.playing) return;
+  const dir = dirMap[e.key];
+  if (!dir) return;
+  e.preventDefault();               // <-- aggiungi questo
+  if (!G.keysStack.includes(dir)) G.keysStack.push(dir);
+  updatePetDirFromKeys();
+});
+document.addEventListener('keyup', (e) => {
+  const dir = dirMap[e.key];
+  if (!dir) return;
+  e.preventDefault();               // <-- e qui
+  G.keysStack = G.keysStack.filter(d => d !== dir);
+  updatePetDirFromKeys();
+});
+
+function isOpening(room, tx, ty) {
+  // ritorna true se la cella è vuota e non è muro
+  return room[ty] && room[ty][tx] === 0;
+}
+
+
+function pickRandomWallCellNoDoor(room) {
+  const H = room.length, W = room[0].length;
+  const spots = [];
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      // deve stare sul bordo
+      const onEdge = (x === 0 || x === W-1 || y === 0 || y === H-1);
+      if (!onEdge) continue;
+
+      // deve essere muro pieno
+      if (room[y][x] === 0) continue;
+
+      // escludi le celle muro ADIACENTI a un'apertura sullo stesso bordo
+      // (quindi non spawna sulle "spallette" della porta)
+      const isLeftOrRight = (x === 0 || x === W-1);
+      const isTopOrBottom = (y === 0 || y === H-1);
+
+      // se siamo sul bordo verticale, guardo su/giù lungo lo stesso bordo
+      if (isLeftOrRight) {
+        const upIsDoor   = (y > 0     && room[y-1][x] === 0);
+        const downIsDoor = (y < H - 1 && room[y+1][x] === 0);
+        if (upIsDoor || downIsDoor) continue;
+      }
+
+      // se siamo sul bordo orizzontale, guardo sin/dx lungo lo stesso bordo
+      if (isTopOrBottom) {
+        const leftIsDoor  = (x > 0     && room[y][x-1] === 0);
+        const rightIsDoor = (x < W - 1 && room[y][x+1] === 0);
+        if (leftIsDoor || rightIsDoor) continue;
+      }
+
+      spots.push({ x, y });
+    }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RPC helpers (server-side awards)
-  // ────────────────────────────────────────────────────────────────────────────
-  async function awardMove(moveKey){
+  if (!spots.length) return null;
+  return spots[Math.floor(Math.random() * spots.length)];
+}
+
+
+  // ---------- GENERAZIONE ----------
+function generateDungeon() {
+  G.rooms = [];
+  G.objects = {};
+  G.enemies = {};
+  G.powerups = {};
+
+  // --- stanze base con muri ---
+  for (let y = 0; y < Cfg.gridH; y++) {
+    const row = [];
+    for (let x = 0; x < Cfg.gridW; x++) {
+      const room = [];
+      for (let ty = 0; ty < Cfg.roomH; ty++) {
+        const rrow = [];
+        for (let tx = 0; tx < Cfg.roomW; tx++) {
+          rrow.push((tx === 0 || ty === 0 || tx === Cfg.roomW - 1 || ty === Cfg.roomH - 1) ? 1 : 0);
+        }
+        room.push(rrow);
+      }
+      row.push(room);
+    }
+    G.rooms.push(row);
+  }
+
+  // --- porte (larghezza variabile per device) ---
+  for (let y = 0; y < Cfg.gridH; y++) {
+    for (let x = 0; x < Cfg.gridW; x++) {
+      const span   = getDoorSpan();
+      const midRow = Math.floor(Cfg.roomH / 2);
+      const midCol = Math.floor(Cfg.roomW / 2);
+      const ys = doorIndices(midRow, span, 1, Cfg.roomH - 2);
+      const xs = doorIndices(midCol, span, 1, Cfg.roomW - 2);
+
+      if (x < Cfg.gridW - 1) {
+        for (const r of ys) {
+          G.rooms[y][x][r][Cfg.roomW - 1] = 0;
+          G.rooms[y][x + 1][r][0] = 0;
+        }
+      }
+      if (y < Cfg.gridH - 1) {
+        for (const c of xs) {
+          G.rooms[y][x][Cfg.roomH - 1][c] = 0;
+          G.rooms[y + 1][x][0][c] = 0;
+        }
+      }
+    }
+  }
+
+  // --- uscita random (non centrale) ---
+  do {
+    G.exitRoom.x = Math.floor(Math.random() * Cfg.gridW);
+    G.exitRoom.y = Math.floor(Math.random() * Cfg.gridH);
+  } while (G.exitRoom.x === Math.floor(Cfg.gridW/2) && G.exitRoom.y === Math.floor(Cfg.gridH/2));
+  G.exitTile.x = Cfg.roomW - 2;
+  G.exitTile.y = Cfg.roomH - 2;
+
+  // --- popola stanze ---
+  for (let ry = 0; ry < Cfg.gridH; ry++) {
+    for (let rx = 0; rx < Cfg.gridW; rx++) {
+      const key = `${rx},${ry}`;
+      const objects  = [];
+      const enemies  = [];
+      const powerups = [];
+
+      // monete
+      const nCoins = (rx === G.exitRoom.x && ry === G.exitRoom.y) ? 1 : (2 + Math.floor(Math.random() * 2));
+      for (let i = 0; i < nCoins; i++) {
+        let px, py;
+        do {
+          px = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+          py = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+        } while (rx === G.exitRoom.x && ry === G.exitRoom.y && px === G.exitTile.x && py === G.exitTile.y);
+        objects.push({ x: px, y: py, type: 'coin', taken: false });
+      }
+
+      // posizioni delle porte (per evitare spawn goblin lì)
+      const doorPositions = [];
+      if (rx > 0)               doorPositions.push({ x: 0,            y: Math.floor(Cfg.roomH/2) });
+      if (rx < Cfg.gridW - 1)   doorPositions.push({ x: Cfg.roomW-1,  y: Math.floor(Cfg.roomH/2) });
+      if (ry > 0)               doorPositions.push({ x: Math.floor(Cfg.roomW/2), y: 0 });
+      if (ry < Cfg.gridH - 1)   doorPositions.push({ x: Math.floor(Cfg.roomW/2), y: Cfg.roomH-1 });
+
+// --- NEMICI BASE (GOBLIN) ---
+{
+  const roomRef = G.rooms[ry][rx];
+  const nEnemies = Math.random() < 0.7 ? 1 : 0; // 0 o 1 goblin (70%:1)
+  const tile = window.treasureTile || 64;
+
+  const centerRoomX = Math.floor(Cfg.gridW / 2);
+  const centerRoomY = Math.floor(Cfg.gridH / 2);
+  const spawnCellX = 1, spawnCellY = 1; // spawn player
+
+  for (let i=0;i<nEnemies;i++){
+    let ex, ey, tries = 0;
+    while (tries++ < 80){
+      // vincolo: vicino al centro, non vicino ai muri
+      ex = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+      ey = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+      if (!isNearCenter(ex,ey)) continue;
+      if (isNearWalls(ex,ey,2)) continue;
+
+      // evita porte e spallette
+      if (isNearAnyDoor(rx, ry, ex, ey, 2)) continue;
+
+      // evita spawn del player (solo per la stanza centrale)
+      if (rx === centerRoomX && ry === centerRoomY && distTiles(ex,ey,spawnCellX,spawnCellY) < 3) continue;
+
+      // evita la botola (stanza di uscita)
+      if (rx === G.exitRoom.x && ry === G.exitRoom.y && distTiles(ex,ey,G.exitTile.x,G.exitTile.y) < 3) continue;
+
+      // evita sovrapposizioni con altri nemici
+      if (enemies.some(en => en.x === ex && en.y === ey)) continue;
+
+      // ok
+      enemies.push({
+        type: 'goblin',
+        x: ex, y: ey,
+        px: ex * tile, py: ey * tile,
+        slow:false, direction:'down', stepFrame:0, isMoving:false, animTime:0, reactDelay:2, attacking:false
+      });
+      break;
+    }
+  }
+}
+
+   // --- BAT: 40% solo se la stanza NON ha altri nemici ---
+// spawn SEMPRE su una cella di MURO (sopra i muri)
+// --- BAT: 40% solo se la stanza NON ha altri nemici ---
+// spawn su muro pieno, mai su porte né spallette vicino alla porta
+if (enemies.length === 0 && Math.random() < 0.40) {
+  const roomRef = G.rooms[ry][rx];
+  const spot = pickRandomWallCellNoDoor(roomRef);
+  if (spot) {
+    const tile = window.treasureTile || 64;
+    enemies.push({
+      type: 'bat',
+      x: spot.x,
+      y: spot.y,
+      px: spot.x * tile,
+      py: spot.y * tile,
+      direction: 'down',
+      stepFrame: 0,
+      animTime: 0,
+      isMoving: true,
+      attacking: false,
+      reactDelay: 0,
+      slow: false,
+      sPhase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+
+
+      // powerup (speed)
+      if (Math.random() < 0.35) {
+        let ptx, pty;
+        let tries = 0;
+        do {
+          ptx = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+          pty = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+          tries++;
+        } while (tries < 50 && objects.some(o => !o.taken && o.x === ptx && o.y === pty));
+        powerups.push({ x: ptx, y: pty, type: 'speed', taken: false });
+      }
+
+      G.objects[key]  = objects;
+      G.enemies[key]  = enemies;
+      G.powerups[key] = powerups;
+    }
+  }
+// --- DROPS RARI: mossa / oggetto ---
+// Se vuoi demandare la decisione al server, esponi una RPC che ritorna i drop.
+// Esempio: const serverDrops = await window.fetchTreasureRoomDrops?.(rx,ry); // [{type:'move'|'item',x,y}]
+let spawned = false;
+if (!spawned && Math.random() < 0.06) { // 6% mossa
+  let dx, dy, tries=0;
+  do { dx = 1 + Math.floor(Math.random()*(Cfg.roomW-2));
+       dy = 1 + Math.floor(Math.random()*(Cfg.roomH-2));
+       tries++;
+  } while (tries<60 && (roomRef[dy][dx]!==0 || isNearAnyDoor(rx,ry,dx,dy,2)));
+  powerups.push({ x:dx, y:dy, type:'drop_move', taken:false });
+  spawned = true;
+}
+if (!spawned && Math.random() < 0.06) { // 6% oggetto
+  let dx, dy, tries=0;
+  do { dx = 1 + Math.floor(Math.random()*(Cfg.roomW-2));
+       dy = 1 + Math.floor(Math.random()*(Cfg.roomH-2));
+       tries++;
+  } while (tries<60 && (roomRef[dy][dx]!==0 || isNearAnyDoor(rx,ry,dx,dy,2)));
+  powerups.push({ x:dx, y:dy, type:'drop_item', taken:false });
+}
+
+  // --- skulls decorativi ---
+  G.skulls = [];
+  const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
+  const skullSources = [
+    `${assetBase}/backgrounds/teschio_1.png`,
+    `${assetBase}/backgrounds/teschio_2.png`,
+    `${assetBase}/backgrounds/teschio_3.png`,
+  ];
+  for (const src of skullSources) {
+    let placed = false, attempts = 0;
+    const img = new Image(); img.src = src;
+    while (!placed && attempts < 100) {
+      attempts++;
+      const roomX = Math.floor(Math.random() * Cfg.gridW);
+      const roomY = Math.floor(Math.random() * Cfg.gridH);
+      const room = G.rooms[roomY][roomX];
+      const cellX = Math.floor(Math.random() * Cfg.roomW);
+      const cellY = Math.floor(Math.random() * Cfg.roomH);
+      if (room[cellY][cellX] === 0) {
+        G.skulls.push({ img, roomX, roomY, x: cellX, y: cellY });
+        placed = true;
+      }
+    }
+  }
+
+  G.hudDirty = true;
+}
+
+
+  async function requestLandscape() {
+  const el = document.documentElement; // o DOM.canvas
+
+  // prova full screen (richiede gesto utente)
+  try {
+    if (el.requestFullscreen) await el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen(); // iOS vecchi
+  } catch (_) {}
+
+  // prova lock orientamento (funziona quasi solo su Android)
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock('landscape');
+    }
+  } catch (_) {
+    // ignoriamo: iOS non lo consente
+  }
+}
+
+
+  // ---------- START LEVEL ----------
+  function startLevel() {
+    G.exiting = false;
+    if (isTouch) DOM.joyBase.style.opacity = '0.45';
+     G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
+  G.pet.x = 1; G.pet.y = 1;
+  G.pet.px = 0; G.pet.py = 0;
+   resizeTreasureCanvas();
+   resyncPetToGrid();
+   // Pre-bake del layer statico della stanza corrente (facoltativo)
+{
+  const key = roomKey(G.petRoom.x, G.petRoom.y);
+  bakeRoomLayer(key, G.rooms[G.petRoom.y][G.petRoom.x]);
+}
+
+
+    G.timeLeft = 90 + G.level * 2;
+    G.playing = false;
+
+    animateRevealCircle(() => {
+      G.playing = true;
+      // Talpa: attiva solo dal livello 2 in poi
+G.mole.enabled = (G.level >= 2);
+if (G.mole.enabled) {
+  // scegli una stanza a caso
+  G.mole.roomX = Math.floor(Math.random() * Cfg.gridW);
+  G.mole.roomY = Math.floor(Math.random() * Cfg.gridH);
+
+  // scegli una cella libera dentro quella stanza
+  placeMoleAtRandomSpot();
+
+  // fase iniziale
+  G.mole.phase = 'emerge1';
+  G.mole.t = 0;
+}
+
+      G.activePowerup = null;
+      G.speedMul = 1;
+      render();
+      DOM.modal?.classList.remove('hidden');
+
+      if (G.timerId) clearInterval(G.timerId);
+      G.timerId = setInterval(() => {
+        if (!G.playing) return;
+        G.timeLeft--;
+        G.hudDirty = true;
+        if (G.timeLeft <= 0) endTreasureMinigame();
+      }, Cfg.baseTimerMs);
+    });
+  }
+
+
+  // ---------- END ----------
+function endTreasureMinigame(reason = 'end') {
+  G.exiting = false;
+  stopBgm();
+  G.playing = false;
+  if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
+  DOM.modal && DOM.modal.classList.add('hidden');
+
+  const fun = 15 + Math.round(G.score * 0.6);
+  const exp = Math.round(G.score * 0.5);
+
+  // salva quante monete hai preso in questa run prima di resettare
+  const coinsThisRun = (G.coinsCollected | 0);
+
+  setTimeout(async () => {
     try {
-      const pid = window.petId; if (!pid) return;
-      const { error } = await sb().rpc('award_move_drop', { p_pet_id: pid, p_move_key: moveKey });
-      if (error) throw error;
-      await window.loadMoves?.();
-      G.score += 10; updateInfo();
-    } catch(e){ console.error('[Treasure] awardMove', e); }
-  }
-  async function awardItem(itemKey){
-    try {
-      const pid = window.petId; if (!pid) return;
-      // Expect an RPC similar to award_move_drop on your DB side
-      const { error } = await sb().rpc('award_item_drop', { p_pet_id: pid, p_item_key: itemKey });
-      if (error) throw error;
-      await window.loadItems?.();
-      G.score += 10; updateInfo();
-    } catch(e){ console.warn('[Treasure] awardItem (create RPC award_item_drop)', e); }
-  }
+      // FUN/EXP al pet
+      if (typeof window.updateFunAndExpFromMiniGame === 'function') {
+        await window.updateFunAndExpFromMiniGame(fun, exp);
+      }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Loop & UI
-  // ────────────────────────────────────────────────────────────────────────────
-  function loop(){
-    if (!G.running) return;
-    const t = performance.now(); const dt = (t - G.last)/1000; G.last=t; G.now=t;
+      // Leaderboard: salva best score/level (la RPC ignora se level < 2)
+if (typeof window.submitTreasureScoreSupabase === 'function') {
+  await window.submitTreasureScoreSupabase(G.score|0, G.level|0);
+}
 
-    update(dt);
 
-    // render
-    DOM.ctx.clearRect(0,0, DOM.canvas.width, DOM.canvas.height);
-    drawStaticLayer();
-    drawActors();
+      // GETTONI: prova vari helper globali (definiti in script.js)
+// GETTONI: usa la RPC corretta esposta da script.js
+if (coinsThisRun > 0) {
+  await window.addGettoniSupabase?.(coinsThisRun);
+  await window.refreshResourcesWidget?.();
+}
 
-    updateInfo();
 
-    requestAnimationFrame(loop);
-  }
+      // feedback exp (opzionale)
+      if (typeof window.showExpGainLabel === 'function' && exp > 0) {
+        window.showExpGainLabel(exp);
+      }
+    } catch (err) {
+      console.error('[Treasure] errore award EXP/FUN/coins:', err);
+    } finally {
+      // reset per la prossima partita
+      G.coinsCollected = 0;
+      G.keysStack = [];
+      resetJoystick();
+    }
+  }, 180);
+}
 
-  function updateInfo(){
-    if (DOM.infoCoins) DOM.infoCoins.textContent = `${Math.max(0, G.totalCoins - G.collectedCoins)}`;
-    if (DOM.infoTimer) DOM.infoTimer.textContent = `${Math.max(0, Math.ceil(G.timeLeft))}`;
-    if (DOM.infoLevel) DOM.infoLevel.textContent = `${G.dungeonIndex}`;
-    if (DOM.infoScore) DOM.infoScore.textContent = `${G.score|0}`;
-  }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Sizing & canvas
-  // ────────────────────────────────────────────────────────────────────────────
-  function resize(){
-    const modal = DOM.modal; if (!modal) return;
-    let vw = window.innerWidth, vh = window.innerHeight;
-    const gutter = isMobile ? 10 : 0; vw = Math.max(200, vw - gutter);
-    const raw = Math.min(vw/CFG.roomTilesW, vh/CFG.roomTilesH);
-    const maxTile = isMobile ? CFG.maxTileMobile : CFG.maxTileDesktop;
-    let tile = Math.floor(raw/32)*32; tile = clamp(tile, CFG.minTile, maxTile);
-
-    const dpr = Math.max(1, Math.round(window.devicePixelRatio||1));
-    DOM.canvas.width = Math.round(CFG.roomTilesW*tile*dpr);
-    DOM.canvas.height= Math.round(CFG.roomTilesH*tile*dpr);
-    DOM.canvas.style.width = `${CFG.roomTilesW*tile}px`;
-    DOM.canvas.style.height= `${CFG.roomTilesH*tile}px`;
-
-    G.tile = tile; G.dpr = dpr; DOM.ctx.setTransform(dpr,0,0,dpr,0,0); DOM.ctx.imageSmoothingEnabled=false;
-    // Invalidate bakes
-    for (const row of G.rooms){ for (const r of row){ if (r) r.baked=null; } }
+  // ---------- BONUS ----------
+  function showTreasureBonus(msg, color = '#e67e22') {
+    if (!DOM.bonus) return;
+    DOM.bonus.textContent = msg;
+    DOM.bonus.style.display = 'block';
+    DOM.bonus.style.color = color;
+    DOM.bonus.style.opacity = '1';
+    setTimeout(()=> DOM.bonus.style.opacity='0', 1600);
+    setTimeout(()=> DOM.bonus.style.display='none', 2100);
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Input setup (keyboard + joystick)
-  // ────────────────────────────────────────────────────────────────────────────
-  function setupInput(){
-    const keyMap = { ArrowLeft:'left', a:'left', ArrowRight:'right', d:'right', ArrowUp:'up', w:'up', ArrowDown:'down', s:'down' };
-    document.addEventListener('keydown', e=>{ const m=keyMap[e.key]; if(!m) return; e.preventDefault(); if(!G.running) return; G.keys.add(m); });
-    document.addEventListener('keyup',   e=>{ const m=keyMap[e.key]; if(!m) return; e.preventDefault(); G.keys.delete(m); });
+ 
+// ---------- JOYSTICK (bind una sola volta) ----------
+let joyCenter = { x: 0, y: 0 };
+const stickRadius = 32;
 
-    // joystick
-    const base = DOM.joyBase, stick = DOM.joyStick; if (!base || !stick) return;
-    base.style.touchAction='none';
-    const HAS_POINTER = 'PointerEvent' in window;
-    let pid=null;
-    const setStick=(dx,dy)=>{ stick.style.left=`${50+dx*36}%`; stick.style.top=`${50+dy*36}%`; };
-    const start=(e)=>{ if(pid!=null) return; pid=HAS_POINTER?e.pointerId:'touch'; G.joy.active=true; setStick(0,0); };
-    const move=(e)=>{
-      if(!G.joy.active) return; if(HAS_POINTER && e.pointerId!==pid) return; if(HAS_POINTER) e.preventDefault();
-      const rect=base.getBoundingClientRect(); const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2; const R=rect.width/2;
-      const X=HAS_POINTER?e.clientX:e.touches[0].clientX; const Y=HAS_POINTER?e.clientY:e.touches[0].clientY;
-      let dx=(X-cx)/R, dy=(Y-cy)/R; const L=Math.hypot(dx,dy); const dead=CFG.touchDeadZone; if(L<dead){dx=0;dy=0;} else {dx/=L;dy/=L;}
-      G.joy.vx=dx; G.joy.vy=dy; setStick(dx,dy);
-    };
-    const end=()=>{ pid=null; G.joy.active=false; G.joy.vx=0; G.joy.vy=0; setStick(0,0); };
+function updatePetDirFromJoystick(dx, dy) {
+  G.pet.dirX = dx; G.pet.dirY = dy;
+  if (dx > 0.2) G.pet.direction = 'right';
+  else if (dx < -0.2) G.pet.direction = 'left';
+  else if (dy < -0.2) G.pet.direction = 'up';
+  else if (dy > 0.2) G.pet.direction = 'down';
+}
+function resetJoystick() {
+  if (DOM.joyStick) DOM.joyStick.style.transform = 'translate(-50%,-50%)';
+  updatePetDirFromJoystick(0,0);
+  DOM.joyBase?.classList.remove('active');
+}
+function handleJoystickMove(touch) {
+  const x = touch.clientX - joyCenter.x;
+  const y = touch.clientY - joyCenter.y;
+  const dist = Math.sqrt(x*x + y*y);
+  let nx = x, ny = y;
+  if (dist > stickRadius) { nx = x * stickRadius / dist; ny = y * stickRadius / dist; }
+  if (DOM.joyStick) DOM.joyStick.style.transform = `translate(-50%,-50%) translate(${nx}px,${ny}px)`;
+  let dx = nx / stickRadius, dy = ny / stickRadius;
+  const dead = 0.18; if (Math.abs(dx) < dead) dx = 0; if (Math.abs(dy) < dead) dy = 0;
+  updatePetDirFromJoystick(dx, dy);
+}
 
-    if (HAS_POINTER){ base.addEventListener('pointerdown',start,{passive:false}); base.addEventListener('pointermove',move,{passive:false}); base.addEventListener('pointerup',end,{passive:false}); base.addEventListener('pointercancel',end,{passive:false}); }
-    else { base.addEventListener('touchstart',start,{passive:true}); base.addEventListener('touchmove',move,{passive:true}); base.addEventListener('touchend',end,{passive:true}); base.addEventListener('touchcancel',end,{passive:true}); }
+// Handlers bindati UNA volta sola
+function onJoyStart(e){
+  e.preventDefault();
+  DOM.joyBase.classList.add('active');
+  DOM.joyBase.style.opacity = '0.9';
+  DOM.joyBase.style.bottom = `calc(16px + env(safe-area-inset-bottom, 0px))`;
+  const rect = DOM.joyBase.getBoundingClientRect();
+  joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}
+function onJoyMove(e){
+  e.preventDefault();
+  if (e.touches[0]) handleJoystickMove(e.touches[0]);
+}
+function onJoyEnd(e){
+  e.preventDefault();
+  DOM.joyBase.style.opacity = '0.45';
+  resetJoystick();
+}
+
+DOM.joyBase?.addEventListener('touchstart',  onJoyStart, { passive:false });
+DOM.joyBase?.addEventListener('touchmove',   onJoyMove,  { passive:false });
+DOM.joyBase?.addEventListener('touchend',    onJoyEnd,   { passive:false });
+DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
+
+
+  // ---------- EVENTI ----------
+  function showTreasureArrowsIfMobile() {
+    const arrows = document.querySelector('.treasure-arrows-container');
+    if (!arrows) return;
+    if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) arrows.style.display = '';
+    else arrows.style.display = 'none';
   }
+  showTreasureArrowsIfMobile();
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Start / End
-  // ────────────────────────────────────────────────────────────────────────────
-  async function start(){
-    ensureStyles();
-    // bind DOM (late, in case HTML loads before this)
-    DOM.modal = document.getElementById('treasure-minigame-modal');
-    DOM.canvas= document.getElementById('treasure-canvas');
-    DOM.ctx   = DOM.canvas.getContext('2d');
-    DOM.infoCoins = document.getElementById('treasure-minigame-coins');
-    DOM.infoTimer = document.getElementById('treasure-timer');
-    DOM.infoLevel = document.getElementById('treasure-level');
-    DOM.infoScore = document.getElementById('treasure-minigame-score');
-    DOM.btnExit   = document.getElementById('treasure-exit-btn');
-    DOM.joyBase   = document.getElementById('treasure-joystick-base');
-    DOM.joyStick  = document.getElementById('treasure-joystick-stick');
 
-    if (!DOM.modal || !DOM.canvas){ console.error('[Treasure] missing DOM'); return; }
-    loadSprites();
-
-    // size & input
-    newDungeon();
-    resize();
-    setupInput();
-    window.addEventListener('resize', resize);
-
-    // exit
-    DOM.btnExit?.addEventListener('click', ()=> endGame('Uscita'));
-
-    // show modal and run
-    DOM.modal.classList.add('show');
-    G.running = true; G.last = performance.now();
-    loop();
-  }
-
-  async function endGame(reason){
-    if (!G.running) return; G.running=false;
-    try {
-      // rewards
-      const fun = 6 + Math.round(G.dungeonIndex * 1.4);
-      const exp = 12 + Math.round(G.score * 0.35);
-      await window.updateFunAndExpFromMiniGame?.(fun, exp);
-      await window.submitTreasureScoreSupabase?.(G.score|0, G.dungeonIndex|0);
-      const coinsBonus = Math.floor(G.score / 12); if (coinsBonus>0) await window.addGettoniSupabase?.(coinsBonus);
-      await window.refreshResourcesWidget?.();
-    } catch(e){ console.error('[Treasure] end rewards', e); }
-
-    DOM.modal?.classList.remove('show');
-    // clear state minimal
-    G.keys.clear(); G.joy.active=false; G.joy.vx=G.joy.vy=0;
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Public API + bootstrapping
-  // ────────────────────────────────────────────────────────────────────────────
-  window.startTreasureMinigame = start;
-
-  // Start when pressing the selector button as well (defensive binding)
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const btn = document.getElementById('btn-minigame-treasure');
-    if (btn && !btn._treasureBound){ btn.addEventListener('click', ()=> setTimeout(()=> start(), 50)); btn._treasureBound=true; }
+  window.addEventListener('resize', () => {
+    if (G.playing) { resizeTreasureCanvas(); render(); resyncPetToGrid(); G.hudDirty = true; }
+    showTreasureArrowsIfMobile();
   });
 
+
+  // ---------- REVEAL ----------
+  function animateRevealCircle(callback) {
+    const W = DOM.canvas.width, H = DOM.canvas.height;
+    let start = null;
+    function drawFrame(now) {
+      if (!start) start = now;
+      const progress = Math.min(1, (now - start) / Cfg.revealMs);
+      const radius = 20 + progress * (Math.sqrt(W*W + H*H) / 2);
+
+      render();
+
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(W/2, H/2, radius, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      if (progress < 1) requestAnimationFrame(drawFrame);
+      else if (typeof callback === 'function') callback();
+    }
+    requestAnimationFrame(drawFrame);
+  }
+
+  // ---------- API PUBBLICA ----------
+  window.startTreasureMinigame = startTreasureMinigame;
+  window.endTreasureMinigame = endTreasureMinigame;
+  window.resizeTreasureCanvas = resizeTreasureCanvas;
+  window.resetJoystick = resetJoystick; // se serve fuori
+
 })();
+
+document.addEventListener('DOMContentLoaded', () => {
+  const playBtn = document.getElementById('play-btn');
+  const modal = document.getElementById('minigame-select-modal');
+  const openTreasure = document.getElementById('btn-minigame-treasure');
+  const closeModal = document.getElementById('btn-minigame-cancel');
+
+  if (playBtn && modal) {
+    playBtn.addEventListener('click', () => {
+      modal.classList.remove('hidden');
+    });
+  }
+
+  if (openTreasure) {
+    openTreasure.addEventListener('click', () => {
+      modal.classList.add('hidden');
+
+      //playBgm();  
+
+
+      if (typeof window.startTreasureMinigame === 'function') {
+        window.startTreasureMinigame();
+      } else {
+        //console.warn('startTreasureMinigame non trovato');
+      }
+    });
+  }
+
+  if (closeModal) {
+    closeModal.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+});

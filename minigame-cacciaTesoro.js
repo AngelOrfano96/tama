@@ -1761,7 +1761,7 @@ function bakeRoomLayer(key, room) {
     }
   }
 
-  // 3) NORD in 3 layer: base (riga 0), upper (riga 1), cap (overlay)
+// 3) NORD in 3 layer: base (riga 0), upper (riga 1), cap (overlay)
 for (let x = 0; x < W; x++) {
   const t0 = tiles[0][x];
   if (!t0) continue;
@@ -1775,34 +1775,34 @@ for (let x = 0; x < W; x++) {
     bctx.restore();
   };
 
-// Corner sinistro (normale o porta), ovunque sulla riga 0
-if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
-  const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
-  // ⬇️ per la porta usa upper piatto (niente “colonnina” che scende)
-  const upperK = (t0 === 'corner_tl_door') ? 'top_upper'            : 'corner_tl_upper';
-  const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap'   : 'corner_tl_cap';
-  drawTileTypeOn(bctx, x, 0, baseK,  tile);
-  drawTileTypeOn(bctx, x, 1, upperK, tile);
-  if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
-  else drawCapFallback();
-  continue;
-}
+  // --- Corner TL (normale o porta) ---
+  if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
+    const baseK = (t0 === 'corner_tl_door') ? 'corner_tl_door_base' : 'corner_tl_base';
+    // ⛔ per corner di PORTA non disegnare l'upper: niente colonna che sporge
+    const upperK = (t0 === 'corner_tl_door') ? null : 'corner_tl_upper';
+    const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap' : 'corner_tl_cap';
 
-// Corner destro (normale o porta), ovunque sulla riga 0
-if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
-  const baseK  = (t0 === 'corner_tr_door') ? 'corner_tr_door_base'  : 'corner_tr_base';
-  // ⬇️ idem a destra
-  const upperK = (t0 === 'corner_tr_door') ? 'top_upper'            : 'corner_tr_upper';
-  const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap'   : 'corner_tr_cap';
-  drawTileTypeOn(bctx, x, 0, baseK,  tile);
-  drawTileTypeOn(bctx, x, 1, upperK, tile);
-  if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
-  else drawCapFallback();
-  continue;
-}
+    drawTileTypeOn(bctx, x, 0, baseK, tile);
+    if (upperK) drawTileTypeOn(bctx, x, 1, upperK, tile);
+    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+    else drawCapFallback();
+    continue;
+  }
 
+  // --- Corner TR (normale o porta) ---
+  if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
+    const baseK = (t0 === 'corner_tr_door') ? 'corner_tr_door_base' : 'corner_tr_base';
+    const upperK = (t0 === 'corner_tr_door') ? null : 'corner_tr_upper';
+    const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap' : 'corner_tr_cap';
 
-  // Segmento piatto del muro nord
+    drawTileTypeOn(bctx, x, 0, baseK, tile);
+    if (upperK) drawTileTypeOn(bctx, x, 1, upperK, tile);
+    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+    else drawCapFallback();
+    continue;
+  }
+
+  // --- Segmento piatto del muro nord ---
   if (t0 === 'top') {
     drawTileTypeOn(bctx, x, 0, 'top_base',  tile);
     drawTileTypeOn(bctx, x, 1, 'top_upper', tile);
@@ -1811,6 +1811,7 @@ if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
     continue;
   }
 }
+
 
   const baked = { canvas: cv, tile };
   G.renderCache.rooms[key] = baked;

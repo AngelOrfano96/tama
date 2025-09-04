@@ -38,7 +38,7 @@
   const Cfg = {
     gridW: 3,
     gridH: 3,
-    roomW: 8,
+    roomW: 9,
     roomH: 8,
     petSpeedDesktop: 180,
     petSpeedMobile: 95,

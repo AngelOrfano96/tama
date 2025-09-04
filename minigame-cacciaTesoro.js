@@ -318,7 +318,7 @@ const DECOR_DESKTOP = {
   right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
 
   corner_tl_base:  pick(10,1),
-  corner_tl_upper: pick(10,1), // seconda “fascia” verticale
+  corner_tl_upper: pick(9,4), // seconda “fascia” verticale
   corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
 
   corner_tr_base:  pick(13,1),
@@ -326,13 +326,13 @@ const DECOR_DESKTOP = {
   corner_tr_cap:   pick(13,0),
 
   // varianti “porta” (se nel tuo atlas esistono)
-  corner_tl_door_base:  pick(10,1),
-  corner_tl_door_upper: pick(9,4),
-  corner_tl_door_cap:   pick(10,0),
+  corner_tl_door_base:  pick(9,5),
+  corner_tl_door_upper: pick(9,5),
+  corner_tl_door_cap:   pick(9,4),
 
-  corner_tr_door_base:  pick(13,1),
-  corner_tr_door_upper: pick(8,4),
-  corner_tr_door_cap:   pick(13,0),
+  corner_tr_door_base:  pick(8,5),
+  corner_tr_door_upper: pick(8,5),
+  corner_tr_door_cap:   pick(8,4),
 
    // corner porta "singoli" (1 tile), usati per le spallette interne
    corner_tl_door: pick(9,5),

@@ -324,6 +324,10 @@ const DECOR_DESKTOP = {
   corner_tr_base:  pick(13,1),
   corner_tr_upper: pick(13,1),
   corner_tr_cap:   pick(13,0),
+  
+  corner_tl_upper_plain: pick(10,1),
+  corner_tr_upper_plain: pick(13,1),
+
 
   // varianti “porta” (se nel tuo atlas esistono)
   corner_tl_door_base:  pick(9,5),
@@ -448,6 +452,10 @@ function buildDecorFromAtlas() {
     corner_tr_door_base:  D.corner_tr_door_base  || D.corner_tr_base  || D.corner_tr,
     corner_tr_door_upper: D.corner_tr_door_upper || D.corner_tr_upper || D.corner_tr,
     corner_tr_door_cap:   D.corner_tr_door_cap   || D.corner_tr_cap   || null,
+
+    corner_tl_upper_plain: D.corner_tl_upper_plain || D.corner_tl_base || D.top_upper || D.top_base,
+    corner_tr_upper_plain: D.corner_tr_upper_plain || D.corner_tr_base || D.top_upper || D.top_base,
+
 
     // Lati e Sud
     bottom: [D.bottom, D.bottom2].filter(Boolean),
@@ -1740,36 +1748,30 @@ for (let x = 0; x < W; x++) {
     bctx.restore();
   };
 
-  // Corner sinistro (normale o porta)
-  if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
-    const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
-    const upperK = (t0 === 'corner_tl_door') ? 'corner_tl_door_upper' : 'corner_tl_upper';
-    const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap'   : 'corner_tl_cap';
+if (t0 === 'corner_tl' || t0 === 'corner_tl_door') {
+  const baseK  = (t0 === 'corner_tl_door') ? 'corner_tl_door_base'  : 'corner_tl_base';
+  // se è angolo-PORTA uso la tua curva (corner_tl_upper),
+  // altrimenti uso il dritto (corner_tl_upper_plain)
+  const upperK = (t0 === 'corner_tl_door') ? 'corner_tl_upper' : 'corner_tl_upper_plain';
+  const capK   = (t0 === 'corner_tl_door') ? 'corner_tl_door_cap'   : 'corner_tl_cap';
+  drawTileTypeOn(bctx, x, 0, baseK,  tile);
+  drawTileTypeOn(bctx, x, 1, upperK, tile);
+  if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+  else drawCapFallback();
+  continue;
+}
 
-    // non sovrascrivere la curva verticale della porta
-    const blockUpper = (tiles[1]?.[x] === 'leftDoorTop');
-
-    drawTileTypeOn(bctx, x, 0, baseK,  tile);
-    if (!blockUpper) drawTileTypeOn(bctx, x, 1, upperK, tile);
-    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
-    else drawCapFallback();
-    continue;
-  }
-
-  // Corner destro (normale o porta)
-  if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
-    const baseK  = (t0 === 'corner_tr_door') ? 'corner_tr_door_base'  : 'corner_tr_base';
-    const upperK = (t0 === 'corner_tr_door') ? 'corner_tr_door_upper' : 'corner_tr_upper';
-    const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap'   : 'corner_tr_cap';
-
-    const blockUpper = (tiles[1]?.[x] === 'rightDoorTop');
-
-    drawTileTypeOn(bctx, x, 0, baseK,  tile);
-    if (!blockUpper) drawTileTypeOn(bctx, x, 1, upperK, tile);
-    if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
-    else drawCapFallback();
-    continue;
-  }
+// Corner destro (normale o porta)
+if (t0 === 'corner_tr' || t0 === 'corner_tr_door') {
+  const baseK  = (t0 === 'corner_tr_door') ? 'corner_tr_door_base'  : 'corner_tr_base';
+  const upperK = (t0 === 'corner_tr_door') ? 'corner_tr_upper' : 'corner_tr_upper_plain';
+  const capK   = (t0 === 'corner_tr_door') ? 'corner_tr_door_cap'   : 'corner_tr_cap';
+  drawTileTypeOn(bctx, x, 0, baseK,  tile);
+  drawTileTypeOn(bctx, x, 1, upperK, tile);
+  if (G.sprites.decor[capK]) drawTileTypeOn(bctx, x, 0, capK, tile);
+  else drawCapFallback();
+  continue;
+}
 
   // Segmento piatto del muro nord
   if (t0 === 'top') {

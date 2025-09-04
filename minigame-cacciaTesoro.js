@@ -319,7 +319,7 @@ const DECOR_DESKTOP = {
 
   corner_tl_base:  pick(10,1),
   corner_tl_upper: pick(9,4), // seconda “fascia” verticale
-  corner_tl_cap:   pick(10,1), // bordino/coperchio; opzionale
+  corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
 
   corner_tr_base:  pick(13,1),
   corner_tr_upper: pick(8,4),

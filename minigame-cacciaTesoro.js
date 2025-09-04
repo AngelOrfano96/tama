@@ -369,47 +369,43 @@ const DECOR_MOBILE = {
   // tappo/coperchio (bordino alto)
   top_cap:   pick(11,0),   // <- se non esiste, lo lasceremo facoltativo
 
-  // resto invariato...
   bottom:  pick(11,4), bottom2: pick(12,4),
   left1: pick(10,2), left2: pick(10,3), left3: pick(10,2),
   right1: pick(13,2), right2: pick(13,3), right3: pick(13,2),
 
   corner_tl_base:  pick(10,1),
-  corner_tl_upper: pick(10,1), // seconda “fascia” verticale
+  corner_tl_upper: pick(9,4), // seconda “fascia” verticale
   corner_tl_cap:   pick(10,0), // bordino/coperchio; opzionale
 
   corner_tr_base:  pick(13,1),
-  corner_tr_upper: pick(13,1),
+  corner_tr_upper: pick(8,4),
   corner_tr_cap:   pick(13,0),
+
+  corner_tl_door_inner: pick(9,5),  // scegli il tuo CR, questo è solo un esempio
+  corner_tr_door_inner: pick(8,5),
+  
+  corner_tl_upper_plain: pick(10,1),
+  corner_tr_upper_plain: pick(13,1),
+
 
   // varianti “porta” (se nel tuo atlas esistono)
   corner_tl_door_base:  pick(9,5),
   corner_tl_door_upper: pick(9,5),
   corner_tl_door_cap:   pick(9,4),
-  corner_tl: pick(10,1),
-corner_tr: pick(13,1),
 
   corner_tr_door_base:  pick(8,5),
   corner_tr_door_upper: pick(8,5),
   corner_tr_door_cap:   pick(8,4),
 
-  // corner porta "singoli" (1 tile), usati per le spallette interne
-corner_tl_door: pick(9,5),
-corner_tr_door: pick(8,5),
-// (sotto li hai già)
-corner_bl_door: pick(9,3),
-corner_br_door: pick(8,3),
-
-
-  left_door_top:     pick(8,5),
-  left_door_bottom:  pick(9,4),
-  right_door_top:    pick(9,5),
-  right_door_bottom: pick(8,4),
-
+   // corner porta "singoli" (1 tile), usati per le spallette interne
+   corner_tl_door: pick(9,5),
+   corner_tr_door: pick(8,5),
+   // (sotto li hai già)
 
   corner_bl: pick(10,4),
   corner_br: pick(13,4),
-  corner_bl_door: pick(9,3), corner_br_door: pick(8,3),
+  corner_bl_door: pick(9,3), 
+  corner_br_door: pick(8,3),
 
   floor: [ pick(11,2), pick(11,3), pick(12,2), pick(12,3) ],
   door_h1: pick(7,7), door_h2: pick(7,6),

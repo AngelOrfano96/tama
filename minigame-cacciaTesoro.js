@@ -1561,32 +1561,31 @@ function drawTileTypeOn(ctx2, x, y, type, tile) {
 
 
 
-
 function generateRoomTiles(room) {
   const H = room.length, W = room[0].length;
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
 
   // 1) Trova le celle aperte (0) sui quattro bordi
-  const openL=[], openR=[], openT=[], openB=[];
-  for (let y = 1; y <= H-2; y++) {
-    if (room[y][0]     === 0) openL.push(y);
-    if (room[y][W-1]   === 0) openR.push(y);
+  const openL = [], openR = [], openT = [], openB = [];
+  for (let y = 1; y <= H - 2; y++) {
+    if (room[y][0]   === 0) openL.push(y);
+    if (room[y][W-1] === 0) openR.push(y);
   }
-  for (let x = 1; x <= W-2; x++) {
-    if (room[0][x]     === 0) openT.push(x);
-    if (room[H-1][x]   === 0) openB.push(x);
+  for (let x = 1; x <= W - 2; x++) {
+    if (room[0][x]   === 0) openT.push(x);
+    if (room[H-1][x] === 0) openB.push(x);
   }
 
   // 2) Coordinate degli angoli-PORTA: subito fuori dai capi dell'apertura
-  const yTL = openL.length ? Math.max(1, openL[0]                    - 1) : null;
-  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1]     + 1) : null;
-  const yTR = openR.length ? Math.max(1, openR[0]                    - 1) : null;
-  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1]     + 1) : null;
+  const yTL = openL.length ? Math.max(1, openL[0]                - 1) : null;
+  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1] + 1) : null;
+  const yTR = openR.length ? Math.max(1, openR[0]                - 1) : null;
+  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1] + 1) : null;
 
-  const xLT = openT.length ? Math.max(1, openT[0]                    - 1) : null;
-  const xRT = openT.length ? Math.min(W-2, openT[openT.length-1]     + 1) : null;
-  const xLB = openB.length ? Math.max(1, openB[0]                    - 1) : null;
-  const xRB = openB.length ? Math.min(W-2, openB[openB.length-1]     + 1) : null;
+  const xLT = openT.length ? Math.max(1, openT[0]                - 1) : null;
+  const xRT = openT.length ? Math.min(W-2, openT[openT.length-1] + 1) : null;
+  const xLB = openB.length ? Math.max(1, openB[0]                - 1) : null;
+  const xRB = openB.length ? Math.min(W-2, openB[openB.length-1] + 1) : null;
 
   const isDoorCell = (x, y) =>
     (openL.length && x === 0     && openL.includes(y)) ||
@@ -1606,14 +1605,26 @@ function generateRoomTiles(room) {
       if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
       // --- angoli "porta" (prima, così sovrascrivono i lati normali) ---
-      if (openL.length && x === 0     && y === yTL) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (openL.length && x === 0     && y === yBL) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (openR.length && x === W-1   && y === yTR) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (openR.length && x === W-1   && y === yBR) { tiles[y][x] = 'corner_br_door'; continue; }
-      if (openT.length && y === 0     && x === xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (openT.length && y === 0     && x === xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (openB.length && y === H-1   && x === xLB) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (openB.length && y === H-1   && x === xRB) { tiles[y][x] = 'corner_br_door'; continue; }
+
+      // muri VERTICALI: usa i pick dedicati che fanno la curva verso l'esterno
+      if (openL.length && x === 0) {
+        if (y === yTL) { tiles[y][x] = 'leftDoorTop';     continue; }
+        if (y === yBL) { tiles[y][x] = 'leftDoorBottom';  continue; }
+      }
+      if (openR.length && x === W - 1) {
+        if (y === yTR) { tiles[y][x] = 'rightDoorTop';    continue; }
+        if (y === yBR) { tiles[y][x] = 'rightDoorBottom'; continue; }
+      }
+
+      // muri ORIZZONTALI: mantieni i corner_*_door che già funzionano
+      if (openT.length && y === 0) {
+        if (x === xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
+        if (x === xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
+      }
+      if (openB.length && y === H - 1) {
+        if (x === xLB) { tiles[y][x] = 'corner_bl_door'; continue; }
+        if (x === xRB) { tiles[y][x] = 'corner_br_door'; continue; }
+      }
 
       // --- angoli normali ---
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
@@ -1632,6 +1643,7 @@ function generateRoomTiles(room) {
   }
   return tiles;
 }
+
 
 
 // Celle apertura porta per una stanza (tutte le celle realmente aperte sul bordo)

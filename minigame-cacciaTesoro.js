@@ -336,9 +336,9 @@ const DECOR_DESKTOP = {
   corner_tr_door_cap:   pick(8,4),
 corner_tl: pick(10,1),
 corner_tr: pick(13,1),
-   left_door_top:     pick(9,5),
+  left_door_top:     pick(8,5),
   left_door_bottom:  pick(9,4),
-  right_door_top:    pick(8,5),
+  right_door_top:    pick(9,5),
   right_door_bottom: pick(8,4),
 
 // corner porta "singoli" (1 tile), usati per le spallette interne
@@ -402,10 +402,9 @@ corner_bl_door: pick(9,3),
 corner_br_door: pick(8,3),
 
 
-  // 👇 aggiungi questi 4 (come già in DECOR_MOBILE)
-  left_door_top:     pick(9,5),
+  left_door_top:     pick(8,5),
   left_door_bottom:  pick(9,4),
-  right_door_top:    pick(8,5),
+  right_door_top:    pick(9,5),
   right_door_bottom: pick(8,4),
 
 

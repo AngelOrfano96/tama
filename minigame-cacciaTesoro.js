@@ -425,17 +425,23 @@ function variantIndex(x, y, len) {
   return h % len;
 }
 // costruisce la tabella usata dal renderer
+// vuoi usare:
+// corner_tl_base:  pick(10,1)
+// corner_tl_upper: pick(9,4)   // il “curvo”
+// corner_tl_cap:   pick(10,0)
+// (idem per TR)
+
 function buildDecorFromAtlas() {
   const D = DECOR;
   const first = (...xs) => xs.find(Boolean) || null;
 
   G.sprites.decor = {
-    // Nord a 2 blocchi + cap
+    // ── NORD a 2 blocchi + cap ───────────────────────────────────
     top_base:  D.top_base  || D.top1,
     top_upper: D.top_upper || D.top1,
     top_cap:   D.top_cap   || null,
 
-    // Corner TL/TR per il muro nord (pass a 3 layer)
+    // Corner TL/TR del muro nord (3 layer)
     corner_tl_base:  D.corner_tl_base  || D.corner_tl || D.top_base  || D.top1,
     corner_tl_upper: D.corner_tl_upper || D.corner_tl || D.top_upper || D.top1,
     corner_tl_cap:   D.corner_tl_cap   || null,
@@ -444,7 +450,7 @@ function buildDecorFromAtlas() {
     corner_tr_upper: D.corner_tr_upper || D.corner_tr || D.top_upper || D.top1,
     corner_tr_cap:   D.corner_tr_cap   || null,
 
-    // Varianti "porta" per il muro nord (pass a 3 layer)
+    // Varianti "porta" per il muro nord (3 layer) — invariate
     corner_tl_door_base:  D.corner_tl_door_base  || D.corner_tl_base  || D.corner_tl,
     corner_tl_door_upper: D.corner_tl_door_upper || D.corner_tl_upper || D.corner_tl,
     corner_tl_door_cap:   D.corner_tl_door_cap   || D.corner_tl_cap   || null,
@@ -453,11 +459,7 @@ function buildDecorFromAtlas() {
     corner_tr_door_upper: D.corner_tr_door_upper || D.corner_tr_upper || D.corner_tr,
     corner_tr_door_cap:   D.corner_tr_door_cap   || D.corner_tr_cap   || null,
 
-    corner_tl_upper_plain: D.corner_tl_upper_plain || D.corner_tl_base || D.top_upper || D.top_base,
-    corner_tr_upper_plain: D.corner_tr_upper_plain || D.corner_tr_base || D.top_upper || D.top_base,
-
-
-    // Lati e Sud
+    // ── Lati e Sud ────────────────────────────────────────────────
     bottom: [D.bottom, D.bottom2].filter(Boolean),
     left:   [D.left1, D.left2, D.left3].filter(Boolean),
     right:  [D.right1, D.right2, D.right3].filter(Boolean),
@@ -468,7 +470,7 @@ function buildDecorFromAtlas() {
     corner_bl: D.corner_bl,
     corner_br: D.corner_br,
 
-    // Corner "porta" (singolo tile) — per LATI e BASSO
+    // Corner "porta" (singolo tile) — orizzontali e basso (come prima)
     corner_tl_door: D.corner_tl_door
                  || D.corner_tl_door_base
                  || D.corner_tl_base
@@ -486,12 +488,14 @@ function buildDecorFromAtlas() {
                  || D.bottom
                  || D.bottom2,
 
-    // --- NUOVO: spallette interne porte verticali (1 tile dentro la stanza)
-    // Se non definisci i pick dedicati in DECOR_*, vanno in fallback a left/right.
-    leftDoorTop:     first(D.left_door_top,    D.corner_tr_door, D.corner_tr_door_base, D.right1, D.right2, D.right3),
-    leftDoorBottom:  first(D.left_door_bottom, D.right1, D.right2, D.right3),
-    rightDoorTop:    first(D.right_door_top,   D.corner_tl_door, D.corner_tl_door_base, D.left1,  D.left2,  D.left3),
-    rightDoorBottom: first(D.right_door_bottom,D.left1,  D.left2,  D.left3),
+    // ── QUI LA MODIFICA IMPORTANTE ───────────────────────────────
+    // Curva del MURO ESTERNO vicino alle PORTE VERTICALI:
+    // usa proprio i tuoi corner_tl_upper / corner_tr_upper.
+    // (Niente “spallette” interne: niente fallback a right/left e niente x=1/W-2.)
+    leftDoorTop:      first(D.corner_tl_upper,  D.left_door_top),
+    rightDoorTop:     first(D.corner_tr_upper,  D.right_door_top),
+    leftDoorBottom:   first(D.corner_bl_door,   D.left_door_bottom,  D.bottom,  D.bottom2),
+    rightDoorBottom:  first(D.corner_br_door,   D.right_door_bottom, D.bottom,  D.bottom2),
 
     // Varie
     exitClosed: D.door_h1,
@@ -499,6 +503,7 @@ function buildDecorFromAtlas() {
     floor:      D.floor,
   };
 }
+
 
 
 
@@ -1564,74 +1569,76 @@ function generateRoomTiles(room) {
   const H = room.length, W = room[0].length;
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
 
-  // 1) aperture sui bordi
+  // aperture sui bordi
   const openL=[], openR=[], openT=[], openB=[];
-  for (let y = 1; y <= H-2; y++) {
-    if (room[y][0]   === 0) openL.push(y);
-    if (room[y][W-1] === 0) openR.push(y);
-  }
-  for (let x = 1; x <= W-2; x++) {
-    if (room[0][x]   === 0) openT.push(x);
-    if (room[H-1][x] === 0) openB.push(x);
-  }
+  for (let y = 1; y <= H-2; y++) { if (room[y][0]===0) openL.push(y); if (room[y][W-1]===0) openR.push(y); }
+  for (let x = 1; x <= W-2; x++) { if (room[0][x]===0) openT.push(x); if (room[H-1][x]===0) openB.push(x); }
 
-  // 2) celle adiacenti alle aperture (subito fuori dai capi)
-  const yTL = openL.length ? Math.max(1, openL[0]                - 1) : null;
-  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1] + 1) : null;
-  const yTR = openR.length ? Math.max(1, openR[0]                - 1) : null;
-  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1] + 1) : null;
+  // celle adiacenti all'apertura
+  const yTL = openL.length ? Math.max(1, openL[0]-1) : null;
+  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1]+1) : null;
+  const yTR = openR.length ? Math.max(1, openR[0]-1) : null;
+  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1]+1) : null;
 
-  const xLT = openT.length ? Math.max(1, openT[0]                - 1) : null;
-  const xRT = openT.length ? Math.min(W-2, openT[openT.length-1] + 1) : null;
-  const xLB = openB.length ? Math.max(1, openB[0]                - 1) : null;
-  const xRB = openB.length ? Math.min(W-2, openB[openB.length-1] + 1) : null;
+  const xLT = openT.length ? Math.max(1, openT[0]-1) : null;
+  const xRT = openT.length ? Math.min(W-2, openT[openT.length-1]+1) : null;
+  const xLB = openB.length ? Math.max(1, openB[0]-1) : null;
+  const xRB = openB.length ? Math.min(W-2, openB[openB.length-1]+1) : null;
 
-  const isDoorCell = (x, y) =>
-    (openL.length && x === 0     && openL.includes(y)) ||
-    (openR.length && x === W-1   && openR.includes(y)) ||
-    (openT.length && y === 0     && openT.includes(x)) ||
-    (openB.length && y === H-1   && openB.includes(x));
+  const isDoorCell = (x,y) =>
+    (openL.length && x===0   && openL.includes(y)) ||
+    (openR.length && x===W-1 && openR.includes(y)) ||
+    (openT.length && y===0   && openT.includes(x)) ||
+    (openB.length && y===H-1 && openB.includes(x));
 
-  const isSolid = (x, y) => {
-    if (x < 0 || y < 0 || x >= W || y >= H) return false;
-    if (room[y][x] === 0) return false;      // interno
-    if (isDoorCell(x, y)) return false;      // apertura porta
-    return true;                              // muro
+  const isSolid = (x,y) => {
+    if (x<0||y<0||x>=W||y>=H) return false;
+    if (room[y][x]===0) return false;
+    if (isDoorCell(x,y)) return false;
+    return true;
   };
 
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++) {
+    if (!isSolid(x,y)) { tiles[y][x] = null; continue; }
 
-      // ---- angoli "porta" sui BORDI (nessuna spalletta interna) ----
-      if (x === 0     && y === yTL) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (x === 0     && y === yBL) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (x === W-1   && y === yTR) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (x === W-1   && y === yBR) { tiles[y][x] = 'corner_br_door'; continue; }
-      if (y === 0     && x === xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
-      if (y === 0     && x === xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
-      if (y === H-1   && x === xLB) { tiles[y][x] = 'corner_bl_door'; continue; }
-      if (y === H-1   && x === xRB) { tiles[y][x] = 'corner_br_door'; continue; }
-
-      // ---- angoli normali ----
-      if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
-      if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
-      if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
-      if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
-
-      // ---- lati normali ----
-      if (y === 0)        { tiles[y][x] = 'top';    continue; }
-      if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
-      if (x === 0)        { tiles[y][x] = 'left';   continue; }
-      if (x === W - 1)    { tiles[y][x] = 'right';  continue; }
-
-      tiles[y][x] = 'center';
+    // — angoli/curve vicino PORTE VERTICALI (muro esterno) —
+    if (openL.length && x===0) {
+      if (y===yTL) { tiles[y][x] = 'leftDoorTop';     continue; } // curva esterna in alto
+      if (y===yBL) { tiles[y][x] = 'corner_bl_door';  continue; } // in basso come prima
     }
+    if (openR.length && x===W-1) {
+      if (y===yTR) { tiles[y][x] = 'rightDoorTop';    continue; }
+      if (y===yBR) { tiles[y][x] = 'corner_br_door';  continue; }
+    }
+
+    // — angoli vicino PORTE ORIZZONTALI (invariati) —
+    if (openT.length && y===0) {
+      if (x===xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
+      if (x===xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
+    }
+    if (openB.length && y===H-1) {
+      if (x===xLB) { tiles[y][x] = 'corner_bl_door'; continue; }
+      if (x===xRB) { tiles[y][x] = 'corner_br_door'; continue; }
+    }
+
+    // — angoli normali —
+    if (x===0 && y===0)         { tiles[y][x] = 'corner_tl'; continue; }
+    if (x===W-1 && y===0)       { tiles[y][x] = 'corner_tr'; continue; }
+    if (x===0 && y===H-1)       { tiles[y][x] = 'corner_bl'; continue; }
+    if (x===W-1 && y===H-1)     { tiles[y][x] = 'corner_br'; continue; }
+
+    // — lati —
+    if (y===0)        { tiles[y][x] = 'top';    continue; }
+    if (y===H-1)      { tiles[y][x] = 'bottom'; continue; }
+    if (x===0)        { tiles[y][x] = 'left';   continue; }
+    if (x===W-1)      { tiles[y][x] = 'right';  continue; }
+
+    tiles[y][x] = 'center';
   }
 
-  // ⚠️ NESSUNA SPALLETTA INTERNA (rimosse le righe che scrivevano su x=1 e x=W-2)
   return tiles;
 }
+
 
 
 

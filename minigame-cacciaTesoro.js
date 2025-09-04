@@ -1565,22 +1565,22 @@ function generateRoomTiles(room) {
   const H = room.length, W = room[0].length;
   const tiles = Array.from({ length: H }, () => Array(W).fill(null));
 
-  // 1) Trova le celle aperte (0) sui quattro bordi
-  const openL = [], openR = [], openT = [], openB = [];
-  for (let y = 1; y <= H - 2; y++) {
+  // 1) Celle aperte sui bordi
+  const openL=[], openR=[], openT=[], openB=[];
+  for (let y = 1; y <= H-2; y++) {
     if (room[y][0]   === 0) openL.push(y);
     if (room[y][W-1] === 0) openR.push(y);
   }
-  for (let x = 1; x <= W - 2; x++) {
+  for (let x = 1; x <= W-2; x++) {
     if (room[0][x]   === 0) openT.push(x);
     if (room[H-1][x] === 0) openB.push(x);
   }
 
-  // 2) Coordinate degli angoli-PORTA: subito fuori dai capi dell'apertura
-  const yTL = openL.length ? Math.max(1, openL[0]                - 1) : null;
-  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1] + 1) : null;
-  const yTR = openR.length ? Math.max(1, openR[0]                - 1) : null;
-  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1] + 1) : null;
+  // 2) Indici immediatamente fuori dai capi dell’apertura
+  const yTL = openL.length ? Math.max(1, openL[0]                - 1) : null;         // sopra alla porta sinistra
+  const yBL = openL.length ? Math.min(H-2, openL[openL.length-1] + 1) : null;         // sotto alla porta sinistra
+  const yTR = openR.length ? Math.max(1, openR[0]                - 1) : null;         // sopra alla porta destra
+  const yBR = openR.length ? Math.min(H-2, openR[openR.length-1] + 1) : null;         // sotto alla porta destra
 
   const xLT = openT.length ? Math.max(1, openT[0]                - 1) : null;
   const xRT = openT.length ? Math.min(W-2, openT[openT.length-1] + 1) : null;
@@ -1604,35 +1604,29 @@ function generateRoomTiles(room) {
     for (let x = 0; x < W; x++) {
       if (!isSolid(x, y)) { tiles[y][x] = null; continue; }
 
-      // --- angoli "porta" (prima, così sovrascrivono i lati normali) ---
+      // ---- ANGOLI “porta” SUI LATI VERTICALI ----
+      // Applica la curva SOLO in alto (testa dell’apertura).
+      if (openL.length && x === 0 && y === yTL) { tiles[y][x] = 'leftDoorTop';  continue; }
+      if (openR.length && x === W-1 && y === yTR) { tiles[y][x] = 'rightDoorTop'; continue; }
+      // NB: i “piedi” (yBL / yBR) ora restano muro dritto: niente continue qui.
 
-      // muri VERTICALI: usa i pick dedicati che fanno la curva verso l'esterno
-      if (openL.length && x === 0) {
-        if (y === yTL) { tiles[y][x] = 'leftDoorTop';     continue; }
-        if (y === yBL) { tiles[y][x] = 'leftDoorBottom';  continue; }
-      }
-      if (openR.length && x === W - 1) {
-        if (y === yTR) { tiles[y][x] = 'rightDoorTop';    continue; }
-        if (y === yBR) { tiles[y][x] = 'rightDoorBottom'; continue; }
-      }
-
-      // muri ORIZZONTALI: mantieni i corner_*_door che già funzionano
+      // ---- ANGOLI “porta” SUI LATI ORIZZONTALI (come prima) ----
       if (openT.length && y === 0) {
         if (x === xLT) { tiles[y][x] = 'corner_tl_door'; continue; }
         if (x === xRT) { tiles[y][x] = 'corner_tr_door'; continue; }
       }
-      if (openB.length && y === H - 1) {
+      if (openB.length && y === H-1) {
         if (x === xLB) { tiles[y][x] = 'corner_bl_door'; continue; }
         if (x === xRB) { tiles[y][x] = 'corner_br_door'; continue; }
       }
 
-      // --- angoli normali ---
+      // ---- angoli normali ----
       if (x === 0     && y === 0)     { tiles[y][x] = 'corner_tl'; continue; }
       if (x === W - 1 && y === 0)     { tiles[y][x] = 'corner_tr'; continue; }
       if (x === 0     && y === H - 1) { tiles[y][x] = 'corner_bl'; continue; }
       if (x === W - 1 && y === H - 1) { tiles[y][x] = 'corner_br'; continue; }
 
-      // --- lati ---
+      // ---- lati ----
       if (y === 0)        { tiles[y][x] = 'top';    continue; }
       if (y === H - 1)    { tiles[y][x] = 'bottom'; continue; }
       if (x === 0)        { tiles[y][x] = 'left';   continue; }
@@ -1643,6 +1637,7 @@ function generateRoomTiles(room) {
   }
   return tiles;
 }
+
 
 
 

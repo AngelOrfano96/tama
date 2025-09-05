@@ -411,3 +411,54 @@
 @media (hover:none) and (pointer:coarse){
   .treasure-exit-btn{ height: 32px; padding: 8px 12px; font-size: 14px; }
 }
+
+
+
+
+
+
+
+/* barra */
+.treasure-info-bar{
+  position: sticky;
+  top: 0;
+  z-index: 10050;
+  padding: calc(8px + env(safe-area-inset-top,0px)) 8px 8px
+           calc(8px + env(safe-area-inset-left,0px));
+}
+
+/* contenitore pill + bottone */
+.treasure-info-bar .wrap{
+  display:flex; align-items:center; gap:10px;
+  max-width:100%;
+  overflow-x:auto;                    /* se non basta lo spazio, scroll orizzontale fluido */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;              /* niente scrollbar visibile */
+}
+.treasure-info-bar .wrap::-webkit-scrollbar{ display:none; }
+
+/* il bottone Esci sta SEMPRE dentro e a destra */
+#treasure-exit-btn{
+  margin-left:auto;
+  position: sticky; right: 0;         /* resta visibile anche se il resto scorre */
+  z-index: 1;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background:#ef4444; color:#fff; font-weight:700; border:0;
+}
+
+/* --- modalità compatta automatica per schermi stretti --- */
+@media (max-width: 480px){
+  .treasure-info-bar .wrap{ gap:6px; padding-right: calc(8px + env(safe-area-inset-right,0px)); }
+
+  /* riduci un po' le pillole (qualsiasi chip nella barra che NON sia il bottone) */
+  .treasure-info-bar .wrap > *:not(#treasure-exit-btn){
+    flex:0 0 auto;
+    min-width:44px;
+    height:34px;
+    padding:4px 8px;
+    font-size:12px;
+  }
+
+  #treasure-exit-btn{ height:34px; padding:6px 10px; }
+}

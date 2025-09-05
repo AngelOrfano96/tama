@@ -2805,30 +2805,39 @@ function ensureMobileExitBtn(){
 
 function repositionExitBtn(){
   const btn = document.getElementById('treasure-exit-btn');
+  if (!btn) return;
+
+  // 1) prova ad ancorare alla barra info in alto
+  const bar = document.querySelector('.treasure-info-bar'); // <-- cambia selettore se diverso
   const cv  = document.getElementById('treasure-canvas');
-  if (!btn || !cv) return;
 
-  const r = cv.getBoundingClientRect();
   const margin = 8;
+  const vv = window.visualViewport;
+  const safeTop = vv ? vv.offsetTop : 0; // notch/safe-area
 
-  // se la barra HUD è visibile, metti il bottone sotto la barra
-  const hud = document.querySelector('.treasure-info-bar:not(.hidden)');
-  const hudBottom = hud ? hud.getBoundingClientRect().bottom : 0;
+  let top  = margin + safeTop;
+  let left = window.innerWidth - btn.offsetWidth - margin;
 
-  // safe area iOS (se presente)
-  const safeTop = (window.visualViewport?.offsetTop || 0);
+  if (bar && bar.offsetParent !== null) {
+    const r = bar.getBoundingClientRect();
+    // allinea verticalmente al centro della barra e a destra, dentro la barra
+    top  = r.top  + (r.height - btn.offsetHeight) / 2;
+    left = r.right - btn.offsetWidth - margin;
+  } else if (cv) {
+    // 2) fallback: ancoralo al canvas (in alto a destra)
+    const r = cv.getBoundingClientRect();
+    top  = r.top  + margin;
+    left = r.right - btn.offsetWidth - margin;
+  }
 
-  // top: sotto HUD e comunque non sopra il canvas
-  const top = Math.max(r.top + margin, hudBottom + margin, safeTop + margin);
+  // mantieni sempre dentro lo schermo
+  top  = Math.max(margin + safeTop, Math.min(top,  window.innerHeight - btn.offsetHeight - margin));
+  left = Math.max(margin,            Math.min(left, window.innerWidth  - btn.offsetWidth  - margin));
 
-  // usa RIGHT anziché LEFT: lo ancora al bordo destro del canvas senza misurare il bottone
-  const right = Math.max(margin, window.innerWidth - r.right + margin);
-
-  btn.style.top   = `${top}px`;
-  btn.style.right = `${right}px`;
-  btn.style.left  = 'auto';       // pulisci eventuali valori precedenti
-  btn.hidden = false;             // assicurati sia visibile
+  btn.style.top  = `${Math.round(top)}px`;
+  btn.style.left = `${Math.round(left)}px`;
 }
+
 
 
 

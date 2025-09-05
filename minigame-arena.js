@@ -1969,17 +1969,29 @@ function renderGates(){
 
 
 
-  function loop() {
-    if (!G.playing) return;
-    const now = performance.now();
-    const dt = (now - G.lastT) / 1000;
-    G.lastT = now;
+// stato pausa
+G.paused = false;
+function setArenaPaused(p){
+  const v = !!p;
+  if (G.paused === v) return;
+  G.paused = v;
+  if (!v) G.lastT = performance.now(); // evita dt gigante alla ripresa
+}
 
-    update(dt);
-    render();
-    if (isMobile) updateCooldownUI();
-    requestAnimationFrame(loop);
-  }
+function loop() {
+  if (!G.playing) return;
+  const now = performance.now();
+  if (G.paused) { G.lastT = now; requestAnimationFrame(loop); return; }
+
+  const dt = (now - G.lastT) / 1000;
+  G.lastT = now;
+
+  update(dt);
+  render();
+  if (isMobile) updateCooldownUI();
+  requestAnimationFrame(loop);
+}
+
 
 function setupMobileControlsArena(){
   const base  = DOM.joyBase;
@@ -2203,6 +2215,46 @@ async function startArenaMinigame() {
 
   if (!DOM.canvas) { console.error('[Arena] canvas mancante'); return; }
   ctx = DOM.canvas.getContext('2d');
+  DOM.exitBtn     = document.getElementById('arena-exit-btn');
+DOM.exitModal   = document.getElementById('arena-exit-confirm');
+DOM.exitYes     = document.getElementById('arena-exit-yes');
+DOM.exitNo      = document.getElementById('arena-exit-no');
+
+function showExitModal(){
+  if (!DOM.exitModal) return;
+  setArenaPaused(true);
+  DOM.exitModal.classList.remove('hidden');
+}
+function hideExitModal(){
+  if (!DOM.exitModal) return;
+  DOM.exitModal.classList.add('hidden');
+  setArenaPaused(false);
+}
+
+if (!DOM._exitBound){
+  DOM.exitBtn?.addEventListener('click', (e)=>{ e.preventDefault(); if (G.playing) showExitModal(); }, { passive:false });
+  DOM.exitYes?.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    // conferma: termina partita (chiude fullscreen, salva punteggi ecc.)
+    await gameOver();
+    // niente resume dopo il gameOver
+    hideExitModal(); // per sicurezza se il modal resta visibile
+  }, { passive:false });
+  DOM.exitNo?.addEventListener('click', (e)=>{ e.preventDefault(); hideExitModal(); }, { passive:false });
+
+  // Chiudi cliccando fuori dal contenuto
+  DOM.exitModal?.addEventListener('click', (e)=>{ if (e.target === DOM.exitModal) hideExitModal(); });
+
+  // ESC per annullare (come treasure)
+  window.addEventListener('keydown', (e)=>{
+    if (DOM.exitModal && !DOM.exitModal.classList.contains('hidden') && e.key === 'Escape'){
+      e.preventDefault(); hideExitModal();
+    }
+  }, { passive:false });
+
+  DOM._exitBound = true;
+}
+
 
   loadArenaCSS();
   forceArenaActionCrossLayout();

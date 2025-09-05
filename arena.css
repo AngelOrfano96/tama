@@ -226,3 +226,21 @@ body.game-open {
 .arena-loading .msg{font:500 14px system-ui,-apple-system,Segoe UI,Roboto,Arial;opacity:.85;margin-bottom:10px}
 .arena-loading .progress{height:10px;background:#111827;border-radius:999px;overflow:hidden}
 .arena-loading #arena-load-bar{height:100%;width:0%;background:#3b82f6;transition:width .15s linear}
+
+
+.arena-wrap { position: relative; } /* assicura l'ancoraggio assoluto del bottone */
+.arena-exit-btn{
+  position:absolute;
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  top:   calc(env(safe-area-inset-top,   0px) + 8px);
+  z-index:10040;
+  padding:6px 10px;
+  font-weight:600;
+  border-radius:10px;
+  background:#111827;
+  color:#e5e7eb;
+  border:1px solid #374151;
+  cursor:pointer;
+  pointer-events:auto;
+}
+.arena-exit-btn:active { transform: translateY(1px); }

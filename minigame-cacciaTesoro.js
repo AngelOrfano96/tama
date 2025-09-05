@@ -994,17 +994,16 @@ G.renderCache.tile = window.treasureTile || 64;
   repositionExitBtn();       // <— così non si “taglia” mai
 
 }
-function setLoadingImage(src){
+function setLoadingBackground(src){
   ensureLoadingOverlay();
-  if (!_loadImg) return;
-  _loadImg.style.display = 'none';
-  _loadImg.onload  = () => (_loadImg.style.display = 'block');
-  _loadImg.onerror = () => (_loadImg.style.display = 'none'); // fallback invisibile
-  _loadImg.src = src;
+  if (!_loadCard) return;
+  // immagine + velo scuro per leggibilità dei testi
+  _loadCard.style.background =
+    `linear-gradient(rgba(2,6,23,.74), rgba(2,6,23,.74)), url('${src}') center/cover no-repeat`;
 }
 
 // ===== Overlay di caricamento + preloader immagini =====
-let _loadBox, _loadBar, _loadTxt,_loadImg, _loadShownAt = 0;
+let _loadBox, _loadCard,_loadBar, _loadTxt,_loadImg, _loadShownAt = 0;
 const LOAD_MIN_SHOW_MS = 400;   // evita “flicker” se tutto carica istantaneo
 const LOAD_TIMEOUT_MS  = 8000;  // per singola immagine
 
@@ -1016,12 +1015,22 @@ function ensureLoadingOverlay(){
     background:'rgba(2,6,23,.92)', color:'#e5e7eb',
     zIndex: 100000, font:'600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial'
   });
-  const card = document.createElement('div');
-  Object.assign(card.style,{
-    width:'min(92vw,420px)', padding:'16px', borderRadius:'14px',
-    background:'rgba(15,23,42,.85)', border:'1px solid rgba(255,255,255,.08)',
-    boxShadow:'0 10px 30px rgba(0,0,0,.4)', backdropFilter:'blur(6px)', WebkitBackdropFilter:'blur(6px)'
-  });
+ // prima: const card = document.createElement('div');
+// ora:
+const card = (_loadCard = document.createElement('div'));
+Object.assign(card.style, {
+  position:'relative',
+  width:'min(92vw,420px)',
+  padding:'16px',
+  borderRadius:'14px',
+  // niente background fisso qui: lo impostiamo con l'immagine
+  border:'1px solid rgba(255,255,255,.08)',
+  boxShadow:'0 10px 30px rgba(0,0,0,.4)',
+  overflow:'hidden',             // così lo sfondo rispetta il border-radius
+  backdropFilter:'blur(6px)',
+  WebkitBackdropFilter:'blur(6px)'
+});
+
   const title = document.createElement('div');
   title.textContent = 'Caricamento risorse…';
   Object.assign(title.style, { fontSize:'16px', marginBottom:'10px' });
@@ -1260,7 +1269,8 @@ function startTreasureMinigame() {
   ? 'assets/mobile/ui/treasure_loading.png'
   : 'assets/desktop/ui/treasure_loading.png';
 
-setLoadingImage(loadingCover);
+setLoadingBackground(loadingCover);
+//setLoadingImage(loadingCover);
 showLoadingOverlay();
 
   // === NUOVO: mostra overlay, pre-carica, poi avvia il livello ===

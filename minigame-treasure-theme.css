@@ -301,3 +301,6 @@
   #treasure-minigame-modal .treasure-dungeon-area{ padding-top: 28px !important; }
   #treasure-minigame-modal .treasure-info-bar{ top: 8px !important; }
 }
+
+#treasure-bonus-label,
+#treasure-feedback-label { display: none !important; }

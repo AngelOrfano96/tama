@@ -2502,16 +2502,22 @@ if (coinsThisRun > 0) {
 }
 
 
-  // ---------- BONUS ----------
-  function showTreasureBonus(msg, color = '#e67e22') {
-    if (!DOM.bonus) return;
-    DOM.bonus.textContent = msg;
-    DOM.bonus.style.display = 'block';
-    DOM.bonus.style.color = color;
-    DOM.bonus.style.opacity = '1';
-    setTimeout(()=> DOM.bonus.style.opacity='0', 1600);
-    setTimeout(()=> DOM.bonus.style.display='none', 2100);
+function showTreasureBonus(_msg, color = '#e67e22') {
+  // Nasconde per sicurezza l'elemento del vecchio banner
+  if (DOM.bonus) {
+    DOM.bonus.style.display = 'none';
+    DOM.bonus.textContent = '';
   }
+  // (opzionale) un flash leggero sul canvas al posto del testo
+  const cv = DOM.canvas;
+  if (cv && cv.animate) {
+    cv.animate(
+      [{ filter: 'none' }, { filter: 'brightness(1.25)' }, { filter: 'none' }],
+      { duration: 280, easing: 'ease-out' }
+    );
+  }
+}
+
 
  
 // ---------- JOYSTICK (bind una sola volta) ----------

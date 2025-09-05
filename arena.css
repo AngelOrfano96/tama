@@ -173,3 +173,48 @@
   #arena-actions-overlay{ display:none !important; }
 }
 
+
+/*NO SCROOL O ZOOM O SELECT*/
+/* NIENTE selezione testo / callout / highlight */
+/* 1) Blocca selezione testo + callout su tutta l'area di gioco */
+#game, #game * {
+  user-select: none;
+  -webkit-user-select: none;      /* iOS */
+  -webkit-touch-callout: none;    /* niente menu con press prolungato */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 2) Niente drag di immagini/canvas (ghost image) */
+#game img, #game canvas {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* 3) Ferma i gesti del browser (pan/zoom) sulle superfici di gioco */
+#game, #game canvas, #game .overlay, #game .playfield {
+  touch-action: none;             /* blocca pan/pinch/zoom dentro il gioco */
+  overscroll-behavior: none;      /* niente “rubber band”/back-swipe */
+}
+
+/* 4) MA: mantieni interattivi i controlli */
+#game button,
+#game a, 
+#game [role="button"],
+#game input,
+#game textarea,
+#game select,
+#game [contenteditable="true"] {
+  user-select: auto;
+  -webkit-user-select: auto;
+  -webkit-touch-callout: default;
+  touch-action: manipulation;     /* click veloce, niente doppio-tap zoom */
+}
+
+/* 5) Quando sei in gioco, blocca lo scroll dell’intera pagina */
+body.game-open {
+  overflow: hidden;               /* niente scroll pagina */
+  height: 100svh;                 /* iOS safe viewport */
+  overscroll-behavior: none;
+}
+
+/*//////////////////////////////////////////////////////////*/

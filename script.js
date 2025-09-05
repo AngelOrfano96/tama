@@ -1294,3 +1294,19 @@ window.getArenaPlayerAttackStat = async function () {
     return 0;
   }
 };
+
+function enterGameMode() {
+  document.body.classList.add('game-open');  // blocca lo scroll pagina
+}
+
+function exitGameMode() {
+  document.body.classList.remove('game-open');
+}
+
+// Esempi: quando mostri/nascondi #game
+document.getElementById('game').addEventListener('transitionend', () => {
+  const visible = !document.getElementById('game').classList.contains('hidden');
+  document.body.classList.toggle('game-open', visible);
+});
+// oppure semplicemente: chiamali dove già mostri/nascondi #game
+

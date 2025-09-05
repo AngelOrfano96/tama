@@ -327,3 +327,26 @@
   top: 50% !important;
   transform: translateY(-50%) !important;
 }
+/* Conferma uscita */
+#treasure-exit-confirm{
+  position: fixed; inset: 0;
+  display: none;                 /* mostrata via JS */
+  place-items: center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 3000;                 /* sopra tutto */
+}
+#treasure-exit-confirm .card{
+  width: min(380px, 92vw);
+  background: #fff8ee;
+  border-radius: 16px;
+  padding: 18px 16px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.35);
+  text-align: center;
+}
+#treasure-exit-confirm .actions{
+  margin-top: 12px;
+  display: flex; gap: 10px; justify-content: center;
+}
+/* riuso dei tuoi .ui-btn */

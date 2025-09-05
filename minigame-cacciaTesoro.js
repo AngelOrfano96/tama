@@ -668,6 +668,7 @@ function setGridForLevel(level) {
     petImg: document.getElementById('pet'),
     joyBase: document.getElementById('treasure-joystick-base'),
     joyStick: document.getElementById('treasure-joystick-stick'),
+    exitBtn: document.getElementById('treasure-exit-btn'), 
   };
   let ctx = DOM.canvas.getContext('2d');
   const isTouch = window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches;
@@ -2518,6 +2519,63 @@ function showTreasureBonus(_msg, color = '#e67e22') {
   }
 }
 
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !DOM.modal.classList.contains('hidden')) {
+    openExitConfirm();
+  }
+});
+DOM.exitBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  // apri solo se il minigioco è visibile
+  if (!DOM.modal?.classList.contains('hidden')) {
+    openExitConfirm();
+  }
+});
+
+// ===== Conferma Uscita =====
+let _exitOverlay, _exitYes, _exitNo, _wasPlaying = false;
+
+function ensureExitConfirmModal(){
+  if (_exitOverlay) return;
+  _exitOverlay = document.createElement('div');
+  _exitOverlay.id = 'treasure-exit-confirm';
+  _exitOverlay.innerHTML = `
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="exit-title">
+      <h3 id="exit-title" style="margin:0 0 6px;">Sei sicuro di voler uscire?</h3>
+      <p class="muted" style="margin:0 0 10px;">La partita in corso verrà terminata.</p>
+      <div class="actions">
+        <button id="treasure-exit-yes" class="ui-btn">Sì</button>
+        <button id="treasure-exit-no"  class="ui-btn secondary">No</button>
+      </div>
+    </div>`;
+  document.body.appendChild(_exitOverlay);
+  _exitYes = _exitOverlay.querySelector('#treasure-exit-yes');
+  _exitNo  = _exitOverlay.querySelector('#treasure-exit-no');
+
+  _exitYes.addEventListener('click', () => {
+    _exitOverlay.style.display = 'none';
+    // termina subito la partita
+    endTreasureMinigame('quit');
+  });
+
+  _exitNo.addEventListener('click', () => {
+    _exitOverlay.style.display = 'none';
+    // riprendi il gioco se era in corso
+    if (_wasPlaying) { G.playing = true; }
+  });
+
+  // clic fuori dalla card = annulla
+  _exitOverlay.addEventListener('click', (e) => {
+    if (e.target === _exitOverlay) { _exitNo.click(); }
+  });
+}
+
+function openExitConfirm(){
+  ensureExitConfirmModal();
+  _wasPlaying = !!G.playing;
+  G.playing = false;                 // pausa: il loop e il timer si fermano (il tuo setInterval controlla G.playing)
+  _exitOverlay.style.display = 'grid';
+}
 
  
 // ---------- JOYSTICK (bind una sola volta) ----------

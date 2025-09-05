@@ -1015,12 +1015,6 @@ function ensureLoadingOverlay(){
     background:'rgba(2,6,23,.92)', color:'#e5e7eb',
     zIndex: 100000, font:'600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial'
   });
-  const cover = isMobileOrTablet()
-  ? 'assets/mobile/ui/treasure_loading_bg.jpg'
-  : 'assets/desktop/ui/treasure_loading_bg.jpg';
-
-_loadBox.style.background =
-  `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${cover}') center/cover no-repeat`;
  // prima: const card = document.createElement('div');
 // ora:
 const card = (_loadCard = document.createElement('div'));
@@ -1271,11 +1265,18 @@ function startTreasureMinigame() {
     G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
   })();
 
+
+  ensureLoadingOverlay();
+
   const loadingCover = isMobileOrTablet()
   ? 'assets/mobile/ui/treasure_loading.png'
   : 'assets/desktop/ui/treasure_loading.png';
 
-setLoadingBackground(loadingCover);
+  _loadBox.style.background =
+  `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${cover}') center/cover no-repeat`;
+
+
+//setLoadingBackground(loadingCover);
 //setLoadingImage(loadingCover);
 showLoadingOverlay();
 

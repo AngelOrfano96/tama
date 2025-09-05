@@ -202,3 +202,46 @@
   right: auto !important;
   z-index: 1000;             /* sopra al canvas */
 }
+/* === 1) HUD centrato in alto alla finestra == */
+.treasure-minigame-modal .treasure-info-bar{
+  position: fixed !important;   /* staccata dal layout/grid */
+  top: 16px !important;
+  left: 50vw !important;        /* centro della viewport */
+  transform: translateX(-50%) !important;
+  right: auto !important;
+  margin: 0 !important;
+  z-index: 1000 !important;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  float: none !important;       /* nel caso qualche reset l’avesse messa a sinistra */
+}
+
+/* Il container non deve più riservare la prima riga “auto” per la barra fissata */
+.treasure-minigame-modal .treasure-mobile-layout{
+  grid-template-rows: 1fr !important;
+}
+
+/* === 2) Canvas non troppo in basso su mobile === */
+.treasure-dungeon-area{
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px;
+  padding-top: 96px; /* desktop: un po' di spazio sotto l'HUD */
+}
+
+/* tablet */
+@media (max-width: 1024px){
+  .treasure-dungeon-area{ padding-top: 72px; }
+}
+/* mobile */
+@media (max-width: 768px){
+  .treasure-dungeon-area{ padding-top: 56px; }
+  .treasure-minigame-modal .treasure-info-bar{ top: 10px !important; }
+}
+/* phone small */
+@media (max-width: 420px){
+  .treasure-dungeon-area{ padding-top: 48px; }
+  .treasure-minigame-modal .treasure-info-bar{ top: 8px !important; }
+}

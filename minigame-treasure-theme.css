@@ -319,3 +319,11 @@
 #treasure-exit-btn{
   box-shadow: 0 2px 10px rgba(0,0,0,.25);
 }
+/* Variante: resta dentro la pill ma più allineato a destra */
+#treasure-minigame-modal .treasure-info-bar{ padding-right: 80px !important; }
+#treasure-minigame-modal .treasure-exit-area{
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+}

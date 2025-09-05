@@ -2941,6 +2941,30 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
   fit();
 })();
 
+// HUD mobile: crea il wrapper .wrap e abilita "compact" quando non entra
+(function fixTreasureHud(){
+  const bar = document.querySelector('#treasure-minigame-modal .treasure-info-bar');
+  if (!bar) return;
+
+  // crea il contenitore .wrap se manca
+  let wrap = bar.querySelector('.wrap');
+  if (!wrap){
+    wrap = document.createElement('div');
+    wrap.className = 'wrap';
+    while (bar.firstChild) wrap.appendChild(bar.firstChild);
+    bar.appendChild(wrap);
+  }
+
+  // funzione che attiva/disattiva la modalità compatta
+  function fit(){
+    wrap.classList.toggle('compact', wrap.scrollWidth > wrap.clientWidth);
+  }
+
+  // reagisci a resize e cambi layout
+  window.addEventListener('resize', fit, { passive:true });
+  new ResizeObserver(fit).observe(wrap);
+  fit();
+})();
 
 
 document.addEventListener('DOMContentLoaded', () => {

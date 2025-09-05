@@ -2959,44 +2959,8 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
 // RIMUOVI/COMMENTA tutti gli altri listener a treasure-exit-btn
 // e qualsiasi ensureMobileExitBtn/repositionExitBtn vecchio.
 
-(function(){
-  const wrap = document.querySelector('.treasure-info-bar .wrap');
-  if (!wrap) return;
-  function fit(){
-    wrap.classList.toggle('compact', wrap.scrollWidth > wrap.clientWidth);
-  }
-  window.addEventListener('resize', fit, {passive:true});
-  new ResizeObserver(fit).observe(wrap);
-  fit();
-})();
-
-// HUD mobile: crea il wrapper .wrap e abilita "compact" quando non entra
-(function fixTreasureHud(){
-  const bar = document.querySelector('#treasure-minigame-modal .treasure-info-bar');
-  if (!bar) return;
-
-  // crea il contenitore .wrap se manca
-  let wrap = bar.querySelector('.wrap');
-  if (!wrap){
-    wrap = document.createElement('div');
-    wrap.className = 'wrap';
-    while (bar.firstChild) wrap.appendChild(bar.firstChild);
-    bar.appendChild(wrap);
-  }
-
-  // funzione che attiva/disattiva la modalità compatta
-  function fit(){
-    wrap.classList.toggle('compact', wrap.scrollWidth > wrap.clientWidth);
-  }
-
-  // reagisci a resize e cambi layout
-  window.addEventListener('resize', fit, { passive:true });
-  new ResizeObserver(fit).observe(wrap);
-  fit();
-})();
-
-// HUD mobile: wrapper + compact + padding dinamico per il bottone "Esci"
-(function fixTreasureHud(){
+// HUD mobile: wrapper + compact + padding per "Esci" (senza ResizeObserver)
+(function setupTreasureHud(){
   const bar = document.querySelector('#treasure-minigame-modal .treasure-info-bar');
   if (!bar) return;
 
@@ -3009,26 +2973,30 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
     bar.appendChild(wrap);
   }
 
-  const exitBtn = wrap.querySelector('#treasure-exit-btn') 
-               || wrap.querySelector('.treasure-exit-btn');
+  const exitBtn = wrap.querySelector('#treasure-exit-btn, .treasure-exit-btn');
 
-  function applyExitPadding(){
-    const w = (exitBtn?.offsetWidth || 68) + 12; // bottone + gap
-    wrap.style.setProperty('--exit-pad', w + 'px');
-    wrap.style.paddingRight = `var(--exit-pad)`;
+  let scheduled = false;
+  function measureAndApply(){
+    scheduled = false;
+
+    // padding a destra per non far coprire le pill dai "Esci"
+    const pad = ((exitBtn?.offsetWidth || 68) + 12) + 'px';
+    if (wrap.style.paddingRight !== pad) {
+      wrap.style.setProperty('--exit-pad', pad);
+      wrap.style.paddingRight = pad;
+    }
+
+    // modalità compatta solo se SERVE e solo se cambia
+    const needCompact = wrap.scrollWidth > wrap.clientWidth;
+    if (wrap.classList.contains('compact') !== needCompact) {
+      wrap.classList.toggle('compact', needCompact);
+    }
   }
 
-  function fit(){
-    // attiva "compact" quando non entra
-    wrap.classList.toggle('compact', wrap.scrollWidth > wrap.clientWidth);
-  }
+  function schedule(){ if (!scheduled){ scheduled = true; requestAnimationFrame(measureAndApply); } }
 
-  window.addEventListener('resize', () => { applyExitPadding(); fit(); }, {passive:true});
-  new ResizeObserver(() => { applyExitPadding(); fit(); }).observe(wrap);
-  if (exitBtn) new ResizeObserver(applyExitPadding).observe(exitBtn);
-
-  applyExitPadding();
-  fit();
+  window.addEventListener('resize', schedule, {passive:true});
+  schedule(); // prima misura
 })();
 
 document.addEventListener('DOMContentLoaded', () => {

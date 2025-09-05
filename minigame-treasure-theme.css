@@ -624,3 +624,15 @@
 @media (max-width: 420px){
   #treasure-minigame-modal .treasure-info-bar .wrap{ gap:6px !important; }
 }
+
+
+/* aggiungi/assicura questi */
+.treasure-info-bar .wrap{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  max-width:100%;
+  min-width:0;         /* evita oscillazioni di misura */
+  overflow-x:auto;
+  -webkit-overflow-scrolling: touch;
+}

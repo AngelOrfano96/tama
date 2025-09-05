@@ -136,3 +136,37 @@
 }
 
 .coin-icon, .info-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+
+/* 1) Centra tutta la “stage” (info + canvas) */
+.treasure-mobile-layout{
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  /* centra orizzontalmente i figli della grid (info bar + area canvas) */
+  place-items: start center;
+  row-gap: 12px;
+}
+
+/* 2) Dai alla info-bar la stessa larghezza del canvas
+      così resta centrata sopra di lui */
+.treasure-info-bar,
+.treasure-dungeon-area{
+  width: min(100vw, 900px);   /* deve matchare #treasure-canvas */
+}
+
+/* 3) (Opzionale) rendila leggermente “sticky” in alto */
+.treasure-info-bar{
+  position: sticky;
+  top: 8px;
+  z-index: 2;
+}
+
+/* 4) Joystick: nascosto di default (desktop) */
+.treasure-joystick-overlay{ display: none; }
+
+/* Mostralo SOLO su dispositivi touch / schermi piccoli */
+@media (hover: none) and (pointer: coarse), (max-width: 900px){
+  .treasure-joystick-overlay{ display: block; }
+}
+

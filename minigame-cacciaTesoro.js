@@ -2802,10 +2802,7 @@ function resetJoystick() {
   DOM.joyBase?.classList.remove('active');
 }
 
-document.getElementById('treasure-exit-btn')?.addEventListener('click', (e)=>{
-  e.preventDefault();
-  if (!DOM.modal?.classList.contains('hidden')) openExitConfirm();
-});
+
 
 /*
 function ensureMobileExitBtn(){
@@ -2862,10 +2859,7 @@ function repositionExitBtn(){
   btn.style.left = `${Math.round(left)}px`;
 } */
 
-document.getElementById('treasure-exit-btn')?.addEventListener('click', (e)=>{
-  e.preventDefault();
-  if (!DOM.modal?.classList.contains('hidden')) openExitConfirm();
-});
+
 
 
 

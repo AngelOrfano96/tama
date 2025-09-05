@@ -1493,32 +1493,61 @@ function moveEnemies(dt) {
       e.animTime += dt;
       if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
     } else {
-      // --- GOBLIN: come prima, con collisioni sui muri
-      const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
-      if (dist > 2) {
-        const newPX = e.px + vx * spd * dt;
-        const newPY = e.py + vy * spd * dt;
+     // --- GOBLIN: come prima, ma con indici CLAMP per evitare out-of-bounds
+const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
+if (dist > 2) {
+  const tryPX = e.px + vx * spd * dt;
+  const tryPY = e.py + vy * spd * dt;
 
-        const size = tile - 18;
-        const minX = Math.floor((newPX + 6) / tile);
-        const minY = Math.floor((newPY + 6) / tile);
-        const maxX = Math.floor((newPX + size - 6) / tile);
-        const maxY = Math.floor((newPY + size - 6) / tile);
+  const size = tile - 18;
 
-        if (room[minY][minX] === 0 && room[minY][maxX] === 0 &&
-            room[maxY][minX] === 0 && room[maxY][maxX] === 0) {
-          e.px = newPX; e.py = newPY;
-          e.x = Math.floor((e.px + size/2) / tile);
-          e.y = Math.floor((e.py + size/2) / tile);
-          e.direction = (Math.abs(vx) > Math.abs(vy)) ? (vx > 0 ? 'right' : 'left')
-                                                      : (vy > 0 ? 'down' : 'up');
-          e.isMoving = true;
-        } else {
-          e.isMoving = false;
-        }
-      } else {
-        e.isMoving = false;
-      }
+  const idxFor = (nx, ny) => {
+    // calcola gli indici e li clampa ai limiti validi
+    let minX = Math.floor((nx + 6) / tile);
+    let minY = Math.floor((ny + 6) / tile);
+    let maxX = Math.floor((nx + size - 6) / tile);
+    let maxY = Math.floor((ny + size - 6) / tile);
+
+    // se uno qualunque esce, lo segniamo come out-of-bounds
+    const oob =
+      minX < 0 || minY < 0 ||
+      maxX >= Cfg.roomW || maxY >= Cfg.roomH;
+
+    // clamp per evitare accessi undefined
+    minX = Math.max(0, Math.min(Cfg.roomW - 1, minX));
+    maxX = Math.max(0, Math.min(Cfg.roomW - 1, maxX));
+    minY = Math.max(0, Math.min(Cfg.roomH - 1, minY));
+    maxY = Math.max(0, Math.min(Cfg.roomH - 1, maxY));
+
+    return { minX, minY, maxX, maxY, oob };
+  };
+
+  const ix = idxFor(tryPX, tryPY);
+
+  let canWalk = false;
+  if (!ix.oob) {
+    canWalk =
+      room[ix.minY][ix.minX] === 0 &&
+      room[ix.minY][ix.maxX] === 0 &&
+      room[ix.maxY][ix.minX] === 0 &&
+      room[ix.maxY][ix.maxX] === 0;
+  }
+
+  if (canWalk) {
+    e.px = tryPX; e.py = tryPY;
+    const cx = Math.floor((e.px + size/2) / tile);
+    const cy = Math.floor((e.py + size/2) / tile);
+    e.x = cx; e.y = cy;
+    e.direction = (Math.abs(vx) > Math.abs(vy)) ? (vx > 0 ? 'right' : 'left')
+                                                : (vy > 0 ? 'down' : 'up');
+    e.isMoving = true;
+  } else {
+    e.isMoving = false;
+  }
+} else {
+  e.isMoving = false;
+}
+
 
       e.attacking = (distCenter(e, G.pet) < 1.1);
 

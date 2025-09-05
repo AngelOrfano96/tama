@@ -168,7 +168,7 @@ const BAT_TILE = 48;
 
 // prima era 6 → con 4 risultano ~+12% più grandi
 const ENEMY_INSET = 2;
-const ENEMY_SCALE_GOBLIN = 1.20;   // 12% più grandi da subito
+const ENEMY_SCALE_GOBLIN = 1.40;   // 12% più grandi da subito
 const ENEMY_SCALE_BAT    = 1.00;   // i pipistrelli restano “base” (cambia se vuoi)
 const ENEMY_CLAMP_TO_TILE = false;  // true = non superare la tile
 

@@ -270,4 +270,54 @@ body.game-open {
 @media (hover:hover) {
   #arena-exit-btn:hover { background: rgba(15, 23, 42, 1) !important; }
 }
+/* Overlay modale */
+.arena-exit-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.5);
+  z-index: 10050; /* sopra joystick/actions */
+}
+.arena-exit-modal.hidden { display: none; }
+.arena-exit-modal .panel {
+  width: min(92vw, 420px);
+  background: #0f172a;
+  color: #e5e7eb;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  padding: 18px;
+}
+.arena-exit-modal .ttl { margin: 0 0 6px; font: 700 18px/1.2 system-ui; }
+.arena-exit-modal .msg { margin: 0 0 14px; opacity: .9; }
+.arena-exit-modal .row { display:flex; gap:12px; justify-content:flex-end; }
+.arena-exit-modal .btn {
+  padding: 10px 14px; border-radius: 10px; border: 1px solid transparent;
+  font: 600 14px system-ui; cursor: pointer;
+}
+.arena-exit-modal .btn.secondary { background:#111826; color:#e5e7eb; border-color:#293241; }
+.arena-exit-modal .btn.danger    { background:#8b1f1f; color:#fff; }
+
+/* Bottone ESC sempre visibile (anche mobile, sopra gli overlay) */
+#arena-exit-btn.arena-exit-btn {
+  position: fixed !important;
+  top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+  right: calc(env(safe-area-inset-right, 0px) + 12px) !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(15,23,42,.92) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.28) !important;
+  z-index: 10040 !important; /* > joystick(10030) */
+  pointer-events: auto !important; /* anche se un parent ha pointer-events:none */
+  touch-action: manipulation !important;
+}
+#arena-exit-btn.hidden { display: none !important; }
 

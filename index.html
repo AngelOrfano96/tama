@@ -225,17 +225,18 @@
     </div>
   </div>
 </div>
-<!-- Modale conferma uscita Arena -->
-<div id="arena-exit-confirm" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="arena-exit-title">
-  <div class="modal-content" style="width:min(380px,92vw); text-align:center;">
-    <h3 id="arena-exit-title" style="margin-bottom:8px;">Uscire dall’arena?</h3>
-    <p class="muted" style="margin-bottom:12px;">Perderai i progressi di questa partita.</p>
-    <div class="actions" style="display:flex; gap:8px; justify-content:center;">
-      <button id="arena-exit-yes" class="ui-btn danger">Sì</button>
-      <button id="arena-exit-no"  class="ui-btn secondary">No</button>
+<!-- Modale conferma uscita -->
+<div id="arena-exit-confirm" class="arena-exit-modal hidden" role="dialog" aria-modal="true" aria-labelledby="arena-exit-title">
+  <div class="panel">
+    <h3 id="arena-exit-title" class="ttl">Uscire dall’Arena?</h3>
+    <p class="msg">Perderai i progressi di questa run.</p>
+    <div class="row">
+      <button id="arena-exit-no"  class="btn secondary">Annulla</button>
+      <button id="arena-exit-yes" class="btn danger">Esci</button>
     </div>
   </div>
 </div>
+
 
 <!-- ===== MODALE MINIGIOCO ARENA ===== -->
 <div id="arena-minigame-modal" class="hidden">

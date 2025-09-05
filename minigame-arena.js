@@ -2254,38 +2254,22 @@ function hideExitModal(){
 
 if (!DOM._exitBound){
   DOM.exitBtn?.addEventListener('click', (e)=>{ e.preventDefault(); if (G.playing) showExitModal(); }, { passive:false });
-  DOM.exitYes?.addEventListener('click', async (e)=>{
-    e.preventDefault();
-    // conferma: termina partita (chiude fullscreen, salva punteggi ecc.)
-     await quitArena();
-    // niente resume dopo il gameOver
-    hideExitModal(); // per sicurezza se il modal resta visibile
-  }, { passive:false });
-  DOM.exitNo?.addEventListener('click', (e)=>{ e.preventDefault(); hideExitModal(); }, { passive:false });
+  DOM.exitYes?.addEventListener('click', async (e)=>{ e.preventDefault(); await quitArena(); hideExitModal(); }, { passive:false });
+  DOM.exitNo?.addEventListener('click',  (e)=>{ e.preventDefault(); hideExitModal(); }, { passive:false });
 
-  // Chiudi cliccando fuori dal contenuto
+  // Chiudi clic esterno
   DOM.exitModal?.addEventListener('click', (e)=>{ if (e.target === DOM.exitModal) hideExitModal(); });
 
-// ESC: apri/chiudi la modale di conferma uscita
-window.addEventListener('keydown', (e) => {
-  if (!G.playing || e.repeat) return;
-  if (e.key !== 'Escape') return;
-
-  // Se stai scrivendo in un input/textarea, ignora (opzionale)
-  if (isTyping?.(e)) return;
-
-  e.preventDefault();
-  if (!DOM.exitModal) return;
-
-  if (DOM.exitModal.classList.contains('hidden')) {
-    // era nascosta → MOSTRA e metti in pausa
-    showExitModal();
-  } else {
-    // era visibile → NASCONDI e riprendi
-    hideExitModal();
-  }
-}, { passive:false });
-
+  // ESC: toggle (apri se chiusa, chiudi se aperta)
+  window.addEventListener('keydown', (e)=>{
+    if (e.key !== 'Escape') return;
+    if (!G.playing) return;
+    if (isTyping(e)) return;         // evita quando scrivi in input/textarea
+    e.preventDefault();
+    if (!DOM.exitModal) { quitArena(); return; } // fallback
+    if (DOM.exitModal.classList.contains('hidden')) showExitModal();
+    else hideExitModal();
+  }, { passive:false });
 
   DOM._exitBound = true;
 }
@@ -2293,13 +2277,13 @@ window.addEventListener('keydown', (e) => {
 
   loadArenaCSS();
   forceArenaActionCrossLayout();
-  function forceExitButtonLayout() {
+(function forceExitButtonLayout(){
   const b = DOM.exitBtn;
   if (!b) return;
-  // nel caso sia stato messo dentro a overlay con pointer-events:none
   b.style.pointerEvents = 'auto';
-  b.style.display = ''; // forza visibile
-}
+  b.style.display = ''; // visibile sia mobile che desktop
+})();
+
 forceExitButtonLayout();
 
   hydrateActionButtons();

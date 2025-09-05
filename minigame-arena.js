@@ -1082,6 +1082,137 @@ function syncHUD(){
     return sides[(Math.random() * sides.length)|0];
   }
 
+// === LOADER OVERLAY (Arena) ===================================
+function ensureArenaLoaderDOM(){
+  if (DOM.loader) return DOM.loader;
+  const el = document.createElement('div');
+  el.id = 'arena-loading';
+  el.className = 'arena-loading hidden';
+  el.innerHTML = `
+    <div class="card">
+      <div class="title">Caricamento Arena</div>
+      <div id="arena-load-msg" class="msg">Preparazione…</div>
+      <div class="progress"><div id="arena-load-bar"></div></div>
+    </div>`;
+  document.body.appendChild(el);
+  DOM.loader = el;
+  return el;
+}
+function showArenaLoader(){ ensureArenaLoaderDOM().classList.remove('hidden'); }
+function hideArenaLoader(){ DOM.loader?.classList.add('hidden'); }
+function setArenaLoader(p, msg){
+  ensureArenaLoaderDOM();
+  const bar = document.getElementById('arena-load-bar');
+  const m   = document.getElementById('arena-load-msg');
+  if (bar) bar.style.width = `${Math.max(0, Math.min(1, p))*100}%`;
+  if (m && msg) m.textContent = msg;
+}
+
+// Promessa immagine
+function loadImg(src){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({img, ok:true});
+    img.onerror = () => resolve({img, ok:false});
+    img.src = src;
+  });
+}
+
+// === PRELOAD risorse Arena con progress ========================
+async function preloadArenaResources(update){
+  update(0, 'Preparazione…');
+
+  const imgBase = (window.matchMedia?.('(pointer:coarse)')?.matches ?? false) ||
+                  /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent)
+                  ? 'assets/mobile' : 'assets/desktop';
+  const petNum  = detectPetNumFromDom();
+
+  const petPaths = [
+    {k:'idle',  p:`${imgBase}/pets/pet_${petNum}.png`},
+    {k:'r1',    p:`${imgBase}/pets/pet_${petNum}_right1.png`},
+    {k:'r2',    p:`${imgBase}/pets/pet_${petNum}_right2.png`},
+    {k:'l1',    p:`${imgBase}/pets/pet_${petNum}_left1.png`},
+    {k:'l2',    p:`${imgBase}/pets/pet_${petNum}_left2.png`},
+    {k:'d1',    p:`${imgBase}/pets/pet_${petNum}_down1.png`},
+    {k:'d2',    p:`${imgBase}/pets/pet_${petNum}_down2.png`},
+    {k:'u1',    p:`${imgBase}/pets/pet_${petNum}_up1.png`},
+    {k:'u2',    p:`${imgBase}/pets/pet_${petNum}_up2.png`},
+  ];
+
+  const steps = [
+    { label:'Statistiche pet', kind:'db', run: async () => {
+        const pid = getPid();
+        if (!pid) throw new Error('Pet non trovato');
+        const { data } = await sb()
+          .from('pet_states')
+          .select('hp_max, attack_power, defense_power, speed_power')
+          .eq('pet_id', pid)
+          .single();
+        return data;
+      }},
+    { label:'Mosse equipaggiate', kind:'db', run: async () => {
+        const [A,B,C] = await window.getEquippedMovesForArena();
+        const atkBonus = await window.getArenaPlayerAttackStat?.();
+        return { A, B, C, atkBonus: atkBonus || 0 };
+      }},
+    { label:'Atlas dungeon', kind:'img', src:`${atlasBase}/Dungeon_2.png`,
+      apply: ({img}) => { G.sprites.atlas = img; } },
+    { label:'Sprite cancello', kind:'img', src:GATE_CFG.src,
+      apply: ({img}) => {
+        Gates.sheet = img;
+        GATE_CFG.cols = Math.max(1, (img.naturalWidth  / GATE_CFG.fw) | 0);
+        GATE_CFG.rows = Math.max(1, (img.naturalHeight / GATE_CFG.fh) | 0);
+        GATE_CFG.total = GATE_CFG.cols * GATE_CFG.rows;
+        GATE_CFG.frames = Math.min(GATE_CFG.frames, GATE_CFG.total);
+      }},
+    { label:'Sprite drop mosse', kind:'img', src:MOVE_DROP_CFG.src,
+      apply: ({img}) => { G.sprites.moveSheet = img; } },
+    { label:'Nemico goblin', kind:'img', src:`${enemyAtlasBase}/chara_orc.png`,
+      apply: ({img}) => { G.sprites.goblinSheet = img; buildGoblinFromAtlas?.(); } },
+    { label:'Nemico pipistrello', kind:'img', src:`${enemyAtlasBase}/chara_bat.png`,
+      apply: ({img}) => { G.sprites.batSheet = img; buildBatFromAtlas?.(); } },
+    // Pet frames (9)
+    ...petPaths.map(({k,p}) => ({ label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k })),
+  ];
+
+  const total = steps.length;
+  const out   = { stats:null, moves:null };
+  const petImgs = {};
+
+  for (let i=0; i<steps.length; i++){
+    const s = steps[i];
+    update(i/total, s.label + '…');
+
+    if (s.kind === 'img'){
+      const res = await loadImg(s.src);
+      if (s.petKey) petImgs[s.petKey] = res.img;
+      s.apply?.(res);
+    } else {
+      const r = await s.run();
+      if (s.label.startsWith('Statistiche')) out.stats = r;
+      if (s.label.startsWith('Mosse'))       out.moves = r;
+    }
+  }
+
+  // Costruisci sprite pet con le immagini caricate
+  G.sprites.pet = {
+    idle:  petImgs.idle,
+    right: [petImgs.r1, petImgs.r2],
+    left:  [petImgs.l1, petImgs.l2],
+    down:  [petImgs.d1, petImgs.d2],
+    up:    [petImgs.u1, petImgs.u2],
+  };
+
+  // Decor già definito in alto → normalizza e bake layer statici
+  buildDecorFromAtlas?.();
+  bakeArenaLayer?.();
+
+  update(1, 'Pronto!');
+  return out;
+}
+
+
+
   // ---------- Danno (formula consigliata) ----------
   function computeDamage(power, atkEff, defEff) {
     const ratio = atkEff / Math.max(1, (atkEff + defEff));
@@ -2050,170 +2181,140 @@ function forceArenaActionCrossLayout() {
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
+  // reset cancelli
   Gates.state = 'idleUp';
-Gates.frame = 0;
-Gates.t = 0;
-Gates.pendingIngress = 0;
-Gates.spawnedThisWave = false;
-  DOM.modal?.classList.remove('show')
+  Gates.frame = 0;
+  Gates.t = 0;
+  Gates.pendingIngress = 0;
+  Gates.spawnedThisWave = false;
+
+  // hook DOM
   DOM.modal   = document.getElementById('arena-minigame-modal');
-DOM.canvas  = document.getElementById('arena-canvas');
-DOM.hudBox  = document.getElementById('arena-hud');
-DOM.btnAtk  = document.getElementById('arena-attack-btn');
-DOM.btnChg  = document.getElementById('arena-charge-btn');
-DOM.btnDash = document.getElementById('arena-dash-btn');
-DOM.joyBase = document.getElementById('arena-joy-base');
-DOM.joyStick= document.getElementById('arena-joy-stick');
-DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
-DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
-DOM.btnSkill = document.getElementById('arena-skill-btn');
+  DOM.canvas  = document.getElementById('arena-canvas');
+  DOM.hudBox  = document.getElementById('arena-hud');
+  DOM.btnAtk  = document.getElementById('arena-attack-btn');
+  DOM.btnChg  = document.getElementById('arena-charge-btn');
+  DOM.btnDash = document.getElementById('arena-dash-btn');
+  DOM.btnSkill= document.getElementById('arena-skill-btn');
+  DOM.joyBase = document.getElementById('arena-joy-base');
+  DOM.joyStick= document.getElementById('arena-joy-stick');
+  DOM.joyOverlay     = document.getElementById('arena-joystick-overlay');
+  DOM.actionsOverlay = document.getElementById('arena-actions-overlay');
 
-forceArenaActionCrossLayout();
-hydrateActionButtons();
+  if (!DOM.canvas) { console.error('[Arena] canvas mancante'); return; }
+  ctx = DOM.canvas.getContext('2d');
 
-// cerca prima .cd/.cd-txt; se non ci sono li crea
-function ensureCooldownOverlay(btn){
-  if (!btn) return;
-  if (btn.querySelector('.cd, .arena-cd')) return; // già presente
-  btn.insertAdjacentHTML('beforeend','<div class="cd"></div><div class="cd-txt"></div>');
-}
-
-function installCooldownOverlays(){
-  ensureCooldownOverlay(DOM.btnAtk);
-  ensureCooldownOverlay(DOM.btnChg);
-  ensureCooldownOverlay(DOM.btnDash);
-  ensureCooldownOverlay(DOM.btnSkill);
-}
-
-installCooldownOverlays();
-
-
-if (!DOM.canvas) { console.error('[Arena] canvas mancante'); return; }
-ctx = DOM.canvas.getContext('2d');
   loadArenaCSS();
+  forceArenaActionCrossLayout();
+  hydrateActionButtons();
 
-  // 1) Leggi le stat dal DB
+  // assicurati che i bottoni abbiano overlay di cooldown
+  function ensureCooldownOverlay(btn){
+    if (!btn) return;
+    if (btn.querySelector('.cd, .arena-cd')) return;
+    btn.insertAdjacentHTML('beforeend','<div class="cd"></div><div class="cd-txt"></div>');
+  }
+  [DOM.btnAtk, DOM.btnChg, DOM.btnDash, DOM.btnSkill].forEach(ensureCooldownOverlay);
+
+  // === 1) PRELOAD con barra ===================================
+  showArenaLoader();
+  setArenaLoader(0, 'Preparazione…');
+
+  let preload;
   try {
- const pid = getPid();
-if (!pid) { showArenaToast('Crea il pet prima di entrare nell\'arena', true); return; }
+    // pet obbligatorio
+    const pid = getPid();
+    if (!pid) { showArenaToast('Crea il pet prima di entrare nell\'arena', true); hideArenaLoader(); return; }
 
-const { data, error } = await sb()
-  .from('pet_states')
-  .select('hp_max, attack_power, defense_power, speed_power')
-  .eq('pet_id', pid)
-  .single();
-
-    if (error) throw error;
-  // Carica le due mosse in base agli slot equipaggiati
-  const [moveA, moveB, moveC] = await window.getEquippedMovesForArena();
-  const atkBonus = await window.getArenaPlayerAttackStat(); // opzionale
-
-  // Salva in stato globale dell’arena
-  G.playerMoves = { A: moveA, B: moveB, C: moveC };
-  G.playerAtkBonus = atkBonus; // usalo nella formula danno
-
-  // (facoltativo) mostra il nome mossa sui bottoni
-  const btnA = document.getElementById('arena-attack-btn');
-  const btnB = document.getElementById('arena-charge-btn');
-  const btnC = document.getElementById('arena-skill-btn');
-const setBtnLabel = (btn, txt) => {
-  if (!btn) return;
-  let span = btn.querySelector('.lbl');
-  if (!span) { span = document.createElement('span'); span.className = 'lbl'; btn.insertBefore(span, btn.firstChild); }
-  span.textContent = txt;
-};
-
-setBtnLabel(btnA, prettifyName(moveA));
-setBtnLabel(btnB, prettifyName(moveB));
-setBtnLabel(btnC, moveC ? prettifyName(moveC) : '—');
-   // ✅ qui inserisci la guardia
-if (!DOM._abBound) {
-const bindAction = (el, handler) => { if (!el) return; const fire = (e)=>{ e.preventDefault(); e.stopPropagation(); if (G.playing) handler(); }; el.addEventListener('pointerdown', fire, { passive:false }); el.addEventListener('touchstart', fire, { passive:false }); };
-
-bindAction(DOM.btnAtk,   () => useArenaMove(G.pet, G.playerMoves.A));
-bindAction(DOM.btnChg,   () => useArenaMove(G.pet, G.playerMoves.B));
-bindAction(DOM.btnSkill, () => { if (G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C); });
-
-  // azioni (niente click)
-  bindAction(DOM.btnAtk,  () => useArenaMove(G.pet, G.playerMoves.A));
-  bindAction(DOM.btnChg,  () => useArenaMove(G.pet, G.playerMoves.B));
-  //bindAction(DOM.btnDash, () => tryDash());
-  bindAction(DOM.btnDash, () => tryDash());
-
-  // tastiera
-  window.addEventListener('keydown', (e) => {
-    if (!G.playing || e.repeat) return;
-    if (e.key === 'z' || e.key === 'Z') useArenaMove(G.pet, G.playerMoves.A);
-    if (e.key === 'x' || e.key === 'X') useArenaMove(G.pet, G.playerMoves.B);
-    if (e.key === 'c' && G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C);
-  }, { passive: true });
-
-  DOM._abBound = true; // previene doppi binding a run successivi
-}
-
-
-
-    // HP: usa hp_max come "massimo" e anche come "current" a inizio arena
-    const hpMax = Math.max(1, Math.round(Number(data?.hp_max ?? 100)));
-    G.hpMax = hpMax;
-    G.hpCur = hpMax; // <-- ignoriamo hp_current: si parte full HP in arena
-
-    // Altre stats direttamente dal DB
-    G.atkP = Math.max(1, Math.round(Number(data?.attack_power  ?? 50)));
-    G.defP = Math.max(1, Math.round(Number(data?.defense_power ?? 50)));
-    G.spdP = Math.max(1, Math.round(Number(data?.speed_power  ?? 50)));
+    preload = await preloadArenaResources((p,msg)=>setArenaLoader(p,msg));
   } catch (e) {
-    console.error('[Arena] load stats', e);
-    // fallback robusto
-    G.hpMax = 100;
-    G.hpCur = 100;
-    G.atkP = 50;
-    G.defP = 50;
-    G.spdP = 50;
+    console.error('[Arena] preload failed', e);
+    setArenaLoader(1, 'Errore nel caricamento');
+    showArenaToast('Errore durante il caricamento dell’Arena', true);
+    hideArenaLoader();
+    return;
   }
-// HUD DOM fuori dal canvas: lo vogliamo SOLO su mobile
-// e i bottoni azione devono essere visibili su mobile.
-if (isMobile) {
-  DOM.joyOverlay?.classList.remove('hidden');
-  DOM.actionsOverlay?.classList.remove('hidden');
+  hideArenaLoader();
 
-  // mostra HUD DOM (verrà popolato da syncHUD)
-  if (DOM.hudBox) {
-    DOM.hudBox.classList.remove('hidden');
-    DOM.hudBox.style.display = '';      // assicurati che non sia display:none
-    DOM.hudBox.classList.add('show');   // se nel CSS usi .show per lo stile mobile
+  // Applica stats + mosse equipaggiate
+  const { stats, moves } = preload;
+
+  // HP & stats
+  G.hpMax = Math.max(1, Math.round(Number(stats?.hp_max ?? 100)));
+  G.hpCur = G.hpMax;
+  G.atkP  = Math.max(1, Math.round(Number(stats?.attack_power  ?? 50)));
+  G.defP  = Math.max(1, Math.round(Number(stats?.defense_power ?? 50)));
+  G.spdP  = Math.max(1, Math.round(Number(stats?.speed_power   ?? 50)));
+
+  // Mosse/bonus
+  G.playerMoves = { A: moves.A, B: moves.B, C: moves.C };
+  G.playerAtkBonus = moves.atkBonus || 0;
+
+  // label pulsanti
+  const setBtnLabel = (btn, txt) => {
+    if (!btn) return;
+    let span = btn.querySelector('.lbl');
+    if (!span) { span = document.createElement('span'); span.className = 'lbl'; btn.insertBefore(span, btn.firstChild); }
+    span.textContent = txt;
+  };
+  setBtnLabel(DOM.btnAtk,   prettifyName(moves.A));
+  setBtnLabel(DOM.btnChg,   prettifyName(moves.B));
+  setBtnLabel(DOM.btnSkill, moves.C ? prettifyName(moves.C) : '—');
+
+  // bind azioni (una sola volta)
+  if (!DOM._abBound) {
+    const bindAction = (el, handler) => {
+      if (!el) return;
+      const fire = (e)=>{ e.preventDefault(); e.stopPropagation(); if (G.playing) handler(); };
+      el.addEventListener('pointerdown', fire, { passive:false });
+      el.addEventListener('touchstart',  fire, { passive:false });
+    };
+    bindAction(DOM.btnAtk,   () => useArenaMove(G.pet, G.playerMoves.A));
+    bindAction(DOM.btnChg,   () => useArenaMove(G.pet, G.playerMoves.B));
+    bindAction(DOM.btnSkill, () => { if (G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C); });
+    bindAction(DOM.btnDash,  () => tryDash());
+
+    // tastiera
+    window.addEventListener('keydown', (e) => {
+      if (!G.playing || e.repeat) return;
+      if (e.key === 'z' || e.key === 'Z') useArenaMove(G.pet, G.playerMoves.A);
+      if (e.key === 'x' || e.key === 'X') useArenaMove(G.pet, G.playerMoves.B);
+      if (e.key === 'c' && G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C);
+    }, { passive: true });
+
+    DOM._abBound = true;
   }
 
-  // assicurati che i tre bottoni non siano nascosti
-  if (DOM.btnAtk)  DOM.btnAtk.style.display  = '';
-  if (DOM.btnChg)  DOM.btnChg.style.display  = '';
-  if (DOM.btnDash) DOM.btnDash.style.display = '';
-} else {
-  // Desktop: niente overlay mobile e HUD nel canvas
-  DOM.joyOverlay?.classList.add('hidden');
-  DOM.actionsOverlay?.classList.add('hidden');
-
-  if (DOM.hudBox) {
-    DOM.hudBox.classList.remove('show');
-    DOM.hudBox.style.display = 'none';
+  // === 2) HUD mobile/desktop ==================================
+  if (isMobile) {
+    DOM.joyOverlay?.classList.remove('hidden');
+    DOM.actionsOverlay?.classList.remove('hidden');
+    if (DOM.hudBox) {
+      DOM.hudBox.classList.remove('hidden');
+      DOM.hudBox.style.display = '';
+      DOM.hudBox.classList.add('show');
+    }
+    DOM.btnAtk  && (DOM.btnAtk.style.display  = '');
+    DOM.btnChg  && (DOM.btnChg.style.display  = '');
+    DOM.btnDash && (DOM.btnDash.style.display = '');
+  } else {
+    DOM.joyOverlay?.classList.add('hidden');
+    DOM.actionsOverlay?.classList.add('hidden');
+    if (DOM.hudBox) {
+      DOM.hudBox.classList.remove('show');
+      DOM.hudBox.style.display = 'none';
+    }
+    DOM.btnAtk  && (DOM.btnAtk.style.display  = 'none');
+    DOM.btnChg  && (DOM.btnChg.style.display  = 'none');
+    DOM.btnDash && (DOM.btnDash.style.display = 'none');
   }
-  if (DOM.btnAtk)  DOM.btnAtk.style.display  = 'none';
-  if (DOM.btnChg)  DOM.btnChg.style.display  = 'none';
-  if (DOM.btnDash) DOM.btnDash.style.display = 'none';
-}
+  setupMobileControlsArena();
 
-setupMobileControlsArena();
-
-  // 2) Reset partita
+  // === 3) Reset partita =======================================
   G.wave = 0;
   G.score = 0;
   G.enemies = [];
-
-  // nascondi HUD DOM e bottoni (usiamo HUD in-canvas)
-  //if (DOM.hudBox)  DOM.hudBox.style.display = 'none';
-  //if (DOM.btnAtk)  DOM.btnAtk.style.display = 'none';
-  //if (DOM.btnChg)  DOM.btnChg.style.display = 'none';
-  //if (DOM.btnDash) DOM.btnDash.style.display = 'none';
+  G.projectiles = G.projectiles || [];
 
   G.pet = {
     x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,
@@ -2225,54 +2326,36 @@ setupMobileControlsArena();
     stepFrame: 0
   };
 
-  // 3) Asset & rendering
-  initAtlasSprites();
-  initGateSprite() 
-  buildDecorFromAtlas();
-  buildGoblinFromAtlas?.();
-  buildBatFromAtlas?.();
-  initMoveDropSprite();
-
-  const petNum = detectPetNumFromDom();
-  loadPetSprites(petNum);
-
-  await enterFullscreen?.(); // opzionale
+  // gli sprite sono già in G.sprites.* dal preload
+  await enterFullscreen?.();
   resizeCanvas();
-  //positionActionOverlay();
   syncHUD();
-  //spawnWave(G.wave);
 
-  // 4) Avvio loop
-DOM.modal?.classList.remove('hidden');
-DOM.modal?.classList.add('show');
+  // === 4) Avvio loop ==========================================
+  DOM.modal?.classList.remove('hidden');
+  DOM.modal?.classList.add('show');
 
-// dentro startArenaMinigame(), dopo aver popolato DOM.*
-if (!DOM._arenaBound) {
-  const bindTap = (el, handler) => {
-    if (!el) return;
-    const doIt = (e) => {
-      e.preventDefault();
-      e.stopImmediatePropagation?.();
-      e.stopPropagation();
-      if (G.playing) handler();
+  if (!DOM._arenaBound) {
+    const bindTap = (el, handler) => {
+      if (!el) return;
+      const doIt = (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation?.();
+        e.stopPropagation();
+        if (G.playing) handler();
+      };
+      ['pointerdown','touchstart','click'].forEach(t =>
+        el.addEventListener(t, doIt, { passive:false })
+      );
     };
-    ['pointerdown','touchstart','click'].forEach(t =>
-      el.addEventListener(t, doIt, { passive:false })
-    );
-  };
+    DOM._arenaBound = true;
+  }
 
-  //bindTap(DOM.btnAtk,  tryAttackBasic);
-  //bindTap(DOM.btnChg,  tryAttackCharged);
-  //bindTap(DOM.btnDash, tryDash);
-
-  DOM._arenaBound = true;
+  G.lastT = performance.now();
+  G.playing = true;
+  loop();
 }
 
-
-G.lastT = performance.now();
-G.playing = true;
-loop();
-}
 
 
 

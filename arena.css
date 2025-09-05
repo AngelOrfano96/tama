@@ -218,3 +218,11 @@ body.game-open {
 }
 
 /*//////////////////////////////////////////////////////////*/
+/* Loader overlay Arena */
+.arena-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,8,12,.82);z-index:10060}
+.arena-loading.hidden{display:none}
+.arena-loading .card{min-width:280px;max-width:420px;padding:20px 18px;border-radius:14px;background:#0b0f18;color:#e5e7eb;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.arena-loading .title{font:700 18px system-ui,-apple-system,Segoe UI,Roboto,Arial;margin-bottom:8px}
+.arena-loading .msg{font:500 14px system-ui,-apple-system,Segoe UI,Roboto,Arial;opacity:.85;margin-bottom:10px}
+.arena-loading .progress{height:10px;background:#111827;border-radius:999px;overflow:hidden}
+.arena-loading #arena-load-bar{height:100%;width:0%;background:#3b82f6;transition:width .15s linear}

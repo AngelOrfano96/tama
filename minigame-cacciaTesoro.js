@@ -1133,7 +1133,8 @@ function maybeSpawnMoveInRoom(level){
   if (level < 3) return;                               // solo dal 3 in poi
   if (Math.random() >= TREASURE_MOVE_SPAWN_CHANCE) return;
 
-  const t = G.tile;
+  //const t = G.tile;
+  const t = G.tileSize || (window.treasureTile || 64);
   // area camminabile: 1..(w-2) e 1..(h-2). Se hai bounds diversi, usa i tuoi.
   const rx = 1 + (Math.random() * (Cfg.roomW - 2) | 0);
   const ry = 1 + (Math.random() * (Cfg.roomH - 2) | 0);
@@ -2382,6 +2383,7 @@ function generateDungeon() {
       const objects  = [];
       const enemies  = [];
       const powerups = [];
+      const roomRef  = G.rooms[ry][rx];
 
       // monete
       const nCoins = (rx === G.exitRoom.x && ry === G.exitRoom.y) ? 1 : (2 + Math.floor(Math.random() * 2));
@@ -2394,84 +2396,72 @@ function generateDungeon() {
         objects.push({ x: px, y: py, type: 'coin', taken: false });
       }
 
-      // posizioni delle porte (per evitare spawn goblin lì)
-      const doorPositions = [];
-      if (rx > 0)               doorPositions.push({ x: 0,            y: Math.floor(Cfg.roomH/2) });
-      if (rx < Cfg.gridW - 1)   doorPositions.push({ x: Cfg.roomW-1,  y: Math.floor(Cfg.roomH/2) });
-      if (ry > 0)               doorPositions.push({ x: Math.floor(Cfg.roomW/2), y: 0 });
-      if (ry < Cfg.gridH - 1)   doorPositions.push({ x: Math.floor(Cfg.roomW/2), y: Cfg.roomH-1 });
+      // --- NEMICI BASE (GOBLIN) ---
+      {
+        const nEnemies = Math.random() < 0.7 ? 1 : 0; // 0 o 1 goblin (70%:1)
+        const tile = window.treasureTile || 64;
 
-// --- NEMICI BASE (GOBLIN) ---
-{
-  const roomRef = G.rooms[ry][rx];
-  const nEnemies = Math.random() < 0.7 ? 1 : 0; // 0 o 1 goblin (70%:1)
-  const tile = window.treasureTile || 64;
+        const centerRoomX = Math.floor(Cfg.gridW / 2);
+        const centerRoomY = Math.floor(Cfg.gridH / 2);
+        const spawnCellX = 1, spawnCellY = 1; // spawn player
 
-  const centerRoomX = Math.floor(Cfg.gridW / 2);
-  const centerRoomY = Math.floor(Cfg.gridH / 2);
-  const spawnCellX = 1, spawnCellY = 1; // spawn player
+        for (let i = 0; i < nEnemies; i++) {
+          let ex, ey, tries = 0;
+          while (tries++ < 80) {
+            // vincolo: vicino al centro, non vicino ai muri
+            ex = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
+            ey = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
+            if (!isNearCenter(ex, ey)) continue;
+            if (isNearWalls(ex, ey, 2)) continue;
 
-  for (let i=0;i<nEnemies;i++){
-    let ex, ey, tries = 0;
-    while (tries++ < 80){
-      // vincolo: vicino al centro, non vicino ai muri
-      ex = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
-      ey = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
-      if (!isNearCenter(ex,ey)) continue;
-      if (isNearWalls(ex,ey,2)) continue;
+            // evita porte e spallette
+            if (isNearAnyDoor(rx, ry, ex, ey, 2)) continue;
 
-      // evita porte e spallette
-      if (isNearAnyDoor(rx, ry, ex, ey, 2)) continue;
+            // evita spawn del player (solo per la stanza centrale)
+            if (rx === centerRoomX && ry === centerRoomY && distTiles(ex, ey, spawnCellX, spawnCellY) < 3) continue;
 
-      // evita spawn del player (solo per la stanza centrale)
-      if (rx === centerRoomX && ry === centerRoomY && distTiles(ex,ey,spawnCellX,spawnCellY) < 3) continue;
+            // evita la botola (stanza di uscita)
+            if (rx === G.exitRoom.x && ry === G.exitRoom.y && distTiles(ex, ey, G.exitTile.x, G.exitTile.y) < 3) continue;
 
-      // evita la botola (stanza di uscita)
-      if (rx === G.exitRoom.x && ry === G.exitRoom.y && distTiles(ex,ey,G.exitTile.x,G.exitTile.y) < 3) continue;
+            // evita sovrapposizioni con altri nemici
+            if (enemies.some(en => en.x === ex && en.y === ey)) continue;
 
-      // evita sovrapposizioni con altri nemici
-      if (enemies.some(en => en.x === ex && en.y === ey)) continue;
+            // ok
+            enemies.push({
+              type: 'goblin',
+              x: ex, y: ey,
+              px: ex * tile, py: ey * tile,
+              slow: false, direction: 'down', stepFrame: 0,
+              isMoving: false, animTime: 0, reactDelay: 2, attacking: false
+            });
+            break;
+          }
+        }
+      }
 
-      // ok
-      enemies.push({
-        type: 'goblin',
-        x: ex, y: ey,
-        px: ex * tile, py: ey * tile,
-        slow:false, direction:'down', stepFrame:0, isMoving:false, animTime:0, reactDelay:2, attacking:false
-      });
-      break;
-    }
-  }
-}
-
-   // --- BAT: 40% solo se la stanza NON ha altri nemici ---
-// spawn SEMPRE su una cella di MURO (sopra i muri)
-// --- BAT: 40% solo se la stanza NON ha altri nemici ---
-// spawn su muro pieno, mai su porte né spallette vicino alla porta
-if (enemies.length === 0 && Math.random() < 0.40) {
-  const roomRef = G.rooms[ry][rx];
-  const spot = pickRandomWallCellNoDoor(roomRef);
-  if (spot) {
-    const tile = window.treasureTile || 64;
-    enemies.push({
-      type: 'bat',
-      x: spot.x,
-      y: spot.y,
-      px: spot.x * tile,
-      py: spot.y * tile,
-      direction: 'down',
-      stepFrame: 0,
-      animTime: 0,
-      isMoving: true,
-      attacking: false,
-      reactDelay: 0,
-      slow: false,
-      sPhase: Math.random() * Math.PI * 2
-    });
-  }
-}
-
-
+      // --- BAT: 40% solo se la stanza NON ha altri nemici ---
+      // spawn su muro pieno, mai su porte né spallette vicino alla porta
+      if (enemies.length === 0 && Math.random() < 0.40) {
+        const spot = pickRandomWallCellNoDoor(roomRef);
+        if (spot) {
+          const tile = window.treasureTile || 64;
+          enemies.push({
+            type: 'bat',
+            x: spot.x,
+            y: spot.y,
+            px: spot.x * tile,
+            py: spot.y * tile,
+            direction: 'down',
+            stepFrame: 0,
+            animTime: 0,
+            isMoving: true,
+            attacking: false,
+            reactDelay: 0,
+            slow: false,
+            sPhase: Math.random() * Math.PI * 2
+          });
+        }
+      }
 
       // powerup (speed)
       if (Math.random() < 0.35) {
@@ -2485,32 +2475,12 @@ if (enemies.length === 0 && Math.random() < 0.40) {
         powerups.push({ x: ptx, y: pty, type: 'speed', taken: false });
       }
 
+      // salva per stanza
       G.objects[key]  = objects;
       G.enemies[key]  = enemies;
       G.powerups[key] = powerups;
     }
   }
-// --- DROPS RARI: mossa / oggetto ---
-// Se vuoi demandare la decisione al server, esponi una RPC che ritorna i drop.
-// Esempio: const serverDrops = await window.fetchTreasureRoomDrops?.(rx,ry); // [{type:'move'|'item',x,y}]
-let spawned = false;
-if (!spawned && Math.random() < 0.06) { // 6% mossa
-  let dx, dy, tries=0;
-  do { dx = 1 + Math.floor(Math.random()*(Cfg.roomW-2));
-       dy = 1 + Math.floor(Math.random()*(Cfg.roomH-2));
-       tries++;
-  } while (tries<60 && (roomRef[dy][dx]!==0 || isNearAnyDoor(rx,ry,dx,dy,2)));
-  powerups.push({ x:dx, y:dy, type:'drop_move', taken:false });
-  spawned = true;
-}
-if (!spawned && Math.random() < 0.06) { // 6% oggetto
-  let dx, dy, tries=0;
-  do { dx = 1 + Math.floor(Math.random()*(Cfg.roomW-2));
-       dy = 1 + Math.floor(Math.random()*(Cfg.roomH-2));
-       tries++;
-  } while (tries<60 && (roomRef[dy][dx]!==0 || isNearAnyDoor(rx,ry,dx,dy,2)));
-  powerups.push({ x:dx, y:dy, type:'drop_item', taken:false });
-}
 
   // --- skulls decorativi ---
   G.skulls = [];
@@ -2565,7 +2535,7 @@ if (!spawned && Math.random() < 0.06) { // 6% oggetto
   function startLevel() {
     G.exiting = false;
     initTreasureMoveSheet();
-  maybeSpawnMoveInRoom(level);
+  maybeSpawnMoveInRoom(G.level);
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
      G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
   G.pet.x = 1; G.pet.y = 1;

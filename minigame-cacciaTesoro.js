@@ -2299,6 +2299,7 @@ const isFormish = (el) =>
 
 document.addEventListener('keydown', (e) => {
   if (!G.playing) return;
+  if (isTyping(e)) return;    //IMPORTANTE
   const dir = dirMap[e.key];
   if (!dir) return;
   e.preventDefault();               // <-- aggiungi questo
@@ -2306,6 +2307,8 @@ document.addEventListener('keydown', (e) => {
   updatePetDirFromKeys();
 });
 document.addEventListener('keyup', (e) => {
+  if (!G.playing) return;
+  if (isTyping(e)) return;
   const dir = dirMap[e.key];
   if (!dir) return;
   e.preventDefault();               // <-- e qui
@@ -2580,7 +2583,7 @@ function generateDungeon() {
    // ensureMobileExitBtn();   // <— crea/posiziona il bottone su mobile
   resetJoystick(); 
 
-  maybeSpawnMoveInRoom(G.level);
+  
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
      G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
   G.pet.x = 1; G.pet.y = 1;
@@ -2911,16 +2914,21 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
   showTreasureArrowsIfMobile();
 
 
- window.addEventListener('resize', () => {
-  if (G.playing) {
-    resizeTreasureCanvas();
-    render();
-    resyncPetToGrid();
-    resetJoystick();   // <— aggiungi questa riga
-    G.hudDirty = true;
-  }
-  showTreasureArrowsIfMobile();
-});
+let _rszT;
+window.addEventListener('resize', () => {
+  clearTimeout(_rszT);
+  _rszT = setTimeout(() => {
+    if (G.playing) {
+      resizeTreasureCanvas();
+      render();
+      resyncPetToGrid();
+      resetJoystick();
+      G.hudDirty = true;
+    }
+    showTreasureArrowsIfMobile();
+  }, 60);
+}, { passive:true });
+
 
 
 

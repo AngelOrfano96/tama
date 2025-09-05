@@ -462,3 +462,10 @@
 
   #treasure-exit-btn{ height:34px; padding:6px 10px; }
 }
+
+.treasure-info-bar .wrap.compact{
+  gap:6px;
+}
+.treasure-info-bar .wrap.compact > *:not(#treasure-exit-btn){
+  min-width:44px; height:34px; padding:4px 8px; font-size:12px;
+}

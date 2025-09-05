@@ -2930,6 +2930,16 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
 // RIMUOVI/COMMENTA tutti gli altri listener a treasure-exit-btn
 // e qualsiasi ensureMobileExitBtn/repositionExitBtn vecchio.
 
+(function(){
+  const wrap = document.querySelector('.treasure-info-bar .wrap');
+  if (!wrap) return;
+  function fit(){
+    wrap.classList.toggle('compact', wrap.scrollWidth > wrap.clientWidth);
+  }
+  window.addEventListener('resize', fit, {passive:true});
+  new ResizeObserver(fit).observe(wrap);
+  fit();
+})();
 
 
 

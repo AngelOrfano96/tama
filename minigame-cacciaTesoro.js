@@ -374,7 +374,8 @@ function buildGoblinFromAtlas() {
     },
   };
 }
-
+const GOB_CENTER_RADIUS = 1;  // 1=3x3, 2=5x5, ecc.
+const GOB_WALL_MARGIN   = 3;  // celle minime dai muri
 
 // ---- ATLAS ----
 const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova 32 se serve)
@@ -2483,8 +2484,11 @@ function generateDungeon() {
             // vincolo: vicino al centro, non vicino ai muri
             ex = 1 + Math.floor(Math.random() * (Cfg.roomW - 2));
             ey = 1 + Math.floor(Math.random() * (Cfg.roomH - 2));
-            if (!isNearCenter(ex, ey)) continue;
-            if (isNearWalls(ex, ey, 2)) continue;
+          // dopo: SOLO 3×3 centrale e almeno 3 celle dai muri
+if (!isNearCenter(ex, ey, GOB_CENTER_RADIUS)) continue;
+if (isNearWalls(ex, ey, GOB_WALL_MARGIN)) continue;
+
+
 
             // evita porte e spallette
             if (isNearAnyDoor(rx, ry, ex, ey, 2)) continue;

@@ -2927,6 +2927,17 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
   window.resetJoystick = resetJoystick; // se serve fuori
 
 })();
+// RIMUOVI/COMMENTA tutti gli altri listener a treasure-exit-btn
+// e qualsiasi ensureMobileExitBtn/repositionExitBtn vecchio.
+
+// Listener unico e robusto
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('#treasure-exit-btn');
+  if (!btn) return;
+  e.preventDefault();
+  // apri solo se il minigioco è visibile
+  if (!DOM.modal?.classList.contains('hidden')) openExitConfirm();
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   const playBtn = document.getElementById('play-btn');

@@ -994,9 +994,17 @@ G.renderCache.tile = window.treasureTile || 64;
   repositionExitBtn();       // <— così non si “taglia” mai
 
 }
+function setLoadingImage(src){
+  ensureLoadingOverlay();
+  if (!_loadImg) return;
+  _loadImg.style.display = 'none';
+  _loadImg.onload  = () => (_loadImg.style.display = 'block');
+  _loadImg.onerror = () => (_loadImg.style.display = 'none'); // fallback invisibile
+  _loadImg.src = src;
+}
 
 // ===== Overlay di caricamento + preloader immagini =====
-let _loadBox, _loadBar, _loadTxt, _loadShownAt = 0;
+let _loadBox, _loadBar, _loadTxt,_loadImg, _loadShownAt = 0;
 const LOAD_MIN_SHOW_MS = 400;   // evita “flicker” se tutto carica istantaneo
 const LOAD_TIMEOUT_MS  = 8000;  // per singola immagine
 
@@ -1031,9 +1039,23 @@ function ensureLoadingOverlay(){
   Object.assign(_loadTxt.style,{ marginTop:'8px', opacity:.85 });
   _loadTxt.textContent = '0%';
 
+  _loadImg = document.createElement('img');
+_loadImg.alt = '';
+Object.assign(_loadImg.style, {
+  display:'none',          // si mostra quando ha caricato
+  width:'100%',
+  maxHeight:'180px',
+  objectFit:'contain',     // non deforma
+  marginTop:'12px',
+  borderRadius:'12px',
+  background:'rgba(255,255,255,.04)',
+  border:'1px solid rgba(255,255,255,.06)'
+});
+
   card.appendChild(title);
   card.appendChild(barWrap);
   card.appendChild(_loadTxt);
+  card.appendChild(_loadImg);
   _loadBox.appendChild(card);
 
   // monta dentro il modal del minigioco se c’è, altrimenti sul body
@@ -1233,6 +1255,13 @@ function startTreasureMinigame() {
     const list = G.enemies[key] || [];
     G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
   })();
+
+  const loadingCover = isMobileOrTablet()
+  ? 'assets/mobile/ui/treasure_loading.png'
+  : 'assets/desktop/ui/treasure_loading.png';
+
+setLoadingImage(loadingCover);
+showLoadingOverlay();
 
   // === NUOVO: mostra overlay, pre-carica, poi avvia il livello ===
   showLoadingOverlay();

@@ -982,6 +982,8 @@ G.renderCache.tile = window.treasureTile || 64;
   }
 
   if (G?.pet) resyncPetToGrid();
+  repositionExitBtn();       // <— così non si “taglia” mai
+
 }
 
 
@@ -2588,7 +2590,7 @@ function generateDungeon() {
   G.pet.px = 0; G.pet.py = 0;
    resizeTreasureCanvas();
    resyncPetToGrid();
-
+repositionExitBtn();
    maybeSpawnMoveInRoom(G.level);
    // Pre-bake del layer statico della stanza corrente (facoltativo)
 {
@@ -2640,7 +2642,7 @@ function endTreasureMinigame(reason = 'end') {
   G.playing = false;
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
-
+   hideExitBtn();
   const fun = 15 + Math.round(G.score * 0.6);
   const exp = Math.round(G.score * 0.5);
 
@@ -2714,7 +2716,7 @@ DOM.exitBtn?.addEventListener('click', (e) => {
 });
 
 // ===== Conferma Uscita =====
-let _exitOverlay, _exitYes, _exitNo, _wasPlaying = false;
+let _exitOverlay, _exitYes, _exitNo;
 
 function ensureExitConfirmModal(){
   if (_exitOverlay) return;
@@ -2729,26 +2731,53 @@ function ensureExitConfirmModal(){
         <button id="treasure-exit-no"  class="ui-btn secondary">No</button>
       </div>
     </div>`;
+
+  // stile overlay (alto z-index e niente residui di pointer-events)
+  Object.assign(_exitOverlay.style, {
+    position:'fixed', inset:'0', display:'none', placeItems:'center',
+    background:'rgba(0,0,0,.45)', zIndex: '100090'
+  });
+
+  const card = _exitOverlay.querySelector('.card');
+  Object.assign(card.style, {
+    width:'min(92vw, 360px)', background:'rgba(2,6,23,.92)', color:'#fff',
+    border:'1px solid rgba(255,255,255,.08)', borderRadius:'14px',
+    padding:'14px 16px', WebkitBackdropFilter:'blur(6px)', backdropFilter:'blur(6px)'
+  });
+
+  const acts = _exitOverlay.querySelector('.actions');
+  Object.assign(acts.style, { display:'flex', gap:'8px', justifyContent:'flex-end' });
+
   document.body.appendChild(_exitOverlay);
   _exitYes = _exitOverlay.querySelector('#treasure-exit-yes');
   _exitNo  = _exitOverlay.querySelector('#treasure-exit-no');
 
   _exitYes.addEventListener('click', () => {
     _exitOverlay.style.display = 'none';
-    // termina subito la partita
     endTreasureMinigame('quit');
   });
 
   _exitNo.addEventListener('click', () => {
     _exitOverlay.style.display = 'none';
-    // riprendi il gioco se era in corso
-    if (_wasPlaying) { G.playing = true; }
+    // 🔧 riprendi SEMPRE il gioco
+    G.playing = true;
+    // sblocca eventuali direzioni rimaste appiccicate / joystick centrato
+    updatePetDirFromJoystick?.(0,0);
+    resetJoystick?.();
+    // ridisegna e riposiziona il bottone (se il layout è cambiato)
+    render?.(); repositionExitBtn?.();
   });
 
-  // clic fuori dalla card = annulla
+  // click fuori card = annulla
   _exitOverlay.addEventListener('click', (e) => {
-    if (e.target === _exitOverlay) { _exitNo.click(); }
+    if (e.target === _exitOverlay) _exitNo.click();
   });
+}
+
+function openExitConfirm(){
+  ensureExitConfirmModal();
+  G.playing = false;                 // pausa
+  _exitOverlay.style.display = 'grid';
 }
 
 function openExitConfirm(){
@@ -2781,6 +2810,65 @@ function resetJoystick() {
   updatePetDirFromJoystick(0,0);
   DOM.joyBase?.classList.remove('active');
 }
+// === EXIT BUTTON ancorato al canvas ===
+(function ensureExitBtnStyles(){
+  if (document.getElementById('treasure-exit-css')) return;
+  const s = document.createElement('style');
+  s.id = 'treasure-exit-css';
+  s.textContent = `
+  #treasure-exit-btn{
+    position: fixed; /* evita clipping del container */
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: rgba(15,23,42,.92);
+    color:#fff; border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 10px 28px rgba(0,0,0,.28);
+    display:flex; align-items:center; justify-content:center;
+    font: 700 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    z-index: 100080; pointer-events: auto; cursor: pointer;
+  }
+  #treasure-exit-btn[hidden]{ display:none !important; }
+  `;
+  document.head.appendChild(s);
+})();
+
+function ensureMobileExitBtn(){
+  let btn = document.getElementById('treasure-exit-btn');
+  if (!btn){
+    btn = document.createElement('button');
+    btn.id = 'treasure-exit-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label','Esci');
+    btn.innerHTML = '⎋'; // puoi sostituire con un’icona svg
+    btn.onclick = (e)=>{ e.preventDefault(); openExitConfirm(); };
+    document.body.appendChild(btn);
+  }
+  btn.hidden = false;
+  repositionExitBtn();  // posiziona subito
+}
+
+function hideExitBtn(){ const b = document.getElementById('treasure-exit-btn'); if (b) b.hidden = true; }
+
+function repositionExitBtn(){
+  const btn = document.getElementById('treasure-exit-btn');
+  const cv  = document.getElementById('treasure-canvas');
+  if (!btn || !cv) return;
+
+  const r = cv.getBoundingClientRect();
+  const margin = 8;
+  // lo metto DENTRO il bordo alto-destro del canvas (con un po’ di margine)
+  const top  = Math.max(margin, r.top  + margin);
+  const left = Math.min(window.innerWidth - btn.offsetWidth - margin, r.right - btn.offsetWidth - margin);
+
+  btn.style.top  = `${top}px`;
+  btn.style.left = `${left}px`;
+}
+
+// aggiorna posizione quando serve
+['resize','orientationchange','scroll'].forEach(ev =>
+  window.addEventListener(ev, repositionExitBtn, { passive:true })
+);
 
 function handleJoystickMove(touch) {
   const x = touch.clientX - joyCenter.x;

@@ -358,7 +358,7 @@
 @media (hover:none) and (pointer:coarse){
   #treasure-joystick-base{
     position: fixed;
-    left: 16px;
+    left: 30px;
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     width: 120px; height: 120px;
     border-radius: 50%;

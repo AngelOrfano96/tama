@@ -1018,46 +1018,6 @@ function syncHud() {
 
   G.hudDirty = false;
 }
-// === MOBILE UI PATCH: exit button flottante ===
-(function ensureMobileUIStyles(){
-  if (document.getElementById('treasure-mobile-ui')) return;
-  const css = `
-  @media (hover:none) and (pointer:coarse){
-    #treasure-exit-btn{
-      position: fixed;
-      top: calc(env(safe-area-inset-top, 0px) + 8px);
-      right: 12px;
-      z-index: 10060;
-      width: 42px; height: 42px;
-      border-radius: 12px;
-      background: rgba(15,23,42,.92);
-      color:#fff;
-      border: 1px solid rgba(255,255,255,.08);
-      box-shadow: 0 8px 24px rgba(0,0,0,.25);
-      display:flex; align-items:center; justify-content:center;
-      font: 700 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      -webkit-backdrop-filter: blur(6px);
-      backdrop-filter: blur(6px);
-    }
-    #treasure-exit-btn .ico{ transform: translateY(-1px); }
-  }`;
-  const s = document.createElement('style');
-  s.id = 'treasure-mobile-ui';
-  s.textContent = css;
-  document.head.appendChild(s);
-})();
-
-function ensureMobileExitBtn(){
-  let btn = document.getElementById('treasure-exit-btn');
-  if (!btn){
-    btn = document.createElement('button');
-    btn.id = 'treasure-exit-btn';
-    btn.setAttribute('aria-label','Esci');
-    btn.innerHTML = `<span class="ico">⎋</span>`;
-    document.body.appendChild(btn);
-  }
-  btn.onclick = (e)=>{ e.preventDefault(); openExitConfirm(); };
-}
 
 
   // ---------- AVVIO ----------
@@ -2780,12 +2740,6 @@ function openExitConfirm(){
   _exitOverlay.style.display = 'grid';
 }
 
-function openExitConfirm(){
-  ensureExitConfirmModal();
-  _wasPlaying = !!G.playing;
-  G.playing = false;                 // pausa: il loop e il timer si fermano (il tuo setInterval controlla G.playing)
-  _exitOverlay.style.display = 'grid';
-}
 
  
 // ---------- JOYSTICK (bind una sola volta) ----------

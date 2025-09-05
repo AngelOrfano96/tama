@@ -167,7 +167,7 @@ const SHOW_TINY_HUD = false;
 const BAT_TILE = 48;
 
 // prima era 6 → con 4 risultano ~+12% più grandi
-const ENEMY_INSET = 4;
+const ENEMY_INSET = 2;
 
 const BAT_MARGIN_X = 0, BAT_MARGIN_Y = 0;
 const BAT_SPACING_X = 0, BAT_SPACING_Y = 0;

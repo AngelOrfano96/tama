@@ -995,6 +995,133 @@ G.renderCache.tile = window.treasureTile || 64;
 
 }
 
+// ===== Overlay di caricamento + preloader immagini =====
+let _loadBox, _loadBar, _loadTxt, _loadShownAt = 0;
+const LOAD_MIN_SHOW_MS = 400;   // evita “flicker” se tutto carica istantaneo
+const LOAD_TIMEOUT_MS  = 8000;  // per singola immagine
+
+function ensureLoadingOverlay(){
+  if (_loadBox) return;
+  _loadBox = document.createElement('div');
+  Object.assign(_loadBox.style,{
+    position:'absolute', inset:0, display:'grid', placeItems:'center',
+    background:'rgba(2,6,23,.92)', color:'#e5e7eb',
+    zIndex: 100000, font:'600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial'
+  });
+  const card = document.createElement('div');
+  Object.assign(card.style,{
+    width:'min(92vw,420px)', padding:'16px', borderRadius:'14px',
+    background:'rgba(15,23,42,.85)', border:'1px solid rgba(255,255,255,.08)',
+    boxShadow:'0 10px 30px rgba(0,0,0,.4)', backdropFilter:'blur(6px)', WebkitBackdropFilter:'blur(6px)'
+  });
+  const title = document.createElement('div');
+  title.textContent = 'Caricamento risorse…';
+  Object.assign(title.style, { fontSize:'16px', marginBottom:'10px' });
+
+  const barWrap = document.createElement('div');
+  Object.assign(barWrap.style,{
+    width:'100%', height:'10px', background:'rgba(255,255,255,.08)',
+    borderRadius:'999px', overflow:'hidden'
+  });
+  _loadBar = document.createElement('div');
+  Object.assign(_loadBar.style,{ height:'100%', width:'0%', background:'#60a5fa' });
+  barWrap.appendChild(_loadBar);
+
+  _loadTxt = document.createElement('div');
+  Object.assign(_loadTxt.style,{ marginTop:'8px', opacity:.85 });
+  _loadTxt.textContent = '0%';
+
+  card.appendChild(title);
+  card.appendChild(barWrap);
+  card.appendChild(_loadTxt);
+  _loadBox.appendChild(card);
+
+  // monta dentro il modal del minigioco se c’è, altrimenti sul body
+  (DOM?.modal || document.body).appendChild(_loadBox);
+}
+
+function showLoadingOverlay(){
+  ensureLoadingOverlay();
+  _loadBar.style.width = '0%';
+  _loadTxt.textContent = '0%';
+  _loadBox.style.display = 'grid';
+  _loadShownAt = performance.now();
+}
+
+function setLoadingProgress(p){ // p: 0..1
+  const pct = Math.max(0, Math.min(1, p));
+  const str = Math.round(pct * 100) + '%';
+  _loadBar.style.width = str;
+  _loadTxt.textContent = str;
+}
+
+function hideLoadingOverlay(){
+  const wait = Math.max(0, LOAD_MIN_SHOW_MS - (performance.now() - _loadShownAt));
+  setTimeout(()=>{ if (_loadBox) _loadBox.style.display = 'none'; }, wait);
+}
+
+// Recursivo: raccoglie tutte le Image presenti in un oggetto (array/oggetto annidati)
+function collectImagesDeep(obj, out){
+  if (!obj) return;
+  if (obj instanceof Image) { out.push(obj); return; }
+  if (Array.isArray(obj)) { for (const v of obj) collectImagesDeep(v, out); return; }
+  if (typeof obj === 'object') { for (const k in obj) collectImagesDeep(obj[k], out); }
+}
+
+// Attende che una lista di Image sia caricata (o in errore / timeout)
+function preloadImages(imgs, onProgress){
+  let done = 0, total = imgs.length || 1;
+  const tick = () => onProgress?.(++done / total);
+
+  const one = (img) => new Promise((resolve) => {
+    // già pronta?
+    if (!img || (img.complete && img.naturalWidth > 0)) { tick(); return resolve(); }
+
+    // se completa ma 0x0 → errore precedente: consideriamo “fatto” (fallbacks gestiscono)
+    if (img.complete && img.naturalWidth === 0) { tick(); return resolve(); }
+
+    const to = setTimeout(() => { img.onload = img.onerror = null; tick(); resolve(); }, LOAD_TIMEOUT_MS);
+    img.onload = () => { clearTimeout(to); tick(); resolve(); };
+    img.onerror = () => { clearTimeout(to); tick(); resolve(); };
+  });
+
+  return Promise.all(imgs.map(one));
+}
+
+// Crea la lista di immagini da attendere
+function collectAllSpritesToPreload(){
+  const imgs = [];
+
+  // 1) atlas muri/decor (obbligatorio)
+  if (G.sprites?.atlas) imgs.push(G.sprites.atlas);
+
+  // 2) nemici: preferisci l’atlas del goblin; se non carica, fallback singolo
+  if (G.sprites?.goblinSheet) imgs.push(G.sprites.goblinSheet);
+  else if (G.sprites?.enemy)  imgs.push(G.sprites.enemy);
+
+  // 3) bat atlas (facoltativo: se non carica, fai fallback color block)
+  if (G.sprites?.batSheet) imgs.push(G.sprites.batSheet);
+
+  // 4) sprite vari (coin/exit/powerup/bg)
+  ['coin','exit','powerup','bg','wall'].forEach(k=>{
+    if (G.sprites?.[k]) imgs.push(G.sprites[k]);
+  });
+
+  // 5) talpa frames
+  if (G.sprites?.mole) collectImagesDeep(G.sprites.mole, imgs);
+
+  // 6) pet frames (idle + direzioni)
+  if (G.sprites?.pet) collectImagesDeep(G.sprites.pet, imgs);
+
+  // 7) fallback goblin singolo se non incluso sopra
+  if (G.sprites?.enemy && !imgs.includes(G.sprites.enemy)) imgs.push(G.sprites.enemy);
+
+  // 8) icone mosse (drop)
+  if (TreDrop?.img) imgs.push(TreDrop.img);
+
+  // filtra duplicati
+  return imgs.filter((v, i, a) => a.indexOf(v) === i);
+}
 
 
 
@@ -1034,66 +1161,58 @@ function startTreasureMinigame() {
   playBgm();
   generateDungeon();
   requestLandscape();
-  initAtlasSprites();
+  initAtlasSprites();       // crea G.sprites.atlas e ne setta la src
 
-  // atlas (muri/decor) + bake
+  // atlas (muri/decor) + bat + reset HUD mini
   maybeSwapDecorForDevice();
   buildDecorFromAtlas();
   buildBatFromAtlas();
-  //debugAtlas('start');
-document.getElementById('treasure-hud')?.remove();
-DOM.hudBox = null;
+  document.getElementById('treasure-hud')?.remove();
+  DOM.hudBox = null;
+
   // stato base
   G.level = 1;
   G.score = 0;
   G.coinsCollected = 0;
-  G.playing = true;
+  G.playing = false;           // 🔴 resta fermo finché non finiamo il preload
   G.activePowerup = null;
   G.powerupExpiresAt = 0;
   G.slowExpiresAt = 0;
 
-  // HUD
-  //ensureTinyHud();
-  //document.querySelector('.treasure-info-bar')?.classList.add('hidden');
-
-  // ── helpers loader (con cache-buster) ───────────────────────────
+  // loader helper con cache-buster
   const CB = 'v=7';
   const mkImg = (src) => {
     const img = new Image();
-    img.onload  = () => {/* console.log('[IMG ok]', src) */};
+    img.onload  = () => {/* ok */};
     img.onerror = (e) => console.error('[IMG fail]', src, e);
     img.src = src + (src.includes('?') ? '&' : '?') + CB;
     return img;
   };
 
-  // base path per device
   const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
 
-  // ── ENEMY: atlas goblin + fallback singolo ─────────────────────
-  buildGoblinFromAtlas(); // usa enemyAtlasBase già definito sopra
-
-  // fallback singolo (se l'atlas non è pronto/404)
+  // Nemico: atlas goblin + fallback singolo
+  buildGoblinFromAtlas(); // setta G.sprites.goblinSheet src
   G.sprites.enemy = mkImg(`${assetBase}/enemies/goblin.png`);
 
-  // ── SPRITES comuni ─────────────────────────────────────────────
+  // Sprite comuni
   G.sprites.coin    = mkImg('assets/collectibles/coin.png');
   G.sprites.exit    = mkImg('assets/icons/door.png');
   G.sprites.wall    = mkImg('assets/tiles/wall2.png');
   G.sprites.bg      = mkImg(`${assetBase}/backgrounds/dungeon3.png`);
   G.sprites.powerup = mkImg('assets/bonus/powerup.png');
 
-  // talpa
+  // Talpa
   G.sprites.mole = [
     mkImg(`${assetBase}/enemies/talpa_1.png`),
     mkImg(`${assetBase}/enemies/talpa_2.png`),
     mkImg(`${assetBase}/enemies/talpa_3.png`),
   ];
 
-  // ── PET: carica davvero i PNG (idle + due frame per direzione) ─
+  // Pet
   const petSrc = DOM.petImg?.src || '';
   const m = petSrc.match(/pet_(\d+)/);
   const petNum = m ? m[1] : '1';
-
   const mkPet = (file) => mkImg(`${assetBase}/pets/${file}`);
   G.sprites.pet = {
     idle:  mkPet(`pet_${petNum}.png`),
@@ -1103,29 +1222,39 @@ DOM.hudBox = null;
     up:    [ mkPet(`pet_${petNum}_up1.png`),    mkPet(`pet_${petNum}_up2.png`)    ],
   };
 
-  // ── PET stato iniziale ─────────────────────────────────────────
+  // UI iniziale
   const tile = window.treasureTile || 64;
   G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
-  G.pet = {
-    x: 1, y: 1,
-    px: 0, py: 0,          // verranno riallineati dopo il resize
-    animTime: 0,
-    dirX: 0, dirY: 0,
-    moving: false,
-    direction: 'down',
-    stepFrame: 0,
-  };
+  G.pet = { x:1, y:1, px:0, py:0, animTime:0, dirX:0, dirY:0, moving:false, direction:'down', stepFrame:0 };
 
-  // evita spawn nemico sulla cella del pet
+  // evita spawn nemico sulla cella del pet nella stanza iniziale
   (function ensureSafeSpawn() {
     const key = `${G.petRoom.x},${G.petRoom.y}`;
     const list = G.enemies[key] || [];
     G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
   })();
 
-  // via!
-  startLevel();
+  // === NUOVO: mostra overlay, pre-carica, poi avvia il livello ===
+  showLoadingOverlay();
+
+  // prepara anche il foglio delle icone delle mosse (così lo attendiamo)
+  initTreasureMoveSheet();
+
+  // raccogli tutte le immagini che hanno già la .src impostata
+  const imgs = collectAllSpritesToPreload();
+
+  preloadImages(imgs, setLoadingProgress).then(() => {
+    // ora che gli asset sono pronti possiamo andare
+    // (il reveal metterà G.playing=true da solo)
+    startLevel();
+    hideLoadingOverlay();
+  }).catch(() => {
+    // in caso di errore generico, prova comunque a partire (hai i fallback)
+    startLevel();
+    hideLoadingOverlay();
+  });
 }
+
 
 function maybeSpawnMoveInRoom(level){
   if (level < 3) return;

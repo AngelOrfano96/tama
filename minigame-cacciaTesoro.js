@@ -2811,13 +2811,24 @@ function repositionExitBtn(){
 
   const r = cv.getBoundingClientRect();
   const margin = 8;
-  // lo metto DENTRO il bordo alto-destro del canvas (con un po’ di margine)
-  const top  = Math.max(margin, r.top  + margin);
-  const left = Math.min(window.innerWidth - btn.offsetWidth - margin, r.right - btn.offsetWidth - margin);
+
+  // se la barra info è visibile, evita di sovrapporla
+  const hud = document.querySelector('.treasure-info-bar:not(.hidden)');
+  const hudBottom = hud ? hud.getBoundingClientRect().bottom : 0;
+
+  // optional: safe area iOS notch
+  const safeTop = (window.visualViewport && window.visualViewport.offsetTop) || 0;
+
+  const top  = Math.max(r.top + margin, hudBottom + margin, safeTop + margin);
+  const left = Math.min(window.innerWidth - btn.offsetWidth - margin,
+                        r.right - btn.offsetWidth - margin);
 
   btn.style.top  = `${top}px`;
   btn.style.left = `${left}px`;
+  // nel caso qualche vecchio CSS avesse messo 'right'
+  btn.style.right = '';
 }
+
 
 // aggiorna posizione quando serve
 ['resize','orientationchange','scroll'].forEach(ev =>

@@ -2764,28 +2764,11 @@ function resetJoystick() {
   updatePetDirFromJoystick(0,0);
   DOM.joyBase?.classList.remove('active');
 }
-// === EXIT BUTTON ancorato al canvas ===
-(function ensureExitBtnStyles(){
-  if (document.getElementById('treasure-exit-css')) return;
-  const s = document.createElement('style');
-  s.id = 'treasure-exit-css';
-  s.textContent = `
-  #treasure-exit-btn{
-    position:fixed;
-    width:44px;height:44px;border-radius:12px;
-    background:rgba(15,23,42,.92);color:#fff;border:1px solid rgba(255,255,255,.08);
-    box-shadow:0 10px 28px rgba(0,0,0,.28);
-    display:flex;align-items:center;justify-content:center;
-    font:700 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-    /* stai SOPRA a tutto (HUD, modali, ecc.) */
-    z-index:2147483000; 
-    pointer-events:auto;cursor:pointer;
-  }
-  #treasure-exit-btn[hidden]{ display:none !important; }
-  `;
-  document.head.appendChild(s);
-})();
+
+document.getElementById('treasure-exit-btn')?.addEventListener('click', (e)=>{
+  e.preventDefault();
+  if (!DOM.modal?.classList.contains('hidden')) openExitConfirm();
+});
 
 /*
 function ensureMobileExitBtn(){
@@ -2803,6 +2786,9 @@ function ensureMobileExitBtn(){
   repositionExitBtn();  // posiziona subito
 }
 */
+function repositionExitBtn(){ /* noop: gestito dal layout della barra */ }
+function ensureMobileExitBtn(){ /* noop: bottone già in HTML */ }
+function hideExitBtn(){ /* opzionale: se vuoi nasconderlo via JS */ }
 /*
 function repositionExitBtn(){
   const btn = document.getElementById('treasure-exit-btn');
@@ -2845,11 +2831,6 @@ document.getElementById('treasure-exit-btn')?.addEventListener('click', (e)=>{
 });
 
 
-
-// aggiorna posizione quando serve
-['resize','orientationchange','scroll'].forEach(ev =>
-  window.addEventListener(ev, repositionExitBtn, { passive:true })
-);
 
 function handleJoystickMove(touch) {
   const x = touch.clientX - joyCenter.x;

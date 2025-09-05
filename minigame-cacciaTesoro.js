@@ -2845,11 +2845,11 @@ document.getElementById('treasure-exit-btn')?.addEventListener('click', (e)=>{
 });
 
 
-/*
+
 // aggiorna posizione quando serve
 ['resize','orientationchange','scroll'].forEach(ev =>
   window.addEventListener(ev, repositionExitBtn, { passive:true })
-);*/
+);
 
 function handleJoystickMove(touch) {
   const x = touch.clientX - joyCenter.x;

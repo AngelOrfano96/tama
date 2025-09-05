@@ -549,3 +549,78 @@
     max-width: calc(100% - 16px) !important;
   }
 }
+
+
+
+/* --- HUD: layout base --- */
+#treasure-minigame-modal .treasure-info-bar{
+  position: fixed !important;
+  top: max(8px, env(safe-area-inset-top,0px)) !important;
+  left: 0 !important; right: 0 !important;
+  padding: 8px !important;
+  z-index: 100060 !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+}
+#treasure-minigame-modal .treasure-info-bar .wrap{
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  max-width: 680px !important;
+  margin: 0 auto !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  padding-right: var(--exit-pad, 80px) !important; /* spazio riservato al bottone */
+}
+#treasure-minigame-modal .treasure-info-bar .wrap::-webkit-scrollbar{ display:none !important; }
+
+/* NIENTE posizionamento assoluto/fixed della exit-area: la teniamo dentro al flex */
+#treasure-minigame-modal .treasure-exit-area{
+  position: static !important;
+  margin-left: auto !important;
+}
+
+/* bottone: sticky a destra ma SENZA sovrapporsi grazie al padding-right del wrapper */
+#treasure-exit-btn{
+  position: sticky !important;
+  right: 0 !important;
+  flex: 0 0 auto !important;
+  height: 32px !important;
+  padding: 6px 12px !important;
+  border-radius: 10px !important;
+  background: #ef4444 !important; color:#fff !important; border:0 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(239,68,68,.35) !important;
+  z-index: 1 !important;
+}
+
+/* pillole */
+#treasure-minigame-modal .treasure-info-bar .wrap > span{
+  display:inline-flex !important; align-items:center !important; gap:6px !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  flex: 0 0 auto !important;
+}
+
+/* --- Modalità compatta: attivata via JS quando non entra --- */
+#treasure-minigame-modal .treasure-info-bar .wrap.compact > span{
+  padding: 3px 7px !important;
+  height: 28px !important;
+  font-size: 12px !important;
+  gap: 5px !important;
+}
+#treasure-minigame-modal .treasure-info-bar .wrap.compact .info-icon{
+  width: 14px !important;   /* riduci icone */
+}
+#treasure-minigame-modal .treasure-info-bar .wrap.compact #treasure-exit-btn{
+  height: 30px !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+
+/* su schermi molto stretti, parti più compatto di default */
+@media (max-width: 420px){
+  #treasure-minigame-modal .treasure-info-bar .wrap{ gap:6px !important; }
+}

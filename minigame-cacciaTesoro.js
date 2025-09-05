@@ -2966,6 +2966,41 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
   fit();
 })();
 
+// HUD mobile: wrapper + compact + padding dinamico per il bottone "Esci"
+(function fixTreasureHud(){
+  const bar = document.querySelector('#treasure-minigame-modal .treasure-info-bar');
+  if (!bar) return;
+
+  // crea .wrap se manca
+  let wrap = bar.querySelector('.wrap');
+  if (!wrap){
+    wrap = document.createElement('div');
+    wrap.className = 'wrap';
+    while (bar.firstChild) wrap.appendChild(bar.firstChild);
+    bar.appendChild(wrap);
+  }
+
+  const exitBtn = wrap.querySelector('#treasure-exit-btn') 
+               || wrap.querySelector('.treasure-exit-btn');
+
+  function applyExitPadding(){
+    const w = (exitBtn?.offsetWidth || 68) + 12; // bottone + gap
+    wrap.style.setProperty('--exit-pad', w + 'px');
+    wrap.style.paddingRight = `var(--exit-pad)`;
+  }
+
+  function fit(){
+    // attiva "compact" quando non entra
+    wrap.classList.toggle('compact', wrap.scrollWidth > wrap.clientWidth);
+  }
+
+  window.addEventListener('resize', () => { applyExitPadding(); fit(); }, {passive:true});
+  new ResizeObserver(() => { applyExitPadding(); fit(); }).observe(wrap);
+  if (exitBtn) new ResizeObserver(applyExitPadding).observe(exitBtn);
+
+  applyExitPadding();
+  fit();
+})();
 
 document.addEventListener('DOMContentLoaded', () => {
   const playBtn = document.getElementById('play-btn');

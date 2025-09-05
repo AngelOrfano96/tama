@@ -1016,6 +1016,46 @@ function syncHud() {
 
   G.hudDirty = false;
 }
+// === MOBILE UI PATCH: exit button flottante ===
+(function ensureMobileUIStyles(){
+  if (document.getElementById('treasure-mobile-ui')) return;
+  const css = `
+  @media (hover:none) and (pointer:coarse){
+    #treasure-exit-btn{
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 8px);
+      right: 12px;
+      z-index: 10060;
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: rgba(15,23,42,.92);
+      color:#fff;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      display:flex; align-items:center; justify-content:center;
+      font: 700 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+    }
+    #treasure-exit-btn .ico{ transform: translateY(-1px); }
+  }`;
+  const s = document.createElement('style');
+  s.id = 'treasure-mobile-ui';
+  s.textContent = css;
+  document.head.appendChild(s);
+})();
+
+function ensureMobileExitBtn(){
+  let btn = document.getElementById('treasure-exit-btn');
+  if (!btn){
+    btn = document.createElement('button');
+    btn.id = 'treasure-exit-btn';
+    btn.setAttribute('aria-label','Esci');
+    btn.innerHTML = `<span class="ico">⎋</span>`;
+    document.body.appendChild(btn);
+  }
+  btn.onclick = (e)=>{ e.preventDefault(); openExitConfirm(); };
+}
 
 
   // ---------- AVVIO ----------
@@ -2537,6 +2577,10 @@ function generateDungeon() {
     G.exiting = false;
     initTreasureMoveSheet();
     TreDrop.items.length = 0;
+
+    ensureMobileExitBtn();   // <— crea/posiziona il bottone su mobile
+  resetJoystick(); 
+
   maybeSpawnMoveInRoom(G.level);
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
      G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
@@ -2727,10 +2771,17 @@ function updatePetDirFromJoystick(dx, dy) {
   else if (dy > 0.2) G.pet.direction = 'down';
 }
 function resetJoystick() {
-  if (DOM.joyStick) DOM.joyStick.style.transform = 'translate(-50%,-50%)';
+  if (DOM.joyStick) {
+    // hard reset: niente residui di scale/rotate
+    DOM.joyStick.style.transform = 'translate3d(-50%,-50%,0)';
+    // forziamo un reflow, poi riaffermiamo (alcuni browser “saltano” il primo set)
+    DOM.joyStick.getBoundingClientRect();
+    DOM.joyStick.style.transform = 'translate3d(-50%,-50%,0)';
+  }
   updatePetDirFromJoystick(0,0);
   DOM.joyBase?.classList.remove('active');
 }
+
 function handleJoystickMove(touch) {
   const x = touch.clientX - joyCenter.x;
   const y = touch.clientY - joyCenter.y;
@@ -2779,10 +2830,17 @@ DOM.joyBase?.addEventListener('touchcancel', onJoyEnd,   { passive:false });
   showTreasureArrowsIfMobile();
 
 
-  window.addEventListener('resize', () => {
-    if (G.playing) { resizeTreasureCanvas(); render(); resyncPetToGrid(); G.hudDirty = true; }
-    showTreasureArrowsIfMobile();
-  });
+ window.addEventListener('resize', () => {
+  if (G.playing) {
+    resizeTreasureCanvas();
+    render();
+    resyncPetToGrid();
+    resetJoystick();   // <— aggiungi questa riga
+    G.hudDirty = true;
+  }
+  showTreasureArrowsIfMobile();
+});
+
 
 
   // ---------- REVEAL ----------

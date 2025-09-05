@@ -986,6 +986,7 @@ G.renderCache.tile = window.treasureTile || 64;
   }
 
   if (G?.pet) resyncPetToGrid();
+  resyncEnemiesToGrid();
   repositionExitBtn();       // <— così non si “taglia” mai
 
 }
@@ -2197,11 +2198,18 @@ function roundRect(ctx, x, y, w, h, r) {
     const bsheet = G.sprites.batSheet;
 
     for (const e of (G.enemies[rk] || [])) {
-    const ex = e.px, ey = e.py;
-const drawW = tile - ENEMY_INSET*2;
-const drawH = tile - ENEMY_INSET*2;
-const dx = ex + ENEMY_INSET;
-const dy = ey + ENEMY_INSET;
+   const ex = e.px, ey = e.py;
+   const baseW = tile - ENEMY_INSET*2;
+   const baseH = tile - ENEMY_INSET*2;
+   // Crescita dolce: +6% per livello, clamp a non oltrepassare la tile
+   const scaleWanted = 1 + 0.06 * (Math.max(1, G.level) - 1);
+   const maxScale    = tile / Math.max(1, baseW); // non più grande della tile
+   const scale       = Math.min(scaleWanted, maxScale);
+   const drawW = Math.round(baseW * scale);
+   const drawH = Math.round(baseH * scale);
+   // centra lo sprite nella cella anche quando scala
+   const dx = ex + Math.round((tile - drawW) / 2);
+   const dy = ey + Math.round((tile - drawH) / 2);
 
 
       // seleziona atlas/frames in base al tipo
@@ -2321,6 +2329,15 @@ function isOpening(room, tx, ty) {
   return room[ty] && room[ty][tx] === 0;
 }
 
+function resyncEnemiesToGrid() {
+  const t = window.treasureTile || 64;
+  for (const list of Object.values(G.enemies)) {
+    for (const e of list) {
+      e.px = e.x * t;
+      e.py = e.y * t;
+    }
+  }
+}
 
 function pickRandomWallCellNoDoor(room) {
   const H = room.length, W = room[0].length;

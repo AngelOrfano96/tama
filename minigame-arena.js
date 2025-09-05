@@ -2266,12 +2266,26 @@ if (!DOM._exitBound){
   // Chiudi cliccando fuori dal contenuto
   DOM.exitModal?.addEventListener('click', (e)=>{ if (e.target === DOM.exitModal) hideExitModal(); });
 
-  // ESC per annullare (come treasure)
-  window.addEventListener('keydown', (e)=>{
-    if (DOM.exitModal && !DOM.exitModal.classList.contains('hidden') && e.key === 'Escape'){
-      e.preventDefault(); hideExitModal();
-    }
-  }, { passive:false });
+// ESC: apri/chiudi la modale di conferma uscita
+window.addEventListener('keydown', (e) => {
+  if (!G.playing || e.repeat) return;
+  if (e.key !== 'Escape') return;
+
+  // Se stai scrivendo in un input/textarea, ignora (opzionale)
+  if (isTyping?.(e)) return;
+
+  e.preventDefault();
+  if (!DOM.exitModal) return;
+
+  if (DOM.exitModal.classList.contains('hidden')) {
+    // era nascosta → MOSTRA e metti in pausa
+    showExitModal();
+  } else {
+    // era visibile → NASCONDI e riprendi
+    hideExitModal();
+  }
+}, { passive:false });
+
 
   DOM._exitBound = true;
 }
@@ -2279,6 +2293,15 @@ if (!DOM._exitBound){
 
   loadArenaCSS();
   forceArenaActionCrossLayout();
+  function forceExitButtonLayout() {
+  const b = DOM.exitBtn;
+  if (!b) return;
+  // nel caso sia stato messo dentro a overlay con pointer-events:none
+  b.style.pointerEvents = 'auto';
+  b.style.display = ''; // forza visibile
+}
+forceExitButtonLayout();
+
   hydrateActionButtons();
 
   // assicurati che i bottoni abbiano overlay di cooldown
@@ -2362,6 +2385,7 @@ if (!DOM._exitBound){
   if (isMobile) {
     DOM.joyOverlay?.classList.remove('hidden');
     DOM.actionsOverlay?.classList.remove('hidden');
+    DOM.exitBtn && (DOM.exitBtn.style.display = '');
     if (DOM.hudBox) {
       DOM.hudBox.classList.remove('hidden');
       DOM.hudBox.style.display = '';
@@ -2373,6 +2397,7 @@ if (!DOM._exitBound){
   } else {
     DOM.joyOverlay?.classList.add('hidden');
     DOM.actionsOverlay?.classList.add('hidden');
+    DOM.exitBtn && (DOM.exitBtn.style.display = '');
     if (DOM.hudBox) {
       DOM.hudBox.classList.remove('show');
       DOM.hudBox.style.display = 'none';

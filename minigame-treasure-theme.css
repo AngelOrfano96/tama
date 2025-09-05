@@ -376,3 +376,38 @@
     touch-action: none;
   }
 }
+
+
+
+/* la barra deve accettare click */
+.treasure-info-bar{
+  position: fixed;             /* se non lo è già */
+  top: max(8px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;        /* o flex, se già usi flex va benissimo */
+  align-items: center;
+  gap: 10px;
+  z-index: 100060;
+  pointer-events: auto;
+}
+
+.treasure-exit-btn{
+  margin-left: 12px;           /* separa dai badge */
+  padding: 6px 10px;
+  height: 28px;
+  border-radius: 10px;
+  background: rgba(15,23,42,.92);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 10px 28px rgba(0,0,0,.25);
+  font: 700 13px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* leggermente più grande su touch */
+@media (hover:none) and (pointer:coarse){
+  .treasure-exit-btn{ height: 32px; padding: 8px 12px; font-size: 14px; }
+}

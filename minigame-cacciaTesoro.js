@@ -2540,7 +2540,7 @@ function generateDungeon() {
     initTreasureMoveSheet();
     TreDrop.items.length = 0;
 
-    ensureMobileExitBtn();   // <— crea/posiziona il bottone su mobile
+   // ensureMobileExitBtn();   // <— crea/posiziona il bottone su mobile
   resetJoystick(); 
 
   maybeSpawnMoveInRoom(G.level);
@@ -2787,7 +2787,7 @@ function resetJoystick() {
   document.head.appendChild(s);
 })();
 
-
+/*
 function ensureMobileExitBtn(){
   let btn = document.getElementById('treasure-exit-btn');
   if (!btn){
@@ -2802,7 +2802,8 @@ function ensureMobileExitBtn(){
   btn.hidden = false;
   repositionExitBtn();  // posiziona subito
 }
-
+*/
+/*
 function repositionExitBtn(){
   const btn = document.getElementById('treasure-exit-btn');
   if (!btn) return;
@@ -2836,8 +2837,12 @@ function repositionExitBtn(){
 
   btn.style.top  = `${Math.round(top)}px`;
   btn.style.left = `${Math.round(left)}px`;
-}
+} */
 
+document.getElementById('treasure-exit-btn')?.addEventListener('click', (e)=>{
+  e.preventDefault();
+  if (!DOM.modal?.classList.contains('hidden')) openExitConfirm();
+});
 
 
 

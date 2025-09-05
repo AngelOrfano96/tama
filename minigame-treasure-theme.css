@@ -187,45 +187,7 @@
 
 /*//////////////////////////////////*/
 
-/* Il bottone Esci non deve spingere il contenuto: lo ancoriamo a destra dentro la barra */
-#treasure-minigame-modal .treasure-info-bar .treasure-exit-area{
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  float: none;                  /* nel caso fosse rimasto da inline */
-  margin: 0;
-}
 
-/* La grid non deve riservare una riga per l’HUD (che ora è fixed) */
-#treasure-minigame-modal .treasure-mobile-layout{
-  grid-template-rows: 1fr;
-}
-
-/* Canvas centrato e non troppo basso */
-#treasure-minigame-modal .treasure-dungeon-area{
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 8px;
-  padding-top: 96px;            /* desktop */
-}
-
-/* tablet */
-@media (max-width: 1024px){
-  #treasure-minigame-modal .treasure-dungeon-area{ padding-top: 64px; }
-}
-/* mobile */
-@media (max-width: 768px){
-  #treasure-minigame-modal .treasure-dungeon-area{ padding-top: 36px; } /* più in alto */
-  #treasure-minigame-modal .treasure-info-bar{ top: 10px; }
-}
-/* phone piccolo */
-@media (max-width: 420px){
-  #treasure-minigame-modal .treasure-dungeon-area{ padding-top: 30px; }
-  #treasure-minigame-modal .treasure-info-bar{ top: 8px; }
-}
 
 /* Joystick: solo su touch */
 .treasure-joystick-overlay{ display: none !important; }

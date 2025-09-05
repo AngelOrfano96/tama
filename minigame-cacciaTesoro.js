@@ -2266,13 +2266,13 @@ const dy = ey + ENEMY_INSET;
         ctx.fillStyle = '#a78bfa'; // lilla
         ctx.fillRect(dx + 2, dy + 2, drawW - 4, drawH - 4);
       } else {
-        if (G.sprites.enemy?.complete) {
-          ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
-        } else {
-          ctx.fillStyle = '#e74c3c';
-          ctx.fillRect(dx + 2, dy + 2, drawW - 4, drawH - 4);
-        }
-      }
+  if (G.sprites.enemy?.complete) {
+    ctx.drawImage(G.sprites.enemy, dx, dy, drawW, drawH); // <-- usa dx,dy
+  } else {
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(dx + 2, dy + 2, drawW - 4, drawH - 4);
+  }
+}
     }
   }
   // --- overlay "lip" sud (opzionale, effetto profondità)

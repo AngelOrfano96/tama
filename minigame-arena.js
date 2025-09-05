@@ -2190,6 +2190,15 @@ function forceArenaActionCrossLayout() {
   place('arena-skill-btn',  { left:'0', top:'50%', transform:'translate(0,-50%)' });
 }
 
+async function quitArena() {
+  G.playing = false;
+  DOM.modal?.classList.add('hidden');
+  DOM.hudBox?.classList.remove('show');
+  DOM.hudBox?.classList.add('hidden');
+  unloadArenaCSS();
+  try { if (document.fullscreenElement) await document.exitFullscreen(); } catch {}
+  G.keys.clear();
+}
 
   // ---------- Start / End ----------
 async function startArenaMinigame() {
@@ -2220,6 +2229,18 @@ DOM.exitModal   = document.getElementById('arena-exit-confirm');
 DOM.exitYes     = document.getElementById('arena-exit-yes');
 DOM.exitNo      = document.getElementById('arena-exit-no');
 
+if (!DOM._inspectBound && DOM.canvas) {
+  DOM.canvas.addEventListener('click', (e) => {
+    if (!INSPECT.on) return;
+    const rect = DOM.canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left), y = (e.clientY - rect.top);
+    const c = Math.floor(x / G.tile),   r = Math.floor(y / G.tile);
+    console.log('pick(', c, ',', r, ')');
+  });
+  DOM._inspectBound = true;
+}
+
+
 function showExitModal(){
   if (!DOM.exitModal) return;
   setArenaPaused(true);
@@ -2236,7 +2257,7 @@ if (!DOM._exitBound){
   DOM.exitYes?.addEventListener('click', async (e)=>{
     e.preventDefault();
     // conferma: termina partita (chiude fullscreen, salva punteggi ecc.)
-    await gameOver();
+     await quitArena();
     // niente resume dopo il gameOver
     hideExitModal(); // per sicurezza se il modal resta visibile
   }, { passive:false });
@@ -2680,6 +2701,7 @@ function normalizeAngle(a) {
   document.addEventListener('keydown', (e) => {
     const m = keyMap[e.key];
     if (!m) return;
+    if (!G.playing) return;
     e.preventDefault();
     if (!G.playing) return;
     //if (m === 'atk') return tryAttackBasic();
@@ -2690,6 +2712,7 @@ function normalizeAngle(a) {
   document.addEventListener('keyup', (e) => {
     const m = keyMap[e.key];
     if (!m) return;
+    if (!G.playing) return;
     e.preventDefault();
     G.keys.delete(m);
   });

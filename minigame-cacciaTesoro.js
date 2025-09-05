@@ -221,7 +221,7 @@ function buildBatFromAtlas() {
     },
   };
 }
-const TREASURE_MOVE_SPAWN_CHANCE = 0.20; // 20% a stanza dal livello 3 in su (modifica a piacere)
+const TREASURE_MOVE_SPAWN_CHANCE = 0.90; // 20% a stanza dal livello 3 in su (modifica a piacere)
 const TREASURE_MOVE_KEY = 'ball';        // oggi solo 'ball'
 
 const MOVE_DROP_CFG = {

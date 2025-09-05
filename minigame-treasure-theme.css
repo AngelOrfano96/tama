@@ -190,3 +190,15 @@
   .treasure-joystick-overlay{ display: block !important; }
 }
 
+/* === INFO BOX centrata in alto alla finestra === */
+.treasure-minigame-modal .treasure-info-bar{
+  position: fixed;           /* staccata dal grid, sempre in alto */
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0 !important;
+  right: auto !important;
+  z-index: 1000;             /* sopra al canvas */
+}

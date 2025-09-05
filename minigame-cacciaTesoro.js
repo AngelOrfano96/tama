@@ -165,6 +165,10 @@ const PHYS = {
 const SHOW_TINY_HUD = false;
 // === BAT ATLAS (enemy sprites) ===
 const BAT_TILE = 48;
+
+// prima era 6 → con 4 risultano ~+12% più grandi
+const ENEMY_INSET = 4;
+
 const BAT_MARGIN_X = 0, BAT_MARGIN_Y = 0;
 const BAT_SPACING_X = 0, BAT_SPACING_Y = 0;
 
@@ -2193,8 +2197,12 @@ function roundRect(ctx, x, y, w, h, r) {
     const bsheet = G.sprites.batSheet;
 
     for (const e of (G.enemies[rk] || [])) {
-      const ex = e.px, ey = e.py;
-      const drawW = tile - 12, drawH = tile - 12;
+    const ex = e.px, ey = e.py;
+const drawW = tile - ENEMY_INSET*2;
+const drawH = tile - ENEMY_INSET*2;
+const dx = ex + ENEMY_INSET;
+const dy = ey + ENEMY_INSET;
+
 
       // seleziona atlas/frames in base al tipo
       const type = e.type || 'goblin';
@@ -2247,7 +2255,7 @@ function roundRect(ctx, x, y, w, h, r) {
           const clip = arr[idx];
 
           if (clip) {
-            drawSheetClipMaybeFlip(sheet, clip, ex + 6, ey + 6, drawW, drawH, flip);
+            drawSheetClipMaybeFlip(sheet, clip, dx, dy, drawW, drawH, flip);
             continue; // disegnato con atlas
           }
         }
@@ -2256,13 +2264,13 @@ function roundRect(ctx, x, y, w, h, r) {
       // --- fallback se atlas non pronto ---
       if (type === 'bat') {
         ctx.fillStyle = '#a78bfa'; // lilla
-        ctx.fillRect(ex + 10, ey + 10, drawW - 8, drawH - 8);
+        ctx.fillRect(dx + 2, dy + 2, drawW - 4, drawH - 4);
       } else {
         if (G.sprites.enemy?.complete) {
           ctx.drawImage(G.sprites.enemy, ex + 6, ey + 6, drawW, drawH);
         } else {
           ctx.fillStyle = '#e74c3c';
-          ctx.fillRect(ex + 8, ey + 8, drawW - 4, drawH - 4);
+          ctx.fillRect(dx + 2, dy + 2, drawW - 4, drawH - 4);
         }
       }
     }

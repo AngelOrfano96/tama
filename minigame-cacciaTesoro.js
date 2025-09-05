@@ -126,7 +126,7 @@ const PHYS = {
   skin: 2,        // margine anti-incastro (prima 2). Più alto = più permissivo
   maxStepFrac: 1/3,
 };
-
+const SHOW_TINY_HUD = false;
 // === BAT ATLAS (enemy sprites) ===
 const BAT_TILE = 48;
 const BAT_MARGIN_X = 0, BAT_MARGIN_Y = 0;
@@ -675,6 +675,26 @@ function setGridForLevel(level) {
 
 // --- HUD compatto in alto a sinistra ---
 function ensureTinyHud() {
+  // 🔇 Disattiva del tutto l'HUD "tiny" in alto a sinistra
+  const old = document.getElementById('treasure-hud');
+  if (old) old.remove();
+
+  // azzera i riferimenti così syncHud() lo ignora
+  DOM.hudBox   = null;
+  DOM.hudScore = null;
+  DOM.hudLvl   = null;
+  DOM.hudTime  = null;
+  DOM.hudCoins = null;
+
+  // assicura che la barra centrale sia visibile
+  document.querySelector('.treasure-info-bar')?.classList.remove('hidden');
+
+  // nient'altro da fare: usiamo solo la barra centrale
+  return;
+}
+
+/*
+function ensureTinyHud() {
   if (DOM.hudBox) return;
 
   const box = document.createElement('div');
@@ -729,7 +749,7 @@ function ensureTinyHud() {
   DOM.hudLvl   = box.querySelector('#hud-level');
   DOM.hudTime  = box.querySelector('#hud-time');
   DOM.hudCoins = box.querySelector('#hud-coins');
-}
+} */
 
 // utilità: formatta secondi in mm:ss
 function fmtTime(sec) {
@@ -920,7 +940,7 @@ G.renderCache.tile = window.treasureTile || 64;
   }
 function syncHud() {
   // assicura l'HUD creato
-  ensureTinyHud();
+  //ensureTinyHud();
 
   // calcola monete rimaste
   const coinsLeft = Object.values(G.objects)
@@ -957,7 +977,8 @@ function startTreasureMinigame() {
   buildDecorFromAtlas();
   buildBatFromAtlas();
   //debugAtlas('start');
-
+document.getElementById('treasure-hud')?.remove();
+DOM.hudBox = null;
   // stato base
   G.level = 1;
   G.score = 0;
@@ -968,8 +989,8 @@ function startTreasureMinigame() {
   G.slowExpiresAt = 0;
 
   // HUD
-  ensureTinyHud();
-  document.querySelector('.treasure-info-bar')?.classList.add('hidden');
+  //ensureTinyHud();
+  //document.querySelector('.treasure-info-bar')?.classList.add('hidden');
 
   // ── helpers loader (con cache-buster) ───────────────────────────
   const CB = 'v=7';

@@ -168,6 +168,9 @@ const BAT_TILE = 48;
 
 // prima era 6 → con 4 risultano ~+12% più grandi
 const ENEMY_INSET = 2;
+const ENEMY_SCALE_GOBLIN = 1.20;   // 12% più grandi da subito
+const ENEMY_SCALE_BAT    = 1.00;   // i pipistrelli restano “base” (cambia se vuoi)
+const ENEMY_CLAMP_TO_TILE = true;  // true = non superare la tile
 
 const BAT_MARGIN_X = 0, BAT_MARGIN_Y = 0;
 const BAT_SPACING_X = 0, BAT_SPACING_Y = 0;
@@ -2199,17 +2202,25 @@ function roundRect(ctx, x, y, w, h, r) {
 
     for (const e of (G.enemies[rk] || [])) {
    const ex = e.px, ey = e.py;
-   const baseW = tile - ENEMY_INSET*2;
-   const baseH = tile - ENEMY_INSET*2;
-   // Crescita dolce: +6% per livello, clamp a non oltrepassare la tile
-   const scaleWanted = 1 + 0.06 * (Math.max(1, G.level) - 1);
-   const maxScale    = tile / Math.max(1, baseW); // non più grande della tile
-   const scale       = Math.min(scaleWanted, maxScale);
-   const drawW = Math.round(baseW * scale);
-   const drawH = Math.round(baseH * scale);
-   // centra lo sprite nella cella anche quando scala
-   const dx = ex + Math.round((tile - drawW) / 2);
-   const dy = ey + Math.round((tile - drawH) / 2);
+
+// base “utile” dentro la tile
+const base = tile - ENEMY_INSET * 2;
+
+// scala costante (per tipo)
+const s = (e.type === 'bat' ? ENEMY_SCALE_BAT : ENEMY_SCALE_GOBLIN);
+let drawW = Math.round(base * s);
+let drawH = Math.round(base * s);
+
+// opzionale: tienili dentro la tile
+if (ENEMY_CLAMP_TO_TILE) {
+  drawW = Math.min(tile, drawW);
+  drawH = Math.min(tile, drawH);
+}
+
+// centra lo sprite nella cella anche se è più piccolo/più grande
+const dx = ex + (tile - drawW) / 2;
+const dy = ey + (tile - drawH) / 2;
+
 
 
       // seleziona atlas/frames in base al tipo

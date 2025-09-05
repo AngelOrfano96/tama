@@ -636,3 +636,48 @@
   overflow-x:auto;
   -webkit-overflow-scrolling: touch;
 }
+/* --- Pillole HUD ancora più compatte su mobile --- */
+@media (max-width: 480px){
+  #treasure-minigame-modal .treasure-info-bar{ 
+    padding: 6px 8px !important;
+  }
+  #treasure-minigame-modal .treasure-info-bar .wrap{
+    gap: 6px !important;
+  }
+
+  /* solo le chip (i <span> di primo livello dentro .wrap) */
+  #treasure-minigame-modal .treasure-info-bar > .wrap > span{
+    padding: 3px 8px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+  }
+  /* icone più piccole */
+  #treasure-minigame-modal .treasure-info-bar > .wrap > span .info-icon{
+    width: 14px !important;
+  }
+
+  /* bottone Esci leggermente più snello */
+  #treasure-exit-btn{
+    height: 30px !important;
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ultra-stretti (es. 360px) */
+@media (max-width: 360px){
+  #treasure-minigame-modal .treasure-info-bar .wrap{ gap: 4px !important; }
+  #treasure-minigame-modal .treasure-info-bar > .wrap > span{
+    padding: 2px 6px !important;
+    font-size: 11px !important;
+  }
+  #treasure-minigame-modal .treasure-info-bar > .wrap > span .info-icon{
+    width: 12px !important;
+  }
+  #treasure-exit-btn{
+    height: 28px !important;
+    padding: 5px 8px !important;
+    font-size: 12px !important;
+  }
+}

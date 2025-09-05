@@ -2602,7 +2602,7 @@ function endTreasureMinigame(reason = 'end') {
   G.playing = false;
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
-   hideExitBtn();
+   //hideExitBtn();
   const fun = 15 + Math.round(G.score * 0.6);
   const exp = Math.round(G.score * 0.5);
 

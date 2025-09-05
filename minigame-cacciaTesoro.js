@@ -170,7 +170,7 @@ const BAT_TILE = 48;
 const ENEMY_INSET = 2;
 const ENEMY_SCALE_GOBLIN = 1.20;   // 12% più grandi da subito
 const ENEMY_SCALE_BAT    = 1.00;   // i pipistrelli restano “base” (cambia se vuoi)
-const ENEMY_CLAMP_TO_TILE = true;  // true = non superare la tile
+const ENEMY_CLAMP_TO_TILE = false;  // true = non superare la tile
 
 const BAT_MARGIN_X = 0, BAT_MARGIN_Y = 0;
 const BAT_SPACING_X = 0, BAT_SPACING_Y = 0;
@@ -2204,7 +2204,8 @@ function roundRect(ctx, x, y, w, h, r) {
    const ex = e.px, ey = e.py;
 
 // base “utile” dentro la tile
-const base = tile - ENEMY_INSET * 2;
+const base = tile; // scala dalla cella piena
+
 
 // scala costante (per tipo)
 const s = (e.type === 'bat' ? ENEMY_SCALE_BAT : ENEMY_SCALE_GOBLIN);

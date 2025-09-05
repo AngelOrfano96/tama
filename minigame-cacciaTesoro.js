@@ -1,5 +1,5 @@
 
-
+import { MOVES } from './mosse.js';
 // --- Mobile error overlay (debug) ---
 // Incolla questo blocco in cima al file, fuori dalla tua IIFE
 (function mobileErrorOverlay(){
@@ -31,6 +31,42 @@
   else document.addEventListener('DOMContentLoaded', install, { once:true });
 })();
 
+const sb = () => window.supabaseClient;
+const getPid = () => window.petId;
+
+async function awardMoveToInventory(moveKey){
+  const pid = getPid();
+  if (!pid || !sb()) { console.warn('[Treasure] missing petId/client'); return; }
+  try {
+    const { error } = await sb().rpc('award_move_drop', {
+      p_pet_id: pid,
+      p_move_key: moveKey
+    });
+    if (error) throw error;
+    // aggiorna la UI/Inventario se hai un loader già esposto
+    await window.loadMoves?.();
+    showTreasureToast?.(`Nuova mossa: ${moveKey}`);
+  } catch (e) {
+    console.error('[Treasure] award move', e);
+    showTreasureToast?.('Errore salvataggio mossa', true);
+  }
+}
+
+// mini toast (facoltativo)
+function showTreasureToast(txt, isErr=false){
+  const el = document.createElement('div');
+  Object.assign(el.style,{
+    position:'fixed', left:'50%', top:'12%', transform:'translateX(-50%)',
+    padding:'10px 14px', borderRadius:'10px',
+    background: isErr ? '#8b1f1f' : '#0f172a', color:'#fff',
+    font:'600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial',
+    boxShadow:'0 6px 18px rgba(0,0,0,.22)', zIndex:10050, opacity:'0',
+    transition:'opacity .15s ease'
+  });
+  el.textContent = txt; document.body.appendChild(el);
+  requestAnimationFrame(()=> el.style.opacity='1');
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=> el.remove(),180); }, 1300);
+}
 
 // === MINI GIOCO CACCIA AL TESORO — versione “no-globals” (modulo IIFE) ===
 (() => {
@@ -185,8 +221,37 @@ function buildBatFromAtlas() {
     },
   };
 }
+const TREASURE_MOVE_SPAWN_CHANCE = 0.20; // 20% a stanza dal livello 3 in su (modifica a piacere)
+const TREASURE_MOVE_KEY = 'ball';        // oggi solo 'ball'
 
+const MOVE_DROP_CFG = {
+  tile: 16,
+  // stesso tileset che usi in Arena per le icone (o cambia path se diverso)
+  src: (isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas') + '/LL_fantasy_dungeons.png'
+};
 
+// mappa la cella dell’icona della mossa (c,r) sul foglio delle icone
+const MOVE_ICON_MAP = { ball: { c:12, r:5, w:1, h:1 } };
+
+function pickMoveRect(k){
+  const m = MOVE_ICON_MAP[k]; if (!m) return null;
+  return { sx:m.c*MOVE_DROP_CFG.tile, sy:m.r*MOVE_DROP_CFG.tile,
+           sw:m.w*MOVE_DROP_CFG.tile, sh:m.h*MOVE_DROP_CFG.tile };
+}
+
+// stato Treasure
+const TreDrop = {
+  img: null,              // spritesheet icone
+  items: [],              // drop attivi [{key, px, py}]
+};
+function initTreasureMoveSheet(){
+  if (TreDrop.img) return;
+  const img = new Image();
+  img.onload  = () => console.log('[Treasure MoveSheet] ok');
+  img.onerror = (e) => console.warn('[Treasure MoveSheet] fail', e);
+  img.src = MOVE_DROP_CFG.src;
+  TreDrop.img = img;
+}
 
 // === GOBLIN ATLAS (enemy sprites) ===
 // Imposta alla cella del tuo foglio (16/24/32...). Se il tuo atlas è 32px, usa 32.
@@ -1064,6 +1129,23 @@ DOM.hudBox = null;
   startLevel();
 }
 
+function maybeSpawnMoveInRoom(level){
+  if (level < 3) return;                               // solo dal 3 in poi
+  if (Math.random() >= TREASURE_MOVE_SPAWN_CHANCE) return;
+
+  const t = G.tile;
+  // area camminabile: 1..(w-2) e 1..(h-2). Se hai bounds diversi, usa i tuoi.
+  const rx = 1 + (Math.random() * (Cfg.roomW - 2) | 0);
+  const ry = 1 + (Math.random() * (Cfg.roomH - 2) | 0);
+
+  // centro nel tile scelto
+  const px = rx * t + t/2;
+  const py = ry * t + t/2;
+
+  // una sola per stanza (se vuoi più, pushane più volte)
+  TreDrop.items = [{ key: TREASURE_MOVE_KEY, px, py }];
+}
+
   // *** NUOVO: scegli griglia e poi genera ***
   //setGridForLevel(G.level);
   //generateDungeon();
@@ -1196,6 +1278,28 @@ function movePet(dt) {
   // aggiorna cella logica usando il centro dell'hitbox
   G.pet.x = Math.floor((G.pet.px + size / 2) / tile);
   G.pet.y = Math.floor((G.pet.py + size / 2) / tile);
+// --- PICKUP mosse (Treasure) ---
+(function handleTreasureMovePickup(){
+  if (!TreDrop.items.length) return;
+
+  const t = G.tile;
+  const PCX = G.pet.px + t/2;
+  const PCY = G.pet.py + t/2;
+  const R   = t * 0.36;                   // raggio “pickup”
+
+  for (let i = TreDrop.items.length - 1; i >= 0; i--){
+    const d = TreDrop.items[i];
+    const dx = d.px - PCX, dy = d.py - PCY;
+    if (dx*dx + dy*dy <= R*R){
+      const k = d.key;
+      TreDrop.items.splice(i,1);          // rimosso dalla stanza
+      awardMoveToInventory(k);            // assegna al DB
+      G.score = (G.score|0) + 5;          // piccolo bonus opzionale
+      // se vuoi forzare aggiornamento HUD:
+      DOM.hudScore && (DOM.hudScore.textContent = G.score|0);
+    }
+  }
+})();
 
   // animazione
   G.pet.moving = true;
@@ -1946,6 +2050,16 @@ function render() {
       else { ctx.fillStyle = '#7a4f2b'; ctx.fillRect(mx + 8, my + 8, tile - 16, tile - 16); }
     }
   }
+function roundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
 
   // --- USCITA (botola) ---
   if (G.petRoom.x === G.exitRoom.x && G.petRoom.y === G.exitRoom.y) {
@@ -1961,6 +2075,53 @@ function render() {
       ctx.restore();
     }
   }
+  // --- Render drop mossa (Treasure) ---
+(function drawTreasureDrops(){
+  if (!TreDrop.items.length) return;
+  const sheet = TreDrop.img;
+  const t = G.tile;
+
+  for (const d of TreDrop.items){
+    const size = 0.55 * t;
+    const x = d.px - size/2, y = d.py - size/2;
+
+    // glow a terra
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#60a5fa';
+    ctx.beginPath();
+    ctx.ellipse(d.px, d.py + size*0.18, size*0.52, size*0.22, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // bobbing
+    const bob = Math.sin(performance.now()/250) * (t*0.03);
+    const icon = pickMoveRect(d.key);
+
+    if (sheet && sheet.complete && icon){
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sheet, icon.sx, icon.sy, icon.sw, icon.sh, x, y - bob, size, size);
+      // contorno
+      ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 2;
+      roundRect(ctx, x, y - bob, size, size, size*0.22); ctx.stroke?.();
+    } else {
+      // fallback “cartuccia”
+      ctx.save();
+      ctx.fillStyle = '#2563eb';
+      ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 2;
+      roundRect(ctx, x, y - bob, size, size, size*0.25);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = `700 ${Math.round(size*0.42)}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('M', d.px, d.py - bob);
+      ctx.restore();
+    }
+  }
+})();
+
 
   // --- PET (SAFE PICK) ---
   {
@@ -2403,6 +2564,8 @@ if (!spawned && Math.random() < 0.06) { // 6% oggetto
   // ---------- START LEVEL ----------
   function startLevel() {
     G.exiting = false;
+    initTreasureMoveSheet();
+  maybeSpawnMoveInRoom(level);
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
      G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
   G.pet.x = 1; G.pet.y = 1;

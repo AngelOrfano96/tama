@@ -137,30 +137,40 @@
 
 .coin-icon, .info-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
 
-/* 1) Centra tutta la “stage” (info + canvas) */
-/* Layout verticale: info sopra, canvas sotto */
+/* il layout fa da riferimento per il posizionamento assoluto */
 .treasure-mobile-layout{
+  position: relative;
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
-  row-gap: 12px;
+  grid-template-rows: 1fr; /* il canvas occupa il resto */
 }
 
-/* Info bar e area canvas hanno la stessa larghezza e sono centrate */
+/* INFO BOX: centrata in alto */
+.treasure-info-bar{
+  position: absolute;
+  top: 12px;                 /* distanza dal bordo alto */
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;        /* larga quanto il contenuto */
+  margin: 0;
+  z-index: 20;
+}
+
+/* AREA CANVAS: lascia spazio sotto l’infobox e centra il canvas */
 .treasure-dungeon-area{
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 8px;
+  padding-top: 96px;         /* altezza infobox ~64 + gap ~32 */
 }
 
-/* Il canvas occupa tutta la sua area massima */
+/* Canvas */
 #treasure-canvas{
-  width: 100%;
+  width: min(100vw - 32px, 900px);
   height: auto;
-  max-width: 900px;           /* deve matchare max-width sopra */
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 160px);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   display: block;
@@ -169,8 +179,14 @@
   box-shadow: 0 12px 30px rgba(0,0,0,.45);
 }
 
-/* Joystick: nascosto di default (desktop), visibile solo su touch */
+/* opzionale: più spazio su schermi piccoli */
+@media (max-width: 640px){
+  .treasure-dungeon-area{ padding-top: 110px; }
+}
+
+/* Joystick: nascosto su desktop, visibile solo su touch */
 .treasure-joystick-overlay{ display: none !important; }
 @media (hover: none) and (pointer: coarse){
   .treasure-joystick-overlay{ display: block !important; }
 }
+

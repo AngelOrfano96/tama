@@ -1268,12 +1268,12 @@ function startTreasureMinigame() {
 
   ensureLoadingOverlay();
 
-  const loadingCover = isMobileOrTablet()
+const loadingCover = isMobileOrTablet()
   ? 'assets/mobile/ui/treasure_loading.png'
   : 'assets/desktop/ui/treasure_loading.png';
 
-  _loadBox.style.background =
-  `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${cover}') center/cover no-repeat`;
+_loadBox.style.background =
+  `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${loadingCover}') center/cover no-repeat`;
 
 
 //setLoadingBackground(loadingCover);

@@ -138,35 +138,39 @@
 .coin-icon, .info-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
 
 /* 1) Centra tutta la “stage” (info + canvas) */
+/* Layout verticale: info sopra, canvas sotto */
 .treasure-mobile-layout{
   width: 100%;
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr;
-  /* centra orizzontalmente i figli della grid (info bar + area canvas) */
-  place-items: start center;
   row-gap: 12px;
 }
 
-/* 2) Dai alla info-bar la stessa larghezza del canvas
-      così resta centrata sopra di lui */
-.treasure-info-bar,
+/* Info bar e area canvas hanno la stessa larghezza e sono centrate */
 .treasure-dungeon-area{
-  width: min(100vw, 900px);   /* deve matchare #treasure-canvas */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px;
 }
 
-/* 3) (Opzionale) rendila leggermente “sticky” in alto */
-.treasure-info-bar{
-  position: sticky;
-  top: 8px;
-  z-index: 2;
+/* Il canvas occupa tutta la sua area massima */
+#treasure-canvas{
+  width: 100%;
+  height: auto;
+  max-width: 900px;           /* deve matchare max-width sopra */
+  max-height: calc(100vh - 180px);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+  background: #0f1220;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.45);
 }
 
-/* 4) Joystick: nascosto di default (desktop) */
-.treasure-joystick-overlay{ display: none; }
-
-/* Mostralo SOLO su dispositivi touch / schermi piccoli */
-@media (hover: none) and (pointer: coarse), (max-width: 900px){
-  .treasure-joystick-overlay{ display: block; }
+/* Joystick: nascosto di default (desktop), visibile solo su touch */
+.treasure-joystick-overlay{ display: none !important; }
+@media (hover: none) and (pointer: coarse){
+  .treasure-joystick-overlay{ display: block !important; }
 }
-

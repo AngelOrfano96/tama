@@ -245,3 +245,53 @@
   .treasure-dungeon-area{ padding-top: 48px; }
   .treasure-minigame-modal .treasure-info-bar{ top: 8px !important; }
 }
+
+
+/* === HUD centrato e canvas più alto su mobile — BLOCCO AUTORITA' === */
+
+/* La grid non deve riservare una riga all'HUD, che ora è fixed */
+.treasure-minigame-modal .treasure-mobile-layout{
+  position: relative !important;
+  grid-template-rows: 1fr !important;
+}
+
+/* HUD: centrato rispetto alla viewport, larghezza quanto il contenuto */
+.treasure-minigame-modal .treasure-info-bar{
+  position: fixed !important;
+  top: 12px !important;
+
+  /* centratura robusta: bordi opposti + margin auto */
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 auto !important;
+
+  width: fit-content !important;      /* o max-content, come preferisci */
+  transform: none !important;         /* niente translateX, non serve */
+  z-index: 1000 !important;
+}
+
+/* Area canvas: allineata in alto, con spazio solo quanto serve sotto l'HUD */
+.treasure-dungeon-area{
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  padding: 8px !important;
+  padding-top: 96px !important;       /* desktop */
+}
+
+/* Tablet */
+@media (max-width: 1024px){
+  .treasure-dungeon-area{ padding-top: 72px !important; }
+}
+
+/* Mobile: canvas un po' PIÙ IN ALTO come chiesto */
+@media (max-width: 768px){
+  .treasure-dungeon-area{ padding-top: 44px !important; }  /* prima 56px */
+  .treasure-minigame-modal .treasure-info-bar{ top: 10px !important; }
+}
+
+/* Phone piccolo */
+@media (max-width: 420px){
+  .treasure-dungeon-area{ padding-top: 36px !important; }  /* prima 48px */
+  .treasure-minigame-modal .treasure-info-bar{ top: 8px !important; }
+}

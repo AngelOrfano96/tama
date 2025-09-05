@@ -223,7 +223,7 @@ function buildBatFromAtlas() {
 }
 const TILE = () => (window.treasureTile || G.tileSize || 64);
 const TREASURE_DROPPABLE_MOVES = ['ball'];
-const TREASURE_MOVE_SPAWN_CHANCE = 0.90; // 20% a stanza dal livello 3 in su (modifica a piacere)
+const TREASURE_MOVE_SPAWN_CHANCE = 0.005; // 0.5% a stanza dal livello 3 in su (modifica a piacere)
 const TREASURE_MOVE_KEY = 'ball';        // oggi solo 'ball'
 function pickRandomMoveKeyForTreasure(){
   // prendi solo chiavi esistenti in MOVES
@@ -2771,21 +2771,22 @@ function resetJoystick() {
   s.id = 'treasure-exit-css';
   s.textContent = `
   #treasure-exit-btn{
-    position: fixed; /* evita clipping del container */
-    width: 44px; height: 44px;
-    border-radius: 12px;
-    background: rgba(15,23,42,.92);
-    color:#fff; border: 1px solid rgba(255,255,255,.08);
-    box-shadow: 0 10px 28px rgba(0,0,0,.28);
-    display:flex; align-items:center; justify-content:center;
-    font: 700 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-    z-index: 100080; pointer-events: auto; cursor: pointer;
+    position:fixed;
+    width:44px;height:44px;border-radius:12px;
+    background:rgba(15,23,42,.92);color:#fff;border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 10px 28px rgba(0,0,0,.28);
+    display:flex;align-items:center;justify-content:center;
+    font:700 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    /* stai SOPRA a tutto (HUD, modali, ecc.) */
+    z-index:2147483000; 
+    pointer-events:auto;cursor:pointer;
   }
   #treasure-exit-btn[hidden]{ display:none !important; }
   `;
   document.head.appendChild(s);
 })();
+
 
 function ensureMobileExitBtn(){
   let btn = document.getElementById('treasure-exit-btn');
@@ -2802,8 +2803,6 @@ function ensureMobileExitBtn(){
   repositionExitBtn();  // posiziona subito
 }
 
-function hideExitBtn(){ const b = document.getElementById('treasure-exit-btn'); if (b) b.hidden = true; }
-
 function repositionExitBtn(){
   const btn = document.getElementById('treasure-exit-btn');
   const cv  = document.getElementById('treasure-canvas');
@@ -2812,22 +2811,25 @@ function repositionExitBtn(){
   const r = cv.getBoundingClientRect();
   const margin = 8;
 
-  // se la barra info è visibile, evita di sovrapporla
+  // se la barra HUD è visibile, metti il bottone sotto la barra
   const hud = document.querySelector('.treasure-info-bar:not(.hidden)');
   const hudBottom = hud ? hud.getBoundingClientRect().bottom : 0;
 
-  // optional: safe area iOS notch
-  const safeTop = (window.visualViewport && window.visualViewport.offsetTop) || 0;
+  // safe area iOS (se presente)
+  const safeTop = (window.visualViewport?.offsetTop || 0);
 
-  const top  = Math.max(r.top + margin, hudBottom + margin, safeTop + margin);
-  const left = Math.min(window.innerWidth - btn.offsetWidth - margin,
-                        r.right - btn.offsetWidth - margin);
+  // top: sotto HUD e comunque non sopra il canvas
+  const top = Math.max(r.top + margin, hudBottom + margin, safeTop + margin);
 
-  btn.style.top  = `${top}px`;
-  btn.style.left = `${left}px`;
-  // nel caso qualche vecchio CSS avesse messo 'right'
-  btn.style.right = '';
+  // usa RIGHT anziché LEFT: lo ancora al bordo destro del canvas senza misurare il bottone
+  const right = Math.max(margin, window.innerWidth - r.right + margin);
+
+  btn.style.top   = `${top}px`;
+  btn.style.right = `${right}px`;
+  btn.style.left  = 'auto';       // pulisci eventuali valori precedenti
+  btn.hidden = false;             // assicurati sia visibile
 }
+
 
 
 // aggiorna posizione quando serve

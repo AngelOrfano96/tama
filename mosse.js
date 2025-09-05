@@ -38,7 +38,9 @@ export const MOVES = {
   },
   // …le altre mosse…
   ball: {
-    cooldownMs: 3500,
+     label: 'Lancio Palla',           // opzionale ma utile
+     icon: { c:12, r:5, w:1, h:1 },   // <- coordinate sull’atlas LL_fantasy_dungeons.png (16x16)
+     cooldownMs: 3500,
     run(api, self) {
       const t = api.tileSize();
       const speedPx   = 520;         // velocità proiettile

@@ -221,8 +221,16 @@ function buildBatFromAtlas() {
     },
   };
 }
+const TILE = () => (window.treasureTile || G.tileSize || 64);
+const TREASURE_DROPPABLE_MOVES = ['ball'];
 const TREASURE_MOVE_SPAWN_CHANCE = 0.90; // 20% a stanza dal livello 3 in su (modifica a piacere)
 const TREASURE_MOVE_KEY = 'ball';        // oggi solo 'ball'
+function pickRandomMoveKeyForTreasure(){
+  // prendi solo chiavi esistenti in MOVES
+  const pool = TREASURE_DROPPABLE_MOVES.filter(k => !!MOVES[k]);
+  if (!pool.length) return null;
+  return pool[(Math.random() * pool.length) | 0];
+}
 
 const MOVE_DROP_CFG = {
   tile: 16,
@@ -234,10 +242,17 @@ const MOVE_DROP_CFG = {
 const MOVE_ICON_MAP = { ball: { c:12, r:5, w:1, h:1 } };
 
 function pickMoveRect(k){
-  const m = MOVE_ICON_MAP[k]; if (!m) return null;
-  return { sx:m.c*MOVE_DROP_CFG.tile, sy:m.r*MOVE_DROP_CFG.tile,
-           sw:m.w*MOVE_DROP_CFG.tile, sh:m.h*MOVE_DROP_CFG.tile };
+  const ic = MOVES?.[k]?.icon; // es. {c,r,w=1,h=1}
+  const t  = MOVE_DROP_CFG.tile;
+  if (ic) return { sx:(ic.c|0)*t, sy:(ic.r|0)*t, sw:(ic.w||1)*t, sh:(ic.h||1)*t };
+
+  const m = MOVE_ICON_MAP[k];
+  if (m)  return { sx:m.c*t, sy:m.r*t, sw:(m.w||1)*t, sh:(m.h||1)*t };
+  return null;
 }
+
+
+
 
 // stato Treasure
 const TreDrop = {
@@ -868,34 +883,6 @@ function stopBgm() {
 }
 
 
-
-   function checkPickup(pet, powerup) {
-  const halfTile = G.tile / 2;
-
-  // bounding box del pet
-  const petBox = {
-    x: pet.x,
-    y: pet.y,
-    w: G.tile,
-    h: G.tile
-  };
-
-  // bounding box del power-up
-  const powerBox = {
-    x: powerup.x,
-    y: powerup.y,
-    w: G.tile,
-    h: G.tile
-  };
-
-  return (
-    petBox.x < powerBox.x + powerBox.w &&
-    petBox.x + petBox.w > powerBox.x &&
-    petBox.y < powerBox.y + powerBox.h &&
-    petBox.y + petBox.h > powerBox.y
-  );
-}
-
   // velocità base
   const enemyBaseSpeed = isMobileOrTablet() ? Cfg.enemySpeedMobile : Cfg.enemySpeedDesktop;
   const basePetSpeed   = isMobileOrTablet() ? Cfg.petSpeedMobile   : Cfg.petSpeedDesktop;
@@ -1130,22 +1117,24 @@ DOM.hudBox = null;
 }
 
 function maybeSpawnMoveInRoom(level){
-  if (level < 3) return;                               // solo dal 3 in poi
+  if (level < 3) return;
   if (Math.random() >= TREASURE_MOVE_SPAWN_CHANCE) return;
 
-  //const t = G.tile;
-  const t = G.tileSize || (window.treasureTile || 64);
-  // area camminabile: 1..(w-2) e 1..(h-2). Se hai bounds diversi, usa i tuoi.
-  const rx = 1 + (Math.random() * (Cfg.roomW - 2) | 0);
-  const ry = 1 + (Math.random() * (Cfg.roomH - 2) | 0);
+  const key = pickRandomMoveKeyForTreasure();
+  if (!key) return;
 
-  // centro nel tile scelto
-  const px = rx * t + t/2;
-  const py = ry * t + t/2;
+  const roomX = G.petRoom.x;
+  const roomY = G.petRoom.y;
 
-  // una sola per stanza (se vuoi più, pushane più volte)
-  TreDrop.items = [{ key: TREASURE_MOVE_KEY, px, py }];
+  // cella casuale interna alla stanza
+  const tx = 1 + ((Math.random() * (Cfg.roomW - 2)) | 0);
+  const ty = 1 + ((Math.random() * (Cfg.roomH - 2)) | 0);
+
+  TreDrop.items.push({ key, roomX, roomY, tx, ty });
 }
+
+
+
 
   // *** NUOVO: scegli griglia e poi genera ***
   //setGridForLevel(G.level);
@@ -1283,24 +1272,34 @@ function movePet(dt) {
 (function handleTreasureMovePickup(){
   if (!TreDrop.items.length) return;
 
-  const t = G.tile;
+  const t = TILE();
   const PCX = G.pet.px + t/2;
   const PCY = G.pet.py + t/2;
-  const R   = t * 0.36;                   // raggio “pickup”
+  const R   = t * 0.36;  // raggio pickup
 
   for (let i = TreDrop.items.length - 1; i >= 0; i--){
     const d = TreDrop.items[i];
-    const dx = d.px - PCX, dy = d.py - PCY;
+    if (d.roomX !== G.petRoom.x || d.roomY !== G.petRoom.y) continue;
+
+    const dpx = d.tx * t + t/2, dpy = d.ty * t + t/2;
+    const dx = dpx - PCX, dy = dpy - PCY;
     if (dx*dx + dy*dy <= R*R){
-      const k = d.key;
-      TreDrop.items.splice(i,1);          // rimosso dalla stanza
-      awardMoveToInventory(k);            // assegna al DB
-      G.score = (G.score|0) + 5;          // piccolo bonus opzionale
-      // se vuoi forzare aggiornamento HUD:
+      TreDrop.items.splice(i,1);               // togli il drop dalla stanza
+
+      // premio inventario (Supabase)
+      awardMoveToInventory(d.key);
+
+      // Nome per il toast, se definito in MOVES
+      const nice = MOVES?.[d.key]?.label || MOVES?.[d.key]?.name || d.key;
+
+      showTreasureToast?.(`Nuova mossa: ${nice}`);
+
+      G.score = (G.score|0) + 5;
       DOM.hudScore && (DOM.hudScore.textContent = G.score|0);
     }
   }
 })();
+
 
   // animazione
   G.pet.moving = true;
@@ -2079,19 +2078,22 @@ function roundRect(ctx, x, y, w, h, r) {
   // --- Render drop mossa (Treasure) ---
 (function drawTreasureDrops(){
   if (!TreDrop.items.length) return;
-  const sheet = TreDrop.img;
-  const t = G.tile;
 
   for (const d of TreDrop.items){
-    const size = 0.55 * t;
-    const x = d.px - size/2, y = d.py - size/2;
+    if (d.roomX !== G.petRoom.x || d.roomY !== G.petRoom.y) continue;
 
-    // glow a terra
+    const t = TILE();
+    const px = d.tx * t + t/2;
+    const py = d.ty * t + t/2;
+    const size = 0.55 * t;
+    const x = px - size/2, y = py - size/2;
+
+    // glow
     ctx.save();
     ctx.globalAlpha = 0.22;
     ctx.fillStyle = '#60a5fa';
     ctx.beginPath();
-    ctx.ellipse(d.px, d.py + size*0.18, size*0.52, size*0.22, 0, 0, Math.PI*2);
+    ctx.ellipse(px, py + size*0.18, size*0.52, size*0.22, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.restore();
 
@@ -2099,29 +2101,28 @@ function roundRect(ctx, x, y, w, h, r) {
     const bob = Math.sin(performance.now()/250) * (t*0.03);
     const icon = pickMoveRect(d.key);
 
+    const sheet = TreDrop.img; // stesso sheet del MOVE_DROP_CFG
     if (sheet && sheet.complete && icon){
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(sheet, icon.sx, icon.sy, icon.sw, icon.sh, x, y - bob, size, size);
-      // contorno
-      ctx.strokeStyle = '#93c5fd';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 2;
       roundRect(ctx, x, y - bob, size, size, size*0.22); ctx.stroke?.();
     } else {
-      // fallback “cartuccia”
+      // fallback
       ctx.save();
       ctx.fillStyle = '#2563eb';
       ctx.strokeStyle = '#93c5fd';
       ctx.lineWidth = 2;
-      roundRect(ctx, x, y - bob, size, size, size*0.25);
-      ctx.fill(); ctx.stroke();
+      roundRect(ctx, x, y - bob, size, size, size*0.25); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#e5e7eb';
       ctx.font = `700 ${Math.round(size*0.42)}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('M', d.px, d.py - bob);
+      ctx.fillText('M', px, py - bob);
       ctx.restore();
     }
   }
 })();
+
 
 
   // --- PET (SAFE PICK) ---
@@ -2535,6 +2536,7 @@ function generateDungeon() {
   function startLevel() {
     G.exiting = false;
     initTreasureMoveSheet();
+    TreDrop.items.length = 0;
   maybeSpawnMoveInRoom(G.level);
     if (isTouch) DOM.joyBase.style.opacity = '0.45';
      G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
@@ -2542,6 +2544,8 @@ function generateDungeon() {
   G.pet.px = 0; G.pet.py = 0;
    resizeTreasureCanvas();
    resyncPetToGrid();
+
+   maybeSpawnMoveInRoom(G.level);
    // Pre-bake del layer statico della stanza corrente (facoltativo)
 {
   const key = roomKey(G.petRoom.x, G.petRoom.y);

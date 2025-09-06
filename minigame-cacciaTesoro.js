@@ -1237,6 +1237,28 @@ async function startServerRun(){
   if (error) throw error;
   return data; // { run_id, seed }
 }
+let _hbTimer = null;
+function startHeartbeat(){
+  stopHeartbeat();
+  _hbTimer = setInterval(() => {
+    if (!window.treasureRun?.run_id || !G.playing) return;
+    logEv('hb', { lvl: G.level, rx: G.petRoom.x, ry: G.petRoom.y, t: Math.floor(G.timeLeft) });
+  }, 10_000);
+}
+function stopHeartbeat(){
+  if (_hbTimer) clearInterval(_hbTimer);
+  _hbTimer = null;
+}
+
+// Debounce log "room": al massimo 1 evento ogni 800ms per la stessa stanza
+let _lastRoomEvt = { key:'', at:0 };
+function logRoomOnce(){
+  const key = `${G.petRoom.x},${G.petRoom.y}`;
+  const now = performance.now();
+  if (key === _lastRoomEvt.key && (now - _lastRoomEvt.at) < 800) return;
+  _lastRoomEvt = { key, at: now };
+  logEv('room', { rx:G.petRoom.x, ry:G.petRoom.y });
+}
 
 // --- LOG EVENTI verso Edge Function ---
 async function logEv(kind, v = {}) {
@@ -1655,27 +1677,27 @@ function movePet(dt) {
   if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
     G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
-    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
+    logRoomOnce();
   }
   // a Est
   else if (G.pet.px + size >= (Cfg.roomW - 1) * tile - ENTER_GAP &&
            G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y]?.[Cfg.roomW - 1] === 0) {
     G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
-    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
+    logRoomOnce();
   }
   // a Nord
   else if (G.pet.py <= ENTER_GAP && G.petRoom.y > 0 && room[0]?.[G.pet.x] === 0) {
     G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
-    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
+    logRoomOnce();
   }
   // a Sud
   else if (G.pet.py + size >= (Cfg.roomH - 1) * tile - ENTER_GAP &&
            G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1]?.[G.pet.x] === 0) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
-    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
+    logRoomOnce();
   }
 
   // --- pickup (AABB in pixel) ---
@@ -2971,6 +2993,8 @@ repositionExitBtn();
 
     animateRevealCircle(() => {
       G.playing = true;
+      startHeartbeat();
+
       // Talpa: attiva solo dal livello 2 in poi
 G.mole.enabled = (G.level >= 2);
 if (G.mole.enabled) {
@@ -3004,6 +3028,7 @@ if (G.mole.enabled) {
 
   // ---------- END ----------
 function endTreasureMinigame(reason = 'end') {
+  stopHeartbeat();
   G.exiting = false;
   stopBgm();
   G.playing = false;

@@ -3015,49 +3015,71 @@ function endTreasureMinigame(reason = 'end') {
   G.playing = false;
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
-   //hideExitBtn();
+
   const fun = 15 + Math.round(G.score * 0.6);
   const exp = Math.round(G.score * 0.5);
 
-  // salva quante monete hai preso in questa run prima di resettare
+  // snapshot prima di resettare
+  const localScore = (G.score | 0);
+  const localLevel = (G.level | 0);
   const coinsThisRun = (G.coinsCollected | 0);
+  const runId = window.treasureRun?.run_id || null;
 
   setTimeout(async () => {
+    let summary = null;
+
+    // 1) chiudi la run lato server (anti-cheat)
+    if (runId && typeof sb === 'function' && sb()) {
+      try {
+        const { data, error } = await sb().functions.invoke('treasure_finish_run', {
+          body: { run_id: runId, reason }
+        });
+        if (error) throw error;
+        summary = data?.summary || null; // { score, level, coins, ... }
+      } catch (e) {
+        console.warn('[treasure_finish_run]', e?.message || e);
+      }
+    }
+
+    // valori finali: preferisci server, altrimenti locale
+    const finalScore = Number.isFinite(summary?.score) ? summary.score | 0 : localScore;
+    const finalLevel = Number.isFinite(summary?.level) ? summary.level | 0 : localLevel;
+    const finalCoins = Number.isFinite(summary?.coins) ? summary.coins | 0 : coinsThisRun;
+
     try {
-      // FUN/EXP al pet
+      // 2) FUN/EXP al pet
       if (typeof window.updateFunAndExpFromMiniGame === 'function') {
         await window.updateFunAndExpFromMiniGame(fun, exp);
       }
 
-      // Leaderboard: salva best score/level (la RPC ignora se level < 2)
-if (typeof window.submitTreasureScoreSupabase === 'function') {
-  await window.submitTreasureScoreSupabase(G.score|0, G.level|0);
-}
+      // 3) Leaderboard con i valori finali
+      if (typeof window.submitTreasureScoreSupabase === 'function') {
+        await window.submitTreasureScoreSupabase(finalScore, finalLevel);
+      }
 
+      // 4) Gettoni: preferisci il conteggio del server se disponibile
+      if (finalCoins > 0) {
+        await window.addGettoniSupabase?.(finalCoins);
+        await window.refreshResourcesWidget?.();
+      }
 
-      // GETTONI: prova vari helper globali (definiti in script.js)
-// GETTONI: usa la RPC corretta esposta da script.js
-if (coinsThisRun > 0) {
-  await window.addGettoniSupabase?.(coinsThisRun);
-  await window.refreshResourcesWidget?.();
-}
-
-
-      // feedback exp (opzionale)
+      // 5) feedback exp (facoltativo)
       if (typeof window.showExpGainLabel === 'function' && exp > 0) {
         window.showExpGainLabel(exp);
       }
     } catch (err) {
-      console.error('[Treasure] errore award EXP/FUN/coins:', err);
+      console.error('[Treasure] errore award/leaderboard/coins:', err);
     } finally {
-      // reset per la prossima partita
+      // reset pulito per la prossima partita
       G.coinsCollected = 0;
       G.keysStack = [];
       resetJoystick();
       restoreRandom();
+      window.treasureRun = null; // run chiusa: evita log futuri su una run finita
     }
   }, 180);
 }
+
 
 
 function showTreasureBonus(_msg, color = '#e67e22') {

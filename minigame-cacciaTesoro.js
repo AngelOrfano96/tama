@@ -3039,32 +3039,29 @@ if (G.mole.enabled) {
   // ---------- END ----------
 async function endTreasureMinigame(reason = 'end') {
   stopHeartbeat();
+  const runId = window.treasureRun?.run_id;
   G.exiting = false;
   stopBgm();
   G.playing = false;
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
 
-  const runId = window.treasureRun?.run_id;   // ✅ PRIMA di usarlo
-  let sv = null;
+ let sv = null;
 
-  // chiusura lato server: EDGE FUNCTION (non più RPC SQL)
-  if (runId) {
-    try {
-      const { data, error } = await sb().functions.invoke('treasure_finish_run', {
-        body: { run_id: runId, reason }
-      });
-      if (!error) {
-        sv = data?.summary || data;  // { coins, powerups, drops, level, score, duration_s, ... }
-      } else {
-        // 409 = già chiusa → ok/idempotente
-        const raw = await error.context?.text?.().catch(()=>'');
-        if (error.status !== 409) console.warn('[Treasure] finish fail:', raw || error.message);
-      }
-    } catch (e) {
-      console.warn('[Treasure] finish error:', e?.message || e);
+if (runId) {
+  try {
+    const { data, error } = await sb().functions.invoke('treasure_finish_run', {
+      body: { run_id: runId, reason }   // niente p_* qui
+    });
+    if (!error) sv = data?.summary || data;
+    else if (error.status !== 409) {
+      const raw = await error.context?.text?.().catch(()=>'');
+      console.warn('[Treasure] finish fail:', raw || error.message);
     }
+  } catch (e) {
+    console.warn('[Treasure] finish error:', e?.message || e);
   }
+}
 
   // punteggio/premi
   const serverScore = Number(sv?.score) || 0;

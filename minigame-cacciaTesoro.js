@@ -1185,14 +1185,41 @@ function syncHud() {
 
   G.hudDirty = false;
 }
+// PRNG deterministico (Mulberry32) + swap di Math.random
+function mulberry32(a){
+  return function(){
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const __trueRandom = Math.random;
+function useSeededRandom(seed){
+  const r = mulberry32((seed >>> 0) || 0);
+  Math.random = () => r();
+}
+function restoreRandom(){ Math.random = __trueRandom; } // opzionale: chiamala a fine partita
+
+// chiama la Edge Function per ottenere { run_id, seed }
+async function startServerRun(){
+  const client = (typeof sb === 'function' ? sb() : (window.supabaseClient || window.supabase));
+  if (!client) throw new Error('Supabase client non disponibile');
+  const device = isMobileOrTablet() ? 'mobile' : 'desktop';
+
+  const { data, error } = await client.functions.invoke('treasure_start_run', {
+    body: { device },
+  });
+  if (error) throw error;
+  return data; // { run_id, seed }
+}
 
 
   // ---------- AVVIO ----------
-function startTreasureMinigame() {
+async function startTreasureMinigame() {
   playBgm();
-  generateDungeon();
   requestLandscape();
-  initAtlasSprites();       // crea G.sprites.atlas e ne setta la src
+  initAtlasSprites(); // crea G.sprites.atlas e ne setta la src
 
   // atlas (muri/decor) + bat + reset HUD mini
   maybeSwapDecorForDevice();
@@ -1240,7 +1267,7 @@ function startTreasureMinigame() {
     mkImg(`${assetBase}/enemies/talpa_3.png`),
   ];
 
-  // Pet
+  // Pet (scelta sprite)
   const petSrc = DOM.petImg?.src || '';
   const m = petSrc.match(/pet_(\d+)/);
   const petNum = m ? m[1] : '1';
@@ -1253,35 +1280,45 @@ function startTreasureMinigame() {
     up:    [ mkPet(`pet_${petNum}_up1.png`),    mkPet(`pet_${petNum}_up2.png`)    ],
   };
 
-  // UI iniziale
+  // UI iniziale (posizione pet)
   const tile = window.treasureTile || 64;
   G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
   G.pet = { x:1, y:1, px:0, py:0, animTime:0, dirX:0, dirY:0, moving:false, direction:'down', stepFrame:0 };
 
-  // evita spawn nemico sulla cella del pet nella stanza iniziale
+  // ===== Overlay di caricamento =====
+  ensureLoadingOverlay();
+  const loadingCover = isMobileOrTablet()
+    ? 'assets/mobile/ui/treasure_loading.png'
+    : 'assets/desktop/ui/treasure_loading.png';
+  _loadBox.style.background =
+    `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${loadingCover}') center/cover no-repeat`;
+  showLoadingOverlay();
+
+  // ===== 1) chiedi run_id + seed al server, con fallback locale =====
+  let seed, run_id;
+  try {
+    const srv = await startServerRun();         // { run_id, seed }
+    seed   = srv?.seed;
+    run_id = srv?.run_id || null;
+  } catch (e) {
+    console.warn('[treasure_start_run] fallback seed:', e?.message || e);
+    seed = (crypto?.getRandomValues)
+      ? crypto.getRandomValues(new Uint32Array(1))[0]
+      : Math.floor(Math.random() * 2**32);
+    run_id = null;
+  }
+  window.treasureRun = { run_id, seed };
+
+  // ===== 2) attiva PRNG deterministico e genera il dungeon =====
+  useSeededRandom(seed >>> 0);
+  generateDungeon();
+
+  // evita spawn nemico sulla cella del pet nella stanza iniziale (ora che il dungeon esiste)
   (function ensureSafeSpawn() {
     const key = `${G.petRoom.x},${G.petRoom.y}`;
     const list = G.enemies[key] || [];
     G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
   })();
-
-
-  ensureLoadingOverlay();
-
-const loadingCover = isMobileOrTablet()
-  ? 'assets/mobile/ui/treasure_loading.png'
-  : 'assets/desktop/ui/treasure_loading.png';
-
-_loadBox.style.background =
-  `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${loadingCover}') center/cover no-repeat`;
-
-
-//setLoadingBackground(loadingCover);
-//setLoadingImage(loadingCover);
-showLoadingOverlay();
-
-  // === NUOVO: mostra overlay, pre-carica, poi avvia il livello ===
-  showLoadingOverlay();
 
   // prepara anche il foglio delle icone delle mosse (così lo attendiamo)
   initTreasureMoveSheet();
@@ -1289,17 +1326,17 @@ showLoadingOverlay();
   // raccogli tutte le immagini che hanno già la .src impostata
   const imgs = collectAllSpritesToPreload();
 
-  preloadImages(imgs, setLoadingProgress).then(() => {
-    // ora che gli asset sono pronti possiamo andare
-    // (il reveal metterà G.playing=true da solo)
-    startLevel();
+  // === pre-carica, poi avvia il livello ===
+  try {
+    await preloadImages(imgs, setLoadingProgress);
+  } catch (_) {
+    // ignoriamo: hai fallback disegnati a mano
+  } finally {
+    startLevel();         // (il reveal metterà G.playing = true)
     hideLoadingOverlay();
-  }).catch(() => {
-    // in caso di errore generico, prova comunque a partire (hai i fallback)
-    startLevel();
-    hideLoadingOverlay();
-  });
+  }
 }
+
 
 
 function maybeSpawnMoveInRoom(level){

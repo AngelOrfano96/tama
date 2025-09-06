@@ -1270,16 +1270,21 @@ async function logEv(kind, v = {}) {
       body: { run_id: run.run_id, kind, v },
       headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
     });
+
     if (error) {
-      // prova a estrarre il JSON di errore che l’edge function manda
-      let serverMsg = error.context;
-      try { serverMsg = JSON.parse(serverMsg)?.error || serverMsg; } catch {}
-      console.warn('[treasure_log_event] fail:', error.message, serverMsg, { kind, v, run_id: run.run_id });
+      let details = '';
+      try {
+        if (error.context && typeof error.context.text === 'function') {
+          details = await error.context.text();      // prova a leggere il JSON
+        }
+      } catch {}
+      console.warn('[treasure_log_event] fail:', error.message, details || { kind, v, run_id: run.run_id });
     }
   } catch (e) {
     console.debug('[treasure_log_event]', e?.message || e);
   }
 }
+
 
 
 
@@ -3022,6 +3027,20 @@ async function endTreasureMinigame(reason = 'end') {
   DOM.modal && DOM.modal.classList.add('hidden');
 
   const runId = window.treasureRun?.run_id;
+if (runId) {
+  const { data, error } = await sb().rpc('treasure_finish_run', {
+    p_run_id: runId,
+    p_room_w: Cfg.roomW|0,
+    p_room_h: Cfg.roomH|0,
+    // p_score: G.score|0, p_level: G.level|0  // solo se li usi
+  });
+  if (error) {
+    console.error('[Treasure] finish RPC failed:', error);
+  } else {
+    console.log('[Treasure] finish ok:', data);
+  }
+}
+
 
   // 🔐 chiudi run lato server e prendi i totali “veri”
   let sv = null;

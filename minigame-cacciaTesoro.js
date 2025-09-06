@@ -1260,18 +1260,23 @@ function logRoomOnce(){
   logEv('room', { rx:G.petRoom.x, ry:G.petRoom.y });
 }
 
-// --- LOG EVENTI verso Edge Function ---
 async function logEv(kind, v = {}) {
   try {
     const run = window.treasureRun;
+    // offline: nessun log → evita POST e 400
     if (!run?.run_id) return;
+
+    const { data: { session } } = await sb().auth.getSession();
     await sb().functions.invoke('treasure_log_event', {
-      body: { run_id: run.run_id, kind, v }
-      // se preferisci forzare il bearer:
-      // , headers: { Authorization: `Bearer ${(await sb().auth.getSession()).data.session?.access_token}` }
+      body: { run_id: run.run_id, kind, v },
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
     });
-  } catch (_) { /* fire-and-forget */ }
+  } catch (e) {
+    console.debug('[treasure_log_event]', e?.message || e);
+  }
 }
+
+
 
 
 // ——— DEBUG SUPABASE/FUNCTIONS ———
@@ -1329,68 +1334,65 @@ async function startTreasureMinigame() {
   const { data: { session } } = await sb().auth.getSession();
   if (!session) { console.error('[Treasure] nessuna sessione'); return; }
 
-  const accessToken = session.access_token;
   const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 
-let run;
-try {
-  const { data, error } = await sb().functions.invoke('treasure_start_run', {
-    body: { device: isMobile ? 'mobile' : 'desktop' }
-  });
-  if (error) throw error;
-  if (!data?.run_id || typeof data?.seed !== 'number') {
-    throw new Error('Payload malformato: ' + JSON.stringify(data));
+  // ── tenta la run server-side ──────────────────────────────
+  let run = null;
+  try {
+    const { data, error } = await sb().functions.invoke('treasure_start_run', {
+      body: { device: isMobile ? 'mobile' : 'desktop' }
+    });
+    if (error) throw error;
+    if (!data?.run_id) throw new Error('Missing run_id');
+    run = { run_id: data.run_id, seed: Number(data.seed) };
+  } catch (err) {
+    console.warn('[Treasure] start_run fallita → gioco offline:', err?.message || err);
+    // opzionale: piccolo avviso
+    showTreasureToast?.('Partita offline: log disattivati', true);
   }
-  run = data;
-} catch (err) {
-  console.warn('[Treasure] invoke fallita → fallback:', err?.message || err, err);
-}
-// salva comunque qualcosa per giocare:
-window.treasureRun = run ?? {
-  run_id: '(fallback)',
-  seed: (crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? (Math.random()*2**32))>>>0
-};
-useSeededRandom(window.treasureRun.seed >>> 0);
-// piccolo log per vedere sempre l’endpoint colpito
-{
-  const c = _getSupabaseClient();
-  const fnUrl = _getFunctionsUrl(c, 'treasure_start_run');
-  console.log('[functions URL]', fnUrl);
-}
 
-// badge/overlay di debug
-showTreasureDebugOverlay({
-  src: (window.treasureRun.run_id && window.treasureRun.run_id !== '(fallback)') ? 'server' : 'fallback',
-  device: (/android|iphone|ipad|ipod/i.test(navigator.userAgent) ? 'mobile' : 'desktop'),
-  run_id: window.treasureRun.run_id,
-  seed: window.treasureRun.seed
-});
+  // ── seed sempre impostato, anche offline ──────────────────
+  const seed = (run?.seed ?? (crypto?.getRandomValues?.(new Uint32Array(1))[0] >>> 0));
+  useSeededRandom(seed >>> 0);
 
-console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
+  // ── se offline, niente run: window.treasureRun = null ─────
+  window.treasureRun = run || null;
 
+  // piccolo log per vedere sempre l’endpoint colpito
+  {
+    const c = _getSupabaseClient();
+    const fnUrl = _getFunctionsUrl(c, 'treasure_start_run');
+    console.log('[functions URL]', fnUrl);
+  }
 
+  // badge/overlay di debug (mostra 'offline' quando non c’è run)
+  showTreasureDebugOverlay({
+    src: (window.treasureRun ? 'server' : 'offline'),
+    device: (isMobile ? 'mobile' : 'desktop'),
+    run_id: window.treasureRun?.run_id || '(none)',
+    seed
+  });
+  console.log('[Treasure] seed:', seed, 'run_id:', window.treasureRun?.run_id || '(none)');
 
+  // ── resto invariato ───────────────────────────────────────
   playBgm();
   requestLandscape();
-  initAtlasSprites(); // crea G.sprites.atlas e ne setta la src
+  initAtlasSprites();
 
-  // atlas (muri/decor) + bat + reset HUD mini
   maybeSwapDecorForDevice();
   buildDecorFromAtlas();
   buildBatFromAtlas();
   document.getElementById('treasure-hud')?.remove();
   DOM.hudBox = null;
 
-  // stato base
   G.level = 1;
   G.score = 0;
   G.coinsCollected = 0;
-  G.playing = false;           // 🔴 resta fermo finché non finiamo il preload
+  G.playing = false;
   G.activePowerup = null;
   G.powerupExpiresAt = 0;
   G.slowExpiresAt = 0;
 
-  // loader helper con cache-buster
   const CB = 'v=7';
   const mkImg = (src) => {
     const img = new Image();
@@ -1402,25 +1404,14 @@ console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treas
 
   const assetBase = isMobileOrTablet() ? 'assets/mobile' : 'assets/desktop';
 
-  // Nemico: atlas goblin + fallback singolo
-  buildGoblinFromAtlas(); // setta G.sprites.goblinSheet src
+  buildGoblinFromAtlas();
   G.sprites.enemy = mkImg(`${assetBase}/enemies/goblin.png`);
-
-  // Sprite comuni
   G.sprites.coin    = mkImg('assets/collectibles/coin.png');
   G.sprites.exit    = mkImg('assets/icons/door.png');
   G.sprites.wall    = mkImg('assets/tiles/wall2.png');
   G.sprites.bg      = mkImg(`${assetBase}/backgrounds/dungeon3.png`);
   G.sprites.powerup = mkImg('assets/bonus/powerup.png');
 
-  // Talpa
-  G.sprites.mole = [
-    mkImg(`${assetBase}/enemies/talpa_1.png`),
-    mkImg(`${assetBase}/enemies/talpa_2.png`),
-    mkImg(`${assetBase}/enemies/talpa_3.png`),
-  ];
-
-  // Pet (scelta sprite)
   const petSrc = DOM.petImg?.src || '';
   const m = petSrc.match(/pet_(\d+)/);
   const petNum = m ? m[1] : '1';
@@ -1433,12 +1424,10 @@ console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treas
     up:    [ mkPet(`pet_${petNum}_up1.png`),    mkPet(`pet_${petNum}_up2.png`)    ],
   };
 
-  // UI iniziale (posizione pet)
   const tile = window.treasureTile || 64;
   G.petRoom = { x: Math.floor(Cfg.gridW/2), y: Math.floor(Cfg.gridH/2) };
   G.pet = { x:1, y:1, px:0, py:0, animTime:0, dirX:0, dirY:0, moving:false, direction:'down', stepFrame:0 };
 
-  // ===== Overlay di caricamento =====
   ensureLoadingOverlay();
   const loadingCover = isMobileOrTablet()
     ? 'assets/mobile/ui/treasure_loading.png'
@@ -1447,32 +1436,27 @@ console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treas
     `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${loadingCover}') center/cover no-repeat`;
   showLoadingOverlay();
 
- 
   generateDungeon();
 
-  // evita spawn nemico sulla cella del pet nella stanza iniziale (ora che il dungeon esiste)
   (function ensureSafeSpawn() {
     const key = `${G.petRoom.x},${G.petRoom.y}`;
     const list = G.enemies[key] || [];
     G.enemies[key] = list.filter(e => !(e.x === G.pet.x && e.y === G.pet.y));
   })();
 
-  // prepara anche il foglio delle icone delle mosse (così lo attendiamo)
   initTreasureMoveSheet();
 
-  // raccogli tutte le immagini che hanno già la .src impostata
   const imgs = collectAllSpritesToPreload();
-
-  // === pre-carica, poi avvia il livello ===
   try {
     await preloadImages(imgs, setLoadingProgress);
   } catch (_) {
-    // ignoriamo: hai fallback disegnati a mano
+    // fallback disegnati a mano
   } finally {
-    startLevel();         // (il reveal metterà G.playing = true)
+    startLevel();
     hideLoadingOverlay();
   }
 }
+
 
 
 

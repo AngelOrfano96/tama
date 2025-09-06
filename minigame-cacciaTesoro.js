@@ -1247,36 +1247,26 @@ async function startTreasureMinigame() {
   const accessToken = session.access_token;
   const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 
-  let runRaw = null;
-  try {
-    const { data, error } = await sb().functions.invoke('treasure_start_run', {
-      body: { device: isMobile ? 'mobile' : 'desktop' },
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (error) throw error;
-    runRaw = data; // ATTENZIONE: può non avere seed/run_id o averli con nomi diversi
-  } catch (err) {
-    console.warn('[Treasure] invoke fallita → fallback', err);
+let run;
+try {
+  const { data, error } = await sb().functions.invoke('treasure_start_run', {
+    body: { device: isMobile ? 'mobile' : 'desktop' }
+  });
+  if (error) throw error;
+  if (!data?.run_id || typeof data?.seed !== 'number') {
+    throw new Error('Payload malformato: ' + JSON.stringify(data));
   }
-
-  // ✅ normalizza SEMPRE e applica fallback robusto
-  window.treasureRun = normalizeRun(runRaw ?? {});
-
-  // RNG deterministico (una sola chiamata!)
-  useSeededRandom(window.treasureRun.seed);
-
-  // badge di debug opzionale
-  (() => {
-    const tr = window.treasureRun;
-    const src = tr.run_id && tr.run_id !== '(fallback)' ? 'server' : 'fallback';
-    const el = document.createElement('div');
-    el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:100000;color:#fff;background:#0f172a;padding:6px 10px;border-radius:10px;font:600 12px system-ui';
-    el.textContent = `seed ${tr.seed} · ${src}`;
-    document.body.appendChild(el);
-    setTimeout(()=>el.remove(), 4000);
-  })();
-
-  console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
+  run = data;
+} catch (err) {
+  console.warn('[Treasure] invoke fallita → fallback:', err?.message || err, err);
+}
+// salva comunque qualcosa per giocare:
+window.treasureRun = run ?? {
+  run_id: '(fallback)',
+  seed: (crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? (Math.random()*2**32))>>>0
+};
+useSeededRandom(window.treasureRun.seed >>> 0);
+console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
 
 
 

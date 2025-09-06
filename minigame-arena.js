@@ -1088,6 +1088,19 @@ function ensureArenaLoaderDOM(){
   const el = document.createElement('div');
   el.id = 'arena-loading';
   el.className = 'arena-loading hidden';
+
+  // scegli immagine in base al device
+  const bg = isMobile
+    ? 'assets/mobile/ui/treasure_loading.png'
+    : 'assets/desktop/ui/treasure_loading.png';
+
+  // imposta background (con gradiente scuro per contrasto)
+  el.style.backgroundImage =
+    `linear-gradient(rgba(8,10,15,.55), rgba(8,10,15,.8)), url('${bg}')`;
+  el.style.backgroundSize = 'cover';
+  el.style.backgroundPosition = 'center';
+  el.style.backgroundRepeat = 'no-repeat';
+
   el.innerHTML = `
     <div class="card">
       <div class="title">Caricamento Arena</div>
@@ -1095,9 +1108,15 @@ function ensureArenaLoaderDOM(){
       <div class="progress"><div id="arena-load-bar"></div></div>
     </div>`;
   document.body.appendChild(el);
+
   DOM.loader = el;
+
+  // (opzionale) pre-carica lo sfondo per farlo comparire subito
+  const pre = new Image(); pre.src = bg;
+
   return el;
 }
+
 function showArenaLoader(){ ensureArenaLoaderDOM().classList.remove('hidden'); }
 function hideArenaLoader(){ DOM.loader?.classList.add('hidden'); }
 function setArenaLoader(p, msg){

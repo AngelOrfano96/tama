@@ -3006,7 +3006,7 @@ if (G.mole.enabled) {
 
 
   // ---------- END ----------
-function endTreasureMinigame(reason = 'end') {
+async function endTreasureMinigame(reason = 'end') {
   stopHeartbeat();
   G.exiting = false;
   stopBgm();
@@ -3014,72 +3014,35 @@ function endTreasureMinigame(reason = 'end') {
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
 
-  const fun = 15 + Math.round(G.score * 0.6);
-  const exp = Math.round(G.score * 0.5);
-
-  // snapshot locali
-  const localScore = (G.score | 0);
-  const localLevel = (G.level | 0);
-  const coinsThisRun = (G.coinsCollected | 0);
-  const runId = window.treasureRun?.run_id || null;
-  const petId = (typeof getPid === 'function' ? getPid() : null);
+  const run_id = window.treasureRun?.run_id;
 
   setTimeout(async () => {
-    let summary = null;
-
-    // 1) finish run lato server (assegna drop & chiude la run)
-    if (runId && typeof sb === 'function' && sb()) {
-      try {
+    try {
+      if (run_id) {
+        // chiudi lato server e lascia che sia lui ad assegnare i premi
         const { data, error } = await sb().functions.invoke('treasure_finish_run', {
-          body: { run_id: runId, reason, pet_id: petId }
+          body: { run_id, reason }
         });
         if (error) throw error;
-        summary = data?.summary || null; // { coins, awarded_moves:[], score_server, ... }
-      } catch (e) {
-        console.warn('[treasure_finish_run]', e?.message || e);
-      }
-    }
 
-    // valori finali: preferisci il server
-    const finalCoins = Number.isFinite(summary?.coins) ? (summary.coins|0) : coinsThisRun;
-    const finalScore = Number.isFinite(summary?.score_server) ? (summary.score_server|0) : localScore;
-    const finalLevel = Number.isFinite(summary?.level_server) ? (summary.level_server|0) : localLevel;
-    const awardedMoves = Array.isArray(summary?.awarded_moves) ? summary.awarded_moves : [];
+        const s = data?.summary;
+        console.log('[Treasure] finish summary', s);
 
-    try {
-      // 2) FUN/EXP al pet
-      if (typeof window.updateFunAndExpFromMiniGame === 'function') {
-        await window.updateFunAndExpFromMiniGame(fun, exp);
-      }
-
-      // 3) Leaderboard con i valori finali
-      if (typeof window.submitTreasureScoreSupabase === 'function') {
-        await window.submitTreasureScoreSupabase(finalScore, finalLevel);
-      }
-
-      // 4) Gettoni dal server (fallback a locali)
-      if (finalCoins > 0) {
-        await window.addGettoniSupabase?.(finalCoins);
+        // aggiorna eventuali widget lato client (solo UI)
         await window.refreshResourcesWidget?.();
-      }
 
-      // 5) Ricarica inventario e mostra toasts per le mosse assegnate lato server
-      if (awardedMoves.length) {
-        await window.loadMoves?.();
-        for (const mk of awardedMoves) {
-          const nice = MOVES?.[mk]?.label || MOVES?.[mk]?.name || mk;
-          showTreasureToast?.(`Nuova mossa: ${nice}`);
+        // opzionale feedback
+        if (typeof window.showExpGainLabel === 'function' && s?.exp > 0) {
+          window.showExpGainLabel(s.exp);
         }
-      }
-
-      // 6) feedback exp (facoltativo)
-      if (typeof window.showExpGainLabel === 'function' && exp > 0) {
-        window.showExpGainLabel(exp);
+      } else {
+        console.warn('[Treasure] finish senza run_id (niente premi)');
       }
     } catch (err) {
-      console.error('[Treasure] errore award/leaderboard/coins:', err);
+      console.error('[Treasure] finish error:', err);
+      showTreasureToast?.('Errore salvataggio partita', true);
     } finally {
-      // reset pulito
+      // reset per la prossima partita
       G.coinsCollected = 0;
       G.keysStack = [];
       resetJoystick();

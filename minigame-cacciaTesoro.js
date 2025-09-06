@@ -2993,6 +2993,7 @@ repositionExitBtn();
       logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
       startHeartbeat();
 
+      logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y }); //////////////////////////////////INCERTO
       // Talpa: attiva solo dal livello 2 in poi
 G.mole.enabled = (G.level >= 2);
 if (G.mole.enabled) {

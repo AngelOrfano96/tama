@@ -1217,12 +1217,8 @@ async function startServerRun(){
 
   // ---------- AVVIO ----------
 async function startTreasureMinigame() {
-  // --- deve esistere una sessione ---
   const { data: { session } } = await sb().auth.getSession();
-  if (!session) {
-    console.error('[Treasure] nessuna sessione: utente non loggato');
-    return;
-  }
+  if (!session) { console.error('[Treasure] nessuna sessione'); return; }
 
   const accessToken = session.access_token;
   const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -1231,15 +1227,15 @@ async function startTreasureMinigame() {
   try {
     const { data, error } = await sb().functions.invoke('treasure_start_run', {
       body: { device: isMobile ? 'mobile' : 'desktop' },
-      headers: { Authorization: `Bearer ${accessToken}` } // teniamolo esplicito
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (error) throw error;
-    run = data;                         // { run_id, seed }
+    run = data; // { run_id, seed }
   } catch (err) {
-    console.warn('[Treasure] invoke fallito → uso fallback locale', err);
+    console.warn('[Treasure] invoke fallita → fallback', err);
   }
 
-  // ✅ imposta UNA SOLA VOLTA
+  // ✅ salva UNA VOLTA sola
   window.treasureRun = run ?? {
     run_id: '(fallback)',
     seed: (crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? (Math.random()*2**32)>>>0)
@@ -1251,7 +1247,7 @@ async function startTreasureMinigame() {
   console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
 
 
-  
+
   playBgm();
   requestLandscape();
   initAtlasSprites(); // crea G.sprites.atlas e ne setta la src
@@ -1330,18 +1326,9 @@ async function startTreasureMinigame() {
   showLoadingOverlay();
 
 
-(() => {
-  const src = run_id ? 'server' : 'fallback';
-  const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:100000;color:#fff;background:#0f172a;padding:6px 10px;border-radius:10px;font:600 12px system-ui';
-  el.textContent = `seed ${seed} · ${src}`;
-  document.body.appendChild(el);
-  setTimeout(()=>el.remove(), 4000);
-})();
-
 
   // ===== 2) attiva PRNG deterministico e genera il dungeon =====
-  useSeededRandom(seed >>> 0);
+  //useSeededRandom(seed >>> 0);
   generateDungeon();
 
   // evita spawn nemico sulla cella del pet nella stanza iniziale (ora che il dungeon esiste)

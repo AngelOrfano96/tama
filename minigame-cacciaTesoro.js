@@ -1337,23 +1337,19 @@ async function startTreasureMinigame() {
   const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 
   // ── tenta la run server-side ──────────────────────────────
-  let run = null;
-  try {
-    const { data, error } = await sb().functions.invoke('treasure_start_run', {
-      body: { device: isMobile ? 'mobile' : 'desktop' }
-    });
-    if (error) throw error;
-    if (!data?.run_id) throw new Error('Missing run_id');
-    run = { run_id: data.run_id, seed: Number(data.seed) };
-  } catch (err) {
-    console.warn('[Treasure] start_run fallita → gioco offline:', err?.message || err);
-    // opzionale: piccolo avviso
-    showTreasureToast?.('Partita offline: log disattivati', true);
-  }
-
-  // ── seed sempre impostato, anche offline ──────────────────
-  const seed = (run?.seed ?? (crypto?.getRandomValues?.(new Uint32Array(1))[0] >>> 0));
-  useSeededRandom(seed >>> 0);
+ let run = null;
+try {
+  const { data } = await sb().functions.invoke('treasure_start_run', {
+    body: { device: isMobile ? 'mobile' : 'desktop' }
+  });
+  if (!data?.run_id) throw new Error('missing run_id');
+  run = { run_id: data.run_id, seed: Number(data.seed) };
+} catch (e) {
+  showTreasureToast?.('Server non raggiungibile: riprova', true);
+  return; // ← non si gioca senza run
+}
+window.treasureRun = run;
+useSeededRandom(run.seed >>> 0);
 
   // ── se offline, niente run: window.treasureRun = null ─────
   window.treasureRun = run || null;

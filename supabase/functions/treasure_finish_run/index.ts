@@ -4,6 +4,7 @@
 
 // Setup type definitions for built-in Supabase Runtime APIs
 // deno-lint-ignore-file no-explicit-any
+// supabase/functions/treasure_finish_run/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -14,14 +15,15 @@ const cors = (req: Request) => ({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Cache-Control": "no-store",
-  "Content-Type": "application/json"
+  "Content-Type": "application/json",
 });
+
+const ALLOWED_DROP_MOVES = new Set(["ball"]); // allinea con il client
 
 serve(async (req) => {
   const headers = cors(req);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
-  if (req.method !== "POST")
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
+  if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -34,90 +36,80 @@ serve(async (req) => {
   if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
 
   // body
-  const body = await req.json().catch(() => ({}));
-  const run_id = body?.run_id as string | undefined;
-  if (!run_id) return new Response(JSON.stringify({ error: "Missing run_id" }), { status: 400, headers });
+  const { run_id, reason, pet_id } = await req.json().catch(() => ({}));
+  if (!run_id) return new Response(JSON.stringify({ error: "Bad request: missing run_id" }), { status: 400, headers });
 
-  // run deve esistere ed essere dell'utente
-  // (niente select su colonne “extra” per restare tolleranti)
+  // run check
   const { data: run, error: runErr } = await supabase
     .from("treasure_runs")
-    .select("id,user_id")
+    .select("id,user_id,status,started_at")
     .eq("id", run_id)
     .single();
 
   if (runErr) return new Response(JSON.stringify({ error: runErr.message }), { status: 400, headers });
-  if (!run || run.user_id !== user.id) {
-    return new Response(JSON.stringify({ error: "Run not yours" }), { status: 400, headers });
+  if (!run || run.user_id !== user.id || run.status !== "open") {
+    return new Response(JSON.stringify({ error: "Run not open or not yours" }), { status: 400, headers });
   }
 
-  // prendi tutti gli eventi della run (di solito sono pochi)
+  // eventi della run
   const { data: evs, error: evErr } = await supabase
     .from("treasure_events")
-    .select("kind,v,t")
-    .eq("run_id", run_id)
-    .order("t", { ascending: true });
+    .select("kind, v")
+    .eq("run_id", run_id);
 
   if (evErr) return new Response(JSON.stringify({ error: evErr.message }), { status: 400, headers });
 
-  // aggregazione lato server
-  let coins = 0, powerups = 0, drops = 0, level = 1;
-  const coinSet = new Set<string>();
-  const roomsSet = new Set<string>();
-  const dropKeys = new Set<string>();
+  // aggregazioni base
+  let coins = 0;
+  let powerups = 0;
+  const drops = new Set<string>();
 
-  for (const e of evs ?? []) {
-    const k = e.kind;
-    const v = (e as any).v || {};
-    if (k === "coin") {
-      const key = `${v.rx},${v.ry},${v.x},${v.y}`;
-      if (!coinSet.has(key)) { coinSet.add(key); coins++; }
-    } else if (k === "powerup") {
-      powerups++;
-    } else if (k === "drop") {
-      const dk = typeof v.key === "string" ? v.key : "";
-      if (dk) { drops++; dropKeys.add(dk); }
-    } else if (k === "room") {
-      roomsSet.add(`${v.rx},${v.ry}`);
-    } else if (k === "hb") {
-      if (Number.isFinite(v.lvl)) level = Math.max(level, Number(v.lvl));
-      roomsSet.add(`${v.rx},${v.ry}`);
+  for (const e of (evs ?? [])) {
+    if (e.kind === "coin") coins++;
+    else if (e.kind === "powerup") powerups++;
+    else if (e.kind === "drop") {
+      const k = typeof e.v?.key === "string" ? e.v.key : null;
+      if (k && ALLOWED_DROP_MOVES.has(k)) drops.add(k);
     }
   }
 
-  // formula di score coerente col client:
-  //  - coin: +1
-  //  - powerup: +12
-  //  - drop (icona mossa): +5
-  const score = coins * 1 + powerups * 12 + drops * 5;
+  // punteggio server (coerente con client: +1 coin, +12 powerup, +5 drop)
+  const score_server = (coins * 1) + (powerups * 12) + (drops.size * 5);
 
-  const summary = {
-    score, level, coins, powerups, drops,
-    distinct_drop_keys: [...dropKeys],
-    rooms_visited: roomsSet.size,
-    events: evs?.length ?? 0
-  };
-
-  // prova ad aggiornare la run marcandola come finita (tollerante se mancano colonne)
-  // NB: se hai le colonne suggerite, questo passerà con RLS "update own".
-  const updateObj: Record<string, unknown> = {
-    status: "finished",
-    finished_at: new Date().toISOString(),
-    score,
-    level,
-    summary
-  };
-
-  let updErr: any = null;
-  const upd = await supabase.from("treasure_runs").update(updateObj).eq("id", run_id);
-  if (upd.error) {
-    // fallback “tollerante”: ritenta con solo finished_at
-    updErr = upd.error;
-    await supabase.from("treasure_runs").update({ finished_at: new Date().toISOString() }).eq("id", run_id);
+  // assegna i drop al pet (se fornito)
+  const awarded: string[] = [];
+  if (pet_id && drops.size > 0) {
+    for (const mv of drops) {
+      // tua RPC lato DB (SECURITY DEFINER consigliato)
+      const { error: rpcErr } = await supabase.rpc("award_move_drop", {
+        p_pet_id: pet_id,
+        p_move_key: mv,
+      });
+      if (!rpcErr) awarded.push(mv);
+      // se fallisce, prosegui sugli altri
+    }
   }
 
-  return new Response(JSON.stringify({ ok: true, summary, note: updErr?.message }), { status: 200, headers });
+  // chiudi la run (best effort: se RLS blocca l'UPDATE, non falliamo la risposta)
+  const ended_at = new Date().toISOString();
+  await supabase
+    .from("treasure_runs")
+    .update({ status: "closed", ended_at, coins, score_server, reason: reason ?? null })
+    .eq("id", run_id)
+    .eq("user_id", user.id);
+
+  // risposta
+  const summary = {
+    coins,
+    powerups,
+    awarded_moves: awarded,
+    score_server,
+    level_server: null as number | null, // se in futuro vorrai dedurlo dagli eventi
+  };
+
+  return new Response(JSON.stringify({ ok: true, summary }), { status: 200, headers });
 });
+
 
 /* To invoke locally:
 

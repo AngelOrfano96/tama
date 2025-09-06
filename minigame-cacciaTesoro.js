@@ -1616,7 +1616,7 @@ function movePet(dt) {
   const t = TILE();
   const PCX = G.pet.px + t/2;
   const PCY = G.pet.py + t/2;
-  const R   = t * 0.36;  // raggio pickup
+  const R   = t * 0.36;
 
   for (let i = TreDrop.items.length - 1; i >= 0; i--){
     const d = TreDrop.items[i];
@@ -1625,15 +1625,12 @@ function movePet(dt) {
     const dpx = d.tx * t + t/2, dpy = d.ty * t + t/2;
     const dx = dpx - PCX, dy = dpy - PCY;
     if (dx*dx + dy*dy <= R*R){
-      TreDrop.items.splice(i,1);               // togli il drop dalla stanza
+      TreDrop.items.splice(i,1);
 
-      // premio inventario (Supabase)
-      awardMoveToInventory(d.key);
+      // ⛔ niente award qui: solo logging
       logEv('drop', { key: d.key, rx: G.petRoom.x, ry: G.petRoom.y, x: d.tx, y: d.ty });
 
-      // Nome per il toast, se definito in MOVES
       const nice = MOVES?.[d.key]?.label || MOVES?.[d.key]?.name || d.key;
-
       showTreasureToast?.(`Nuova mossa: ${nice}`);
 
       G.score = (G.score|0) + 5;
@@ -1641,6 +1638,7 @@ function movePet(dt) {
     }
   }
 })();
+
 
 
   // animazione
@@ -3019,32 +3017,34 @@ function endTreasureMinigame(reason = 'end') {
   const fun = 15 + Math.round(G.score * 0.6);
   const exp = Math.round(G.score * 0.5);
 
-  // snapshot prima di resettare
+  // snapshot locali
   const localScore = (G.score | 0);
   const localLevel = (G.level | 0);
   const coinsThisRun = (G.coinsCollected | 0);
   const runId = window.treasureRun?.run_id || null;
+  const petId = (typeof getPid === 'function' ? getPid() : null);
 
   setTimeout(async () => {
     let summary = null;
 
-    // 1) chiudi la run lato server (anti-cheat)
+    // 1) finish run lato server (assegna drop & chiude la run)
     if (runId && typeof sb === 'function' && sb()) {
       try {
         const { data, error } = await sb().functions.invoke('treasure_finish_run', {
-          body: { run_id: runId, reason }
+          body: { run_id: runId, reason, pet_id: petId }
         });
         if (error) throw error;
-        summary = data?.summary || null; // { score, level, coins, ... }
+        summary = data?.summary || null; // { coins, awarded_moves:[], score_server, ... }
       } catch (e) {
         console.warn('[treasure_finish_run]', e?.message || e);
       }
     }
 
-    // valori finali: preferisci server, altrimenti locale
-    const finalScore = Number.isFinite(summary?.score) ? summary.score | 0 : localScore;
-    const finalLevel = Number.isFinite(summary?.level) ? summary.level | 0 : localLevel;
-    const finalCoins = Number.isFinite(summary?.coins) ? summary.coins | 0 : coinsThisRun;
+    // valori finali: preferisci il server
+    const finalCoins = Number.isFinite(summary?.coins) ? (summary.coins|0) : coinsThisRun;
+    const finalScore = Number.isFinite(summary?.score_server) ? (summary.score_server|0) : localScore;
+    const finalLevel = Number.isFinite(summary?.level_server) ? (summary.level_server|0) : localLevel;
+    const awardedMoves = Array.isArray(summary?.awarded_moves) ? summary.awarded_moves : [];
 
     try {
       // 2) FUN/EXP al pet
@@ -3057,28 +3057,38 @@ function endTreasureMinigame(reason = 'end') {
         await window.submitTreasureScoreSupabase(finalScore, finalLevel);
       }
 
-      // 4) Gettoni: preferisci il conteggio del server se disponibile
+      // 4) Gettoni dal server (fallback a locali)
       if (finalCoins > 0) {
         await window.addGettoniSupabase?.(finalCoins);
         await window.refreshResourcesWidget?.();
       }
 
-      // 5) feedback exp (facoltativo)
+      // 5) Ricarica inventario e mostra toasts per le mosse assegnate lato server
+      if (awardedMoves.length) {
+        await window.loadMoves?.();
+        for (const mk of awardedMoves) {
+          const nice = MOVES?.[mk]?.label || MOVES?.[mk]?.name || mk;
+          showTreasureToast?.(`Nuova mossa: ${nice}`);
+        }
+      }
+
+      // 6) feedback exp (facoltativo)
       if (typeof window.showExpGainLabel === 'function' && exp > 0) {
         window.showExpGainLabel(exp);
       }
     } catch (err) {
       console.error('[Treasure] errore award/leaderboard/coins:', err);
     } finally {
-      // reset pulito per la prossima partita
+      // reset pulito
       G.coinsCollected = 0;
       G.keysStack = [];
       resetJoystick();
       restoreRandom();
-      window.treasureRun = null; // run chiusa: evita log futuri su una run finita
+      window.treasureRun = null;
     }
   }, 180);
 }
+
 
 
 

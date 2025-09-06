@@ -3073,63 +3073,63 @@ async function endTreasureMinigame(reason = 'end') {
   if (RunState.closing || RunState.closed) return;
   RunState.closing = true;
 
-  stopHeartbeat();
-  G.exiting = false;
-  stopBgm();
-  G.playing = false;
-  if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
-  DOM.modal && DOM.modal.classList.add('hidden');
-
-  const runId = window.treasureRun?.run_id;
-  let data, error, errBody;
-
+  // stop gioco/UI
   try {
-    if (runId) {
-      ({ data, error } = await sb().functions.invoke('treasure_finish_run', {
-        body: { run_id: runId, reason }
-      }));
+    stopHeartbeat?.();
+    G.exiting = false;
+    stopBgm?.();
+    G.playing = false;
+    if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
+    DOM.modal?.classList.add('hidden');
+
+    const runId = window.treasureRun?.run_id;
+    if (!runId) {
+      showTreasureToast?.('Nessuna run attiva da chiudere', true);
+      return;
     }
-  } catch (e) {
-    console.warn('[Treasure] finish exception:', e?.message || e);
-    showTreasureToast?.('Errore di rete durante la chiusura', true);
-    RunState.closing = false;
-    return;
-  }
 
-  if (error) {
-    try { errBody = JSON.parse(await error.context?.text?.() || '{}'); } catch {}
-    const msg = (errBody?.error || error.message || '').toString();
+    // token esplicito nell'header (più affidabile)
+    const { data: sessData } = await sb().auth.getSession().catch(() => ({ data: null }));
+    const token = sessData?.session?.access_token || '';
 
-    // vecchio comportamento 409 (se mai dovesse tornare)
-    if (error.status === 409 || /Run already closed|Run not open|Run not yours/i.test(msg)) {
-      showTreasureToast?.('Partita già chiusa su un’altra scheda.', true);
-      // non accreditare nulla qui
-    } else {
-      showTreasureToast?.('Errore nel salvataggio del risultato', true);
+    const { data, error } = await sb().functions.invoke('treasure_finish_run', {
+      body: { run_id: runId, reason },
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+
+    if (error) {
+      // prova a leggere eventuale body JSON
+      let errBody = {};
+      try { errBody = JSON.parse(await error.context?.text?.() || '{}'); } catch {}
+      const msg = (errBody?.error || error.message || '').toString();
+
+      if (error.status === 409 || /Run already closed|Run not open|Run not yours/i.test(msg)) {
+        showTreasureToast?.('Partita già chiusa su un’altra scheda.', true);
+      } else {
+        showTreasureToast?.('Errore nel salvataggio del risultato', true);
+      }
+      return;
     }
-    RunState.closing = false;
-    return;
-  }
 
-  // con la versione nuova la funzione risponde 200 sempre; controlla i campi
-  const alreadyClosed = !!data?.already_closed;
-  const sv = data?.summary || null;           // { coins, powerups, drops, level, score, duration_s, ... }
-  const rewards = data?.rewards || null;      // { awarded, coins, fun, exp } se la RPC è andata
+    // risposta “nuova”: ok 200 sempre, con payload
+    const alreadyClosed = !!data?.already_closed;
+    const sv = data?.summary || null;      // { coins, powerups, drops, level, score, duration_s }
+    const rewards = data?.rewards || null; // { awarded, coins, fun, exp }
 
-  if (!sv) {
-    showTreasureToast?.('Risultato non registrato. Nessun premio assegnato.', true);
-    RunState.closing = false;
-    return;
-  }
+    if (!sv) {
+      showTreasureToast?.('Risultato non registrato. Nessun premio assegnato.', true);
+      return;
+    }
 
-  try {
-    // mostra l’exp lato UI (server-side authoritative)
+    // UI: etichetta exp (server authoritative)
     const expToShow = Number(rewards?.exp ?? sv?.exp ?? 0);
-    if (expToShow) window.showExpGainLabel?.(expToShow);
+    if (expToShow > 0) window.showExpGainLabel?.(expToShow);
 
-    // ricarica i saldi/risorse dal DB (già aggiornati lato server, idempotente)
+    // ricarica saldi/risorse (già aggiornati lato server con ledger)
     await window.refreshResourcesWidget?.();
-    await window.reloadProfile?.();                        // ← riga corretta
+    await window.reloadProfile?.();
+
+    // salva punteggio (se usato)
     await window.submitTreasureScoreSupabase?.(
       Number(sv.score) || 0,
       Number(sv.level) || 0
@@ -3138,14 +3138,21 @@ async function endTreasureMinigame(reason = 'end') {
     if (alreadyClosed) {
       showTreasureToast?.('Partita già chiusa in un’altra scheda.', true);
     }
+  } catch (e) {
+    console.warn('[Treasure] finish exception:', e?.message || e);
+    showTreasureToast?.('Errore di rete durante la chiusura', true);
+    return;
   } finally {
+    // pulizia stato SEMPRE
     RunState.closed = true;
+    RunState.closing = false;
     G.coinsCollected = 0;
     G.keysStack = [];
-    resetJoystick();
-    restoreRandom();
+    resetJoystick?.();
+    restoreRandom?.();
   }
 }
+
 
 
 

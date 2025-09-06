@@ -1240,11 +1240,16 @@ async function startServerRun(){
 let _hbTimer = null;
 function startHeartbeat(){
   stopHeartbeat();
+  // invia SUBITO un HB per provare presenza stanza
+  if (window.treasureRun?.run_id) {
+    logEv('hb', { lvl: G.level, rx: G.petRoom.x, ry: G.petRoom.y, t: Math.floor(G.timeLeft) });
+  }
   _hbTimer = setInterval(() => {
     if (!window.treasureRun?.run_id || !G.playing) return;
     logEv('hb', { lvl: G.level, rx: G.petRoom.x, ry: G.petRoom.y, t: Math.floor(G.timeLeft) });
-  }, 10_000);
+  }, 3000); // 5s, così i pickup entro pochi secondi hanno già “presenza”
 }
+
 function stopHeartbeat(){
   if (_hbTimer) clearInterval(_hbTimer);
   _hbTimer = null;
@@ -1640,7 +1645,8 @@ function movePet(dt) {
       TreDrop.items.splice(i,1);
 
       // ⛔ niente award qui: solo logging
-      logEv('drop', { key: d.key, rx: G.petRoom.x, ry: G.petRoom.y, x: d.tx, y: d.ty });
+      logEv('drop', { key: d.key, rx: G.petRoom.x, ry: G.petRoom.y, x: d.tx, y: d.ty, w: Cfg.roomW, h: Cfg.roomH });
+
 
       const nice = MOVES?.[d.key]?.label || MOVES?.[d.key]?.name || d.key;
       showTreasureToast?.(`Nuova mossa: ${nice}`);
@@ -1706,7 +1712,7 @@ function movePet(dt) {
     const by = o.y * tile + tile / 4;
     if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
       o.taken = true; G.score += 1; G.coinsCollected += 1; G.hudDirty = true;
-      logEv('coin', { rx: G.petRoom.x, ry: G.petRoom.y, x: o.x, y: o.y });
+      logEv('coin', { rx: G.petRoom.x, ry: G.petRoom.y, x: o.x, y: o.y, w: Cfg.roomW, h: Cfg.roomH });
     }
   }
 
@@ -1716,7 +1722,7 @@ function movePet(dt) {
     const by = p.y * tile + tile / 4;
     if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
       p.taken = true; G.score += 12; G.hudDirty = true;
-      logEv('powerup', { type: p.type, rx: G.petRoom.x, ry: G.petRoom.y, x: p.x, y: p.y });
+      logEv('powerup', { type: p.type, rx: G.petRoom.x, ry: G.petRoom.y, x: p.x, y: p.y, w: Cfg.roomW, h: Cfg.roomH });
       if (p.type === 'speed') {
         G.activePowerup = 'speed'; G.powerupExpiresAt = performance.now() + Cfg.powerupMs; G.speedMul = 3;
         showTreasureBonus('SPEED!', '#22c55e');
@@ -2984,6 +2990,7 @@ repositionExitBtn();
 
     animateRevealCircle(() => {
       G.playing = true;
+      logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
       startHeartbeat();
 
       // Talpa: attiva solo dal livello 2 in poi
@@ -3025,21 +3032,6 @@ async function endTreasureMinigame(reason = 'end') {
   G.playing = false;
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
-
-  const runId = window.treasureRun?.run_id;
-if (runId) {
-  const { data, error } = await sb().rpc('treasure_finish_run', {
-    p_run_id: runId,
-    p_room_w: Cfg.roomW|0,
-    p_room_h: Cfg.roomH|0,
-    // p_score: G.score|0, p_level: G.level|0  // solo se li usi
-  });
-  if (error) {
-    console.error('[Treasure] finish RPC failed:', error);
-  } else {
-    console.log('[Treasure] finish ok:', data);
-  }
-}
 
 
   // 🔐 chiudi run lato server e prendi i totali “veri”
@@ -3087,6 +3079,22 @@ if (runId) {
       restoreRandom();
     }
   }, 180);
+// alla fine di endTreasureMinigame, dopo lo stop:
+const runId = window.treasureRun?.run_id;
+if (runId) {
+  const { error } = await sb().rpc('treasure_finish_run', {
+    p_run_id: runId,
+    p_room_w: Cfg.roomW,
+    p_room_h: Cfg.roomH,
+    p_score:  G.score|0,
+    p_level:  G.level|0,
+    p_reason: reason || 'end'
+  });
+  if (error) {
+    console.warn('[Treasure] finish RPC failed:', error);
+  }
+}
+
 }
 
 

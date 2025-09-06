@@ -4,10 +4,6 @@
 
 // Setup type definitions for built-in Supabase Runtime APIs
 // supabase/functions/treasure_log_event/index.ts
-// supabase/functions/treasure_log_event/index.ts
-// supabase/functions/treasure_log_event/index.ts
-// supabase/functions/treasure_log_event/index.ts
-// supabase/functions/treasure_log_event/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -19,7 +15,7 @@ const cors = (req: Request) => ({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Cache-Control": "no-store",
-  "Content-Type": "application/json"
+  "Content-Type": "application/json",
 });
 const j = (o: unknown, s = 200, h?: HeadersInit) =>
   new Response(JSON.stringify(o), { status: s, headers: h });
@@ -53,7 +49,7 @@ serve(async (req) => {
   // ---- run must be yours & open ----
   const { data: run, error: rerr } = await supa
     .from("treasure_runs")
-    .select("id,user_id,status,room_w,room_h")
+    .select("id,user_id,status,room_w,room_h,started_at")
     .eq("id", run_id)
     .single();
 
@@ -66,7 +62,7 @@ serve(async (req) => {
   const oneMinAgo = new Date(Date.now() - 60_000).toISOString();
   const { count: recent } = await supa
     .from("treasure_events")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("run_id", run_id)
     .gte("t", oneMinAgo);
   if ((recent ?? 0) > 120) return j({ error: "Rate limited" }, 429, headers);
@@ -74,15 +70,6 @@ serve(async (req) => {
   // ---- helpers ----
   const needInts = (o: Record<string, unknown>, ks: string[]) =>
     ks.every(k => Number.isFinite(Number(o[k])));
-
-  // Bounds fallback (se la run non ha room_w/h)
-  // 1) prova v.w/v.h (se li mandi dal client)
-  // 2) run.room_w/room_h
-  // 3) default 9x8
-  const roomW =
-    Number(v["w"]) || Number(run?.room_w) || 9;
-  const roomH =
-    Number(v["h"]) || Number(run?.room_h) || 8;
 
   // ---- room presence proof + bounds for coin/drop/powerup ----
   const needsRoomProof = (k: string) => (k === "coin" || k === "drop" || k === "powerup");
@@ -93,24 +80,42 @@ serve(async (req) => {
     const rx = Number(v["rx"]), ry = Number(v["ry"]);
     const x  = Number(v["x"]),  y  = Number(v["y"]);
 
-    // check celle interne (niente bordo)
-    if (!(x >= 1 && x <= roomW - 2 && y >= 1 && y <= roomH - 2)) {
-      return j({ error: "Out-of-bounds", roomW, roomH, x, y }, 400, headers);
+    // room size: preferisci v.w/v.h, poi run.room_w/h, infine default
+    const w = (Number.isFinite(Number(v["w"])) && Number(v["w"])! > 0) ? Number(v["w"]) : (run.room_w ?? 9);
+    const h = (Number.isFinite(Number(v["h"])) && Number(v["h"])! > 0) ? Number(v["h"]) : (run.room_h ?? 8);
+    if (!w || !h) return j({ error: "Missing room size" }, 400, headers);
+
+    // celle interne (niente bordi)
+    if (!(x >= 1 && x <= w - 2 && y >= 1 && y <= h - 2)) {
+      return j({ error: "Out-of-bounds", w, h, x, y }, 400, headers);
     }
 
-    // prova presenza nella stanza negli ultimi 5s (hb o room)
-    const fiveSecAgo = new Date(Date.now() - 5_000).toISOString();
+    // prova presenza nella stanza (HB/ROOM) negli ultimi 12s
+    const presenceSince = new Date(Date.now() - 12_000).toISOString();
     const { count: seen } = await supa
       .from("treasure_events")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("run_id", run_id)
-      .gte("t", fiveSecAgo)
+      .gte("t", presenceSince)
       .or("kind.eq.hb,kind.eq.room")
       .filter("v->>rx","eq", String(rx))
       .filter("v->>ry","eq", String(ry));
 
     if ((seen ?? 0) === 0) {
-      return j({ error: "No recent presence in room" }, 400, headers);
+      // fallback: un ROOM “recente” (≤30s) nella stessa stanza
+      const roomSince = new Date(Date.now() - 30_000).toISOString();
+      const { count: seenRoomOnly } = await supa
+        .from("treasure_events")
+        .select("id", { count: "exact", head: true })
+        .eq("run_id", run_id)
+        .eq("kind", "room")
+        .gte("t", roomSince)
+        .filter("v->>rx","eq", String(rx))
+        .filter("v->>ry","eq", String(ry));
+
+      if ((seenRoomOnly ?? 0) === 0) {
+        return j({ error: "No recent presence in room" }, 400, headers);
+      }
     }
   }
 
@@ -121,14 +126,9 @@ serve(async (req) => {
   async function upsert(conflictCols: string) {
     const r = await supa.from("treasure_events")
       .upsert(payload, { onConflict: conflictCols, ignoreDuplicates: true, returning: "minimal" });
-    if (r.error) {
-      // se manca l'indice/constraint o PostgREST non gestisce bene onConflict,
-      // fallback ad INSERT "semplice"
-      if (/on conflict|index|constraint/i.test(r.error.message)) {
-        const ins = await supa.from("treasure_events")
-          .insert(payload, { returning: "minimal" });
-        return ins;
-      }
+    if (r.error && /on conflict|index|constraint/i.test(r.error.message)) {
+      // fallback ad INSERT se l'indice non esiste ancora
+      return await supa.from("treasure_events").insert(payload, { returning: "minimal" });
     }
     return r;
   }
@@ -152,11 +152,8 @@ serve(async (req) => {
     return j({ ok: true }, 200, headers);
   }
 
-  // "finish" lo accettiamo ma la chiusura reale avviene nella RPC treasure_finish_run
-  // tutto il resto: insert semplice
-  const ins = await supa.from("treasure_events")
-    .insert(payload, { returning: "minimal" });
-
+  // "finish" lo accettiamo, ma la chiusura reale avviene nella RPC treasure_finish_run
+  const ins = await supa.from("treasure_events").insert(payload, { returning: "minimal" });
   if (ins.error) {
     const code = ins.error.code === "23505" ? 409 : 400;
     return j({ error: ins.error.message, code: ins.error.code }, code, headers);

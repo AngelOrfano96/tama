@@ -134,25 +134,27 @@ serve(async (req) => {
   }
 
   // route con dedup lato DB
-  if (kind === "coin") {
-    const r = await upsert("run_id,coin_key");
-   if (r.error) {
-  if (r.error.code === "23505") {
-    return j({ ok: true, dedup: true }, 200, headers); // ✅ idempotente
+if (kind === "coin") {
+  const r = await upsert("run_id,coin_key");
+  if (r.error) {
+    if (r.error.code === "23505") {
+      return j({ ok: true, dedup: true }, 200, headers); // già inserita
+    }
+    return j({ error: r.error.message, code: r.error.code }, 400, headers);
   }
-  return j({ error: r.error.message, code: r.error.code }, 400, headers);
+  return j({ ok: true }, 200, headers);  // ← IMPORTANTE
 }
-  }
 
-  if (kind === "drop") {
-    const r = await upsert("run_id,drop_key");
-   if (r.error) {
-  if (r.error.code === "23505") {
-    return j({ ok: true, dedup: true }, 200, headers); // ✅ idempotente
+if (kind === "drop") {
+  const r = await upsert("run_id,drop_key");
+  if (r.error) {
+    if (r.error.code === "23505") {
+      return j({ ok: true, dedup: true }, 200, headers); // già inserita
+    }
+    return j({ error: r.error.message, code: r.error.code }, 400, headers);
   }
-  return j({ error: r.error.message, code: r.error.code }, 400, headers);
+  return j({ ok: true }, 200, headers);  // ← IMPORTANTE
 }
-  }
 
   // "finish" lo accettiamo, ma la chiusura reale avviene nella RPC treasure_finish_run
   const ins = await supa.from("treasure_events").insert(payload, { returning: "minimal" });

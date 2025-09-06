@@ -1308,6 +1308,17 @@ async function startTreasureMinigame() {
     run_id = null;
   }
   window.treasureRun = { run_id, seed };
+console.log('[Treasure] seed:', seed, 'run_id:', run_id || '(fallback)');
+
+(() => {
+  const src = run_id ? 'server' : 'fallback';
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:100000;color:#fff;background:#0f172a;padding:6px 10px;border-radius:10px;font:600 12px system-ui';
+  el.textContent = `seed ${seed} · ${src}`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 4000);
+})();
+
 
   // ===== 2) attiva PRNG deterministico e genera il dungeon =====
   useSeededRandom(seed >>> 0);

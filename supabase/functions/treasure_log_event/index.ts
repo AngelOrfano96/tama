@@ -136,20 +136,22 @@ serve(async (req) => {
   // route con dedup lato DB
   if (kind === "coin") {
     const r = await upsert("run_id,coin_key");
-    if (r.error) {
-      const code = r.error.code === "23505" ? 409 : 400;
-      return j({ error: r.error.message, code: r.error.code }, code, headers);
-    }
-    return j({ ok: true }, 200, headers);
+   if (r.error) {
+  if (r.error.code === "23505") {
+    return j({ ok: true, dedup: true }, 200, headers); // ✅ idempotente
+  }
+  return j({ error: r.error.message, code: r.error.code }, 400, headers);
+}
   }
 
   if (kind === "drop") {
     const r = await upsert("run_id,drop_key");
-    if (r.error) {
-      const code = r.error.code === "23505" ? 409 : 400;
-      return j({ error: r.error.message, code: r.error.code }, code, headers);
-    }
-    return j({ ok: true }, 200, headers);
+   if (r.error) {
+  if (r.error.code === "23505") {
+    return j({ ok: true, dedup: true }, 200, headers); // ✅ idempotente
+  }
+  return j({ error: r.error.message, code: r.error.code }, 400, headers);
+}
   }
 
   // "finish" lo accettiamo, ma la chiusura reale avviene nella RPC treasure_finish_run

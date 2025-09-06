@@ -1265,10 +1265,19 @@ function logRoomOnce(){
   logEv('room', { rx:G.petRoom.x, ry:G.petRoom.y });
 }
 
+const _sentCoinKeys = new Set();
+const _sentDropKeys = new Set();
+
 async function logEv(kind, v = {}) {
   try {
     const run = window.treasureRun;
     if (!run?.run_id) return;
+
+    // dedup key lato client
+    let k = null, bag = null;
+    if (kind === 'coin')  { k = `c:${v.rx},${v.ry},${v.x},${v.y}`; bag = _sentCoinKeys; }
+    if (kind === 'drop')  { k = `d:${v.key},${v.rx},${v.ry},${v.x},${v.y}`; bag = _sentDropKeys; }
+    if (k && bag) { if (bag.has(k)) return; bag.add(k); }
 
     const { data: { session } } = await sb().auth.getSession();
     const { data, error } = await sb().functions.invoke('treasure_log_event', {
@@ -1277,18 +1286,20 @@ async function logEv(kind, v = {}) {
     });
 
     if (error) {
-      let details = '';
-      try {
-        if (error.context && typeof error.context.text === 'function') {
-          details = await error.context.text();      // prova a leggere il JSON
-        }
-      } catch {}
-      console.warn('[treasure_log_event] fail:', error.message, details || { kind, v, run_id: run.run_id });
+      // prova a leggere codice/JSON
+      let code = 0, msg = '';
+      try { const t = await error.context?.text?.(); const j = JSON.parse(t||'{}'); code = j.code; msg = j.error; } catch {}
+      // 409/23505 = duplicato → ok
+      if (error.status === 409 || code === '23505') return;
+      // errore vero: consenti retry rimuovendo la chiave dal set
+      if (k && bag) bag.delete(k);
+      console.warn('[treasure_log_event] fail:', error.message || msg);
     }
   } catch (e) {
     console.debug('[treasure_log_event]', e?.message || e);
   }
 }
+
 
 
 
@@ -3034,21 +3045,28 @@ async function endTreasureMinigame(reason = 'end') {
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
 
-
-  // 🔐 chiudi run lato server e prendi i totali “veri”
+  const runId = window.treasureRun?.run_id;   // ✅ PRIMA di usarlo
   let sv = null;
-  try {
-    if (runId) {
-      const { data, error } = await sb().rpc('treasure_finish_run', { p_run_id: runId });
-      if (error) throw error;
-      sv = data; // { coins, drops, score, ... }
-      console.log('[Treasure finish server]', sv);
+
+  // chiusura lato server: EDGE FUNCTION (non più RPC SQL)
+  if (runId) {
+    try {
+      const { data, error } = await sb().functions.invoke('treasure_finish_run', {
+        body: { run_id: runId, reason }
+      });
+      if (!error) {
+        sv = data?.summary || data;  // { coins, powerups, drops, level, score, duration_s, ... }
+      } else {
+        // 409 = già chiusa → ok/idempotente
+        const raw = await error.context?.text?.().catch(()=>'');
+        if (error.status !== 409) console.warn('[Treasure] finish fail:', raw || error.message);
+      }
+    } catch (e) {
+      console.warn('[Treasure] finish error:', e?.message || e);
     }
-  } catch (e) {
-    console.warn('[Treasure] finish RPC failed:', e?.message || e);
   }
 
-  // Usa lo score calcolato dal server se presente
+  // punteggio/premi
   const serverScore = Number(sv?.score) || 0;
   const finalScore  = serverScore || (G.score|0);
   const fun = 15 + Math.round(finalScore * 0.6);
@@ -3057,20 +3075,13 @@ async function endTreasureMinigame(reason = 'end') {
 
   setTimeout(async () => {
     try {
-      if (typeof window.updateFunAndExpFromMiniGame === 'function') {
-        await window.updateFunAndExpFromMiniGame(fun, exp);
-      }
-      if (typeof window.submitTreasureScoreSupabase === 'function') {
-        // manda lo score “server validated”
-        await window.submitTreasureScoreSupabase(finalScore, G.level|0);
-      }
+      await window.updateFunAndExpFromMiniGame?.(fun, exp);
+      await window.submitTreasureScoreSupabase?.(finalScore, G.level|0);
       if (coinsThisRun > 0) {
         await window.addGettoniSupabase?.(coinsThisRun);
         await window.refreshResourcesWidget?.();
       }
-      if (typeof window.showExpGainLabel === 'function' && exp > 0) {
-        window.showExpGainLabel(exp);
-      }
+      if (exp > 0) window.showExpGainLabel?.(exp);
     } catch (err) {
       console.error('[Treasure] award error:', err);
     } finally {
@@ -3078,25 +3089,11 @@ async function endTreasureMinigame(reason = 'end') {
       G.keysStack = [];
       resetJoystick();
       restoreRandom();
+      window.treasureRun = null;   // ✅ blocca altri logEv post-fine
     }
   }, 180);
-// alla fine di endTreasureMinigame, dopo lo stop:
-const runId = window.treasureRun?.run_id;
-if (runId) {
-  const { error } = await sb().rpc('treasure_finish_run', {
-    p_run_id: runId,
-    p_room_w: Cfg.roomW,
-    p_room_h: Cfg.roomH,
-    p_score:  G.score|0,
-    p_level:  G.level|0,
-    p_reason: reason || 'end'
-  });
-  if (error) {
-    console.warn('[Treasure] finish RPC failed:', error);
-  }
 }
 
-}
 
 
 

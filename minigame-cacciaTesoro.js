@@ -1255,7 +1255,7 @@ function stopHeartbeat(){
   _hbTimer = null;
 }
 // --- Stato run (anti-doppio finish / seconda scheda) ---
-const RunState = { closed: false, closing: false };
+const RunState = window.RunState ?? (window.RunState = { closing: false, closed: false });
 
 function forceCloseRun(msg = 'Partita chiusa in un’altra scheda.') {
   if (RunState.closed) return;
@@ -3065,7 +3065,9 @@ if (G.mole.enabled) {
   }
 
 
-  // ---------- END ----------
+// Assicurati che RunState esista
+
+
 async function endTreasureMinigame(reason = 'end') {
   // anti-doppio finish
   if (RunState.closing || RunState.closed) return;
@@ -3079,31 +3081,13 @@ async function endTreasureMinigame(reason = 'end') {
   DOM.modal && DOM.modal.classList.add('hidden');
 
   const runId = window.treasureRun?.run_id;
-  let sv = null, errBody = null;
+  let data, error, errBody;
 
   try {
     if (runId) {
-      const { data, error } = await sb().functions.invoke('treasure_finish_run', {
+      ({ data, error } = await sb().functions.invoke('treasure_finish_run', {
         body: { run_id: runId, reason }
-      });
-
-      if (error) {
-        try { errBody = JSON.parse(await error.context?.text?.() || '{}'); } catch {}
-        const msg = (errBody?.error || error.message || '').toString();
-
-        // già chiusa o non più open → nessun premio qui
-        if (error.status === 409 || /Run already closed|Run not open|Run not yours/i.test(msg)) {
-          forceCloseRun('Partita già chiusa in un’altra scheda. Nessun premio accreditato qui.');
-          return;
-        }
-
-        showTreasureToast?.('Errore nel salvataggio del risultato', true);
-        RunState.closing = false; // opzionale: consenti riprovare manualmente
-        return;
-      }
-
-      sv = data?.summary || null; // { coins, powerups, drops, level, score, duration_s, fun, exp }
-      console.log('[Treasure finish OK]', sv);
+      }));
     }
   } catch (e) {
     console.warn('[Treasure] finish exception:', e?.message || e);
@@ -3112,23 +3096,48 @@ async function endTreasureMinigame(reason = 'end') {
     return;
   }
 
-  // ❗ Da qui in poi: PREMI/AGGIORNAMENTI SOLO SE IL SERVER HA CONFERMATO
-  if (!sv) {
-    forceCloseRun('Risultato non registrato. Nessun premio assegnato.');
+  if (error) {
+    try { errBody = JSON.parse(await error.context?.text?.() || '{}'); } catch {}
+    const msg = (errBody?.error || error.message || '').toString();
+
+    // vecchio comportamento 409 (se mai dovesse tornare)
+    if (error.status === 409 || /Run already closed|Run not open|Run not yours/i.test(msg)) {
+      showTreasureToast?.('Partita già chiusa su un’altra scheda.', true);
+      // non accreditare nulla qui
+    } else {
+      showTreasureToast?.('Errore nel salvataggio del risultato', true);
+    }
+    RunState.closing = false;
     return;
   }
 
-  // ✅ UI: mostra il riepilogo del server, ricarica i saldi dal DB
-  try {
-    // se hai una schermata di fine partita, usala:
-    window.showExpGainLabel?.(Number(sv.exp) || 0);
+  // con la versione nuova la funzione risponde 200 sempre; controlla i campi
+  const alreadyClosed = !!data?.already_closed;
+  const sv = data?.summary || null;           // { coins, powerups, drops, level, score, duration_s, ... }
+  const rewards = data?.rewards || null;      // { awarded, coins, fun, exp } se la RPC è andata
 
-    // NIENTE più update/add “manuali” qui:
-    //  - rimuovi/COMMENTA: updateFunAndExpFromMiniGame, addGettoniSupabase
-    //  - al loro posto ricarica i dati dal server (già aggiornati lato server)
+  if (!sv) {
+    showTreasureToast?.('Risultato non registrato. Nessun premio assegnato.', true);
+    RunState.closing = false;
+    return;
+  }
+
+  try {
+    // mostra l’exp lato UI (server-side authoritative)
+    const expToShow = Number(rewards?.exp ?? sv?.exp ?? 0);
+    if (expToShow) window.showExpGainLabel?.(expToShow);
+
+    // ricarica i saldi/risorse dal DB (già aggiornati lato server, idempotente)
     await window.refreshResourcesWidget?.();
-    await window.reloadProfile?.?.();
-    await window.submitTreasureScoreSupabase?.(Number(sv.score) || 0, Number(sv.level) || 0);
+    await window.reloadProfile?.();                        // ← riga corretta
+    await window.submitTreasureScoreSupabase?.(
+      Number(sv.score) || 0,
+      Number(sv.level) || 0
+    );
+
+    if (alreadyClosed) {
+      showTreasureToast?.('Partita già chiusa in un’altra scheda.', true);
+    }
   } finally {
     RunState.closed = true;
     G.coinsCollected = 0;
@@ -3137,6 +3146,7 @@ async function endTreasureMinigame(reason = 'end') {
     restoreRandom();
   }
 }
+
 
 
 

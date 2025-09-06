@@ -24,28 +24,27 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
   if (req.method !== "POST")    return j({ error: "Method Not Allowed" }, 405, headers);
 
-  const authed = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
+  const sb = createClient(
+    Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } }
   );
 
-  // 🔐 auth
-  const { data: { user } } = await authed.auth.getUser();
+  // ---- auth ----
+  const { data: { user } } = await sb.auth.getUser();
   if (!user) return j({ error: "Unauthorized" }, 401, headers);
 
-  // 📦 body
-  const body   = await req.json().catch(() => ({} as any));
-  const device = body?.device === "mobile" ? "mobile" : "desktop";
+  // ---- payload ----
+  const body = await req.json().catch(() => ({} as any));
+  const device: "mobile" | "desktop" = body?.device === "mobile" ? "mobile" : "desktop";
   const room_w = device === "mobile" ? 7 : 9;
   const room_h = 8;
 
-  // 🎲 seed sicuro (se la colonna è INT4 usa seed31)
+  // seed compatibile con int4 (se usi BIGINT puoi usare seed32)
   const seed32 = (crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0;
-  const seed31 = (seed32 & 0x7fffffff); // compatibile con int4
+  const seed31 = (seed32 & 0x7fffffff);
 
-  // 1) prova a RIUSARE una run ancora 'open' dell'utente
-  const open = await authed
+  // ---- 1) prova a RIUSARE una run 'open' ----
+  const open = await sb
     .from("treasure_runs")
     .select("id, seed, room_w, room_h, device, status")
     .eq("user_id", user.id)
@@ -55,56 +54,79 @@ serve(async (req) => {
     .maybeSingle();
 
   if (!open.error && open.data) {
-    // se il device / dimensioni stanza sono cambiati, aggiorna (idempotente)
-    const mustUpdate =
+    // opzionale: allinea dimensioni/device se cambiano (policy: "runs upd own open")
+    const needsUpdate =
       (open.data.room_w ?? room_w) !== room_w ||
       (open.data.room_h ?? room_h) !== room_h ||
       (open.data.device ?? device) !== device;
 
-    if (mustUpdate) {
-      const upd = await authed
+    if (needsUpdate) {
+      const upd = await sb
         .from("treasure_runs")
         .update({ room_w, room_h, device })
         .eq("id", open.data.id)
         .eq("user_id", user.id)
         .eq("status", "open")
         .select("id, seed, room_w, room_h")
-        .single();
+        .maybeSingle();
 
       if (!upd.error && upd.data) {
-        return j({ run_id: upd.data.id, seed: Number(upd.data.seed), room_w: upd.data.room_w, room_h: upd.data.room_h }, 200, headers);
+        return j(
+          { run_id: upd.data.id, seed: Number(upd.data.seed), room_w: upd.data.room_w, room_h: upd.data.room_h },
+          200, headers
+        );
       }
-      // se l'update fallisce per RLS o altro, riusa comunque la run esistente
+      // se l'update fallisce (RLS ecc.), riusa comunque la run esistente
     }
 
-    return j({ run_id: open.data.id, seed: Number(open.data.seed), room_w: open.data.room_w ?? room_w, room_h: open.data.room_h ?? room_h }, 200, headers);
+    return j(
+      { run_id: open.data.id, seed: Number(open.data.seed), room_w: open.data.room_w ?? room_w, room_h: open.data.room_h ?? room_h },
+      200, headers
+    );
   }
 
-  // 2) altrimenti CREA una nuova run 'open'
-  const ins = await authed
+  // ---- 2) crea una nuova run 'open' ----
+  const ins = await sb
     .from("treasure_runs")
     .insert({
       user_id: user.id,
-      seed: seed31,          // se la colonna è BIGINT puoi usare seed32
+      seed: seed31,        // se la colonna è BIGINT puoi usare seed32
       device,
       room_w,
       room_h,
-      status: "open",        // deve essere ammesso dal CHECK constraint
+      status: "open",
       started_at: new Date().toISOString(),
     })
     .select("id, seed, room_w, room_h")
     .single();
 
-  if (ins.error) return j({ error: ins.error.message }, 400, headers);
+  // ---- 2b) race sull'indice unico → rileggi e restituisci la 'open' ----
+  if (ins.error?.code === "23505") {
+    const again = await sb
+      .from("treasure_runs")
+      .select("id, seed, room_w, room_h")
+      .eq("user_id", user.id)
+      .eq("status", "open")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!again.error && again.data) {
+      return j(
+        { run_id: again.data.id, seed: Number(again.data.seed), room_w: again.data.room_w, room_h: again.data.room_h },
+        200, headers
+      );
+    }
+  }
 
-  return j({
-    run_id: ins.data.id,
-    seed: Number(ins.data.seed),
-    room_w: ins.data.room_w,
-    room_h: ins.data.room_h,
-  }, 200, headers);
+  if (ins.error) {
+    return j({ error: ins.error.message, code: ins.error.code }, 400, headers);
+  }
+
+  return j(
+    { run_id: ins.data.id, seed: Number(ins.data.seed), room_w: ins.data.room_w, room_h: ins.data.room_h },
+    200, headers
+  );
 });
-
 
 
 

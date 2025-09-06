@@ -1247,7 +1247,7 @@ function startHeartbeat(){
   _hbTimer = setInterval(() => {
     if (!window.treasureRun?.run_id || !G.playing) return;
     logEv('hb', { lvl: G.level, rx: G.petRoom.x, ry: G.petRoom.y, t: Math.floor(G.timeLeft) });
-  }, 3000); // 5s, così i pickup entro pochi secondi hanno già “presenza”
+  }, 1000); // 5s, così i pickup entro pochi secondi hanno già “presenza”
 }
 
 function stopHeartbeat(){
@@ -3090,11 +3090,6 @@ async function endTreasureMinigame(reason = 'end') {
     }
   }, 180);
 }
-
-
-
-
-
 
 
 function showTreasureBonus(_msg, color = '#e67e22') {

@@ -5,6 +5,7 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 // supabase/functions/treasure_log_event/index.ts
 // supabase/functions/treasure_log_event/index.ts
+// supabase/functions/treasure_log_event/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -19,103 +20,60 @@ const cors = (req: Request) => ({
 
 serve(async (req) => {
   const headers = cors(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
+  if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
 
-  // Preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers });
-  }
-
-  // Solo POST
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers,
-    });
-  }
-
-  // Auth via bearer del client
-  const supabase = createClient(
+  const authed = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers,
-    });
+  const { data: { user } } = await authed.auth.getUser();
+  if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+
+  const { run_id, kind, v } = await req.json().catch(() => ({}));
+  const allowed = new Set(["hb","room","coin","powerup","drop"]);
+  if (!run_id || !allowed.has(kind)) {
+    return new Response(JSON.stringify({ error: "Bad request: missing/invalid run_id or kind" }), { status: 400, headers });
   }
 
-  // Body
-  const body = await req.json().catch(() => ({}));
-  const { run_id, kind, v } = body ?? {};
-
-  const ALLOWED = new Set(["hb", "room", "coin", "powerup", "drop"]);
-  if (!run_id || !ALLOWED.has(kind)) {
-    return new Response(JSON.stringify({ error: "Bad request" }), {
-      status: 400,
-      headers,
-    });
-  }
-
-  // La run deve essere "open" e dell’utente
-  const { data: run, error: runErr } = await supabase
+  // run deve esistere, essere tua e "open"
+  const { data: run, error: runErr } = await authed
     .from("treasure_runs")
-    .select("id,user_id,status,events,started_at")
+    .select("id,user_id,status,started_at")
     .eq("id", run_id)
     .single();
-
-  if (runErr || !run || run.user_id !== user.id || run.status !== "open") {
-    return new Response(JSON.stringify({ error: "Run not open" }), {
-      status: 400,
-      headers,
-    });
+  if (runErr) return new Response(JSON.stringify({ error: runErr.message }), { status: 400, headers });
+  if (!run || run.user_id !== user.id || run.status !== "open") {
+    return new Response(JSON.stringify({ error: "Run not open or not yours" }), { status: 400, headers });
   }
 
-  // Rate limit semplice: max 120 eventi/minuto
-  const since = new Date(Date.now() - 60_000).toISOString();
-  const { count } = await supabase
+  // rate limit semplice
+  const oneMinAgo = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await authed
     .from("treasure_events")
     .select("*", { count: "exact", head: true })
     .eq("run_id", run_id)
-    .gte("t", since);
-
+    .gte("t", oneMinAgo);
   if ((count ?? 0) > 120) {
-    return new Response(JSON.stringify({ error: "Rate limited" }), {
-      status: 429,
-      headers,
-    });
+    return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers });
   }
 
-  // Inserisci evento
-  const ins = await supabase.from("treasure_events").insert({
-    run_id,
-    user_id: user.id,
-    kind,
-    v: v ?? {},
+  // INSERT evento (passa RLS perché user_id = auth.uid())
+  const ins = await authed.from("treasure_events").insert({
+    run_id, user_id: user.id, kind, v: v ?? {}
   });
-
   if (ins.error) {
-    return new Response(JSON.stringify({ error: ins.error.message }), {
-      status: 400,
-      headers,
-    });
+    return new Response(JSON.stringify({ error: ins.error.message }), { status: 400, headers });
   }
 
-  // (facoltativo) incrementa contatore eventi sulla run
-  await supabase
-    .from("treasure_runs")
-    .update({ events: (run.events ?? 0) + 1 })
-    .eq("id", run_id)
-    .eq("user_id", user.id);
+  // 🔴 RIMOSSO: niente UPDATE a treasure_runs qui (RLS lo blocca)
+  // (faremo il conteggio eventi in finish, o vedi opzione service-role sotto)
 
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers,
-  });
+  return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
 });
+
 
 
 

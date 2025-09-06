@@ -1185,6 +1185,30 @@ function syncHud() {
 
   G.hudDirty = false;
 }
+
+function getSecureRandomU32(){
+  try {
+    return (crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0;
+  } catch {
+    return ((Math.random() * 2**32) >>> 0);
+  }
+}
+
+// accetta seed come number o stringa numerica; altrimenti genera un seed
+function coerceSeed(v){
+  if (typeof v === 'number' && Number.isFinite(v)) return (v >>> 0);
+  if (typeof v === 'string' && /^\d+$/.test(v))    return ((+v) >>> 0);
+  return getSecureRandomU32();
+}
+
+// uniforma i possibili formati dell'edge function
+function normalizeRun(raw){
+  // prova più alias comuni: run_id / runId / id
+  const run_id = raw?.run_id ?? raw?.runId ?? raw?.id ?? '(fallback)';
+  const seed   = coerceSeed(raw?.seed);
+  return { run_id, seed };
+}
+
 // PRNG deterministico (Mulberry32) + swap di Math.random
 function mulberry32(a){
   return function(){
@@ -1215,7 +1239,7 @@ async function startServerRun(){
 }
 
 
-  // ---------- AVVIO ----------
+// ---------- AVVIO ----------
 async function startTreasureMinigame() {
   const { data: { session } } = await sb().auth.getSession();
   if (!session) { console.error('[Treasure] nessuna sessione'); return; }
@@ -1223,42 +1247,34 @@ async function startTreasureMinigame() {
   const accessToken = session.access_token;
   const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 
-  let run;
+  let runRaw = null;
   try {
     const { data, error } = await sb().functions.invoke('treasure_start_run', {
       body: { device: isMobile ? 'mobile' : 'desktop' },
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (error) throw error;
-    run = data; // { run_id, seed }
+    runRaw = data; // ATTENZIONE: può non avere seed/run_id o averli con nomi diversi
   } catch (err) {
     console.warn('[Treasure] invoke fallita → fallback', err);
   }
 
-  // ✅ salva UNA VOLTA sola
-  window.treasureRun = run ?? {
-    run_id: '(fallback)',
-    seed: (crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? (Math.random()*2**32)>>>0)
-  };
+  // ✅ normalizza SEMPRE e applica fallback robusto
+  window.treasureRun = normalizeRun(runRaw ?? {});
 
-  // usa subito il seed deterministico
-  useSeededRandom(window.treasureRun.seed >>> 0);
+  // RNG deterministico (una sola chiamata!)
+  useSeededRandom(window.treasureRun.seed);
 
-  // dopo aver settato window.treasureRun e prima di generateDungeon()
-useSeededRandom(window.treasureRun.seed >>> 0);
-
-// badge di debug opzionale (niente variabili “nude”)
-(() => {
-  const tr = window.treasureRun;
-  if (!tr) return; // safety
-  const src = tr.run_id && tr.run_id !== '(fallback)' ? 'server' : 'fallback';
-  const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:100000;color:#fff;background:#0f172a;padding:6px 10px;border-radius:10px;font:600 12px system-ui';
-  el.textContent = `seed ${tr.seed} · ${src}`;
-  document.body.appendChild(el);
-  setTimeout(()=>el.remove(), 4000);
-})();
-
+  // badge di debug opzionale
+  (() => {
+    const tr = window.treasureRun;
+    const src = tr.run_id && tr.run_id !== '(fallback)' ? 'server' : 'fallback';
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:100000;color:#fff;background:#0f172a;padding:6px 10px;border-radius:10px;font:600 12px system-ui';
+    el.textContent = `seed ${tr.seed} · ${src}`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 4000);
+  })();
 
   console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
 
@@ -1341,10 +1357,7 @@ useSeededRandom(window.treasureRun.seed >>> 0);
     `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${loadingCover}') center/cover no-repeat`;
   showLoadingOverlay();
 
-
-
-  // ===== 2) attiva PRNG deterministico e genera il dungeon =====
-  //useSeededRandom(seed >>> 0);
+ 
   generateDungeon();
 
   // evita spawn nemico sulla cella del pet nella stanza iniziale (ora che il dungeon esiste)

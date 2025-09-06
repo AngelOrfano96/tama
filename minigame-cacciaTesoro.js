@@ -1238,6 +1238,20 @@ async function startServerRun(){
   return data; // { run_id, seed }
 }
 
+// --- LOG EVENTI verso Edge Function ---
+async function logEv(kind, v = {}) {
+  try {
+    const run = window.treasureRun;
+    if (!run?.run_id) return;
+    await sb().functions.invoke('treasure_log_event', {
+      body: { run_id: run.run_id, kind, v }
+      // se preferisci forzare il bearer:
+      // , headers: { Authorization: `Bearer ${(await sb().auth.getSession()).data.session?.access_token}` }
+    });
+  } catch (_) { /* fire-and-forget */ }
+}
+
+
 // ——— DEBUG SUPABASE/FUNCTIONS ———
 function _getSupabaseClient(){
   return (typeof sb === 'function' ? sb() : (window.supabaseClient || window.supabase));
@@ -1612,6 +1626,7 @@ function movePet(dt) {
 
       // premio inventario (Supabase)
       awardMoveToInventory(d.key);
+      logEv('drop', { key: d.key, rx: G.petRoom.x, ry: G.petRoom.y, x: d.tx, y: d.ty });
 
       // Nome per il toast, se definito in MOVES
       const nice = MOVES?.[d.key]?.label || MOVES?.[d.key]?.name || d.key;
@@ -1640,23 +1655,27 @@ function movePet(dt) {
   if (G.pet.px <= ENTER_GAP && G.petRoom.x > 0 && room[G.pet.y]?.[0] === 0) {
     G.petRoom.x -= 1; G.pet.px = (Cfg.roomW - 2) * tile; G.pet.x = Cfg.roomW - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
   }
   // a Est
   else if (G.pet.px + size >= (Cfg.roomW - 1) * tile - ENTER_GAP &&
            G.petRoom.x < Cfg.gridW - 1 && room[G.pet.y]?.[Cfg.roomW - 1] === 0) {
     G.petRoom.x += 1; G.pet.px = 1 * tile; G.pet.x = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
   }
   // a Nord
   else if (G.pet.py <= ENTER_GAP && G.petRoom.y > 0 && room[0]?.[G.pet.x] === 0) {
     G.petRoom.y -= 1; G.pet.py = (Cfg.roomH - 2) * tile; G.pet.y = Cfg.roomH - 2;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
   }
   // a Sud
   else if (G.pet.py + size >= (Cfg.roomH - 1) * tile - ENTER_GAP &&
            G.petRoom.y < Cfg.gridH - 1 && room[Cfg.roomH - 1]?.[G.pet.x] === 0) {
     G.petRoom.y += 1; G.pet.py = 1 * tile; G.pet.y = 1;
     const newKey = `${G.petRoom.x},${G.petRoom.y}`; (G.enemies[newKey] || []).forEach(e => e.reactDelay = 2);
+    logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
   }
 
   // --- pickup (AABB in pixel) ---
@@ -1674,6 +1693,7 @@ function movePet(dt) {
     const by = o.y * tile + tile / 4;
     if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
       o.taken = true; G.score += 1; G.coinsCollected += 1; G.hudDirty = true;
+      logEv('coin', { rx: G.petRoom.x, ry: G.petRoom.y, x: o.x, y: o.y });
     }
   }
 
@@ -1683,6 +1703,7 @@ function movePet(dt) {
     const by = p.y * tile + tile / 4;
     if (overlap(petBox.x, petBox.y, petBox.w, petBox.h, bx, by, tile/2, tile/2)) {
       p.taken = true; G.score += 12; G.hudDirty = true;
+      logEv('powerup', { type: p.type, rx: G.petRoom.x, ry: G.petRoom.y, x: p.x, y: p.y });
       if (p.type === 'speed') {
         G.activePowerup = 'speed'; G.powerupExpiresAt = performance.now() + Cfg.powerupMs; G.speedMul = 3;
         showTreasureBonus('SPEED!', '#22c55e');

@@ -3014,43 +3014,55 @@ async function endTreasureMinigame(reason = 'end') {
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
 
-  const run_id = window.treasureRun?.run_id;
+  const runId = window.treasureRun?.run_id;
+
+  // 🔐 chiudi run lato server e prendi i totali “veri”
+  let sv = null;
+  try {
+    if (runId) {
+      const { data, error } = await sb().rpc('treasure_finish_run', { p_run_id: runId });
+      if (error) throw error;
+      sv = data; // { coins, drops, score, ... }
+      console.log('[Treasure finish server]', sv);
+    }
+  } catch (e) {
+    console.warn('[Treasure] finish RPC failed:', e?.message || e);
+  }
+
+  // Usa lo score calcolato dal server se presente
+  const serverScore = Number(sv?.score) || 0;
+  const finalScore  = serverScore || (G.score|0);
+  const fun = 15 + Math.round(finalScore * 0.6);
+  const exp = Math.round(finalScore * 0.5);
+  const coinsThisRun = Number(sv?.coins) || (G.coinsCollected|0);
 
   setTimeout(async () => {
     try {
-      if (run_id) {
-        // chiudi lato server e lascia che sia lui ad assegnare i premi
-        const { data, error } = await sb().functions.invoke('treasure_finish_run', {
-          body: { run_id, reason }
-        });
-        if (error) throw error;
-
-        const s = data?.summary;
-        console.log('[Treasure] finish summary', s);
-
-        // aggiorna eventuali widget lato client (solo UI)
+      if (typeof window.updateFunAndExpFromMiniGame === 'function') {
+        await window.updateFunAndExpFromMiniGame(fun, exp);
+      }
+      if (typeof window.submitTreasureScoreSupabase === 'function') {
+        // manda lo score “server validated”
+        await window.submitTreasureScoreSupabase(finalScore, G.level|0);
+      }
+      if (coinsThisRun > 0) {
+        await window.addGettoniSupabase?.(coinsThisRun);
         await window.refreshResourcesWidget?.();
-
-        // opzionale feedback
-        if (typeof window.showExpGainLabel === 'function' && s?.exp > 0) {
-          window.showExpGainLabel(s.exp);
-        }
-      } else {
-        console.warn('[Treasure] finish senza run_id (niente premi)');
+      }
+      if (typeof window.showExpGainLabel === 'function' && exp > 0) {
+        window.showExpGainLabel(exp);
       }
     } catch (err) {
-      console.error('[Treasure] finish error:', err);
-      showTreasureToast?.('Errore salvataggio partita', true);
+      console.error('[Treasure] award error:', err);
     } finally {
-      // reset per la prossima partita
       G.coinsCollected = 0;
       G.keysStack = [];
       resetJoystick();
       restoreRandom();
-      window.treasureRun = null;
     }
   }, 180);
 }
+
 
 
 

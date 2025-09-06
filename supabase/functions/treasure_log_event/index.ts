@@ -17,7 +17,7 @@ const cors = (req: Request) => ({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Cache-Control": "no-store",
-  "Content-Type": "application/json",
+  "Content-Type": "application/json"
 });
 const j = (o: unknown, s=200, h?:HeadersInit)=>new Response(JSON.stringify(o),{status:s,headers:h});
 
@@ -114,8 +114,10 @@ serve(async (req) => {
 
   // default insert
   const ins = await authed.from("treasure_events").insert(payload, { returning: "minimal" });
-  if (ins.error) return j({ error: ins.error.message }, 400, headers);
-  return j({ ok:true }, 200, headers);
+ if (ins.error) {
+  const code = ins.error.code === '23505' ? 409 : 400; // 409 = duplicate
+  return new Response(JSON.stringify({ error: ins.error.message, code: ins.error.code }), { status: code, headers });
+}
 });
 
 

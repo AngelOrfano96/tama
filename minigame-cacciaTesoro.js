@@ -1261,19 +1261,26 @@ function logRoomOnce(){
 }
 
 async function logEv(kind, v = {}) {
-  const run = window.treasureRun;
-  if (!run?.run_id) return;
   try {
+    const run = window.treasureRun;
+    if (!run?.run_id) return;
+
+    const { data: { session } } = await sb().auth.getSession();
     const { data, error } = await sb().functions.invoke('treasure_log_event', {
-      body: { run_id: run.run_id, kind, v }
+      body: { run_id: run.run_id, kind, v },
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
     });
     if (error) {
-      console.warn('[treasure_log_event] ', error.message, { kind, v, run_id: run.run_id, data });
+      // prova a estrarre il JSON di errore che l’edge function manda
+      let serverMsg = error.context;
+      try { serverMsg = JSON.parse(serverMsg)?.error || serverMsg; } catch {}
+      console.warn('[treasure_log_event] fail:', error.message, serverMsg, { kind, v, run_id: run.run_id });
     }
   } catch (e) {
-    console.warn('[treasure_log_event/throw]', e?.message || e);
+    console.debug('[treasure_log_event]', e?.message || e);
   }
 }
+
 
 
 

@@ -1217,11 +1217,10 @@ async function startServerRun(){
 
   // ---------- AVVIO ----------
 async function startTreasureMinigame() {
-    // --- deve esistere una sessione ---
+  // --- deve esistere una sessione ---
   const { data: { session } } = await sb().auth.getSession();
   if (!session) {
     console.error('[Treasure] nessuna sessione: utente non loggato');
-    // qui puoi aprire il modal di login
     return;
   }
 
@@ -1232,16 +1231,27 @@ async function startTreasureMinigame() {
   try {
     const { data, error } = await sb().functions.invoke('treasure_start_run', {
       body: { device: isMobile ? 'mobile' : 'desktop' },
-      headers: { Authorization: `Bearer ${accessToken}` } // <— forzo il bearer
+      headers: { Authorization: `Bearer ${accessToken}` } // teniamolo esplicito
     });
     if (error) throw error;
-    run = data;
+    run = data;                         // { run_id, seed }
   } catch (err) {
-    console.warn('[Treasure] invoke fallo → fallback seed locale', err);
+    console.warn('[Treasure] invoke fallito → uso fallback locale', err);
   }
 
-  window.treasureRun = run ?? { run_id: '(fallback)', seed: (Math.random()*2**32>>>0) };
-  console.log('[Treasure] run:', window.treasureRun);
+  // ✅ imposta UNA SOLA VOLTA
+  window.treasureRun = run ?? {
+    run_id: '(fallback)',
+    seed: (crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? (Math.random()*2**32)>>>0)
+  };
+
+  // usa subito il seed deterministico
+  useSeededRandom(window.treasureRun.seed >>> 0);
+
+  console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
+
+
+  
   playBgm();
   requestLandscape();
   initAtlasSprites(); // crea G.sprites.atlas e ne setta la src
@@ -1319,21 +1329,6 @@ async function startTreasureMinigame() {
     `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${loadingCover}') center/cover no-repeat`;
   showLoadingOverlay();
 
-  // ===== 1) chiedi run_id + seed al server, con fallback locale =====
-  let seed, run_id;
-  try {
-    const srv = await startServerRun();         // { run_id, seed }
-    seed   = srv?.seed;
-    run_id = srv?.run_id || null;
-  } catch (e) {
-    console.warn('[treasure_start_run] fallback seed:', e?.message || e);
-    seed = (crypto?.getRandomValues)
-      ? crypto.getRandomValues(new Uint32Array(1))[0]
-      : Math.floor(Math.random() * 2**32);
-    run_id = null;
-  }
-  window.treasureRun = { run_id, seed };
-console.log('[Treasure] seed:', seed, 'run_id:', run_id || '(fallback)');
 
 (() => {
   const src = run_id ? 'server' : 'fallback';

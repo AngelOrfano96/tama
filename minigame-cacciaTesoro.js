@@ -34,7 +34,7 @@ import { MOVES } from './mosse.js';
 const sb = () => window.supabaseClient;
 const getPid = () => window.petId;
 
-async function awardMoveToInventory(moveKey){
+/*async function awardMoveToInventory(moveKey){
   const pid = getPid();
   if (!pid || !sb()) { console.warn('[Treasure] missing petId/client'); return; }
   try {
@@ -50,7 +50,7 @@ async function awardMoveToInventory(moveKey){
     console.error('[Treasure] award move', e);
     showTreasureToast?.('Errore salvataggio mossa', true);
   }
-}
+}*/
 
 // mini toast (facoltativo)
 function showTreasureToast(txt, isErr=false){

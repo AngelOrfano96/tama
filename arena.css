@@ -320,4 +320,10 @@ body.game-open {
   touch-action: manipulation !important;
 }
 #arena-exit-btn.hidden { display: none !important; }
+.arena-exit-modal { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
+  background: rgba(0,0,0,.5); z-index: 10050; }
+.arena-exit-modal.hidden { display: none; }
+
+#arena-exit-btn { position: fixed; top: calc(env(safe-area-inset-top,0px) + 12px);
+  right: calc(env(safe-area-inset-right,0px) + 12px); z-index: 10040; }
 

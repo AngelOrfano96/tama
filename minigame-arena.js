@@ -2277,14 +2277,14 @@ if (!DOM._exitBound){
 
   loadArenaCSS();
   forceArenaActionCrossLayout();
-(function forceExitButtonLayout(){
+function forceExitButtonLayout(){
   const b = DOM.exitBtn;
   if (!b) return;
   b.style.pointerEvents = 'auto';
   b.style.display = ''; // visibile sia mobile che desktop
-})();
-
+}
 forceExitButtonLayout();
+
 
   hydrateActionButtons();
 

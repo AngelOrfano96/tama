@@ -3,12 +3,13 @@
 // This enables autocomplete, go to definition, etc.
 
 // Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = (req: Request) => ({
   "Access-Control-Allow-Origin": req.headers.get("origin") ?? "*",
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Cache-Control": "no-store",
@@ -16,43 +17,32 @@ const cors = (req: Request) => ({
 
 serve(async (req) => {
   const headers = cors(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
+  if (req.method !== "POST")   return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers });
-  }
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
-  }
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+  );
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
-    );
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+  const body = await req.json().catch(() => ({}));
+  const device = body.device === "mobile" ? "mobile" : "desktop";
+  const seed = crypto.getRandomValues(new Uint32Array(1))[0];
 
-    const body = await req.json().catch(() => ({}));
-    const device = body.device === "mobile" ? "mobile" : "desktop";
+  const { data, error } = await supabase
+    .from("treasure_runs")
+    .insert({ user_id: user.id, seed, device })
+    .select("id, seed")
+    .single();
 
-    // Uint32 -> usa BIGINT in DB
-    const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-
-    const { data, error } = await supabase
-      .from("treasure_runs")
-      .insert({ user_id: user.id, seed, device })
-      .select("id, seed")
-      .single();
-
-    if (error) throw error;
-
-    return new Response(JSON.stringify({ run_id: data.id, seed: data.seed }), { status: 200, headers });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e?.message ?? e) }), { status: 400, headers });
-  }
+  if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers });
+  return new Response(JSON.stringify({ run_id: data.id, seed: data.seed }), { status: 200, headers });
 });
+
 
 
 

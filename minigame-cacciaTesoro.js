@@ -1217,6 +1217,31 @@ async function startServerRun(){
 
   // ---------- AVVIO ----------
 async function startTreasureMinigame() {
+    // --- deve esistere una sessione ---
+  const { data: { session } } = await sb().auth.getSession();
+  if (!session) {
+    console.error('[Treasure] nessuna sessione: utente non loggato');
+    // qui puoi aprire il modal di login
+    return;
+  }
+
+  const accessToken = session.access_token;
+  const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  let run;
+  try {
+    const { data, error } = await sb().functions.invoke('treasure_start_run', {
+      body: { device: isMobile ? 'mobile' : 'desktop' },
+      headers: { Authorization: `Bearer ${accessToken}` } // <— forzo il bearer
+    });
+    if (error) throw error;
+    run = data;
+  } catch (err) {
+    console.warn('[Treasure] invoke fallo → fallback seed locale', err);
+  }
+
+  window.treasureRun = run ?? { run_id: '(fallback)', seed: (Math.random()*2**32>>>0) };
+  console.log('[Treasure] run:', window.treasureRun);
   playBgm();
   requestLandscape();
   initAtlasSprites(); // crea G.sprites.atlas e ne setta la src

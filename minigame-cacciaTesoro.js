@@ -1244,6 +1244,22 @@ async function startTreasureMinigame() {
   // usa subito il seed deterministico
   useSeededRandom(window.treasureRun.seed >>> 0);
 
+  // dopo aver settato window.treasureRun e prima di generateDungeon()
+useSeededRandom(window.treasureRun.seed >>> 0);
+
+// badge di debug opzionale (niente variabili “nude”)
+(() => {
+  const tr = window.treasureRun;
+  if (!tr) return; // safety
+  const src = tr.run_id && tr.run_id !== '(fallback)' ? 'server' : 'fallback';
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:100000;color:#fff;background:#0f172a;padding:6px 10px;border-radius:10px;font:600 12px system-ui';
+  el.textContent = `seed ${tr.seed} · ${src}`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 4000);
+})();
+
+
   console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
 
 
@@ -2944,6 +2960,7 @@ if (coinsThisRun > 0) {
       G.coinsCollected = 0;
       G.keysStack = [];
       resetJoystick();
+      restoreRandom();
     }
   }, 180);
 }

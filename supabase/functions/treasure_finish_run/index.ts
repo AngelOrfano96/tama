@@ -5,6 +5,8 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 // supabase/functions/treasure_finish_run/index.ts
 // deno-lint-ignore-file no-explicit-any
+// supabase/functions/treasure_finish_run/index.ts
+// deno-lint-ignore-file no-explicit-any
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -52,13 +54,11 @@ serve(async (req) => {
   if (r0.error) return j({ error: `Run lookup failed: ${r0.error.message}` }, 400, headers);
   if (!r0.data || r0.data.user_id !== user.id) return j({ error: "Run not yours" }, 400, headers);
 
-  // Se è già chiusa, NON calcolo/aggiorno niente (evito 409) → provo solo i premi idempotenti
+  // Se non è open: non ricalcolo/aggiorno; provo solo ad accreditare in modo idempotente
   if (r0.data.status !== "open") {
-    // idempotente: accredita se non ancora accreditato
     const rew = await service.rpc("treasure_apply_rewards", { p_run_id: run_id });
     const rewards = (rew.error ? null : rew.data) ?? { awarded: false };
 
-    // rileggi lo stato finale per dare un riepilogo coerente
     const r1 = await service
       .from("treasure_runs")
       .select("coins,powerups,drops,level,score,duration_s,status,ended_at")

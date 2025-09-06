@@ -13,7 +13,9 @@ const cors = (req: Request) => ({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Cache-Control": "no-store",
+  "Content-Type": "application/json"
 });
+
 
 serve(async (req) => {
   const headers = cors(req);

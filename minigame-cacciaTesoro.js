@@ -1238,6 +1238,55 @@ async function startServerRun(){
   return data; // { run_id, seed }
 }
 
+// ——— DEBUG SUPABASE/FUNCTIONS ———
+function _getSupabaseClient(){
+  return (typeof sb === 'function' ? sb() : (window.supabaseClient || window.supabase));
+}
+function _getProjectRef(url){
+  try {
+    const host = new URL(url).host;           // es. abcd1234.supabase.co
+    return host.split('.')[0];                // "abcd1234"
+  } catch { return '(unknown)'; }
+}
+function _getFunctionsUrl(client, fnName){
+  try {
+    const base = (client?.functions?.url)     // se esposto da supabase-js
+      || (client?.supabaseUrl?.replace(/\/$/, '') + '/functions/v1');
+    return `${base.replace(/\/$/, '')}/${fnName}`;
+  } catch { return '(unknown)'; }
+}
+function showTreasureDebugOverlay(info = {}){
+  const c = _getSupabaseClient();
+  const supaUrl = c?.supabaseUrl || '(unknown)';
+  const projectRef = _getProjectRef(supaUrl);
+  const fnUrl = _getFunctionsUrl(c, 'treasure_start_run');
+
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position:fixed;top:8px;left:8px;z-index:100000;
+    background:#0f172a;color:#fff;border:1px solid #223; border-radius:10px;
+    padding:8px 10px;font:600 12px system-ui; box-shadow:0 10px 28px rgba(0,0,0,.35);
+    pointer-events:none; white-space:nowrap
+  `;
+  el.innerHTML = `
+    <div style="opacity:.9">project <b>${projectRef}</b></div>
+    <div style="opacity:.9">fn <b>/treasure_start_run</b></div>
+    <div style="opacity:.9;max-width:52vw;overflow:hidden;text-overflow:ellipsis">${fnUrl}</div>
+    <div style="margin-top:4px">
+      <span style="opacity:.9">src</span> <b>${info.src||'?'}</b>
+      &nbsp;·&nbsp; <span style="opacity:.9">device</span> <b>${info.device||'?'}</b>
+    </div>
+    <div><span style="opacity:.9">run_id</span> <b>${info.run_id||'?'}</b></div>
+    <div><span style="opacity:.9">seed</span> <b>${info.seed ?? '?'}</b></div>
+  `;
+  document.body.appendChild(el);
+  setTimeout(()=> el.remove(), 6000);
+
+  // anche in console in formato comodo
+  console.log('[Treasure debug]', {
+    projectRef, supabaseUrl: supaUrl, functionsUrl: fnUrl, ...info
+  });
+}
 
 // ---------- AVVIO ----------
 async function startTreasureMinigame() {
@@ -1266,6 +1315,21 @@ window.treasureRun = run ?? {
   seed: (crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? (Math.random()*2**32))>>>0
 };
 useSeededRandom(window.treasureRun.seed >>> 0);
+// piccolo log per vedere sempre l’endpoint colpito
+{
+  const c = _getSupabaseClient();
+  const fnUrl = _getFunctionsUrl(c, 'treasure_start_run');
+  console.log('[functions URL]', fnUrl);
+}
+
+// badge/overlay di debug
+showTreasureDebugOverlay({
+  src: (window.treasureRun.run_id && window.treasureRun.run_id !== '(fallback)') ? 'server' : 'fallback',
+  device: (/android|iphone|ipad|ipod/i.test(navigator.userAgent) ? 'mobile' : 'desktop'),
+  run_id: window.treasureRun.run_id,
+  seed: window.treasureRun.seed
+});
+
 console.log('[Treasure] seed:', window.treasureRun.seed, 'run_id:', window.treasureRun.run_id);
 
 

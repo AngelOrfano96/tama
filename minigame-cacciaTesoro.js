@@ -3039,35 +3039,38 @@ if (G.mole.enabled) {
   // ---------- END ----------
 async function endTreasureMinigame(reason = 'end') {
   stopHeartbeat();
-  const runId = window.treasureRun?.run_id;
   G.exiting = false;
   stopBgm();
   G.playing = false;
   if (G.timerId) { clearInterval(G.timerId); G.timerId = null; }
   DOM.modal && DOM.modal.classList.add('hidden');
 
- let sv = null;
+  const runId = window.treasureRun?.run_id;
 
-if (runId) {
+  let sv = null;
   try {
-    const { data, error } = await sb().functions.invoke('treasure_finish_run', {
-      body: { run_id: runId, reason }   // niente p_* qui
-    });
-    if (!error) sv = data?.summary || data;
-    else if (error.status !== 409) {
-      const raw = await error.context?.text?.().catch(()=>'');
-      console.warn('[Treasure] finish fail:', raw || error.message);
+    if (runId) {
+      const { data, error } = await sb().functions.invoke('treasure_finish_run', {
+        body: { run_id: runId, reason }
+      });
+      if (error) {
+        // prova a leggere il body della edge function per debug
+        let details = '';
+        try { details = await error.context?.text?.(); } catch {}
+        console.warn('[Treasure] finish fail:', details || error.message);
+      } else {
+        sv = data?.summary || null; // { coins, powerups, drops, level, score, duration_s, fun, exp }
+        console.log('[Treasure finish OK]', sv);
+      }
     }
   } catch (e) {
-    console.warn('[Treasure] finish error:', e?.message || e);
+    console.warn('[Treasure] finish exception:', e?.message || e);
   }
-}
 
-  // punteggio/premi
-  const serverScore = Number(sv?.score) || 0;
-  const finalScore  = serverScore || (G.score|0);
-  const fun = 15 + Math.round(finalScore * 0.6);
-  const exp = Math.round(finalScore * 0.5);
+  // fallback locale se il server non ha risposto
+  const finalScore = Number(sv?.score) || (G.score|0);
+  const fun  = Number(sv?.fun)  || (15 + Math.round(finalScore * 0.6));
+  const exp  = Number(sv?.exp)  || Math.round(finalScore * 0.5);
   const coinsThisRun = Number(sv?.coins) || (G.coinsCollected|0);
 
   setTimeout(async () => {
@@ -3078,18 +3081,16 @@ if (runId) {
         await window.addGettoniSupabase?.(coinsThisRun);
         await window.refreshResourcesWidget?.();
       }
-      if (exp > 0) window.showExpGainLabel?.(exp);
-    } catch (err) {
-      console.error('[Treasure] award error:', err);
+      window.showExpGainLabel?.(exp);
     } finally {
       G.coinsCollected = 0;
       G.keysStack = [];
       resetJoystick();
       restoreRandom();
-      window.treasureRun = null;   // ✅ blocca altri logEv post-fine
     }
   }, 180);
 }
+
 
 
 

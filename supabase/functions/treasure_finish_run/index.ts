@@ -93,7 +93,7 @@ serve(async (req) => {
   const durSec = (t0 && t1) ? Math.max(0, Math.floor((+new Date(t1) - +new Date(t0)) / 1000)) : 0;
 
   // ---- anti-cheat low-effort ----
-  if (durSec < 5)        return j({ error: "Too fast" }, 400, headers);
+  if (durSec < 3)        return j({ error: "Too fast" }, 400, headers);
   if (durSec > 15*60) { /* se vuoi, flag AFK/abuse */ }
 
   // ---- punteggio server-side ----
@@ -103,7 +103,7 @@ serve(async (req) => {
   const upd = await service
     .from("treasure_runs")
     .update({
-      status: "closed",
+      status: "finished",
       ended_at: new Date().toISOString(),
       coins, powerups, drops,
       level: lvl,

@@ -1261,20 +1261,20 @@ function logRoomOnce(){
 }
 
 async function logEv(kind, v = {}) {
+  const run = window.treasureRun;
+  if (!run?.run_id) return;
   try {
-    const run = window.treasureRun;
-    // offline: nessun log → evita POST e 400
-    if (!run?.run_id) return;
-
-    const { data: { session } } = await sb().auth.getSession();
-    await sb().functions.invoke('treasure_log_event', {
-      body: { run_id: run.run_id, kind, v },
-      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+    const { data, error } = await sb().functions.invoke('treasure_log_event', {
+      body: { run_id: run.run_id, kind, v }
     });
+    if (error) {
+      console.warn('[treasure_log_event] ', error.message, { kind, v, run_id: run.run_id, data });
+    }
   } catch (e) {
-    console.debug('[treasure_log_event]', e?.message || e);
+    console.warn('[treasure_log_event/throw]', e?.message || e);
   }
 }
+
 
 
 
@@ -1362,13 +1362,14 @@ useSeededRandom(run.seed >>> 0);
   }
 
   // badge/overlay di debug (mostra 'offline' quando non c’è run)
-  showTreasureDebugOverlay({
-    src: (window.treasureRun ? 'server' : 'offline'),
-    device: (isMobile ? 'mobile' : 'desktop'),
-    run_id: window.treasureRun?.run_id || '(none)',
-    seed
-  });
-  console.log('[Treasure] seed:', seed, 'run_id:', window.treasureRun?.run_id || '(none)');
+showTreasureDebugOverlay({
+  src: 'server',
+  device: (isMobile ? 'mobile' : 'desktop'),
+  run_id: window.treasureRun.run_id,
+  seed: run.seed                     // ← invece di "seed"
+});
+console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
+
 
   // ── resto invariato ───────────────────────────────────────
   playBgm();

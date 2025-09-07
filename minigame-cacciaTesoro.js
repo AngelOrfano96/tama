@@ -668,7 +668,7 @@ function initAtlasSprites() {
 
  G.sprites.atlas = new Image();
 G.sprites.atlas.onload  = () => {
-  console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
+ // console.log('[ATLAS] loaded', G.sprites.atlas.naturalWidth, 'x', G.sprites.atlas.naturalHeight);
   G.renderCache.rooms = {}; // invalida i bake statici
   render();                 // ridisegna con le spallette
 };
@@ -1350,6 +1350,7 @@ function _getFunctionsUrl(client, fnName){
     return `${base.replace(/\/$/, '')}/${fnName}`;
   } catch { return '(unknown)'; }
 }
+/*
 function showTreasureDebugOverlay(info = {}){
   const c = _getSupabaseClient();
   const supaUrl = c?.supabaseUrl || '(unknown)';
@@ -1378,10 +1379,8 @@ function showTreasureDebugOverlay(info = {}){
   setTimeout(()=> el.remove(), 6000);
 
   // anche in console in formato comodo
-  console.log('[Treasure debug]', {
-    projectRef, supabaseUrl: supaUrl, functionsUrl: fnUrl, ...info
-  });
-}
+  //console.log('[Treasure debug]', { projectRef, supabaseUrl: supaUrl, functionsUrl: fnUrl, ...info});
+}*/
 
 // ---------- AVVIO ----------
 async function startTreasureMinigame() {
@@ -1415,17 +1414,17 @@ useSeededRandom(run.seed >>> 0);
   {
     const c = _getSupabaseClient();
     const fnUrl = _getFunctionsUrl(c, 'treasure_start_run');
-    console.log('[functions URL]', fnUrl);
+    //console.log('[functions URL]', fnUrl);
   }
 
   // badge/overlay di debug (mostra 'offline' quando non c’è run)
-showTreasureDebugOverlay({
+/*showTreasureDebugOverlay({
   src: 'server',
   device: (isMobile ? 'mobile' : 'desktop'),
   run_id: window.treasureRun.run_id,
   seed: run.seed                     // ← invece di "seed"
-});
-console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
+});*/
+//console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
 
 
   // ── resto invariato ───────────────────────────────────────

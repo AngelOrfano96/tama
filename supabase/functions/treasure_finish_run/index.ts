@@ -14,11 +14,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const cors = (req: Request) => ({
   "Access-Control-Allow-Origin": req.headers.get("origin") ?? "*",
   "Vary": "Origin",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Cache-Control": "no-store",
   "Content-Type": "application/json",
 });
+
 const j = (o: unknown, s = 200, h?: HeadersInit) =>
   new Response(JSON.stringify(o), { status: s, headers: h });
 
@@ -27,16 +29,18 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
   if (req.method !== "POST")    return j({ error: "Method Not Allowed" }, 405, headers);
 
-  const authed = createClient(
-    Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } }
-  );
-  const service = createClient(
-    Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  // --- env / clients ---
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const ANON_KEY     = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const authed  = createClient(SUPABASE_URL, ANON_KEY,  { global: { headers: { Authorization: authHeader } } });
+  const service = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // --- auth ---
-  const { data: { user } } = await authed.auth.getUser();
+  const { data: { user }, error: getUserErr } = await authed.auth.getUser();
+  if (getUserErr) console.log("[finish_run] getUser error:", getUserErr.message);
   if (!user) return j({ error: "Unauthorized" }, 401, headers);
 
   // --- payload ---
@@ -45,19 +49,20 @@ serve(async (req) => {
   const reason = (body?.reason as string | undefined) ?? "end";
   if (!run_id) return j({ error: "Missing run_id" }, 400, headers);
 
-  // --- verifica run (tua) ---
+  // --- verifica run (dell'utente) ---
   const r0 = await authed
     .from("treasure_runs")
     .select("id,user_id,status,started_at,coins,powerups,drops,level,score,duration_s")
     .eq("id", run_id)
     .single();
+
   if (r0.error) return j({ error: `Run lookup failed: ${r0.error.message}` }, 400, headers);
   if (!r0.data || r0.data.user_id !== user.id) return j({ error: "Run not yours" }, 400, headers);
 
-  // Se non è open: non ricalcolo/aggiorno; provo solo ad accreditare in modo idempotente
+  // --- se non è più open: non tocco nulla, provo solo i premi (idempotente) ---
   if (r0.data.status !== "open") {
     const rew = await service.rpc("treasure_apply_rewards", { p_run_id: run_id });
-    const rewards = (rew.error ? null : rew.data) ?? { awarded: false };
+    if (rew.error) console.log("[finish_run] rewards (already closed) error:", rew.error.message);
 
     const r1 = await service
       .from("treasure_runs")
@@ -74,44 +79,74 @@ serve(async (req) => {
       duration_s: r0.data.duration_s ?? 0,
     };
 
-    return j({ ok: true, already_closed: true, summary, rewards }, 200, headers);
+    return j({
+      ok: true,
+      already_closed: true,
+      summary,
+      rewards: rew.error ? { awarded: false, error: rew.error.message } : (rew.data ?? { awarded: false }),
+    }, 200, headers);
   }
 
-  // --- aggregazioni eventi (RPC se esiste, altrimenti fallback) ---
+  // --- aggregazioni eventi: RPC (preferita) con fallback ---
   let coins = 0, powerups = 0, drops = 0, lvl = 1, t0: string | null = null, t1: string | null = null, total = 0;
 
   const agg = await authed.rpc("treasure_run_aggregate", { p_run_id: run_id });
   if (!agg.error && agg.data) {
-    ({ coins, powerups, drops, lvl, t0, t1, total } = agg.data);
+    // la RPC può restituire un oggetto o un array con una sola riga
+    const row = Array.isArray(agg.data) ? agg.data[0] : agg.data;
+    coins    = Number(row?.coins ?? 0);
+    powerups = Number(row?.powerups ?? 0);
+    drops    = Number(row?.drops ?? 0);
+    lvl      = Number(row?.lvl ?? 1) || 1;
+    t0       = (row?.t0 ?? null) as string | null;
+    t1       = (row?.t1 ?? null) as string | null;
+    total    = Number(row?.total ?? 0);
   } else {
-    const coinsQ = await authed.from("treasure_events").select("*", { count: "exact", head: true }).eq("run_id", run_id).eq("kind","coin");
+    if (agg.error) console.log("[finish_run] aggregate RPC error, fallback:", agg.error.message);
+
+    const coinsQ = await authed.from("treasure_events").select("*", { count: "exact", head: true })
+      .eq("run_id", run_id).eq("kind","coin");
     coins = coinsQ.count ?? 0;
-    const pwoQ   = await authed.from("treasure_events").select("*", { count: "exact", head: true }).eq("run_id", run_id).eq("kind","powerup");
+
+    const pwoQ = await authed.from("treasure_events").select("*", { count: "exact", head: true })
+      .eq("run_id", run_id).eq("kind","powerup");
     powerups = pwoQ.count ?? 0;
-    const dropQ  = await authed.from("treasure_events").select("*", { count: "exact", head: true }).eq("run_id", run_id).eq("kind","drop");
+
+    const dropQ = await authed.from("treasure_events").select("*", { count: "exact", head: true })
+      .eq("run_id", run_id).eq("kind","drop");
     drops = dropQ.count ?? 0;
 
-    const lvlQ = await authed.from("treasure_events").select("v->>lvl").eq("run_id", run_id).eq("kind","hb");
+    const lvlQ = await authed.from("treasure_events").select("v->>lvl")
+      .eq("run_id", run_id).eq("kind","hb");
     const lvls = (lvlQ.data ?? []).map((r: any) => Number(r["v->>lvl"]) || 1);
-    lvl = Math.max(1, ...lvls);
+    lvl = Math.max(1, ...lvls, 1);
 
-    const tMin = await authed.from("treasure_events").select("t").eq("run_id", run_id).order("t",{ascending:true}).limit(1).maybeSingle();
-    const tMax = await authed.from("treasure_events").select("t").eq("run_id", run_id).order("t",{ascending:false}).limit(1).maybeSingle();
+    const tMin = await authed.from("treasure_events").select("t").eq("run_id", run_id)
+      .order("t",{ascending:true}).limit(1).maybeSingle();
+    const tMax = await authed.from("treasure_events").select("t").eq("run_id", run_id)
+      .order("t",{ascending:false}).limit(1).maybeSingle();
     t0 = tMin.data?.t ?? null;
     t1 = tMax.data?.t ?? null;
 
-    const totQ = await authed.from("treasure_events").select("*", { count:"exact", head:true }).eq("run_id", run_id);
+    const totQ = await authed.from("treasure_events").select("*", { count:"exact", head:true })
+      .eq("run_id", run_id);
     total = totQ.count ?? 0;
   }
 
-  const durSec = (t0 && t1) ? Math.max(0, Math.floor((+new Date(t1) - +new Date(t0)) / 1000)) : 0;
+  // --- durata con fallback a started_at (se mancano heartbeat iniziali) ---
+  const firstTS = (t0 ?? r0.data.started_at) as string | null;
+  const lastTS  = t1 as string | null;
+  const durSec = (firstTS && lastTS)
+    ? Math.max(0, Math.floor((+new Date(lastTS) - +new Date(firstTS)) / 1000))
+    : 0;
 
-  // --- anti-cheat base ---
-  if (durSec < 3) return j({ error: "Too fast" }, 400, headers);
-  // if (durSec > 15*60) { /* flag AFK/abuse se vuoi */ }
+  // --- anti-cheat più tollerante: blocca solo run "istantanee" e quasi senza eventi ---
+  if (durSec < 1 && total < 5) {
+    return j({ error: "Too fast", debug: { durSec, total, t0, t1, started_at: r0.data.started_at } }, 400, headers);
+  }
 
   // --- punteggio server-side ---
-  const score = (coins|0) + (powerups|0)*12 + (drops|0)*5;
+  const score = (coins | 0) + (powerups | 0) * 12 + (drops | 0) * 5;
 
   // --- chiusura idempotente ---
   const upd = await service
@@ -127,19 +162,31 @@ serve(async (req) => {
     })
     .eq("id", run_id)
     .eq("status", "open")
-    .select("id")
+    .select("id,status")
     .maybeSingle();
 
-  if (upd.error) return j({ error: upd.error.message }, 400, headers);
+  if (upd.error) {
+    console.log("[finish_run] update error:", upd.error.message);
+    return j({ error: upd.error.message }, 400, headers);
+  }
 
-  // --- premi (idempotenti tramite ledger) ---
+  const already_closed = !upd.data; // race: qualcun altro l'ha chiusa prima
+
+  // --- premi (idempotenti) ---
   const rew = await service.rpc("treasure_apply_rewards", { p_run_id: run_id });
-  const rewards = (rew.error ? null : rew.data) ?? { awarded: false };
+  if (rew.error) console.log("[finish_run] rewards error:", rew.error.message);
 
   const summary = { coins, powerups, drops, level: lvl, score, duration_s: durSec };
 
-  return j({ ok: true, already_closed: false, summary, rewards }, 200, headers);
+  return j({
+    ok: true,
+    already_closed,
+    summary,
+    rewards: rew.error ? { awarded: false, error: rew.error.message } : (rew.data ?? { awarded: false }),
+    debug: { durSec, totalEvents: total },
+  }, 200, headers);
 });
+
 
 
 

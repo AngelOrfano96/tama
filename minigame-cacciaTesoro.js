@@ -1218,6 +1218,20 @@ function mulberry32(a){
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+function hash32(a, b){
+  // mix veloce, deterministico
+  a = (a ^ 0x9e3779b9) >>> 0;
+  a = (a ^ ((a << 6) >>> 0) ^ ((a >>> 2) >>> 0)) >>> 0;
+  a = (a + b + 0x7f4a7c15) >>> 0;
+  a ^= a << 13; a ^= a >>> 17; a ^= a << 5;
+  return a >>> 0;
+}
+function seedForLevel(baseSeed, level){
+  return hash32(baseSeed >>> 0, level >>> 0);
+}
+
+
 const __trueRandom = Math.random;
 function useSeededRandom(seed){
   const r = mulberry32((seed >>> 0) || 0);
@@ -1489,8 +1503,12 @@ useSeededRandom(run.seed >>> 0);
     `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('${loadingCover}') center/cover no-repeat`;
   showLoadingOverlay();
 
-  generateDungeon();
+  const prevRandom = Math.random;          // salva RNG corrente
+  useSeededRandom(seedForLevel(window.treasureRun.seed >>> 0, G.level));
 
+  generateDungeon();
+  
+  Math.random = prevRandom;
   (function ensureSafeSpawn() {
     const key = `${G.petRoom.x},${G.petRoom.y}`;
     const list = G.enemies[key] || [];

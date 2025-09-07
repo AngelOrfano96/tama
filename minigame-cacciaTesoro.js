@@ -1364,7 +1364,7 @@ function _getFunctionsUrl(client, fnName){
     return `${base.replace(/\/$/, '')}/${fnName}`;
   } catch { return '(unknown)'; }
 }
-/*
+
 function showTreasureDebugOverlay(info = {}){
   const c = _getSupabaseClient();
   const supaUrl = c?.supabaseUrl || '(unknown)';
@@ -1393,8 +1393,8 @@ function showTreasureDebugOverlay(info = {}){
   setTimeout(()=> el.remove(), 6000);
 
   // anche in console in formato comodo
-  //console.log('[Treasure debug]', { projectRef, supabaseUrl: supaUrl, functionsUrl: fnUrl, ...info});
-}*/
+  console.log('[Treasure debug]', { projectRef, supabaseUrl: supaUrl, functionsUrl: fnUrl, ...info});
+}
 
 // ---------- AVVIO ----------
 async function startTreasureMinigame() {
@@ -1432,13 +1432,13 @@ useSeededRandom(run.seed >>> 0);
   }
 
   // badge/overlay di debug (mostra 'offline' quando non c’è run)
-/*showTreasureDebugOverlay({
+showTreasureDebugOverlay({
   src: 'server',
   device: (isMobile ? 'mobile' : 'desktop'),
   run_id: window.treasureRun.run_id,
   seed: run.seed                     // ← invece di "seed"
-});*/
-//console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
+});
+console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
 
 
   // ── resto invariato ───────────────────────────────────────
@@ -1507,7 +1507,7 @@ useSeededRandom(run.seed >>> 0);
   useSeededRandom(seedForLevel(window.treasureRun.seed >>> 0, G.level));
 
   generateDungeon();
-  
+
   Math.random = prevRandom;
   (function ensureSafeSpawn() {
     const key = `${G.petRoom.x},${G.petRoom.y}`;

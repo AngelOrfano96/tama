@@ -1,9 +1,14 @@
 // supabase/functions/_shared/treasure_gen.ts
 
 // --- PRNG e seed helpers (identici tra client e server) ---
+// supabase/functions/_shared/treasure_gen.ts
+
+// -----------------------------
+// PRNG & seed helpers
+// -----------------------------
 export function mulberry32(a: number) {
   return function () {
-    let t = a += 0x6D2B79F5;
+    let t = (a += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -24,7 +29,9 @@ export function seedForLevel(baseSeed: number, level: number) {
   return hash32(baseSeed >>> 0, level >>> 0);
 }
 
-// --- tipi e configurazione mappa ---
+// -----------------------------
+// Tipi & configurazione mappa
+// -----------------------------
 export type Device = "mobile" | "desktop";
 export type Cell = { rx: number; ry: number; x: number; y: number };
 export type LevelSpec = {
@@ -34,6 +41,7 @@ export type LevelSpec = {
   powerups: Cell[];
 };
 
+// griglie candidate per device
 const GRID_POOL_DESKTOP: Array<[number, number]> = [
   [2, 2],
   [3, 2],
@@ -86,7 +94,9 @@ function doorIndices(mid: number, span: number, min: number, max: number) {
   return arr;
 }
 
-// --- generatore livello deterministico ---
+// -----------------------------
+// Generatore livello deterministico
+// -----------------------------
 export function generateLevelSpec(
   level: number,
   baseSeed: number,
@@ -113,7 +123,6 @@ export function generateLevelSpec(
       const right: number[] = [];
       const top: number[] = [];
       const bottom: number[] = [];
-      // NB: gridW per E/O, gridH per N/S
       if (rx < gridW - 1) for (const y of ys) right.push(y);
       if (rx > 0) for (const y of ys) left.push(y);
       if (ry < gridH - 1) for (const x of xs) bottom.push(x);
@@ -135,7 +144,7 @@ export function generateLevelSpec(
     const onEdge = tx === 0 || ty === 0 || tx === roomW - 1 || ty === roomH - 1;
     if (!onEdge) return false;
     return !isOpening(rx, ry, tx, ty);
-    }
+  }
 
   // stanza di uscita (non centrale)
   let exitRX: number, exitRY: number;
@@ -190,3 +199,51 @@ export function generateLevelSpec(
 
   return { exitRoom: { rx: exitRX, ry: exitRY }, exitTile, coins, powerups };
 }
+
+// -----------------------------
+// Hash deterministico dello spec
+// -----------------------------
+
+// FNV-1a 32bit semplice e stabile
+function fnv1a32(seed = 0x811c9dc5 >>> 0) {
+  let h = seed >>> 0;
+  return {
+    mix(n: number) {
+      h ^= n >>> 0;
+      h = Math.imul(h, 0x01000193);
+      h >>>= 0;
+    },
+    hex() {
+      return h.toString(16).padStart(8, "0");
+    },
+    value() {
+      return h >>> 0;
+    },
+  };
+}
+
+/** Hasha lo spec (in ordine deterministico) */
+export function hashSpec(spec: LevelSpec): string {
+  const h = fnv1a32();
+  // exit
+  h.mix(spec.exitRoom.rx);
+  h.mix(spec.exitRoom.ry);
+  h.mix(spec.exitTile.x);
+  h.mix(spec.exitTile.y);
+  // coins
+  for (const c of spec.coins) {
+    h.mix(c.rx);
+    h.mix(c.ry);
+    h.mix(c.x);
+    h.mix(c.y);
+  }
+  // powerups
+  for (const p of spec.powerups) {
+    h.mix(p.rx);
+    h.mix(p.ry);
+    h.mix(p.x);
+    h.mix(p.y);
+  }
+  return h.hex(); // es. "4f2c1a9b"
+}
+

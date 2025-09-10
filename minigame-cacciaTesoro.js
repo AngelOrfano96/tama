@@ -870,6 +870,28 @@ function buildPetSprites(petNum, assetBase) {
   };
 }
 
+function buildMoleSprites(assetBase) {
+  // assetBase: 'assets/desktop' | 'assets/mobile'
+  const base = `${assetBase}/mole`;     // adatta se i file stanno altrove
+  const CB = 'v=7';                      // come per gli altri asset
+
+  const mk = (name) => {
+    const img = new Image();
+    img.onload  = () => console.log('[MOLE] ok:', name);
+    img.onerror = (e) => console.error('[MOLE] fail:', name, e);
+    img.src = `${base}/${name}?${CB}`;
+    return img;
+  };
+
+  // ordine: 0=terriccio, 1=testa, 2=tutta su (lethale)
+  G.sprites.mole = [
+    mk('talpa_1.png'),
+    mk('talpa_2.png'),
+    mk('talpa_3.png'),
+  ];
+}
+
+
 /////MUSICA
 // --- AUDIO BGM ---
 G.bgm = null;
@@ -1478,6 +1500,8 @@ console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
   G.sprites.wall    = mkImg('assets/tiles/wall2.png');
   G.sprites.bg      = mkImg(`${assetBase}/backgrounds/dungeon3.png`);
   G.sprites.powerup = mkImg('assets/bonus/powerup.png');
+
+  buildMoleSprites(assetBase); 
 
   const petSrc = DOM.petImg?.src || '';
   const m = petSrc.match(/pet_(\d+)/);
@@ -3050,7 +3074,7 @@ repositionExitBtn();
       logEv('room', { rx: G.petRoom.x, ry: G.petRoom.y });
       startHeartbeat();
 
-      
+  /*    
       // Talpa: attiva solo dal livello 2 in poi
 G.mole.enabled = (G.level >= 2);
 if (G.mole.enabled) {
@@ -3064,7 +3088,26 @@ if (G.mole.enabled) {
   // fase iniziale
   G.mole.phase = 'emerge1';
   G.mole.t = 0;
-}
+} */
+
+(function setupMoleForLevel(){
+  if (G.level >= 2) {
+    // scegli una stanza a caso (o deterministica col seed se preferisci)
+    const rx = Math.floor(Math.random() * Cfg.gridW);
+    const ry = Math.floor(Math.random() * Cfg.gridH);
+
+    G.mole.enabled = true;
+    G.mole.roomX = rx;
+    G.mole.roomY = ry;
+    G.mole.phase = 'emerge1';
+    G.mole.t = 0;
+
+    placeMoleAtRandomSpot(); // piazza su cella libera
+  } else {
+    G.mole.enabled = false;
+  }
+})();
+
 
       G.activePowerup = null;
       G.speedMul = 1;

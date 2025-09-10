@@ -7,19 +7,16 @@
 
 // supabase/functions/treasure_finish_run/index.ts
 // deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
-  generateLevelSpec,
-  type Device,
-} from "../_shared/treasure_gen.ts";
+import { generateLevelSpec, type Device } from "../_shared/treasure_gen.ts";
 
 const cors = (req: Request) => ({
   "Access-Control-Allow-Origin": req.headers.get("origin") ?? "*",
   "Vary": "Origin",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Cache-Control": "no-store",
   "Content-Type": "application/json",
@@ -29,7 +26,7 @@ const j = (o: unknown, s = 200, h?: HeadersInit) =>
 
 function detectDevice(req: Request): Device {
   const ch = req.headers.get("sec-ch-ua-mobile");
-  if (ch && /\\?1\\?/.test(ch) || ch === "?1") return "mobile";
+  if ((ch && /\?1\?/.test(ch)) || ch === "?1") return "mobile";
   const ua = (req.headers.get("user-agent") ?? "").toLowerCase();
   if (ua.includes("mobi")) return "mobile";
   return "desktop";
@@ -59,10 +56,10 @@ serve(async (req) => {
   const reason = (body?.reason as string | undefined) ?? "end";
   if (!run_id) return j({ error: "Missing run_id" }, 400, headers);
 
-  // --- lookup run: includo base_seed & device ---
+  // --- run lookup (prendo anche seed/base_seed e device)
   const r0 = await authed
     .from("treasure_runs")
-    .select("id,user_id,status,started_at,seed,device,level,coins,powerups,drops,score,duration_s")
+    .select("id,user_id,status,started_at,seed,base_seed,device,level,coins,powerups,drops,score,duration_s")
     .eq("id", run_id)
     .single();
 
@@ -97,7 +94,7 @@ serve(async (req) => {
     }, 200, headers);
   }
 
-  // --- carico TUTTI gli eventi della run (li filtriamo lato server con lo spec) ---
+  // --- carico eventi ---
   const evQ = await authed
     .from("treasure_events")
     .select("kind,v,t")
@@ -108,10 +105,9 @@ serve(async (req) => {
     console.log("[finish_run] events load error:", evQ.error.message);
     return j({ error: "Events load failed" }, 400, headers);
   }
-
   const events = evQ.data ?? [];
 
-  // --- livello di riferimento (usa max(hb.lvl) oppure r0.data.level) ---
+  // --- max livello da heartbeat (fallback a run.level) ---
   let maxLvl = Number(r0.data.level ?? 1) || 1;
   for (const e of events) {
     if (e.kind === "hb") {
@@ -120,21 +116,27 @@ serve(async (req) => {
     }
   }
 
-  // --- device & base_seed (fallback se mancanti) ---
-  const base_seed: number = Number(r0.data.base_seed ?? r0.data.seed);
+  // --- base seed & device ---
+  const base_seed: number = Number((r0.data as any).base_seed ?? r0.data.seed);
   const device: Device = (r0.data.device === "mobile" || r0.data.device === "desktop")
     ? r0.data.device
     : detectDevice(req);
 
+  // --- conteggio RAW (senza validazione) ---
+  const raw = {
+    coins:   events.filter(e => e.kind === "coin"    && Number.isFinite(+e?.v?.rx)).length,
+    powerup: events.filter(e => e.kind === "powerup" && Number.isFinite(+e?.v?.rx)).length,
+    drops:   events.filter(e => e.kind === "drop").length,
+    total:   events.length,
+  };
+
   // --- SPEC deterministico lato server ---
   const spec = generateLevelSpec(maxLvl, base_seed, device);
-
-  // set di celle ammesse per coin/powerup
   const allowCoin = new Set(spec.coins.map(c => `${c.rx},${c.ry},${c.x},${c.y}`));
   const allowPow  = new Set(spec.powerups.map(c => `${c.rx},${c.ry},${c.x},${c.y}`));
 
-  // --- conteggio eventi validi ---
-  let coins = 0, powerups = 0, drops = 0, total = events.length;
+  // --- validazione contro SPEC ---
+  let coins = 0, powerups = 0, drops = 0;
   const seenCoin = new Set<string>();
   const seenPow  = new Set<string>();
 
@@ -171,19 +173,83 @@ serve(async (req) => {
     }
   }
 
-  // --- durata robusta (usa started_at se mancano heartbeat) ---
+  // --- durata robusta ---
   const firstTS = (t0 ?? r0.data.started_at) as string | null;
   const lastTS  = t1 as string | null;
   const durSec = (firstTS && lastTS)
     ? Math.max(0, Math.floor((+new Date(lastTS) - +new Date(firstTS)) / 1000))
     : 0;
 
-  // --- anti-cheat di base ---
-  if (durSec < 1 && total < 5) {
-    return j({ error: "Too fast", debug: { durSec, total, t0, t1, started_at: r0.data.started_at } }, 400, headers);
+  // --- anti-cheat base ---
+// --- anti-cheat: tempo vs pickup + densità eventi ---
+// NB: questo blocco va dopo aver calcolato coins/powerups/drops
+const totalEvents   = events.length;
+const requiredSec    = Math.ceil(Math.max(3, (coins * 0.5) + (powerups * 0.7)));
+const requiredEvents = coins + powerups + 3;
+
+if (durSec < requiredSec || totalEvents < requiredEvents) {
+  console.log("[finish_run] suspicious run", {
+    run_id,
+    durSec, requiredSec,
+    totalEvents, requiredEvents,
+    counts: { coins, powerups, drops },
+    t0, t1, started_at: r0.data.started_at,
+  });
+
+  return j({
+    error: "Suspicious run",
+    debug: {
+      durSec, requiredSec,
+      totalEvents, requiredEvents,
+      counts: { coins, powerups, drops },
+      t0, t1, started_at: r0.data.started_at,
+    }
+  }, 400, headers);
+}
+
+
+  // --- HEURISTIC: se lo SPEC non combacia (troppo pochi match), fai FALLBACK DB ---
+  // soglia: se hai almeno 3 coin raw ma ne validi < 40%, o 0 validati con >=1 raw → fallback
+  const coinMismatch =
+    (raw.coins >= 3 && coins < Math.ceil(raw.coins * 0.4)) ||
+    (raw.coins >= 1 && coins === 0);
+
+  const powMismatch =
+    (raw.powerup >= 2 && powerups < Math.ceil(raw.powerup * 0.5)) ||
+    (raw.powerup >= 1 && powerups === 0);
+
+  let usedStrategy: "SPEC" | "FALLBACK" = "SPEC";
+
+  if (coinMismatch || powMismatch) {
+    console.log("[finish_run] SPEC mismatch → fallback", {
+      base_seed, device, maxLvl,
+      raw, validated: { coins, powerups, drops }
+    });
+
+    // 1) prova RPC aggregata
+    const agg = await authed.rpc("treasure_run_aggregate", { p_run_id: run_id });
+    if (!agg.error && agg.data) {
+      const row = Array.isArray(agg.data) ? agg.data[0] : agg.data;
+      coins    = Number(row?.coins ?? 0);
+      powerups = Number(row?.powerups ?? 0);
+      drops    = Number(row?.drops ?? 0);
+      usedStrategy = "FALLBACK";
+    } else {
+      if (agg.error) console.log("[finish_run] aggregate RPC error, fallback q:", agg.error.message);
+      // 2) fallback con query conteggi
+      const cQ = await authed.from("treasure_events").select("*", { count:"exact", head:true })
+        .eq("run_id", run_id).eq("kind","coin");
+      const pQ = await authed.from("treasure_events").select("*", { count:"exact", head:true })
+        .eq("run_id", run_id).eq("kind","powerup");
+      const dQ = await authed.from("treasure_events").select("*", { count:"exact", head:true })
+        .eq("run_id", run_id).eq("kind","drop");
+      coins = cQ.count ?? 0;
+      powerups = pQ.count ?? 0;
+      drops = dQ.count ?? 0;
+      usedStrategy = "FALLBACK";
+    }
   }
 
-  // --- punteggio server-side (solo elementi validati) ---
   const score = (coins|0) + (powerups|0)*12 + (drops|0)*5;
 
   // --- chiusura idempotente ---
@@ -197,7 +263,7 @@ serve(async (req) => {
       score,
       duration_s: durSec,
       reason,
-      base_seed,      // salvo i fallback se mancavano
+      base_seed,
       device,
     })
     .eq("id", run_id)
@@ -212,7 +278,7 @@ serve(async (req) => {
 
   const already_closed = !upd.data;
 
-  // --- premi (idempotenti) ---
+  // --- premi (idempotente) ---
   const rew = await service.rpc("treasure_apply_rewards", { p_run_id: run_id });
   if (rew.error) console.log("[finish_run] rewards error:", rew.error.message);
 
@@ -223,9 +289,17 @@ serve(async (req) => {
     already_closed,
     summary,
     rewards: rew.error ? { awarded: false, error: rew.error.message } : (rew.data ?? { awarded: false }),
-    debug: { durSec, totalEvents: total },
+    debug: {
+      strategy: usedStrategy,
+      raw,
+      validated: { coins, powerups, drops },
+      spec: { allowCoin: allowCoin.size, allowPow: allowPow.size, base_seed, device, maxLvl },
+      durSec,
+      totalEvents: events.length,
+    },
   }, 200, headers);
 });
+
 
 
 

@@ -259,6 +259,31 @@ function pickMoveRect(k){
 }
 
 
+// 🌑 Darkness settings
+const DARKNESS_START_LEVEL = 4;   // da qui parte l’oscurità
+const DARKNESS_MIN_FRAC    = 0.42; // limite minimo (40–45% consigliato)
+const DARKNESS_FADE_MS     = 1000; // fade-in quando entri nel livello
+const DARKNESS_PULSE_AMPL  = 0.05; // pulsazione ±5%
+const DARKNESS_PULSE_SEC   = 1.8;  // periodo ~1.8s
+
+// Stato runtime
+G.darkness = {
+  enabled: false,
+  targetFrac: 1.0,   // frazione della stanza “visibile”
+  currentFrac: 1.0,  // animata verso target
+  fadeMs: 0,         // timer residuo del fade
+  pulseT: 0,         // accumulatore per pulsazione
+};
+function visibilityFracForLevel(lvl){
+  if (lvl < DARKNESS_START_LEVEL) return 1.0;
+  // Tabella morbida e non frustrante
+  if (lvl <= 1)  return 0.85;
+  if (lvl <= 2)  return 0.70;
+  if (lvl <= 3)  return 0.60;
+  if (lvl <= 4) return 0.50;
+  // oltre: fissa al minimo per non frustrare
+  return DARKNESS_MIN_FRAC; 
+}
 
 
 // stato Treasure
@@ -2156,6 +2181,24 @@ function placeMoleAtRandomSpot() {
     movePet(dt);
     moveEnemies(dt);
     updateMole(dt);
+    (function updateDarkness(dt){
+  const D = G.darkness;
+  if (!D.enabled) return;
+
+  // fade lineare verso target
+  if (D.fadeMs > 0){
+    D.fadeMs = Math.max(0, D.fadeMs - dt*1000);
+    const k = 1 - (D.fadeMs / DARKNESS_FADE_MS); // 0→1
+    D.currentFrac = D.currentFrac + (D.targetFrac - D.currentFrac) * k;
+  } else {
+    // piccolo easing per rimanere incollati al target
+    D.currentFrac += (D.targetFrac - D.currentFrac) * Math.min(1, dt*6);
+  }
+
+  // pulsazione
+  D.pulseT += dt;
+})();
+
   }
 
   function updateMole(dt) {
@@ -2864,6 +2907,53 @@ const dy = ey + (tile - drawH) / 2;
   }
 }
 
+(function renderDarkness(){
+  const D = G.darkness;
+  if (!D.enabled) return;
+
+  const tile = window.treasureTile || 64;
+  const roomW = Cfg.roomW, roomH = Cfg.roomH;
+
+  // centro luce = centro hitbox del pet
+  const cx = G.pet.px + tile/2;
+  const cy = G.pet.py + tile/2;
+
+  // frazione con pulsazione morbida (±5%)
+  const pulse = 1 + (Math.sin(D.pulseT * (2*Math.PI / DARKNESS_PULSE_SEC)) * DARKNESS_PULSE_AMPL);
+  const frac  = Math.max(DARKNESS_MIN_FRAC, Math.min(1, D.currentFrac * pulse));
+
+  // converti “frazione stanza visibile” → raggio in pixel:
+  // prendiamo metà del lato minore della stanza e applichiamo la frazione
+  const minSidePx = Math.min(roomW, roomH) * tile;
+  const radius = Math.max(tile*2.2, (minSidePx * 0.5) * frac); // non scendere sotto ~2.2 tile
+
+  // disegna schermo scuro + “foro” graduale
+  ctx.save();
+
+  // 1) pannello scuro
+  ctx.fillStyle = 'rgba(0,0,0,0.92)'; // opacità del buio
+  ctx.fillRect(0, 0, roomW*tile, roomH*tile);
+
+  // 2) buco morbido (destination-out)
+  const grad = ctx.createRadialGradient(cx, cy, Math.max(8, radius*0.35), cx, cy, radius);
+  grad.addColorStop(0.0, 'rgba(0,0,0,1.0)');
+  grad.addColorStop(0.60, 'rgba(0,0,0,0.55)');
+  grad.addColorStop(0.85, 'rgba(0,0,0,0.18)');
+  grad.addColorStop(1.0, 'rgba(0,0,0,0.00)');
+
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // (facoltativo) piccoli “hint” visivi sempre leggibili:
+  // - potresti ridisegnare occhi/glow dei nemici dopo questo overlay (source-over)
+})();
+
+
 }
 
 
@@ -3171,6 +3261,15 @@ if (isNearWalls(ex, ey, GOB_WALL_MARGIN)) continue;
 
    // ensureMobileExitBtn();   // <— crea/posiziona il bottone su mobile
   resetJoystick(); 
+    (function setupDarknessForLevel(){
+  const frac = visibilityFracForLevel(G.level);
+  G.darkness.enabled = (G.level >= DARKNESS_START_LEVEL);
+  G.darkness.targetFrac  = frac;
+  // parte un po' più “luminosa” e chiude in 1s
+  G.darkness.currentFrac = Math.min(1.0, frac * 1.20);
+  G.darkness.fadeMs = DARKNESS_FADE_MS;
+  G.darkness.pulseT = 0;
+})();
 
   
     if (isTouch) DOM.joyBase.style.opacity = '0.45';

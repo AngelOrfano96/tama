@@ -277,7 +277,7 @@ function initTreasureMoveSheet(){
 
 // === SPIDER ATLAS ===
 const SPIDER_TILE = 48;
-const SPIDER_SCALE = 2.25; // leggermente più piccolo del goblin
+const SPIDER_SCALE = 2.00; // leggermente più piccolo del goblin
 
 // velocità relative per tipo (1 = goblin baseline)
 const ENEMY_SPEED_MUL = {
@@ -1495,7 +1495,7 @@ function randomFreeTileInRoom(rx, ry) {
 
 // fino a 2 ragni per stanza (probabilità piena dal liv. 2)
 function populateSpidersForAllRooms(level){
-  if (level < 1) return;
+  if (level < 3) return;
 
   for (let ry=0; ry<Cfg.gridH; ry++){
     for (let rx=0; rx<Cfg.gridW; rx++){

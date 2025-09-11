@@ -275,6 +275,55 @@ function initTreasureMoveSheet(){
   TreDrop.img = img;
 }
 
+// === SPIDER ATLAS ===
+const SPIDER_TILE = 48;
+const SPIDER_SCALE = 1.15; // leggermente più piccolo del goblin
+function buildSpiderFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_spider.png`, // metti i tuoi path (desktop/mobile)
+    rows: {
+      idleRowA: 0, idleRowB: 1,
+      walkDown:  2, walkRight: 3, walkUp: 4,
+      atkDown:   5, atkRight: 6, atkUp: 7,
+    },
+    idleCols:   [0,1,2],
+    walkCols:   [0,1,2,3],
+    attackCols: [0,1,2,3],
+  };
+
+  if (!G.sprites.spiderSheet) {
+    G.sprites.spiderSheet = new Image();
+    G.sprites.spiderSheet.onload  = () => console.log('[SPIDER] atlas ready');
+    G.sprites.spiderSheet.onerror = (e) => console.error('[SPIDER] atlas load fail', e);
+    G.sprites.spiderSheet.src = cfg.sheetSrc;
+  }
+
+  const sPick = (c, r, w=1, h=1) => ({
+    sx: c * SPIDER_TILE, sy: r * SPIDER_TILE, sw: w * SPIDER_TILE, sh: h * SPIDER_TILE
+  });
+  const mkRow  = (row, cols) => cols.map(c => sPick(c, row));
+
+  const idle = [
+    ...mkRow(cfg.rows.idleRowA, cfg.idleCols),
+    ...mkRow(cfg.rows.idleRowB, cfg.idleCols),
+  ];
+
+  G.sprites.spiderFrames = {
+    idle,
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+    },
+  };
+}
+
+
 // === GOBLIN ATLAS (enemy sprites) ===
 // Imposta alla cella del tuo foglio (16/24/32...). Se il tuo atlas è 32px, usa 32.
 const GOB_TILE = 48;
@@ -1155,6 +1204,10 @@ function collectAllSpritesToPreload(){
   // 3) bat atlas (facoltativo: se non carica, fai fallback color block)
   if (G.sprites?.batSheet) imgs.push(G.sprites.batSheet);
 
+  // 3.5) spider atlas
+if (G.sprites?.spiderSheet) imgs.push(G.sprites.spiderSheet);
+
+
   // 4) sprite vari (coin/exit/powerup/bg)
   ['coin','exit','powerup','bg','wall'].forEach(k=>{
     if (G.sprites?.[k]) imgs.push(G.sprites[k]);
@@ -1417,6 +1470,52 @@ function showTreasureDebugOverlay(info = {}){
   // anche in console in formato comodo
   console.log('[Treasure debug]', { projectRef, supabaseUrl: supaUrl, functionsUrl: fnUrl, ...info});
 }
+function pushEnemy(rx, ry, e){
+  const key = `${rx},${ry}`;
+  (G.enemies[key] || (G.enemies[key] = [])).push(e);
+}
+
+function randomFreeTileInRoom(rx, ry) {
+  const room = G.rooms[ry][rx];
+  for (let tries=0; tries<200; tries++){
+    const x = 1 + ((Math.random() * (Cfg.roomW-2)) | 0);
+    const y = 1 + ((Math.random() * (Cfg.roomH-2)) | 0);
+    if (room[y][x] === 0 && !isNearAnyDoor(rx,ry,x,y,1)) return {x,y};
+  }
+  return {x:1,y:1};
+}
+
+// fino a 2 ragni per stanza (probabilità piena dal liv. 2)
+function populateSpidersForAllRooms(level){
+  if (level < 2) return;
+
+  for (let ry=0; ry<Cfg.gridH; ry++){
+    for (let rx=0; rx<Cfg.gridW; rx++){
+      // scegli quanti (0..2): bias 1 o 2 con probabilità decente
+      let n = 0;
+      const r = Math.random();
+      if (r < 0.55) n = 1;
+      else if (r < 0.80) n = 2;
+
+      for (let i=0;i<n;i++){
+        const {x, y} = randomFreeTileInRoom(rx, ry);
+        const t = TILE();
+        pushEnemy(rx, ry, {
+          type: 'spider',
+          x, y,
+          px: x * t, py: y * t,
+          direction: 'down',
+          isMoving: false,
+          attacking: false,
+          stepFrame: 0,
+          animTime: 0,
+          reactDelay: 0.6 + Math.random()*0.8, // breve pausa prima di muoversi
+          slow: false,
+        });
+      }
+    }
+  }
+}
 
 // ---------- AVVIO ----------
 async function startTreasureMinigame() {
@@ -1471,6 +1570,7 @@ console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
   maybeSwapDecorForDevice();
   buildDecorFromAtlas();
   buildBatFromAtlas();
+  buildSpiderFromAtlas();
   document.getElementById('treasure-hud')?.remove();
   DOM.hudBox = null;
 
@@ -1531,6 +1631,7 @@ console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
   useSeededRandom(seedForLevel(window.treasureRun.seed >>> 0, G.level));
 
   generateDungeon();
+  populateSpidersForAllRooms(G.level);
 
   Math.random = prevRandom;
   (function ensureSafeSpawn() {
@@ -1831,6 +1932,7 @@ function movePet(dt) {
 
     setTimeout(() => {
       generateDungeon();
+      populateSpidersForAllRooms(G.level);
       startLevel();
     }, 50);
 
@@ -1994,25 +2096,29 @@ if (dist > 2) {
 
       e.attacking = (distCenter(e, G.pet) < 1.1);
 
-      const gf = G.sprites.goblinFrames;
-      let framesLen = 2;
-      if (gf) {
-        if (e.attacking) {
-          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
-          framesLen = (gf.attack?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
-        } else if (e.isMoving) {
-          const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
-          framesLen = (gf.walk?.[dirAlias]?.length) || (gf.walk?.right?.length) || (gf.idle?.length) || 2;
-        } else {
-          framesLen = (gf.idle?.length) || 2;
-        }
-      }
-      const stepDur = e.attacking ? ENEMY_ANIM_STEP_ATTACK
-                    : e.isMoving  ? ENEMY_ANIM_STEP_WALK
-                                  : ENEMY_ANIM_STEP_IDLE;
-      e.animTime += dt;
-      if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
+      const fr = (e.type === 'spider') ? G.sprites.spiderFrames : G.sprites.goblinFrames;
+  let framesLen = 2;
+  if (fr) {
+    if (e.attacking) {
+      const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+      framesLen = (fr.attack?.[dirAlias]?.length) || (fr.walk?.right?.length) || (fr.idle?.length) || 2;
+    } else if (e.isMoving) {
+      const dirAlias = (e.direction === 'left') ? 'right' : (e.direction || 'down');
+      framesLen = (fr.walk?.[dirAlias]?.length) || (fr.walk?.right?.length) || (fr.idle?.length) || 2;
+    } else {
+      framesLen = (fr.idle?.length) || 2;
     }
+  }
+  const ENEMY_ANIM_STEP_IDLE   = 0.20;
+  const ENEMY_ANIM_STEP_WALK   = 0.14;
+  const ENEMY_ANIM_STEP_ATTACK = 0.10;
+
+  const stepDur = e.attacking ? ENEMY_ANIM_STEP_ATTACK
+                : e.isMoving  ? ENEMY_ANIM_STEP_WALK
+                              : ENEMY_ANIM_STEP_IDLE;
+  e.animTime += dt;
+  if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
+}
 
     // hit col pet = game over
     if (distCenter(e, G.pet) < 0.5) {
@@ -2635,6 +2741,10 @@ function roundRect(ctx, x, y, w, h, r) {
     const bf = G.sprites.batFrames;     // <- serve buildBatFromAtlas()
     const bsheet = G.sprites.batSheet;
 
+
+    const sf = G.sprites.spiderFrames;      // <-- AGGIUNGI
+const ssheet = G.sprites.spiderSheet; 
+
     for (const e of (G.enemies[rk] || [])) {
    const ex = e.px, ey = e.py;
 
@@ -2643,7 +2753,9 @@ const base = tile; // scala dalla cella piena
 
 
 // scala costante (per tipo)
-const s = (e.type === 'bat' ? ENEMY_SCALE_BAT : ENEMY_SCALE_GOBLIN);
+const s =
+  (e.type === 'bat')    ? ENEMY_SCALE_BAT :
+  (e.type === 'spider') ? SPIDER_SCALE    :  ENEMY_SCALE_GOBLIN;
 let drawW = Math.round(base * s);
 let drawH = Math.round(base * s);
 
@@ -2664,13 +2776,13 @@ const dy = ey + (tile - drawH) / 2;
       let framesRoot = null;
       let sheet = null;
 
-      if (type === 'bat') {
-        framesRoot = bf;
-        sheet = bsheet;
-      } else {
-        framesRoot = gf;
-        sheet = gsheet;
-      }
+     if (type === 'bat') {
+  framesRoot = bf;  sheet = bsheet;
+} else if (type === 'spider') {
+  framesRoot = sf;  sheet = ssheet;     // <-- ragno
+} else {
+  framesRoot = gf;  sheet = gsheet;     // goblin
+}
 
       // se abbiamo un atlas valido, scegli frames + flip
       if (framesRoot && sheet && sheet.complete) {

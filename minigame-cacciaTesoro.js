@@ -277,7 +277,15 @@ function initTreasureMoveSheet(){
 
 // === SPIDER ATLAS ===
 const SPIDER_TILE = 48;
-const SPIDER_SCALE = 1.15; // leggermente più piccolo del goblin
+const SPIDER_SCALE = 2.25; // leggermente più piccolo del goblin
+
+// velocità relative per tipo (1 = goblin baseline)
+const ENEMY_SPEED_MUL = {
+  goblin: 1.00,
+  spider: 1.45,   // <- più veloce (~+45%)
+  bat:    1.20,   // già più rapido del goblin
+};
+
 function buildSpiderFromAtlas() {
   const cfg = {
     sheetSrc: `${enemyAtlasBase}/chara_spider.png`, // metti i tuoi path (desktop/mobile)
@@ -1487,7 +1495,7 @@ function randomFreeTileInRoom(rx, ry) {
 
 // fino a 2 ragni per stanza (probabilità piena dal liv. 2)
 function populateSpidersForAllRooms(level){
-  if (level < 2) return;
+  if (level < 1) return;
 
   for (let ry=0; ry<Cfg.gridH; ry++){
     for (let rx=0; rx<Cfg.gridW; rx++){
@@ -1999,7 +2007,8 @@ function moveEnemies(dt) {
 
     if (e.type === 'bat') {
       // --- BAT: niente collisioni; movimento a spirale verso il pet
-      const base = (e.slow ? enemyBaseSpeed * 0.6 : enemyBaseSpeed * 1.2);
+      const base0 = enemyBaseSpeed * (ENEMY_SPEED_MUL.bat || 1);
+      const base  = e.slow ? base0 * 0.6 : base0;
       e.waveT = (e.waveT || 0) + dt * (e.waveFreq || 6.0);
       const sideSpeed = base * 0.45 * Math.sin(e.waveT); // componente laterale
 
@@ -2039,7 +2048,8 @@ function moveEnemies(dt) {
       if (e.animTime > stepDur) { e.stepFrame = (e.stepFrame + 1) % framesLen; e.animTime = 0; }
     } else {
      // --- GOBLIN: come prima, ma con indici CLAMP per evitare out-of-bounds
-const spd = e.slow ? enemyBaseSpeed * 0.3 : enemyBaseSpeed;
+const base0 = enemyBaseSpeed * (ENEMY_SPEED_MUL[e.type] || 1); // usa il tipo
+const spd   = e.slow ? base0 * 0.3 : base0;
 if (dist > 2) {
   const tryPX = e.px + vx * spd * dt;
   const tryPY = e.py + vy * spd * dt;

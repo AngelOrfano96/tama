@@ -872,7 +872,7 @@ function buildPetSprites(petNum, assetBase) {
 
 function buildMoleSprites(assetBase) {
   // assetBase: 'assets/desktop' | 'assets/mobile'
-  const base = `${assetBase}/mole`;     // adatta se i file stanno altrove
+  const base = `${assetBase}/enemies`;     // adatta se i file stanno altrove
   const CB = 'v=7';                      // come per gli altri asset
 
   const mk = (name) => {

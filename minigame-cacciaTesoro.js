@@ -260,7 +260,7 @@ function pickMoveRect(k){
 
 
 // 🌑 Darkness settings
-const DARKNESS_START_LEVEL = 1;   // da qui parte l’oscurità
+const DARKNESS_START_LEVEL = 2;   // da qui parte l’oscurità
 const DARKNESS_MIN_FRAC    = 0.42; // limite minimo (40–45% consigliato)
 const DARKNESS_FADE_MS     = 1000; // fade-in quando entri nel livello
 const DARKNESS_PULSE_AMPL  = 0.05; // pulsazione ±5%

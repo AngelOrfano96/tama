@@ -260,7 +260,7 @@ function pickMoveRect(k){
 
 
 // 🌑 Darkness settings
-const DARKNESS_START_LEVEL = 2;   // da qui parte l’oscurità
+const DARKNESS_START_LEVEL = 1;   // da qui parte l’oscurità
 const DARKNESS_MIN_FRAC    = 0.42; // limite minimo (40–45% consigliato)
 const DARKNESS_FADE_MS     = 1000; // fade-in quando entri nel livello
 const DARKNESS_PULSE_AMPL  = 0.05; // pulsazione ±5%
@@ -2915,49 +2915,39 @@ const dy = ey + (tile - drawH) / 2;
   if (!(G?.pet)) return;
 
   const tile = (window.treasureTile|0) || 64;
-  const roomW = (Cfg.roomW|0), roomH = (Cfg.roomH|0);
+  const W = (Cfg.roomW|0) * tile;
+  const H = (Cfg.roomH|0) * tile;
 
-  // centro: se il pet non è pronto, fallback al centro canvas
-  let cx = Number.isFinite(G.pet.px) ? (G.pet.px + tile/2) : (roomW*tile*0.5);
-  let cy = Number.isFinite(G.pet.py) ? (G.pet.py + tile/2) : (roomH*tile*0.5);
+  // centro luce = centro pet
+  const cx = (Number.isFinite(G.pet.px) ? G.pet.px : (W*0.5)) + tile/2;
+  const cy = (Number.isFinite(G.pet.py) ? G.pet.py : (H*0.5)) + tile/2;
 
   // frazione con pulsazione
   const baseFrac = Number.isFinite(D.currentFrac) ? D.currentFrac : 1;
   const pulseMul = 1 + Math.sin((D.pulseT||0) * (2*Math.PI / DARKNESS_PULSE_SEC)) * DARKNESS_PULSE_AMPL;
   const frac = Math.max(DARKNESS_MIN_FRAC, Math.min(1, baseFrac * pulseMul));
 
-  // raggio: metà del lato minore * frac (con minimo di sicurezza)
-  const minSidePx = Math.min(roomW, roomH) * tile;
-  let radius = Math.max(tile*2.2, (minSidePx * 0.5) * frac);
+  // raggio in px (metà del lato minore * frac), con minimo di sicurezza
+  const minSidePx = Math.min(Cfg.roomW, Cfg.roomH) * tile;
+  const radius = Math.max(tile*2.2, (minSidePx * 0.5) * frac);
+  const rInner = Math.max(8, radius * 0.35);
 
-  // Se qualcosa non è finito, esci senza disegnare (niente crash)
-  if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(radius) || radius <= 1) return;
+  if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(radius)) return;
 
-  // inner radius < outer radius (sempre!)
-  let rInner = Math.max(8, radius * 0.35);
-  if (rInner >= radius) rInner = radius - 1;
+  // 🎯 Un solo gradiente radiale: centro trasparente → bordi scuri
+  const grad = ctx.createRadialGradient(cx, cy, rInner, cx, cy, radius);
+  grad.addColorStop(0.00, 'rgba(0,0,0,0.00)'); // completamente visibile al centro
+  grad.addColorStop(0.60, 'rgba(0,0,0,0.55)');
+  grad.addColorStop(0.85, 'rgba(0,0,0,0.85)');
+  grad.addColorStop(1.00, 'rgba(0,0,0,0.92)'); // buio ai bordi
 
   ctx.save();
-
-  // pannello scuro
-  ctx.fillStyle = 'rgba(0,0,0,0.92)';
-  ctx.fillRect(0, 0, roomW*tile, roomH*tile);
-
-  // “foro” radiale morbido
-  ctx.globalCompositeOperation = 'destination-out';
-  const grad = ctx.createRadialGradient(cx, cy, rInner, cx, cy, radius);
-  grad.addColorStop(0.00, 'rgba(0,0,0,1.0)');
-  grad.addColorStop(0.60, 'rgba(0,0,0,0.55)');
-  grad.addColorStop(0.85, 'rgba(0,0,0,0.18)');
-  grad.addColorStop(1.00, 'rgba(0,0,0,0.00)');
+  ctx.globalCompositeOperation = 'source-over'; // ⬅️ fondamentale
   ctx.fillStyle = grad;
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.fill();
-
+  ctx.fillRect(0, 0, W, H); // disegna l’overlay sopra la scena
   ctx.restore();
 })();
+
 
 
 

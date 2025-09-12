@@ -443,17 +443,22 @@ let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 */
 // --- PET_4 ATLAS -----------------------------------------------------------
-const PET4_ATLAS = { cols: 4, rows: 12, file: 'pet_4_atlas.png' };
+//const PET4_ATLAS = { cols: 4, rows: 12, file: 'pet_4_atlas.png' };
+const PET_ATLASES = {
+  '4': { file: 'pet_4_atlas.png', cols:4, rows:12 },
+  //'1': { file: 'pet_1_atlas.png', cols:4, rows:12 }, // ← nuovo
+  // in futuro: '2': {...}, '3': {...}, ecc.
+};
 
-function buildPet4FromAtlas(img){
-  const fw = (img.naturalWidth  / PET4_ATLAS.cols) | 0;
-  const fh = (img.naturalHeight / PET4_ATLAS.rows) | 0;
-  const row = (r) => Array.from({length: PET4_ATLAS.cols},
+// --- PET atlas generico (4 colonne x 12 righe) -----------------------------
+function buildPetFromAtlas(img, spec={cols:4, rows:12}) {
+  const fw = (img.naturalWidth  / spec.cols) | 0;
+  const fh = (img.naturalHeight / spec.rows) | 0;
+  const row = (r) => Array.from({length: spec.cols},
     (_,c)=>({ sx:c*fw, sy:r*fh, sw:fw, sh:fh })
   );
-
   return {
-    _atlas: true,                 // ← flag per il renderer
+    _atlas: true,
     sheet: img,
     frames: {
       idle:   { down: row(0),  right: row(1),  up: row(2),  left: row(3)  },
@@ -1325,9 +1330,10 @@ async function preloadArenaResources(update){
                   /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent)
                   ? 'assets/mobile' : 'assets/desktop';
   const petNum  = detectPetNumFromDom();
-  const isPet4Atlas = (String(petNum) === '4');
+  const atlasSpec = PET_ATLASES[String(petNum)] || null;
 
 
+/*
   const petPaths = [
     {k:'idle',  p:`${imgBase}/pets/pet_${petNum}.png`},
     {k:'r1',    p:`${imgBase}/pets/pet_${petNum}_right1.png`},
@@ -1338,7 +1344,7 @@ async function preloadArenaResources(update){
     {k:'d2',    p:`${imgBase}/pets/pet_${petNum}_down2.png`},
     {k:'u1',    p:`${imgBase}/pets/pet_${petNum}_up1.png`},
     {k:'u2',    p:`${imgBase}/pets/pet_${petNum}_up2.png`},
-  ];
+  ]; */
 
 const steps = [
   { label:'Statistiche pet', kind:'db', run: async () => {
@@ -1378,12 +1384,13 @@ const steps = [
 ];
 
 // --- PET: se è il 4, carica 1 solo atlas; altrimenti i PNG classici ---
-if (isPet4Atlas) {
+// --- PET: se c’è una voce in PET_ATLASES usa 1 solo atlas, altrimenti PNG legacy
+if (atlasSpec) {
   steps.push({
-    label: 'Sprite pet_4 (atlas)',
+    label: `Sprite pet_${petNum} (atlas)`,
     kind: 'img',
-    src: `${imgBase}/pets/${PET4_ATLAS.file}`,
-    apply: ({img}) => { G.sprites.pet = buildPet4FromAtlas(img); }
+    src: `${imgBase}/pets/${atlasSpec.file}`,
+    apply: ({img}) => { G.sprites.pet = buildPetFromAtlas(img, atlasSpec); }
   });
 } else {
   const petPaths = [
@@ -1401,6 +1408,7 @@ if (isPet4Atlas) {
     label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k
   })));
 }
+
 
 
   const total = steps.length;
@@ -1423,7 +1431,7 @@ if (isPet4Atlas) {
   }
 
 // Costruisci sprite pet solo se NON stiamo usando l’atlas di pet_4
-if (!isPet4Atlas) {
+if (!atlasSpec) {
   G.sprites.pet = {
     idle:  petImgs.idle,
     right: [petImgs.r1, petImgs.r2],
@@ -1432,6 +1440,7 @@ if (!isPet4Atlas) {
     up:    [petImgs.u1, petImgs.u2],
   };
 }
+
 
 
   // Decor già definito in alto → normalizza e bake layer statici

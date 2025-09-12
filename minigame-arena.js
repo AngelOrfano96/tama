@@ -552,6 +552,42 @@ function initGateSprite(){
   Gates.sheet.src = GATE_CFG.src;
 }
 
+// === BOSS ATLAS ============================================================
+function buildBossFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_troll.png`,
+    rows: { walkDown:2, walkRight:3, walkUp:4, atkDown:5, atkRight:6, atkUp:7 },
+    walkCols: [0,1,2,3],
+    attackCols: [0,1,2,3],
+    idleMap: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], // 2 righe x 3 col = idle
+  };
+  if (!G.sprites.bossSheet) {
+    G.sprites.bossSheet = new Image();
+    G.sprites.bossSheet.onload  = () => console.log('[BOSS] atlas ready');
+    G.sprites.bossSheet.onerror = (e) => console.error('[BOSS] atlas fail', e);
+    G.sprites.bossSheet.src = cfg.sheetSrc;
+  }
+  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
+  const mkPairs = (pairs)     => pairs.map(([c,r]) => gPick(c, r));
+  const idleFrames = mkPairs(cfg.idleMap);
+  const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
+
+  G.sprites.bossFrames = {
+    idle: safeIdle,
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+    },
+  };
+}
+
+
 // === DROP CONFIG ===
 const DROP_CHANCE   = 0.004;   // 2%
 const DROP_TTL_MS   = 15000;  // scade dopo 15s
@@ -1192,6 +1228,9 @@ async function preloadArenaResources(update){
       apply: ({img}) => { G.sprites.batSheet = img; buildBatFromAtlas?.(); } },
     // Pet frames (9)
     ...petPaths.map(({k,p}) => ({ label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k })),
+    { label:'Boss (troll)', kind:'img', src:`${enemyAtlasBase}/chara_troll.png`,
+  apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
+
   ];
 
   const total = steps.length;
@@ -1230,6 +1269,46 @@ async function preloadArenaResources(update){
   return out;
 }
 
+function makeBoss(scale = 1) {
+  const hp = Math.round(700 * scale); // tanky
+  return {
+    type: 'boss',
+    hp, hpMax: hp,
+    atkP: Math.round(85 * scale),
+    defP: Math.round(70 * scale),
+    spdMul: 0.85 * Math.max(1, scale*0.95),
+    x: 0, y: 0, px: 0, py: 0, cd: 0,
+    state: 'drop', // prima arriva dall’alto
+    vy: 0,         // velocità verticale per la caduta
+    landPauseMs: 380,
+    tState: 0
+  };
+}
+const Boss = {
+  active: false,     // c’è un boss in questa wave
+  landed: false,     // ha toccato terra (apri cancelli dopo)
+  entity: null
+};
+function spawnBossDropForWave(n) {
+  // scala progressiva (leggera) basata sulla wave
+  const scale = 1 + Math.floor(n / 5) * 0.12;
+
+  const e = makeBoss(scale);
+  const bounds = getPlayBounds();
+  const cx = (bounds.minX + bounds.maxX) * 0.5 - G.tile * 0.5;
+  const cy = (bounds.minY + bounds.maxY) * 0.5 - G.tile * 0.5;
+
+  e.px = Math.round(cx);
+  e.py = -G.tile * 2;     // arriva dall’alto fuori schermo
+  e.targetPy = Math.round(cy);
+  e.vy = 0;               // parte da fermo, poi “gravità”
+  e.lastHitTs = 0;
+
+  Boss.active = true;
+  Boss.landed = false;
+  Boss.entity = e;
+  G.enemies.push(e);
+}
 
 
   // ---------- Danno (formula consigliata) ----------
@@ -1449,6 +1528,31 @@ if (e.enteringViaGate || e.state === 'ingress') {
   continue; // salta il resto dell'AI in questo tick
 }
 
+// --- BOSS: fase "drop dall'alto" + "land pause"
+if (e.type === 'boss' && e.state === 'drop') {
+  const GRAV = 3000;        // px/s^2
+  e.vy += GRAV * dt;
+  e.py += e.vy * dt;
+  if (e.py >= e.targetPy) {
+    e.py = e.targetPy;
+    e.state = 'landPause';
+    e.tState = 0;
+    e.vy = 0;
+    Boss.landed = true;
+    spawnShockwave(e.px, e.py, 2.6 * G.tile); // effetto
+  }
+  //clampToBounds(e);
+  continue; // salta la logica normale finché cade
+}
+
+if (e.type === 'boss' && e.state === 'landPause') {
+  e.tState += dt * 1000;
+  if (e.tState >= (e.landPauseMs || 350)) {
+    e.state = 'chase';  // da qui in poi usa la tua normale FSM
+    e.tState = 0;
+  }
+  continue;
+}
 
 
   // FSM
@@ -1530,6 +1634,11 @@ case 'windup': {
 
     // rimuovi morti
     G.enemies = G.enemies.filter(e => e.hp > 0);
+    if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
+  Boss.active = false;
+  Boss.entity = null;
+}
+
 
     // 2) projectiles (FUORI dal loop dei nemici)
 {
@@ -1559,10 +1668,7 @@ case 'windup': {
     }
   }
 }
-// 3) AI per singolo nemico
-for (const e of G.enemies) {
-  // FSM ...
-}
+
 
     // wave clear?
    /* if (!G.enemies.length) {
@@ -1582,51 +1688,61 @@ function updateGates(dt){
   const step = 1 / GATE_CFG.fps;
   const last = (GATE_CFG.frames ?? GATE_CFG.total ?? 26) - 1;
 
-  // --- avanzamento animazione ---
+  // animazione cancelli (immutata)
   while (Gates.t >= step){
     Gates.t -= step;
     if (Gates.state === 'lowering') {
       Gates.frame++;
-      if (Gates.frame >= last) {
-        Gates.frame = last;
-        Gates.state = 'open';
-      }
+      if (Gates.frame >= last) { Gates.frame = last; Gates.state = 'open'; }
     } else if (Gates.state === 'raising') {
       Gates.frame--;
       if (Gates.frame <= 0) {
         Gates.frame = 0;
         Gates.state = 'idleUp';
-        // reset sicuri a cancelli chiusi
-        Gates.spawnedThisWave   = false;
-        Gates._spawnedThisOpen  = false;
-        Gates.pendingIngress    = 0;
+        Gates.spawnedThisWave  = false;
+        Gates._spawnedThisOpen = false;
+        Gates.pendingIngress   = 0;
       }
     }
   }
 
-  // --- apri nuova wave solo quando: chiusi, nessun nemico vivo, e non già aperta questa wave ---
+  // 5.a) Avvio nuova wave
   if (Gates.state === 'idleUp' && G.enemies.length === 0 && !Gates.spawnedThisWave) {
-    Gates.state = 'lowering';
-    Gates.spawnedThisWave = true;   // evita ri-trigger finché non si richiudono
-    G.wave++;
-    syncHUD?.();
-  }
-
-  // --- spawna UNA SOLA volta quando i cancelli sono aperti ---
-  if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
-    Gates.queue = [0, 0];                          // (se usi la coda per la "fila indiana")
-    Gates.pendingIngress = spawnWaveViaGates(G.wave);
-    Gates._spawnedThisOpen = true;                 // blocca doppi spawn nella stessa apertura
-    if (Gates.pendingIngress === 0) {
-      Gates.state = 'raising';                     // niente da far entrare → richiudi
+    const nextWave = G.wave + 1;
+    if (nextWave % 5 === 0) {
+      // Wave “milestone”: prima spawna BOSS che cade al centro
+      G.wave = nextWave; syncHUD?.();
+      spawnBossDropForWave(nextWave);
+      Gates.spawnedThisWave = true;                  // wave già avviata
+      Gates.deferOpenUntilBossLanded = true;         // apri solo quando il boss è atterrato
+    } else {
+      // Wave normale: apri subito i cancelli
+      Gates.state = 'lowering';
+      Gates.spawnedThisWave = true;
+      G.wave = nextWave; syncHUD?.();
     }
   }
 
-  // --- richiudi appena tutti quelli “throughGate” hanno varcato e c’è almeno 1 nemico in arena ---
+  // 5.b) Se è una wave boss e il boss ha toccato terra → apri ora
+  if (Gates.state === 'idleUp' && Gates.deferOpenUntilBossLanded && Boss.landed) {
+    Gates.state = 'lowering';
+    Gates.deferOpenUntilBossLanded = false;
+  }
+
+  // 5.c) Spawn ondata quando i cancelli sono “open” (immutato)
+  if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
+    Gates.queue = [0, 0];
+    Gates.pendingIngress = spawnWaveViaGates(G.wave);
+    Gates._spawnedThisOpen = true;
+    if (Gates.pendingIngress === 0) Gates.state = 'raising';
+  }
+
+  // 5.d) Richiudi quando hanno oltrepassato il varco
   if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
     Gates.state = 'raising';
   }
 }
+
 
 
 function waveEnemyTotal(n){
@@ -1780,7 +1896,10 @@ function render() {
 
     // sprite (atlas) o fallback rect — con scala mobile
     const basePad = 8;
-    const escale  = isMobile ? ENEMY_SCALE_MOBILE : 1;
+    const escale = (e.type === 'boss')
+  ? (isMobile ? 3.1 : 1.6)
+  : (isMobile ? ENEMY_SCALE_MOBILE : 1);
+
 
     const esz  = (G.tile - basePad * 2) * escale;
     const eoff = (G.tile - esz) / 2;
@@ -1791,6 +1910,8 @@ function render() {
     let sheet = null, FR = null;
     if (e.type === 'goblin') { sheet = G.sprites.goblinSheet; FR = G.sprites.goblinFrames; }
     else if (e.type === 'bat') { sheet = G.sprites.batSheet; FR = G.sprites.batFrames; }
+    if (e.type === 'boss') { sheet = G.sprites.bossSheet; FR = G.sprites.bossFrames; }
+
 
     let drawn = false;
     if (sheet && sheet.complete && FR) {

@@ -2958,25 +2958,68 @@ const ACTION_BTN_ID = {
 function updateBoss(e, dt){
   const now = performance.now();
 
-  // termina il flash dell'anim di attacco → torna idle
-  if (e._animUntil && now > e._animUntil){
+  // stop all'anim di attacco: torna idle
+  if (e._animUntil && now > e._animUntil) {
     e._animUntil = 0;
     e.state = 'idle';
   }
 
-  // niente qui durante drop/landPause (gestite nel loop principale)
+  // non gestire qui drop / landPause (fasi già trattate nel loop)
   if (e.state === 'drop' || e.state === 'landPause') return;
 
-  // --- ancora al centro stanza ---
-  const cx = (Cfg.roomW * G.tile) * 0.5 - G.tile * 0.5;
-  const cy = (Cfg.roomH * G.tile) * 0.5 - G.tile * 0.5;
+  // ——— resta ancorato al centro stanza
+  const cx = (Cfg.roomW/2) * G.tile - G.tile/2;
+  const cy = (Cfg.roomH/2) * G.tile - G.tile/2;
   e.px += (cx - e.px) * (BossTuning.anchorPull * dt);
   e.py += (cy - e.py) * (BossTuning.anchorPull * dt);
   clampToBounds(e);
 
-  // --- keep-away dal pet ---
-  const dx = G.pet.px - e.px, dy = G.pet.py - e.px + (e.py - e.px ? (G.pet.py - e.py) : 0); // keep dx,dy correctly
+  // ——— tieni distanza dal pet
+  const dx = G.pet.px - e.px, dy = G.pet.py - e.py;
+  const dist = Math.hypot(dx, dy) || 1;
+  const keep = BossTuning.keepTiles * G.tile;
+  if (dist < keep){
+    const nx = dx / dist, ny = dy / dist;
+    const push = (keep - dist) / keep; // 0..1
+    const k = 220 * push;
+    e.px -= nx * k * dt;
+    e.py -= ny * k * dt;
+    clampToBounds(e);
+  }
+
+  // ——— (opzionale) danno a contatto: metti a 0 per disattivarlo
+  if (BossTuning.contactDmg > 0 && (dist / G.tile) < 0.8) {
+    e._touchCD = (e._touchCD || 0) - dt;
+    if (e._touchCD <= 0) { hurtPetRaw(BossTuning.contactDmg); e._touchCD = 0.6; }
+  }
+
+  // facing per le animazioni
+  e.facing = (Math.abs(dx) > Math.abs(dy))
+    ? (dx >= 0 ? 'right' : 'left')
+    : (dy >= 0 ? 'down'  : 'up');
+
+  // ——— scheduler attacchi
+  const bossIndex = Boss.index || 1;
+  const S = BossTuning.scale(bossIndex);
+
+  e._cd = Math.max(0, (e._cd || 0) - dt);
+  if (e._cd > 0) return;
+
+  // scegli e lancia un pattern
+  const roll = Math.random();
+  if (roll < 0.40)      bossPatternAimedBurst(e, S);
+  else if (roll < 0.75) bossPatternFan(e, S);
+  else                  bossPatternRing(e, S);
+
+  // picco animazione di attacco (mostra i frame 'attack')
+  e.state = 'attack';
+  e._animUntil = now + (BossTuning.attackAnimMs || 320);
+
+  // imposta il prossimo cooldown
+  const base = BossTuning.baseCD * S.cdMul;
+  e._cd = Math.max(BossTuning.minCD, base);
 }
+
 
 
 function bossPatternAimedBurst(e, S){

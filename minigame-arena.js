@@ -154,6 +154,29 @@ let ctx = null;
   sepRadius: 0.55,                 // raggio sotto cui si respingono
   sepStrength: 380,                // forza “repulsione” (pixel/s)
 };
+
+// ===== Boss tuning =====
+const BossTuning = {
+  keepTiles: 3.2,          // distanza “di sicurezza” dal pet (in tile)
+  anchorPull: 2.8,         // quanto lo richiama verso il centro (lerp)
+  contactDmg: 6,           // danno se ti tocca
+  contactIFrameMs: 350,
+  baseCD: 1.6,             // cadenza attacchi base (sec)
+  minCD: 0.6,
+  bullet: { speed: 320, r: 9, baseDmg: 10 }, // proiettile di base
+  // scala coi bossIndex: 1 alla wave 5, 2 alla 10, ecc.
+  scale(bossIndex){
+    return {
+      cdMul: Math.max(0.6, 1 - (bossIndex-1)*0.10),
+      speedMul: 1 + (bossIndex-1)*0.14,
+      dmgMul: 1 + (bossIndex-1)*0.15,
+      extraShots: Math.min(3, Math.floor((bossIndex-1)/1)), // +1 ogni incontro
+      ringCount: 12 + (bossIndex-1)*2
+    };
+  }
+};
+
+
 /*
 
   const DOM = {
@@ -586,7 +609,8 @@ function buildBossFromAtlas() {
     },
   };
 }
-
+// traccia stato “globale” boss della wave
+const Boss = { active:false, landed:false, entity:null, index:1 };
 
 // === DROP CONFIG ===
 const DROP_CHANCE   = 0.004;   // 2%
@@ -788,6 +812,38 @@ function drawEnemyFrame(sheet, frame, dx, dy, dw, dh, flip = false) {
   }
   ctx.restore();
   return true;
+}
+function buildBossFromAtlas(){
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_troll.png`,
+    rows: { walkDown:2, walkRight:3, walkUp:4, atkDown:5, atkRight:6, atkUp:7 },
+    walkCols:[0,1,2,3],
+    atkCols:[0,1,2,3],
+    idleMap:[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],
+  };
+  if (!G.sprites.bossSheet){
+    const img = new Image();
+    img.onload  = () => console.log('[BOSS] atlas ready');
+    img.onerror = (e)=> console.error('[BOSS] atlas fail', e);
+    img.src = cfg.sheetSrc;
+    G.sprites.bossSheet = img;
+  }
+  const mkRow = (r, cols)=> cols.map(c=> gPick(c,r));
+  const pairs = (ps)=> ps.map(([c,r])=> gPick(c,r));
+  const idle = pairs(cfg.idleMap);
+  G.sprites.bossFrames = {
+    idle: idle.length?idle: mkRow(cfg.rows.walkDown,[0]),
+    walk:{
+      down: mkRow(cfg.rows.walkDown, cfg.walkCols),
+      right:mkRow(cfg.rows.walkRight,cfg.walkCols),
+      up:   mkRow(cfg.rows.walkUp,   cfg.walkCols),
+    },
+    attack:{
+      down: mkRow(cfg.rows.atkDown,  cfg.atkCols),
+      right:mkRow(cfg.rows.atkRight, cfg.atkCols),
+      up:   mkRow(cfg.rows.atkUp,    cfg.atkCols),
+    }
+  };
 }
 
 function buildGoblinFromAtlas() {
@@ -1228,8 +1284,9 @@ async function preloadArenaResources(update){
       apply: ({img}) => { G.sprites.batSheet = img; buildBatFromAtlas?.(); } },
     // Pet frames (9)
     ...petPaths.map(({k,p}) => ({ label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k })),
-    { label:'Boss (troll)', kind:'img', src:`${enemyAtlasBase}/chara_troll.png`,
+    { label:'Boss', kind:'img', src:`${enemyAtlasBase}/chara_troll.png`,
   apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
+
 
   ];
 
@@ -1284,11 +1341,7 @@ function makeBoss(scale = 1) {
     tState: 0
   };
 }
-const Boss = {
-  active: false,     // c’è un boss in questa wave
-  landed: false,     // ha toccato terra (apri cancelli dopo)
-  entity: null
-};
+
 function spawnBossDropForWave(n) {
   // scala progressiva (leggera) basata sulla wave
   const scale = 1 + Math.floor(n / 5) * 0.12;
@@ -1452,6 +1505,14 @@ for (let i = 0; i < G.enemies.length; i++) {
 
 // 2.2) AI per singolo nemico
 for (const e of G.enemies) {
+  // --- BOSS: AI dedicata ---
+if (e.type === 'boss') {
+  // le fasi 'drop' e 'landPause' le stai già gestendo sopra.
+  if (e.state !== 'drop' && e.state !== 'landPause') {
+    updateBoss(e, dt);
+  }
+  continue; // non usare la FSM melee standard per il boss
+}
   // velocità: più lenti del pet
   const basePet = isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop;
   const enemySpd = basePet * (EnemyTuning.spdMul || 0.65) * (e.spdMul || 1);
@@ -1634,10 +1695,12 @@ case 'windup': {
 
     // rimuovi morti
     G.enemies = G.enemies.filter(e => e.hp > 0);
-    if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
+    // reset stato boss se morto
+if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
   Boss.active = false;
   Boss.entity = null;
 }
+
 
 
     // 2) projectiles (FUORI dal loop dei nemici)
@@ -1665,6 +1728,29 @@ case 'windup': {
         p.hitSet.add(e);
         if (!p.pierce) { G.projectiles.splice(i,1); break; }
       }
+    }
+  }
+}
+// --- ENEMY PROJECTILES (colpiscono il pet) ---
+{
+  const t = G.tile;
+  const petX = G.pet.px + t/2, petY = G.pet.py + t/2;
+  const pr = t * 0.32; // raggio “pet”
+  const B = getPlayBounds();
+
+  for (let i=G.enemyProjectiles.length-1; i>=0; i--){
+    const p = G.enemyProjectiles[i];
+    const dx = p.vx * dt, dy = p.vy * dt;
+    p.x += dx; p.y += dy;
+    p.leftPx -= Math.hypot(dx,dy);
+    // fuori
+    if (p.leftPx <= 0 || p.x < B.minX || p.x > B.maxX || p.y < B.minY || p.y > B.maxY){
+      G.enemyProjectiles.splice(i,1); continue;
+    }
+    // colpisce il pet?
+    if (Math.hypot(p.x - petX, p.y - petY) <= (p.r + pr)){
+      hurtPetRaw(p.dmg);
+      G.enemyProjectiles.splice(i,1);
     }
   }
 }
@@ -1707,21 +1793,31 @@ function updateGates(dt){
   }
 
   // 5.a) Avvio nuova wave
-  if (Gates.state === 'idleUp' && G.enemies.length === 0 && !Gates.spawnedThisWave) {
-    const nextWave = G.wave + 1;
-    if (nextWave % 5 === 0) {
-      // Wave “milestone”: prima spawna BOSS che cade al centro
-      G.wave = nextWave; syncHUD?.();
-      spawnBossDropForWave(nextWave);
-      Gates.spawnedThisWave = true;                  // wave già avviata
-      Gates.deferOpenUntilBossLanded = true;         // apri solo quando il boss è atterrato
-    } else {
-      // Wave normale: apri subito i cancelli
-      Gates.state = 'lowering';
-      Gates.spawnedThisWave = true;
-      G.wave = nextWave; syncHUD?.();
-    }
+// --- avvio nuova wave ---
+// normale: apri cancelli se chiusi e non ci sono nemici
+// boss-wave: prima spawni il boss (cancelli chiusi), poi li apri quando ha "atterrato"
+if (Gates.state === 'idleUp' && !Gates.spawnedThisWave && G.enemies.length === 0) {
+  const nextWave = (G.wave|0) + 1;
+
+  if (nextWave % 5 === 0) {
+    // BOSS WAVE: spawna subito il boss e resta con cancelli chiusi
+    G.wave = nextWave; syncHUD?.();
+    spawnBossForWave(nextWave);
+    Gates.spawnedThisWave = true;   // evita retrigger
+    // NB: NON cambiare state (resta 'idleUp'); i cancelli si apriranno dopo il land
+  } else {
+    // WAVE normale: apri i cancelli come prima
+    Gates.state = 'lowering';
+    Gates.spawnedThisWave = true;
+    G.wave = nextWave; syncHUD?.();
   }
+}
+
+// boss: apri i cancelli quando è atterrato
+if (Boss.active && Boss.landed && Gates.state === 'idleUp' && Gates.spawnedThisWave) {
+  Gates.state = 'lowering';
+}
+
 
   // 5.b) Se è una wave boss e il boss ha toccato terra → apri ora
   if (Gates.state === 'idleUp' && Gates.deferOpenUntilBossLanded && Boss.landed) {
@@ -1811,6 +1907,41 @@ function spawnWaveViaGates(n){
     spawned++;
   }
   return spawned;
+}
+// --- BOSS: spawn “drop dall’alto” per la wave n ---
+function spawnBossForWave(n){
+  const scale = 1 + (n - 1) * 0.08;
+  const hp = Math.round(350 * scale);
+  const e = {
+    type: 'boss',
+    hp, hpMax: hp,
+    atkP: Math.round(70 * scale),
+    defP: Math.round(60 * scale),
+    spdMul: 0.8,
+
+    // stato di ingresso
+    state: 'drop',
+    vy: -1200,                       // velocità iniziale verso l’alto (poi gravità)
+    tState: 0,
+    nextAtkReadyTs: 0,
+    lastHitTs: 0,
+
+    // posizioni: centro stanza
+    x: (Cfg.roomW/2)|0,
+    y: 0,
+    px: (Cfg.roomW/2) * G.tile - G.tile/2,
+    py: -2 * G.tile,                 // parte fuori dallo schermo in alto
+    targetPy: (Cfg.roomH/2) * G.tile - G.tile/2,
+    landPauseMs: 380,
+  };
+
+  G.enemies.push(e);
+
+  // <<< QUI imposti l'indice/difficoltà del boss >>>
+  Boss.active = true;
+  Boss.landed = false;
+  Boss.index  = Math.max(1, Math.floor(n / 5)); // 1→wave5, 2→wave10, ecc.
+  Boss.entity = e;
 }
 
 
@@ -1911,6 +2042,7 @@ function render() {
     if (e.type === 'goblin') { sheet = G.sprites.goblinSheet; FR = G.sprites.goblinFrames; }
     else if (e.type === 'bat') { sheet = G.sprites.batSheet; FR = G.sprites.batFrames; }
     if (e.type === 'boss') { sheet = G.sprites.bossSheet; FR = G.sprites.bossFrames; }
+
 
 
     let drawn = false;
@@ -2022,6 +2154,25 @@ for (const p of G.projectiles) {
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+// --- Enemy bullets ---
+for (const p of G.enemyProjectiles){
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r * 1.25, 0, Math.PI*2);
+  ctx.fillStyle = '#f87171';
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  const g = ctx.createRadialGradient(p.x,p.y,p.r*0.1, p.x,p.y,p.r);
+  g.addColorStop(0, '#fff1f2'); g.addColorStop(1, '#ef4444');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
   ctx.fill();
   ctx.restore();
 }
@@ -2537,6 +2688,8 @@ forceExitButtonLayout();
   G.score = 0;
   G.enemies = [];
   G.projectiles = G.projectiles || [];
+  G.enemyProjectiles = [];
+
 
   G.pet = {
     x: (Cfg.roomW/2)|0, y: (Cfg.roomH/2)|0,
@@ -2752,6 +2905,27 @@ arenaAPI.spawnProjectile = function(spec){
     hitSet: new WeakSet(),       // per non colpire lo stesso nemico 2 volte
   });
 };
+function angleTo(ax,ay,bx,by){ return Math.atan2(by - ay, bx - ax); }
+function hurtPetRaw(dmg){
+  const now = performance.now();
+  if (now <= G.pet.iFrameUntil) return false;
+  G.hpCur = Math.max(0, G.hpCur - Math.max(1, dmg|0));
+  if (G.hpCur <= 0) { gameOver(); return true; }
+  G.pet.iFrameUntil = now + BossTuning.contactIFrameMs;
+  syncHUD?.();
+  return true;
+}
+function spawnEnemyBullet(x,y, angle, opts={}){
+  const v = opts.speed ?? BossTuning.bullet.speed;
+  const r = opts.r ?? BossTuning.bullet.r;
+  G.enemyProjectiles.push({
+    x, y, r,
+    vx: Math.cos(angle) * v,
+    vy: Math.sin(angle) * v,
+    dmg: Math.max(1, opts.dmg ?? BossTuning.bullet.baseDmg),
+    leftPx: opts.maxDistPx ?? (8 * G.tile),
+  });
+}
 
 
 // 3) uso: le chiavi arrivano dalla home (equip A/B)
@@ -2786,6 +2960,101 @@ const ACTION_BTN_ID = {
   repulse: 'arena-charge-btn',
   dash: 'arena-dash-btn'
 };
+function updateBoss(e, dt){
+  // evita di eseguire qui durante “drop” o “landPause” (già gestiti sopra)
+  if (e.state === 'drop' || e.state === 'landPause') return;
+
+  // centro stanza
+  const cx = (Cfg.roomW/2) * G.tile - G.tile/2;
+  const cy = (Cfg.roomH/2) * G.tile - G.tile/2;
+
+  // resta vicino al centro (lerp morbido)
+  e.px += (cx - e.px) * (BossTuning.anchorPull * dt);
+  e.py += (cy - e.py) * (BossTuning.anchorPull * dt);
+  clampToBounds(e);
+
+  // tieniti a distanza dal pet
+  const dx = G.pet.px - e.px, dy = G.pet.py - e.py;
+  const dist = Math.hypot(dx,dy) || 1;
+  const keep = BossTuning.keepTiles * G.tile;
+  if (dist < keep){
+    const nx = dx / dist, ny = dy / dist;
+    const push = (keep - dist) / keep; // 0..1
+    const k = 220 * push;              // forza
+    e.px -= nx * k * dt;
+    e.py -= ny * k * dt;
+    clampToBounds(e);
+  }
+
+  // chip-damage se ti tocca (fallback)
+  if ((dist / G.tile) < 0.8) {
+    if (!e._touchCD) e._touchCD = 0;
+    e._touchCD -= dt;
+    if (e._touchCD <= 0) { hurtPetRaw(BossTuning.contactDmg); e._touchCD = 0.6; }
+  }
+
+  // facing per l’animazione
+  e.facing = (Math.abs(dx) > Math.abs(dy)) ? (dx>=0?'right':'left') : (dy>=0?'down':'up');
+
+  // ---- ATTACK SCHEDULER ----
+  // livello boss: 1 alla wave 5, 2 alla 10, ecc.
+  const bossIndex = Boss.index || 1;
+  const S = BossTuning.scale(bossIndex);
+  e._cd = Math.max(0, (e._cd || 0) - dt);
+  if (e._cd > 0) return;
+
+  // scegli pattern
+  const roll = Math.random();
+  if (roll < 0.40) bossPatternAimedBurst(e, S);
+  else if (roll < 0.75) bossPatternFan(e, S);
+  else bossPatternRing(e, S);
+
+  const base = BossTuning.baseCD * S.cdMul;
+  e._cd = Math.max(BossTuning.minCD, base);
+}
+
+function bossPatternAimedBurst(e, S){
+  // mira al pet con piccola dispersione
+  const x = e.px + G.tile/2, y = e.py + G.tile/2;
+  const baseA = angleTo(x,y, G.pet.px + G.tile/2, G.pet.py + G.tile/2);
+  const shots = 1 + S.extraShots; // cresce con gli incontri
+  for (let i=0; i<shots; i++){
+    const spread = (Math.random()*0.22 - 0.11); // +/- 6.3°
+    spawnEnemyBullet(x, y, baseA + spread, {
+      speed: BossTuning.bullet.speed * S.speedMul,
+      dmg: Math.round(BossTuning.bullet.baseDmg * S.dmgMul),
+    });
+  }
+}
+
+function bossPatternFan(e, S){
+  const x = e.px + G.tile/2, y = e.py + G.tile/2;
+  const aim = angleTo(x,y, G.pet.px + G.tile/2, G.pet.py + G.tile/2);
+  const n = 5 + S.extraShots;       // ventaglio più fitto
+  const arc = Math.PI / 4;          // ~45°
+  for (let i=0; i<n; i++){
+    const t = (i/(n-1) - 0.5) * arc; // centrato su aim
+    spawnEnemyBullet(x, y, aim + t, {
+      speed: BossTuning.bullet.speed * (0.9 + 0.1*S.speedMul),
+      dmg: Math.round(BossTuning.bullet.baseDmg * 0.9 * S.dmgMul),
+    });
+  }
+}
+
+function bossPatternRing(e, S){
+  const x = e.px + G.tile/2, y = e.py + G.tile/2;
+  const n = S.ringCount;
+  const a0 = Math.random() * Math.PI*2; // rotazione casuale
+  for (let i=0; i<n; i++){
+    const a = a0 + i * (Math.PI*2 / n);
+    spawnEnemyBullet(x, y, a, {
+      speed: BossTuning.bullet.speed * 0.8 * S.speedMul,
+      dmg: Math.round(BossTuning.bullet.baseDmg * 0.8 * S.dmgMul),
+      maxDistPx: 7 * G.tile,
+    });
+  }
+}
+
 
 // UI cooldown helper
 function startCooldownUIByKey(moveKey, ms){

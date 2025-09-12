@@ -462,6 +462,32 @@ const GOB_WALL_MARGIN   = 3;  // celle minime dai muri
 // ---- ATLAS ----
 const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova 32 se serve)
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
+// filename per livelli “chiari” vs “scuri”
+function getAtlasFilenameForLevel(lvl){
+  return (lvl >= 5) ? 'LL_fantasy_dungeons2.png' : 'LL_fantasy_dungeons.png';
+}
+
+// applica l’atlas corretto + invalida il cache dei bake
+function setRoomAtlasForLevel(lvl){
+  const file = getAtlasFilenameForLevel(lvl);
+  const src  = `${atlasBase}/${file}?v=7`;   // stesso path, nome diverso
+
+  if (!G.sprites.atlas) {
+    G.sprites.atlas = new Image();
+  }
+
+  // evita reload inutili
+  if (G.currentAtlasFile === file) return;
+
+  G.currentAtlasFile = file;
+  G.sprites.atlas.onload  = () => {
+    // quando è pronto: invalida i baked e ridisegna
+    G.renderCache.rooms = {};
+    render();
+  };
+  G.sprites.atlas.onerror = (e) => console.error('[ATLAS] load fail', src, e);
+  G.sprites.atlas.src = src;
+}
 
 // helper: seleziona un rettangolo (w,h in celle, default 1×1)
 const pick = (c, r, w = 1, h = 1) => ({
@@ -1598,7 +1624,8 @@ console.log('[Treasure] seed:', run.seed, 'run_id:', window.treasureRun.run_id);
   // ── resto invariato ───────────────────────────────────────
   playBgm();
   requestLandscape();
-  initAtlasSprites();
+  //initAtlasSprites();
+  setRoomAtlasForLevel(G.level);
 
   maybeSwapDecorForDevice();
   buildDecorFromAtlas();
@@ -1964,6 +1991,7 @@ function movePet(dt) {
     setGridForLevel(G.level);
 
     setTimeout(() => {
+      setRoomAtlasForLevel(G.level);
       generateDungeon();
       populateSpidersForAllRooms(G.level);
       startLevel();
@@ -1982,6 +2010,27 @@ function movePet(dt) {
   }
 }
 
+function preloadAtlas(src){
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}
+async function setRoomAtlasForLevel(lvl){
+  const file = getAtlasFilenameForLevel(lvl);
+  if (G.currentAtlasFile === file) return;
+  const src = `${atlasBase}/${file}?v=7`;
+
+  const img = await preloadAtlas(src);
+  if (!img) return console.warn('[ATLAS] preload failed', src);
+
+  G.sprites.atlas = img;
+  G.currentAtlasFile = file;
+  G.renderCache.rooms = {};
+  render();
+}
 
 
 

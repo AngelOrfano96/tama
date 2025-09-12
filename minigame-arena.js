@@ -235,6 +235,7 @@ const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
 
 
     projectiles: [],
+    enemyProjectiles: [],
   };
 
   // --- SPRITES & CACHE (arena) ---
@@ -1140,26 +1141,46 @@ function syncHUD(){
   }
 
   // ---------- Enemy archetypes ----------
-  function makeSpider(scale = 1) {
-  const hp = Math.round(55 * scale);
+// --- SPIDER TUNING (in alto vicino agli altri tuning) ---
+
+
+// ≈ 2 colpi per uccidere (si adatta alle tue stat attuali)
+function makeSpiderSmall(scale = 1){
+  const atk = (G.atkP || 50) + (G.playerAtkBonus || 0);
+  const def = Math.round(SpiderTuning.small.defP * scale);
+  // stima il danno di un colpo base: usa 50 come potenza nominale
+  const approxHit = computeDamage(50, atk, def);
+  const hp = Math.max(12, Math.round(approxHit * 2 * 0.9)); // ~2 hit con un 10% di margine
+
   return {
-    type: 'spider',
+    type: 'spider',             // ← lasciamo 'spider' così riusa la tua FSM melee
+    size: 'small',
     hp, hpMax: hp,
-    atkP: Math.round(52 * scale),
-    defP: Math.round(42 * scale),
-    spdMul: 1.10 * scale,   // più scattante del goblin
-    x: 0, y: 0, px: 0, py: 0, cd: 0, tState: 0
+    atkP: Math.round(48 * scale),
+    defP: def,
+    spdMul: SpiderTuning.small.speedMul * scale,
+    x:0, y:0, px:0, py:0, cd:0, tState:0
   };
 }
 
-function makeBigSpider(scale = 1) {
+// tuning in alto
+const SpiderTuning = {
+  small: { defP: 38, speedMul: 1.15 },
+  big:   { defP: 55, speedMul: 0.75, cdMin: 3.2, cdMax: 4.6 }
+};
+const randRange = (a,b)=> a + Math.random()*(b-a);
+
+// ragno grande (angoli)
+function makeSpiderBig(scale = 1){
   const hp = Math.round(220 * scale);
+  const cd = randRange(SpiderTuning.big.cdMin, SpiderTuning.big.cdMax);
   return {
     type: 'spider_big',
     hp, hpMax: hp,
-    atkP: Math.round(70 * scale),
-    defP: Math.round(60 * scale),
-    spdMul: 0.75 * scale,     // grosso ma lento
+    atkP: Math.round(62 * scale),
+    defP: Math.round(SpiderTuning.big.defP * scale),
+    spdMul: SpiderTuning.big.speedMul * scale,
+
     // drop/land come il boss
     state: 'drop',
     vy: 0,
@@ -1167,11 +1188,24 @@ function makeBigSpider(scale = 1) {
     tState: 0,
     nextAtkReadyTs: 0,
     lastHitTs: 0,
+
     // comportamento d’angolo
     anchorX: 0, anchorY: 0,
-    webCD: 0.8 + Math.random()*0.9
+
+    // cadenza di tiro lenta
+    _shotCD: cd,   // usa questo nel tuo update
+    webCD: cd      // alias se il tuo codice vecchio usa webCD
   };
 }
+
+// Alias per compatibilità: TUTTO ciò che già chiama makeSpider() crea il "ragnetto"
+function makeSpider(scale = 1){ return makeSpiderSmall(scale); }
+
+
+function makeBigSpider(scale = 1) { 
+  return makeSpiderBig(scale); 
+}
+
 
   function makeGoblin(scale = 1) {
     const hp = Math.round(60 * scale);
@@ -1377,27 +1411,6 @@ function makeBoss(scale = 1) {
   };
 }
 
-function spawnBossDropForWave(n) {
-  // scala progressiva (leggera) basata sulla wave
-  const scale = 1 + Math.floor(n / 5) * 0.12;
-
-  const e = makeBoss(scale);
-  const bounds = getPlayBounds();
-  const cx = (bounds.minX + bounds.maxX) * 0.5 - G.tile * 0.5;
-  const cy = (bounds.minY + bounds.maxY) * 0.5 - G.tile * 0.5;
-
-  e.px = Math.round(cx);
-  e.py = -G.tile * 2;     // arriva dall’alto fuori schermo
-  e.targetPy = Math.round(cy);
-  e.vy = 0;               // parte da fermo, poi “gravità”
-  e.lastHitTs = 0;
-
-  Boss.active = true;
-  Boss.landed = false;
-  Boss.entity = e;
-  G.enemies.push(e);
-}
-
 
   // ---------- Danno (formula consigliata) ----------
   function computeDamage(power, atkEff, defEff) {
@@ -1575,28 +1588,7 @@ for (const e of G.enemies) {
     updateBoss(e, dt);
     continue; // il boss non usa la FSM melee
   }
-  // --- SPIDER_BIG: drop dall'alto + breve pausa atterraggio
-if (e.type === 'spider_big' && e.state === 'drop') {
-  const GRAV = 2600;
-  e.vy += GRAV * dt;
-  e.py += e.vy * dt;
-  if (e.py >= e.targetPy) {
-    e.py = e.targetPy;
-    e.state = 'landPause';
-    e.tState = 0;
-    e.vy = 0;
-    spawnShockwave(e.px, e.py, 1.8 * G.tile);
-  }
-  continue;
-}
-if (e.type === 'spider_big' && e.state === 'landPause') {
-  e.tState += dt * 1000;
-  if (e.tState >= (e.landPauseMs || 260)) {
-    e.state = 'guard';   // passa all’AI di presidio
-    e.tState = 0;
-  }
-  continue;
-}
+
 
   // velocità: più lenti del pet
   const basePet = isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop;
@@ -1674,31 +1666,7 @@ if (e.enteringViaGate || e.state === 'ingress') {
   continue; // salta il resto dell'AI in questo tick
 }
 
-// --- BOSS: fase "drop dall'alto" + "land pause"
-if (e.type === 'boss' && e.state === 'drop') {
-  const GRAV = 3000;        // px/s^2
-  e.vy += GRAV * dt;
-  e.py += e.vy * dt;
-  if (e.py >= e.targetPy) {
-    e.py = e.targetPy;
-    e.state = 'landPause';
-    e.tState = 0;
-    e.vy = 0;
-    Boss.landed = true;
-    spawnShockwave(e.px, e.py, 2.6 * G.tile); // effetto
-  }
-  //clampToBounds(e);
-  continue; // salta la logica normale finché cade
-}
 
-if (e.type === 'boss' && e.state === 'landPause') {
-  e.tState += dt * 1000;
-  if (e.tState >= (e.landPauseMs || 350)) {
-    e.state = 'chase';  // da qui in poi usa la tua normale FSM
-    e.tState = 0;
-  }
-  continue;
-}
 
 // --- AI dedicata: ragno grande (presidio angolo + web shot) ---
 if (e.type === 'spider_big') {
@@ -1849,40 +1817,92 @@ if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
 
 }
 
+
 function updateBigSpider(e, dt){
   const now = performance.now();
 
-  // rientra verso l'ancora (angolo)
+  // --- 0) fine anim attacco → torna idle ---
+  if (e._animUntil && now >= e._animUntil) {
+    e._animUntil = 0;
+    e.state = 'idle';
+  }
+
+  // --- 1) ingresso “drop” + breve pausa a terra (come il boss) ---
+  if (e.state === 'drop') {
+    const GRAV = 2600; // px/s^2
+    e.vy = (e.vy || 0) + GRAV * dt;
+    e.py += e.vy * dt;
+
+    // atterra alla y dell’ancora se non hai targetPy
+    const targetY = Number.isFinite(e.targetPy) ? e.targetPy : (e.anchorY || e.py);
+    if (e.py >= targetY) {
+      e.py = targetY;
+      e.vy = 0;
+      e.state = 'landPause';
+      e.tState = 0;
+      // piccolo effetto
+      if (typeof spawnShockwave === 'function') {
+        spawnShockwave(e.px, e.py, 1.8 * G.tile);
+      }
+    }
+    clampToBounds(e);
+    return; // finché cade, non fare altro
+  }
+
+  if (e.state === 'landPause') {
+    e.tState = (e.tState || 0) + dt * 1000;
+    const wait = e.landPauseMs || 260;
+    if (e.tState >= wait) {
+      e.state = 'idle';
+      e.tState = 0;
+    }
+    return;
+  }
+
+  // --- 2) rientra verso l’angolo/ancora ---
   e.px += (e.anchorX - e.px) * (2.2 * dt);
   e.py += (e.anchorY - e.py) * (2.2 * dt);
   clampToBounds(e);
 
-  // distanza dal pet
+  // --- 3) facing rispetto al pet (per l’anim) ---
   const dx = G.pet.px - e.px, dy = G.pet.py - e.py;
-  const d  = Math.hypot(dx,dy) || 1;
+  const d  = Math.hypot(dx, dy) || 1;
   const dTiles = d / G.tile;
-
-  // facing
   e.facing = (Math.abs(dx) > Math.abs(dy))
     ? (dx >= 0 ? 'right' : 'left')
     : (dy >= 0 ? 'down'  : 'up');
 
-  // spara ragnatela di tanto in tanto
-  e.webCD -= dt;
-  if (e.webCD <= 0) {
+  // --- 4) scheduler del colpo ragnatela (lento) ---
+  // usa SpiderTuning.big.cdMin/cdMax se esistono; fallback 3.2–4.6s
+  const cdMin = (typeof SpiderTuning !== 'undefined' && SpiderTuning.big?.cdMin) ?? 3.2;
+  const cdMax = (typeof SpiderTuning !== 'undefined' && SpiderTuning.big?.cdMax) ?? 4.6;
+  const randRange = (a,b)=> a + Math.random()*(b-a);
+
+  if (e._shotCD == null) e._shotCD = randRange(cdMin, cdMax); // init una volta
+  e._shotCD -= dt;
+  if (e._shotCD <= 0) {
     const x = e.px + G.tile/2, y = e.py + G.tile/2;
     const a = Math.atan2(dy, dx);
-    spawnEnemyBullet(x, y, a, { speed: 240, r: 8, dmg: 7, maxDistPx: 7*G.tile, kind:'web' });
-    e.state = 'attack';                 // usa anim attacco per un attimo
-    e._animUntil = now + 260;
-    e.webCD = 1.6 + Math.random() * 0.9; // nuova cadenza
+    // proiettile “web”: un filo più lento e raggio medio
+    spawnEnemyBullet(x, y, a, {
+      speed: 210,
+      r: 9,
+      dmg: 8,
+      maxDistPx: 7 * G.tile,
+      kind: 'web'   // per la resa colore se l’hai implementata
+    });
+
+    // anim attacco breve
+    e.state = 'attack';
+    e._animUntil = now + 280;
+
+    // prossima finestra di tiro (lenta)
+    e._shotCD = randRange(cdMin, cdMax);
   }
 
-  // morso se ti avvicini
-  if (!e._biteCD) e._biteCD = 0;
-  e._biteCD -= dt;
+  // --- 5) morso se ti avvicini molto ---
+  e._biteCD = (e._biteCD || 0) - dt;
   if (dTiles <= 0.9 && e._biteCD <= 0) {
-    // hit “circolare” semplice (no cono)
     if (now > G.pet.iFrameUntil) {
       const dmg = computeDamage(12, e.atkP || 60, G.defP || 50);
       G.hpCur = Math.max(0, G.hpCur - dmg);
@@ -1893,6 +1913,7 @@ function updateBigSpider(e, dt){
     e._biteCD = 0.9; // piccolo cooldown sul morso
   }
 }
+
 
 
 function updateGates(dt){
@@ -1944,12 +1965,12 @@ if (Boss.active && Boss.landed && Gates.state === 'idleUp' && Gates.spawnedThisW
   Gates.state = 'lowering';
 }
 
-
+/*
   // 5.b) Se è una wave boss e il boss ha toccato terra → apri ora
   if (Gates.state === 'idleUp' && Gates.deferOpenUntilBossLanded && Boss.landed) {
     Gates.state = 'lowering';
     Gates.deferOpenUntilBossLanded = false;
-  }
+  } */
 
   // 5.c) Spawn ondata quando i cancelli sono “open” (immutato)
   if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {

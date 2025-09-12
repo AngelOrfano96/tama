@@ -522,12 +522,14 @@ const DECOR_MOBILE = DECOR_DESKTOP;
 let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 const GATE_CFG = {
-  fw: 2 * ATLAS_TILE,
-  fh: 2 * ATLAS_TILE,
-  frames: 26,         // valore atteso (verrà clampato su cols*rows)
+  frames: 26,
   fps: 18,
   src: `${atlasBase}/Dungeon_2_Gate_anim.png`,
-  snake: true         // ← ordine a serpentina: L→R poi R→L
+  snake: true,
+  cols: 13,         // 13 x 2 = 26
+  rows: 2,
+  fw: 0, fh: 0,     // calcolati a runtime
+  total: 26
 };
 
 
@@ -1044,7 +1046,7 @@ function bakeArenaLayer() {
 
   // --- floor (riempi solo tra banda top e banda bottom)
   const entryFloor = D?.floor || [];
-  for (let y = 1 + DEPTH_TOP; y < Cfg.roomH - 1 - DEPTH_BOTTOM; y++) {
+  for (let y = 1 + DEPTH_TOP; y < Cfg.roomH - 1; y++) {
     for (let x = 1; x < Cfg.roomW - 1; x++) {
       if (!entryFloor.length) continue;
       const d = Array.isArray(entryFloor)
@@ -1364,13 +1366,16 @@ const steps = [
   { label:'Atlas dungeon', kind:'img', src:`${atlasBase}/Dungeon_2.png`,
     apply: ({img}) => { G.sprites.atlas = img; } },
   { label:'Sprite cancello', kind:'img', src:GATE_CFG.src,
-    apply: ({img}) => {
-      Gates.sheet = img;
-      GATE_CFG.cols = Math.max(1, (img.naturalWidth  / GATE_CFG.fw) | 0);
-      GATE_CFG.rows = Math.max(1, (img.naturalHeight / GATE_CFG.fh) | 0);
-      GATE_CFG.total = GATE_CFG.cols * GATE_CFG.rows;
-      GATE_CFG.frames = Math.min(GATE_CFG.frames, GATE_CFG.total);
-    }},
+  apply: ({img}) => {
+    Gates.sheet = img;
+    const cols = GATE_CFG.cols || 13;
+    const rows = GATE_CFG.rows || Math.ceil(GATE_CFG.frames / cols);
+    GATE_CFG.fw = Math.round(img.naturalWidth  / cols);
+    GATE_CFG.fh = Math.round(img.naturalHeight / rows);
+    GATE_CFG.total  = cols * rows;
+    GATE_CFG.frames = Math.min(GATE_CFG.frames, GATE_CFG.total);
+  }
+},
   { label:'Sprite drop mosse', kind:'img', src:MOVE_DROP_CFG.src,
     apply: ({img}) => { G.sprites.moveSheet = img; } },
   { label:'Nemico goblin', kind:'img', src:`${enemyAtlasBase}/chara_orc.png`,

@@ -260,7 +260,7 @@ function pickMoveRect(k){
 
 
 // 🌑 Darkness settings
-const DARKNESS_START_LEVEL = 4;   // da qui parte l’oscurità
+const DARKNESS_START_LEVEL = 1;   // da qui parte l’oscurità
 const DARKNESS_MIN_FRAC    = 0.42; // limite minimo (40–45% consigliato)
 const DARKNESS_FADE_MS     = 1000; // fade-in quando entri nel livello
 const DARKNESS_PULSE_AMPL  = 0.05; // pulsazione ±5%
@@ -277,10 +277,10 @@ G.darkness = {
 function visibilityFracForLevel(lvl){
   if (lvl < DARKNESS_START_LEVEL) return 1.0;
   // Tabella morbida e non frustrante
-  if (lvl <= 1)  return 0.85;
-  if (lvl <= 2)  return 0.70;
-  if (lvl <= 3)  return 0.60;
-  if (lvl <= 4) return 0.50;
+  if (lvl <= 2)  return 0.85;
+  if (lvl <= 3)  return 0.70;
+  if (lvl <= 4)  return 0.60;
+  if (lvl <= 5) return 0.50;
   // oltre: fissa al minimo per non frustrare
   return DARKNESS_MIN_FRAC; 
 }

@@ -388,6 +388,25 @@ function resizeCanvas() {
   G._cssToCanvas = DOM.canvas.width / widthCss;
 }
 
+// Atlases facoltativi per i pet (solo 4 per ora)
+const PET_ATLASES = {
+  '4': { file: 'pet_4_atlas.png', cols: 4, rows: 12 }
+};
+// Builder generico 4x12: idle/walk/attack su 4 direzioni
+function buildPetFromAtlas(img, spec={cols:4, rows:12}){
+  const fw = (img.naturalWidth/spec.cols)|0;
+  const fh = (img.naturalHeight/spec.rows)|0;
+  const row = (r)=> Array.from({length: spec.cols}, (_,c)=>({sx:c*fw, sy:r*fh, sw:fw, sh:fh}));
+  return {
+    _atlas: true,
+    sheet: img,
+    frames: {
+      idle:   { down: row(0),  right: row(1),  up: row(2),  left: row(3)  },
+      walk:   { down: row(4),  right: row(5),  up: row(6),  left: row(7)  },
+      attack: { down: row(8),  right: row(9),  up: row(10), left: row(11) }
+    }
+  };
+}
 
 
 
@@ -1304,19 +1323,8 @@ async function preloadArenaResources(update){
   const imgBase = (window.matchMedia?.('(pointer:coarse)')?.matches ?? false) ||
                   /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent)
                   ? 'assets/mobile' : 'assets/desktop';
-  const petNum  = detectPetNumFromDom();
-
-  const petPaths = [
-    {k:'idle',  p:`${imgBase}/pets/pet_${petNum}.png`},
-    {k:'r1',    p:`${imgBase}/pets/pet_${petNum}_right1.png`},
-    {k:'r2',    p:`${imgBase}/pets/pet_${petNum}_right2.png`},
-    {k:'l1',    p:`${imgBase}/pets/pet_${petNum}_left1.png`},
-    {k:'l2',    p:`${imgBase}/pets/pet_${petNum}_left2.png`},
-    {k:'d1',    p:`${imgBase}/pets/pet_${petNum}_down1.png`},
-    {k:'d2',    p:`${imgBase}/pets/pet_${petNum}_down2.png`},
-    {k:'u1',    p:`${imgBase}/pets/pet_${petNum}_up1.png`},
-    {k:'u2',    p:`${imgBase}/pets/pet_${petNum}_up2.png`},
-  ];
+  const petNum    = detectPetNumFromDom();
+  const atlasSpec = PET_ATLASES[String(petNum)] || null;
 
   const steps = [
     { label:'Statistiche pet', kind:'db', run: async () => {
@@ -1325,8 +1333,7 @@ async function preloadArenaResources(update){
         const { data } = await sb()
           .from('pet_states')
           .select('hp_max, attack_power, defense_power, speed_power')
-          .eq('pet_id', pid)
-          .single();
+          .eq('pet_id', pid).single();
         return data;
       }},
     { label:'Mosse equipaggiate', kind:'db', run: async () => {
@@ -1350,18 +1357,41 @@ async function preloadArenaResources(update){
       apply: ({img}) => { G.sprites.goblinSheet = img; buildGoblinFromAtlas?.(); } },
     { label:'Nemico pipistrello', kind:'img', src:`${enemyAtlasBase}/chara_bat.png`,
       apply: ({img}) => { G.sprites.batSheet = img; buildBatFromAtlas?.(); } },
-    // Pet frames (9)
-    ...petPaths.map(({k,p}) => ({ label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k })),
     { label:'Boss', kind:'img', src:`${enemyAtlasBase}/chara_troll.png`,
-  apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
-  { label:'Nemico ragno', kind:'img', src:`${enemyAtlasBase}/chara_spider.png`,
-  apply: ({img}) => { G.sprites.spiderSheet = img; buildSpiderFromAtlas?.(); } },
-
+      apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
+    { label:'Nemico ragno', kind:'img', src:`${enemyAtlasBase}/chara_spider.png`,
+      apply: ({img}) => { G.sprites.spiderSheet = img; buildSpiderFromAtlas?.(); } },
   ];
+
+  // --- PET: se c'è un atlas definito, carica SOLO quello; altrimenti i PNG legacy
+  const petImgs = {};
+  if (atlasSpec) {
+    steps.push({
+      label: `Sprite pet_${petNum} (atlas)`,
+      kind: 'img',
+      src: `${imgBase}/pets/${atlasSpec.file}`,
+      apply: ({img}) => { G.sprites.pet = buildPetFromAtlas(img, atlasSpec); }
+    });
+  } else {
+    const petPaths = [
+      {k:'idle',  p:`${imgBase}/pets/pet_${petNum}.png`},
+      {k:'r1',    p:`${imgBase}/pets/pet_${petNum}_right1.png`},
+      {k:'r2',    p:`${imgBase}/pets/pet_${petNum}_right2.png`},
+      {k:'l1',    p:`${imgBase}/pets/pet_${petNum}_left1.png`},
+      {k:'l2',    p:`${imgBase}/pets/pet_${petNum}_left2.png`},
+      {k:'d1',    p:`${imgBase}/pets/pet_${petNum}_down1.png`},
+      {k:'d2',    p:`${imgBase}/pets/pet_${petNum}_down2.png`},
+      {k:'u1',    p:`${imgBase}/pets/pet_${petNum}_up1.png`},
+      {k:'u2',    p:`${imgBase}/pets/pet_${petNum}_up2.png`},
+    ];
+    steps.push(...petPaths.map(({k,p}) => ({
+      label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k,
+      apply: ({img}, s) => { if (s?.petKey) petImgs[s.petKey] = img; }
+    })));
+  }
 
   const total = steps.length;
   const out   = { stats:null, moves:null };
-  const petImgs = {};
 
   for (let i=0; i<steps.length; i++){
     const s = steps[i];
@@ -1369,8 +1399,8 @@ async function preloadArenaResources(update){
 
     if (s.kind === 'img'){
       const res = await loadImg(s.src);
-      if (s.petKey) petImgs[s.petKey] = res.img;
-      s.apply?.(res);
+      if (s.petKey) petImgs[s.petKey] = res.img; // utile per legacy
+      s.apply?.(res, s);
     } else {
       const r = await s.run();
       if (s.label.startsWith('Statistiche')) out.stats = r;
@@ -1378,22 +1408,25 @@ async function preloadArenaResources(update){
     }
   }
 
-  // Costruisci sprite pet con le immagini caricate
-  G.sprites.pet = {
-    idle:  petImgs.idle,
-    right: [petImgs.r1, petImgs.r2],
-    left:  [petImgs.l1, petImgs.l2],
-    down:  [petImgs.d1, petImgs.d2],
-    up:    [petImgs.u1, petImgs.u2],
-  };
+  // Se NON stiamo usando un atlas, assembla i PNG legacy
+  if (!atlasSpec) {
+    G.sprites.pet = {
+      idle:  petImgs.idle,
+      right: [petImgs.r1, petImgs.r2],
+      left:  [petImgs.l1, petImgs.l2],
+      down:  [petImgs.d1, petImgs.d2],
+      up:    [petImgs.u1, petImgs.u2],
+    };
+  }
 
-  // Decor già definito in alto → normalizza e bake layer statici
+  // decor & layer statici (immutati)
   buildDecorFromAtlas?.();
   bakeArenaLayer?.();
 
   update(1, 'Pronto!');
   return out;
 }
+
 
 function makeBoss(scale = 1) {
   const hp = Math.round(700 * scale); // tanky
@@ -2408,41 +2441,60 @@ for (const p of G.enemyProjectiles) {
 }
 
 
+// --- PET (atlas o PNG legacy) ---
+{
+  const tile = G.tile;
+  const basePad = 6;
+  const scale   = isMobile ? PET_SCALE_MOBILE : 1;
 
-  // --- PET (con texture) ---
-  {
-    const tile = G.tile;
-    const basePad = 6; // era 6
-    const scale   = isMobile ? PET_SCALE_MOBILE : 1;
+  const sz  = (tile - basePad * 2) * scale;
+  const off = (tile - sz) / 2;
 
-    const sz  = (tile - basePad * 2) * scale;
-    const off = (tile - sz) / 2;
+  const px = G.pet.px + off;
+  const py = G.pet.py + off;
 
-    const px = G.pet.px + off;
-    const py = G.pet.py + off;
+  // HUD in-canvas (centrato in alto)
+  drawHUDInCanvas();
 
-    const PET = G.sprites.pet;
-    let img = null;
+  const PET = G.sprites.pet;
+  if (!PET) {
+    ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz);
+  } else if (PET._atlas && PET.sheet?.complete && PET.frames) {
+    // ← usa l'ATLAS se presente (es. pet_4)
+    const now   = performance.now();
+    const state = (G.pet._attackUntil || 0) > now ? 'attack' : (G.pet.moving ? 'walk' : 'idle');
 
-    if (PET) {
-      if (!G.pet.moving) {
-        img = PET.idle;
-      } else {
-        const dirArr = PET[G.pet.facing]; // 'up'|'down'|'left'|'right'
-        if (Array.isArray(dirArr) && dirArr.length) {
-          img = dirArr[Math.abs(G.pet.stepFrame | 0) % dirArr.length] || dirArr[0];
-        } else {
-          img = PET.idle;
-        }
-      }
+    let face = G.pet.facing;
+    if (!['up','down','left','right'].includes(face)) face = 'down';
+
+    const FR     = PET.frames[state] || PET.frames.idle;
+    const frames = FR?.[face] || PET.frames.idle.down;
+
+    if (!frames || !frames.length) {
+      ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz);
+    } else {
+      const fps = state === 'attack' ? 10 : state === 'walk' ? 8 : 6;
+      const idx = ((now * 0.001 * fps) | 0) % frames.length;
+      const frame = frames[idx];
+      // riuso dell’helper che già usi per i nemici
+      drawEnemyFrame(PET.sheet, frame, px, py, sz, sz, false);
     }
-
-    // HUD in-canvas (centrato in alto)
-    drawHUDInCanvas();
-
+  } else {
+    // ← fallback PNG legacy (pet senza atlas)
+    let img = null;
+    if (!G.pet.moving) {
+      img = PET.idle;
+    } else {
+      const dirArr = PET[G.pet.facing];
+      img = Array.isArray(dirArr)
+        ? dirArr[Math.abs(G.pet.stepFrame | 0) % dirArr.length]
+        : PET.idle;
+    }
     if (img && img.complete) ctx.drawImage(img, px, py, sz, sz);
     else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
   }
+}
+
 
   if (G.renderCache.arenaForeLayer) {
     ctx.drawImage(G.renderCache.arenaForeLayer.canvas, 0, 0);

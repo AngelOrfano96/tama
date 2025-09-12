@@ -442,6 +442,26 @@ let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP;
 
 
 */
+// --- PET_4 ATLAS -----------------------------------------------------------
+const PET4_ATLAS = { cols: 4, rows: 12, file: 'pet_4_atlas.png' };
+
+function buildPet4FromAtlas(img){
+  const fw = (img.naturalWidth  / PET4_ATLAS.cols) | 0;
+  const fh = (img.naturalHeight / PET4_ATLAS.rows) | 0;
+  const row = (r) => Array.from({length: PET4_ATLAS.cols},
+    (_,c)=>({ sx:c*fw, sy:r*fh, sw:fw, sh:fh })
+  );
+
+  return {
+    _atlas: true,                 // ← flag per il renderer
+    sheet: img,
+    frames: {
+      idle:   { down: row(0),  right: row(1),  up: row(2),  left: row(3)  },
+      walk:   { down: row(4),  right: row(5),  up: row(6),  left: row(7)  },
+      attack: { down: row(8),  right: row(9),  up: row(10), left: row(11) }
+    }
+  };
+}
 
 
 
@@ -1305,6 +1325,8 @@ async function preloadArenaResources(update){
                   /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent)
                   ? 'assets/mobile' : 'assets/desktop';
   const petNum  = detectPetNumFromDom();
+  const isPet4Atlas = (String(petNum) === '4');
+
 
   const petPaths = [
     {k:'idle',  p:`${imgBase}/pets/pet_${petNum}.png`},
@@ -1318,46 +1340,68 @@ async function preloadArenaResources(update){
     {k:'u2',    p:`${imgBase}/pets/pet_${petNum}_up2.png`},
   ];
 
-  const steps = [
-    { label:'Statistiche pet', kind:'db', run: async () => {
-        const pid = getPid();
-        if (!pid) throw new Error('Pet non trovato');
-        const { data } = await sb()
-          .from('pet_states')
-          .select('hp_max, attack_power, defense_power, speed_power')
-          .eq('pet_id', pid)
-          .single();
-        return data;
-      }},
-    { label:'Mosse equipaggiate', kind:'db', run: async () => {
-        const [A,B,C] = await window.getEquippedMovesForArena();
-        const atkBonus = await window.getArenaPlayerAttackStat?.();
-        return { A, B, C, atkBonus: atkBonus || 0 };
-      }},
-    { label:'Atlas dungeon', kind:'img', src:`${atlasBase}/Dungeon_2.png`,
-      apply: ({img}) => { G.sprites.atlas = img; } },
-    { label:'Sprite cancello', kind:'img', src:GATE_CFG.src,
-      apply: ({img}) => {
-        Gates.sheet = img;
-        GATE_CFG.cols = Math.max(1, (img.naturalWidth  / GATE_CFG.fw) | 0);
-        GATE_CFG.rows = Math.max(1, (img.naturalHeight / GATE_CFG.fh) | 0);
-        GATE_CFG.total = GATE_CFG.cols * GATE_CFG.rows;
-        GATE_CFG.frames = Math.min(GATE_CFG.frames, GATE_CFG.total);
-      }},
-    { label:'Sprite drop mosse', kind:'img', src:MOVE_DROP_CFG.src,
-      apply: ({img}) => { G.sprites.moveSheet = img; } },
-    { label:'Nemico goblin', kind:'img', src:`${enemyAtlasBase}/chara_orc.png`,
-      apply: ({img}) => { G.sprites.goblinSheet = img; buildGoblinFromAtlas?.(); } },
-    { label:'Nemico pipistrello', kind:'img', src:`${enemyAtlasBase}/chara_bat.png`,
-      apply: ({img}) => { G.sprites.batSheet = img; buildBatFromAtlas?.(); } },
-    // Pet frames (9)
-    ...petPaths.map(({k,p}) => ({ label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k })),
-    { label:'Boss', kind:'img', src:`${enemyAtlasBase}/chara_troll.png`,
-  apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
+const steps = [
+  { label:'Statistiche pet', kind:'db', run: async () => {
+      const pid = getPid();
+      if (!pid) throw new Error('Pet non trovato');
+      const { data } = await sb()
+        .from('pet_states')
+        .select('hp_max, attack_power, defense_power, speed_power')
+        .eq('pet_id', pid).single();
+      return data;
+    }},
+  { label:'Mosse equipaggiate', kind:'db', run: async () => {
+      const [A,B,C] = await window.getEquippedMovesForArena();
+      const atkBonus = await window.getArenaPlayerAttackStat?.();
+      return { A,B,C, atkBonus: atkBonus || 0 };
+    }},
+  { label:'Atlas dungeon', kind:'img', src:`${atlasBase}/Dungeon_2.png`,
+    apply: ({img}) => { G.sprites.atlas = img; } },
+  { label:'Sprite cancello', kind:'img', src:GATE_CFG.src,
+    apply: ({img}) => {
+      Gates.sheet = img;
+      GATE_CFG.cols = Math.max(1, (img.naturalWidth  / GATE_CFG.fw) | 0);
+      GATE_CFG.rows = Math.max(1, (img.naturalHeight / GATE_CFG.fh) | 0);
+      GATE_CFG.total = GATE_CFG.cols * GATE_CFG.rows;
+      GATE_CFG.frames = Math.min(GATE_CFG.frames, GATE_CFG.total);
+    }},
+  { label:'Sprite drop mosse', kind:'img', src:MOVE_DROP_CFG.src,
+    apply: ({img}) => { G.sprites.moveSheet = img; } },
+  { label:'Nemico goblin', kind:'img', src:`${enemyAtlasBase}/chara_orc.png`,
+    apply: ({img}) => { G.sprites.goblinSheet = img; buildGoblinFromAtlas?.(); } },
+  { label:'Nemico pipistrello', kind:'img', src:`${enemyAtlasBase}/chara_bat.png`,
+    apply: ({img}) => { G.sprites.batSheet = img; buildBatFromAtlas?.(); } },
+  { label:'Boss', kind:'img', src:`${enemyAtlasBase}/chara_troll.png`,
+    apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
   { label:'Nemico ragno', kind:'img', src:`${enemyAtlasBase}/chara_spider.png`,
-  apply: ({img}) => { G.sprites.spiderSheet = img; buildSpiderFromAtlas?.(); } },
+    apply: ({img}) => { G.sprites.spiderSheet = img; buildSpiderFromAtlas?.(); } },
+];
 
+// --- PET: se è il 4, carica 1 solo atlas; altrimenti i PNG classici ---
+if (isPet4Atlas) {
+  steps.push({
+    label: 'Sprite pet_4 (atlas)',
+    kind: 'img',
+    src: `${imgBase}/pets/${PET4_ATLAS.file}`,
+    apply: ({img}) => { G.sprites.pet = buildPet4FromAtlas(img); }
+  });
+} else {
+  const petPaths = [
+    {k:'idle',  p:`${imgBase}/pets/pet_${petNum}.png`},
+    {k:'r1',    p:`${imgBase}/pets/pet_${petNum}_right1.png`},
+    {k:'r2',    p:`${imgBase}/pets/pet_${petNum}_right2.png`},
+    {k:'l1',    p:`${imgBase}/pets/pet_${petNum}_left1.png`},
+    {k:'l2',    p:`${imgBase}/pets/pet_${petNum}_left2.png`},
+    {k:'d1',    p:`${imgBase}/pets/pet_${petNum}_down1.png`},
+    {k:'d2',    p:`${imgBase}/pets/pet_${petNum}_down2.png`},
+    {k:'u1',    p:`${imgBase}/pets/pet_${petNum}_up1.png`},
+    {k:'u2',    p:`${imgBase}/pets/pet_${petNum}_up2.png`},
   ];
+  steps.push(...petPaths.map(({k,p}) => ({
+    label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k
+  })));
+}
+
 
   const total = steps.length;
   const out   = { stats:null, moves:null };
@@ -1378,7 +1422,8 @@ async function preloadArenaResources(update){
     }
   }
 
-  // Costruisci sprite pet con le immagini caricate
+// Costruisci sprite pet solo se NON stiamo usando l’atlas di pet_4
+if (!isPet4Atlas) {
   G.sprites.pet = {
     idle:  petImgs.idle,
     right: [petImgs.r1, petImgs.r2],
@@ -1386,6 +1431,8 @@ async function preloadArenaResources(update){
     down:  [petImgs.d1, petImgs.d2],
     up:    [petImgs.u1, petImgs.u2],
   };
+}
+
 
   // Decor già definito in alto → normalizza e bake layer statici
   buildDecorFromAtlas?.();
@@ -2409,39 +2456,53 @@ for (const p of G.enemyProjectiles) {
 
 
   // --- PET (con texture) ---
-  {
-    const tile = G.tile;
-    const basePad = 6; // era 6
-    const scale   = isMobile ? PET_SCALE_MOBILE : 1;
+{
+  const tile = G.tile;
+  const basePad = 6;
+  const scale   = isMobile ? PET_SCALE_MOBILE : 1;
+  const sz  = (tile - basePad * 2) * scale;
+  const off = (tile - sz) / 2;
+  const px = G.pet.px + off;
+  const py = G.pet.py + off;
 
-    const sz  = (tile - basePad * 2) * scale;
-    const off = (tile - sz) / 2;
+  // HUD in-canvas (centrato in alto)
+  drawHUDInCanvas();
 
-    const px = G.pet.px + off;
-    const py = G.pet.py + off;
+  const PET = G.sprites.pet;
+  if (!PET) { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); return; }
 
-    const PET = G.sprites.pet;
-    let img = null;
+  // --- caso nuovo: atlas stile enemies (idle/walk/attack) ---
+  if (PET._atlas && PET.sheet?.complete && PET.frames) {
+    const now = performance.now();
+    const state = (G.pet._attackUntil || 0) > now ? 'attack' : (G.pet.moving ? 'walk' : 'idle');
+    let face = G.pet.facing;
+    if (!['up','down','left','right'].includes(face)) face = 'down';
 
-    if (PET) {
-      if (!G.pet.moving) {
-        img = PET.idle;
-      } else {
-        const dirArr = PET[G.pet.facing]; // 'up'|'down'|'left'|'right'
-        if (Array.isArray(dirArr) && dirArr.length) {
-          img = dirArr[Math.abs(G.pet.stepFrame | 0) % dirArr.length] || dirArr[0];
-        } else {
-          img = PET.idle;
-        }
-      }
-    }
+    const FR = PET.frames[state] || PET.frames.idle;
+    let frames = FR?.[face] || PET.frames.idle.down;
+    if (!frames || !frames.length) { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); return; }
 
-    // HUD in-canvas (centrato in alto)
-    drawHUDInCanvas();
+    const t = now * 0.001;
+    const fps = state === 'attack' ? 10 : state === 'walk' ? 8 : 6;
+    const idx = ((t * fps) | 0) % frames.length;
+    const frame = frames[idx];
 
-    if (img && img.complete) ctx.drawImage(img, px, py, sz, sz);
-    else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
+    drawEnemyFrame(PET.sheet, frame, px, py, sz, sz, false);
+    return;
   }
+
+  // --- caso legacy: PNG singoli + 2 frame per direzione ---
+  let img = null;
+  if (!G.pet.moving) {
+    img = PET.idle;
+  } else {
+    const dirArr = PET[G.pet.facing];
+    img = Array.isArray(dirArr) ? dirArr[Math.abs(G.pet.stepFrame|0) % dirArr.length] : PET.idle;
+  }
+  if (img && img.complete) ctx.drawImage(img, px, py, sz, sz);
+  else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
+}
+
 
   if (G.renderCache.arenaForeLayer) {
     ctx.drawImage(G.renderCache.arenaForeLayer.canvas, 0, 0);
@@ -3173,6 +3234,9 @@ function useArenaMove(p, moveKey){
   if ((cd[moveKey] || 0) > now) return; // ancora in CD
   cd[moveKey] = now + ms;
   startCooldownUIByKey(moveKey, ms);
+  // piccola animazione di attacco del pet (per l’atlas)
+  G.pet._attackUntil = performance.now() + (def.attackAnimMs || 260);
+
 
   const res = def.run(arenaAPI, p) || { damageDealt: 0 };
   if (res.damageDealt > 0) {

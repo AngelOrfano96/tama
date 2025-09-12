@@ -812,6 +812,40 @@ function buildBossFromAtlas(){
     }
   };
 }
+function buildSpiderFromAtlas() {
+  const cfg = {
+    sheetSrc: `${enemyAtlasBase}/chara_spider.png`, // stesso atlas enemies
+    rows: { walkDown:2, walkRight:3, walkUp:4, atkDown:5, atkRight:6, atkUp:7 },
+    walkCols:[0,1,2,3],
+    attackCols:[0,1,2,3],
+    idleMap:[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],
+  };
+
+  if (!G.sprites.spiderSheet) {
+    G.sprites.spiderSheet = new Image();
+    G.sprites.spiderSheet.onload  = () => console.log('[SPIDER] atlas ready');
+    G.sprites.spiderSheet.onerror = (e) => console.error('[SPIDER] atlas fail', e);
+    G.sprites.spiderSheet.src = cfg.sheetSrc;
+  }
+
+  const mkRow   = (r, cols)=> cols.map(c=> gPick(c,r));
+  const mkPairs = (ps)=> ps.map(([c,r])=> gPick(c,r));
+  const idle = mkPairs(cfg.idleMap);
+
+  G.sprites.spiderFrames = {
+    idle: idle.length ? idle : mkRow(cfg.rows.walkDown,[0]),
+    walk: {
+      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
+      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
+      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
+    },
+    attack: {
+      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
+      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
+      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
+    }
+  };
+}
 
 function buildGoblinFromAtlas() {
   const cfg = {
@@ -1106,6 +1140,39 @@ function syncHUD(){
   }
 
   // ---------- Enemy archetypes ----------
+  function makeSpider(scale = 1) {
+  const hp = Math.round(55 * scale);
+  return {
+    type: 'spider',
+    hp, hpMax: hp,
+    atkP: Math.round(52 * scale),
+    defP: Math.round(42 * scale),
+    spdMul: 1.10 * scale,   // più scattante del goblin
+    x: 0, y: 0, px: 0, py: 0, cd: 0, tState: 0
+  };
+}
+
+function makeBigSpider(scale = 1) {
+  const hp = Math.round(220 * scale);
+  return {
+    type: 'spider_big',
+    hp, hpMax: hp,
+    atkP: Math.round(70 * scale),
+    defP: Math.round(60 * scale),
+    spdMul: 0.75 * scale,     // grosso ma lento
+    // drop/land come il boss
+    state: 'drop',
+    vy: 0,
+    landPauseMs: 260,
+    tState: 0,
+    nextAtkReadyTs: 0,
+    lastHitTs: 0,
+    // comportamento d’angolo
+    anchorX: 0, anchorY: 0,
+    webCD: 0.8 + Math.random()*0.9
+  };
+}
+
   function makeGoblin(scale = 1) {
     const hp = Math.round(60 * scale);
     return {
@@ -1253,7 +1320,8 @@ async function preloadArenaResources(update){
     ...petPaths.map(({k,p}) => ({ label:`Sprite pet: ${k}`, kind:'img', src:p, petKey:k })),
     { label:'Boss', kind:'img', src:`${enemyAtlasBase}/chara_troll.png`,
   apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
-
+  { label:'Nemico ragno', kind:'img', src:`${enemyAtlasBase}/chara_spider.png`,
+  apply: ({img}) => { G.sprites.spiderSheet = img; buildSpiderFromAtlas?.(); } },
 
   ];
 
@@ -1507,6 +1575,29 @@ for (const e of G.enemies) {
     updateBoss(e, dt);
     continue; // il boss non usa la FSM melee
   }
+  // --- SPIDER_BIG: drop dall'alto + breve pausa atterraggio
+if (e.type === 'spider_big' && e.state === 'drop') {
+  const GRAV = 2600;
+  e.vy += GRAV * dt;
+  e.py += e.vy * dt;
+  if (e.py >= e.targetPy) {
+    e.py = e.targetPy;
+    e.state = 'landPause';
+    e.tState = 0;
+    e.vy = 0;
+    spawnShockwave(e.px, e.py, 1.8 * G.tile);
+  }
+  continue;
+}
+if (e.type === 'spider_big' && e.state === 'landPause') {
+  e.tState += dt * 1000;
+  if (e.tState >= (e.landPauseMs || 260)) {
+    e.state = 'guard';   // passa all’AI di presidio
+    e.tState = 0;
+  }
+  continue;
+}
+
   // velocità: più lenti del pet
   const basePet = isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop;
   const enemySpd = basePet * (EnemyTuning.spdMul || 0.65) * (e.spdMul || 1);
@@ -1609,6 +1700,11 @@ if (e.type === 'boss' && e.state === 'landPause') {
   continue;
 }
 
+// --- AI dedicata: ragno grande (presidio angolo + web shot) ---
+if (e.type === 'spider_big') {
+  updateBigSpider(e, dt);
+  continue;
+}
 
   // FSM
   switch (e.state) {
@@ -1747,21 +1843,57 @@ if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
       G.enemyProjectiles.splice(i,1);
     }
   }
+ }
+
+  updateGates(dt);
+
 }
 
+function updateBigSpider(e, dt){
+  const now = performance.now();
 
-    // wave clear?
-   /* if (!G.enemies.length) {
-      // breve interludio + wave up
-      G.wave++;
-      G.hpCur = Math.min(G.hpMax, Math.round(G.hpCur + G.hpMax * 0.07)); // piccola cura
-      spawnWave(G.wave);
-      syncHUD();
-    }*/
+  // rientra verso l'ancora (angolo)
+  e.px += (e.anchorX - e.px) * (2.2 * dt);
+  e.py += (e.anchorY - e.py) * (2.2 * dt);
+  clampToBounds(e);
 
-updateGates(dt);
+  // distanza dal pet
+  const dx = G.pet.px - e.px, dy = G.pet.py - e.py;
+  const d  = Math.hypot(dx,dy) || 1;
+  const dTiles = d / G.tile;
 
+  // facing
+  e.facing = (Math.abs(dx) > Math.abs(dy))
+    ? (dx >= 0 ? 'right' : 'left')
+    : (dy >= 0 ? 'down'  : 'up');
+
+  // spara ragnatela di tanto in tanto
+  e.webCD -= dt;
+  if (e.webCD <= 0) {
+    const x = e.px + G.tile/2, y = e.py + G.tile/2;
+    const a = Math.atan2(dy, dx);
+    spawnEnemyBullet(x, y, a, { speed: 240, r: 8, dmg: 7, maxDistPx: 7*G.tile, kind:'web' });
+    e.state = 'attack';                 // usa anim attacco per un attimo
+    e._animUntil = now + 260;
+    e.webCD = 1.6 + Math.random() * 0.9; // nuova cadenza
   }
+
+  // morso se ti avvicini
+  if (!e._biteCD) e._biteCD = 0;
+  e._biteCD -= dt;
+  if (dTiles <= 0.9 && e._biteCD <= 0) {
+    // hit “circolare” semplice (no cono)
+    if (now > G.pet.iFrameUntil) {
+      const dmg = computeDamage(12, e.atkP || 60, G.defP || 50);
+      G.hpCur = Math.max(0, G.hpCur - dmg);
+      if (G.hpCur <= 0) { gameOver(); return; }
+      G.pet.iFrameUntil = now + EnemyTuning.iframesMs;
+      syncHUD?.();
+    }
+    e._biteCD = 0.9; // piccolo cooldown sul morso
+  }
+}
+
 
 function updateGates(dt){
   Gates.t += dt;
@@ -1853,7 +1985,47 @@ function spawnWaveViaGates(n){
   const MAX_ENEMIES = 20;
   if (G.enemies.length >= MAX_ENEMIES) return 0;
 
-  // quantità per wave
+  // ——— Boss wave: 8 ragni piccoli dai cancelli
+  if (n % 5 === 0) {
+    const count = 8;
+    const scale = 1 + Math.floor(n/5) * 0.10;
+
+    let spawned = 0, gateIdx = 0;
+    const SPACING_TILES = 0.90;
+
+    for (let k=0; k<count; k++){
+      const e = makeSpider(scale);
+
+      const gIndex = gateIdx % ARENA_GATES.length;
+      const g = ARENA_GATES[gIndex];
+      gateIdx++;
+
+      const q  = (Gates.queue?.[gIndex] || 0);
+      const gx = g.x + (q % 2);
+
+      const startX = gx * G.tile;
+      const startY = (g.y - 1 - q * SPACING_TILES) * G.tile;
+
+      e.x  = gx;
+      e.y  = g.y - 1 - q * SPACING_TILES;
+      e.px = startX;
+      e.py = startY;
+
+      e.spawnPx = startX;
+      e.enteringViaGate = true;
+      e.state = 'ingress';
+      e.tState = 0;
+      e.nextAtkReadyTs = 0;
+      e.lastHitTs = 0;
+
+      G.enemies.push(e);
+      Gates.queue[gIndex] = q + 1;
+      spawned++;
+    }
+    return spawned;
+  }
+
+  // ——— Wave normale (goblin + bat) invariata
   const count = waveEnemyTotal(n);
   const bats  = waveBatCount(n, count);
   const scale = 1 + (n - 1) * 0.06;
@@ -1863,23 +2035,18 @@ function spawnWaveViaGates(n){
   for (let i = 0; i < bats;  i++) blue.push(makeBat(Math.max(1, scale * 0.95)));
 
   let spawned = 0, gateIdx = 0;
-  const SPACING_TILES = 0.90;              // distanza verticale tra due ingressi
+  const SPACING_TILES = 0.90;
 
   for (const e of blue) {
     if (G.enemies.length >= MAX_ENEMIES) break;
 
-    // cancello alternato
     const gIndex = gateIdx % ARENA_GATES.length;
     const g = ARENA_GATES[gIndex];
     gateIdx++;
 
-    // posizione nella coda di QUEL cancello
     const q = (Gates.queue?.[gIndex] || 0);
-
-    // colonna dentro al 2×2: sx/dx alternati per varietà
     const gx = g.x + (q % 2);
 
-    // nascita SOPRA il varco, scalata in alto in base alla coda
     const startX = gx * G.tile;
     const startY = (g.y - 1 - q * SPACING_TILES) * G.tile;
 
@@ -1888,7 +2055,6 @@ function spawnWaveViaGates(n){
     e.px = startX;
     e.py = startY;
 
-    // ingresso “a canna”: X bloccata, solo discesa fino alla soglia
     e.spawnPx = startX;
     e.enteringViaGate = true;
     e.state = 'ingress';
@@ -1897,11 +2063,12 @@ function spawnWaveViaGates(n){
     e.lastHitTs = 0;
 
     G.enemies.push(e);
-    Gates.queue[gIndex] = q + 1;           // avanza la coda per quel cancello
+    Gates.queue[gIndex] = q + 1;
     spawned++;
   }
   return spawned;
 }
+
 // --- BOSS: spawn “drop dall’alto” per la wave n ---
 function spawnBossForWave(n){
   const scale = 1 + (n - 1) * 0.08;
@@ -1936,6 +2103,30 @@ function spawnBossForWave(n){
   Boss.landed = false;
   Boss.index  = Math.max(1, Math.floor(n / 5)); // 1→wave5, 2→wave10, ecc.
   Boss.entity = e;
+  // NEW: i 4 ragni grandi agli angoli
+spawnCornerSpidersForBoss(n);
+}
+function spawnCornerSpidersForBoss(n){
+  const scale = 1 + Math.floor(n/5) * 0.10;
+  const ePad = Math.round(G.tile * 0.2);
+  const B = getPlayBounds();
+
+  const targets = [
+    { px: B.minX + ePad,           py: B.minY + ePad          }, // TL
+    { px: B.maxX - G.tile - ePad,  py: B.minY + ePad          }, // TR
+    { px: B.minX + ePad,           py: B.maxY - G.tile - ePad }, // BL
+    { px: B.maxX - G.tile - ePad,  py: B.maxY - G.tile - ePad }  // BR
+  ];
+
+  for (const t of targets){
+    const s = makeBigSpider(scale);
+    s.px = Math.round(t.px);
+    s.py = -2 * G.tile;          // “cade” dall’alto
+    s.targetPy = Math.round(t.py);
+    s.anchorX = Math.round(t.px);
+    s.anchorY = Math.round(t.py);
+    G.enemies.push(s);
+  }
 }
 
 
@@ -2021,9 +2212,10 @@ function render() {
 
     // sprite (atlas) o fallback rect — con scala mobile
     const basePad = 8;
-    const escale = (e.type === 'boss')
-  ? (isMobile ? 3.1 : 1.6)
-  : (isMobile ? ENEMY_SCALE_MOBILE : 1);
+    const escale =
+  e.type === 'boss'        ? (isMobile ? 3.1 : 1.6) :
+  e.type === 'spider_big'  ? (isMobile ? 2.6 : 1.35) :
+  e.type === 'spider'      ? (isMobile ? 1.9 : 0.95) :   (isMobile ? ENEMY_SCALE_MOBILE : 1);
 
 
     const esz  = (G.tile - basePad * 2) * escale;
@@ -2034,8 +2226,10 @@ function render() {
     // selezione sheet + frames in stile Treasure
     let sheet = null, FR = null;
     if (e.type === 'goblin') { sheet = G.sprites.goblinSheet; FR = G.sprites.goblinFrames; }
-    else if (e.type === 'bat') { sheet = G.sprites.batSheet; FR = G.sprites.batFrames; }
-    if (e.type === 'boss') { sheet = G.sprites.bossSheet; FR = G.sprites.bossFrames; }
+else if (e.type === 'bat') { sheet = G.sprites.batSheet; FR = G.sprites.batFrames; }
+else if (e.type === 'spider' || e.type === 'spider_big') { sheet = G.sprites.spiderSheet; FR = G.sprites.spiderFrames; }
+if (e.type === 'boss') { sheet = G.sprites.bossSheet; FR = G.sprites.bossFrames; }
+
 
 
 
@@ -2153,24 +2347,44 @@ for (const p of G.projectiles) {
   ctx.restore();
 }
 // --- Enemy bullets ---
-for (const p of G.enemyProjectiles){
+// --- Enemy bullets ---
+for (const p of G.enemyProjectiles) {
+  const isWeb = (p.kind === 'web');
+
+  // scia (coda)
   ctx.save();
   ctx.globalAlpha = 0.25;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, p.r * 1.25, 0, Math.PI*2);
-  ctx.fillStyle = '#f87171';
+  ctx.arc(p.x, p.y, p.r * 1.25, 0, Math.PI * 2);
+  ctx.fillStyle = isWeb ? 'rgba(203,213,225,0.8)' /* slate-300 */
+                        : '#f87171';              /* rosso */
   ctx.fill();
   ctx.restore();
 
+  // corpo del proiettile
   ctx.save();
-  const g = ctx.createRadialGradient(p.x,p.y,p.r*0.1, p.x,p.y,p.r);
-  g.addColorStop(0, '#fff1f2'); g.addColorStop(1, '#ef4444');
+  const g = ctx.createRadialGradient(p.x, p.y, p.r * 0.1, p.x, p.y, p.r);
+  if (isWeb) {
+    g.addColorStop(0, '#f8fafc');  // quasi bianco
+    g.addColorStop(1, '#94a3b8');  // slate-400
+  } else {
+    g.addColorStop(0, '#fff1f2');  // chiaro rosato
+    g.addColorStop(1, '#ef4444');  // rosso
+  }
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
   ctx.fill();
+
+  // sottile bordo per le ragnatele (maggior leggibilità)
+  if (isWeb) {
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(226,232,240,0.9)'; // gray-200
+    ctx.stroke();
+  }
   ctx.restore();
 }
+
 
 
   // --- PET (con texture) ---
@@ -2910,7 +3124,7 @@ function hurtPetRaw(dmg){
   syncHUD?.();
   return true;
 }
-function spawnEnemyBullet(x,y, angle, opts={}){
+function spawnEnemyBullet(x, y, angle, opts = {}) {
   const v = opts.speed ?? BossTuning.bullet.speed;
   const r = opts.r ?? BossTuning.bullet.r;
   G.enemyProjectiles.push({
@@ -2919,8 +3133,11 @@ function spawnEnemyBullet(x,y, angle, opts={}){
     vy: Math.sin(angle) * v,
     dmg: Math.max(1, opts.dmg ?? BossTuning.bullet.baseDmg),
     leftPx: opts.maxDistPx ?? (8 * G.tile),
+    kind: opts.kind || 'boss',              // NEW: 'boss' o 'web'
+    bornAt: performance.now(),              // NEW: opzionale per micro-anim
   });
 }
+
 
 
 // 3) uso: le chiavi arrivano dalla home (equip A/B)

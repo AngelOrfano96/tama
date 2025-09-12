@@ -575,40 +575,7 @@ function initGateSprite(){
   Gates.sheet.src = GATE_CFG.src;
 }
 
-// === BOSS ATLAS ============================================================
-function buildBossFromAtlas() {
-  const cfg = {
-    sheetSrc: `${enemyAtlasBase}/chara_troll.png`,
-    rows: { walkDown:2, walkRight:3, walkUp:4, atkDown:5, atkRight:6, atkUp:7 },
-    walkCols: [0,1,2,3],
-    attackCols: [0,1,2,3],
-    idleMap: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], // 2 righe x 3 col = idle
-  };
-  if (!G.sprites.bossSheet) {
-    G.sprites.bossSheet = new Image();
-    G.sprites.bossSheet.onload  = () => console.log('[BOSS] atlas ready');
-    G.sprites.bossSheet.onerror = (e) => console.error('[BOSS] atlas fail', e);
-    G.sprites.bossSheet.src = cfg.sheetSrc;
-  }
-  const mkRow   = (row, cols) => cols.map(c => gPick(c, row));
-  const mkPairs = (pairs)     => pairs.map(([c,r]) => gPick(c, r));
-  const idleFrames = mkPairs(cfg.idleMap);
-  const safeIdle   = idleFrames.length ? idleFrames : mkRow(cfg.rows.walkDown, [0]);
 
-  G.sprites.bossFrames = {
-    idle: safeIdle,
-    walk: {
-      down:  mkRow(cfg.rows.walkDown,  cfg.walkCols),
-      right: mkRow(cfg.rows.walkRight, cfg.walkCols),
-      up:    mkRow(cfg.rows.walkUp,    cfg.walkCols),
-    },
-    attack: {
-      down:  mkRow(cfg.rows.atkDown,   cfg.attackCols),
-      right: mkRow(cfg.rows.atkRight,  cfg.attackCols),
-      up:    mkRow(cfg.rows.atkUp,     cfg.attackCols),
-    },
-  };
-}
 // traccia stato “globale” boss della wave
 const Boss = { active:false, landed:false, entity:null, index:1 };
 
@@ -1505,14 +1472,41 @@ for (let i = 0; i < G.enemies.length; i++) {
 
 // 2.2) AI per singolo nemico
 for (const e of G.enemies) {
+  const now = performance.now();
   // --- BOSS: AI dedicata ---
-if (e.type === 'boss') {
-  // le fasi 'drop' e 'landPause' le stai già gestendo sopra.
-  if (e.state !== 'drop' && e.state !== 'landPause') {
+// ---------- BOSS: fasi speciali + AI ----------
+  if (e.type === 'boss') {
+    // DROP dall'alto
+    if (e.state === 'drop') {
+      const GRAV = 3000; // px/s^2
+      e.vy += GRAV * dt;
+      e.py += e.vy * dt;
+      if (e.py >= e.targetPy) {
+        e.py = e.targetPy;
+        e.vy = 0;
+        e.tState = 0;
+        e.state = 'landPause';
+        Boss.landed = true;
+        spawnShockwave(e.px, e.py, 2.6 * G.tile);
+      }
+      clampToBounds(e);
+      continue; // finisci tick qui
+    }
+
+    // PAUSA dopo l'atterraggio
+    if (e.state === 'landPause') {
+      e.tState += dt * 1000;
+      if (e.tState >= (e.landPauseMs || 350)) {
+        e.tState = 0;
+        e.state = 'idle';     // ⬅️ non "chase": useremo idle finché non attacca
+      }
+      continue; // finisci tick qui
+    }
+
+    // AI ranged vera e propria
     updateBoss(e, dt);
+    continue; // il boss non usa la FSM melee
   }
-  continue; // non usare la FSM melee standard per il boss
-}
   // velocità: più lenti del pet
   const basePet = isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop;
   const enemySpd = basePet * (EnemyTuning.spdMul || 0.65) * (e.spdMul || 1);
@@ -2054,10 +2048,11 @@ function render() {
       else                             face = dy >= 0 ? 'down'  : 'up';
 
       // scegli set in base allo stato
-      let set;
-      if (e.state === 'attack')      set = FR.attack;
-      else if (e.state === 'windup') set = FR.idle;   // fermo mentre carica
-      else                           set = FR.walk;
+     let set;
+if (e.state === 'attack')                set = FR.attack;
+else if (e.state === 'windup' || e.state === 'idle') set = FR.idle; // ⬅️ aggiunto 'idle'
+else                                     set = FR.walk;
+
 
       // left = usa frames "right" + flip
       const isLeft = (face === 'left');
@@ -2961,57 +2956,28 @@ const ACTION_BTN_ID = {
   dash: 'arena-dash-btn'
 };
 function updateBoss(e, dt){
-  // evita di eseguire qui durante “drop” o “landPause” (già gestiti sopra)
+  const now = performance.now();
+
+  // termina il flash dell'anim di attacco → torna idle
+  if (e._animUntil && now > e._animUntil){
+    e._animUntil = 0;
+    e.state = 'idle';
+  }
+
+  // niente qui durante drop/landPause (gestite nel loop principale)
   if (e.state === 'drop' || e.state === 'landPause') return;
 
-  // centro stanza
-  const cx = (Cfg.roomW/2) * G.tile - G.tile/2;
-  const cy = (Cfg.roomH/2) * G.tile - G.tile/2;
-
-  // resta vicino al centro (lerp morbido)
+  // --- ancora al centro stanza ---
+  const cx = (Cfg.roomW * G.tile) * 0.5 - G.tile * 0.5;
+  const cy = (Cfg.roomH * G.tile) * 0.5 - G.tile * 0.5;
   e.px += (cx - e.px) * (BossTuning.anchorPull * dt);
   e.py += (cy - e.py) * (BossTuning.anchorPull * dt);
   clampToBounds(e);
 
-  // tieniti a distanza dal pet
-  const dx = G.pet.px - e.px, dy = G.pet.py - e.py;
-  const dist = Math.hypot(dx,dy) || 1;
-  const keep = BossTuning.keepTiles * G.tile;
-  if (dist < keep){
-    const nx = dx / dist, ny = dy / dist;
-    const push = (keep - dist) / keep; // 0..1
-    const k = 220 * push;              // forza
-    e.px -= nx * k * dt;
-    e.py -= ny * k * dt;
-    clampToBounds(e);
-  }
-
-  // chip-damage se ti tocca (fallback)
-  if ((dist / G.tile) < 0.8) {
-    if (!e._touchCD) e._touchCD = 0;
-    e._touchCD -= dt;
-    if (e._touchCD <= 0) { hurtPetRaw(BossTuning.contactDmg); e._touchCD = 0.6; }
-  }
-
-  // facing per l’animazione
-  e.facing = (Math.abs(dx) > Math.abs(dy)) ? (dx>=0?'right':'left') : (dy>=0?'down':'up');
-
-  // ---- ATTACK SCHEDULER ----
-  // livello boss: 1 alla wave 5, 2 alla 10, ecc.
-  const bossIndex = Boss.index || 1;
-  const S = BossTuning.scale(bossIndex);
-  e._cd = Math.max(0, (e._cd || 0) - dt);
-  if (e._cd > 0) return;
-
-  // scegli pattern
-  const roll = Math.random();
-  if (roll < 0.40) bossPatternAimedBurst(e, S);
-  else if (roll < 0.75) bossPatternFan(e, S);
-  else bossPatternRing(e, S);
-
-  const base = BossTuning.baseCD * S.cdMul;
-  e._cd = Math.max(BossTuning.minCD, base);
+  // --- keep-away dal pet ---
+  const dx = G.pet.px - e.px, dy = G.pet.py - e.px + (e.py - e.px ? (G.pet.py - e.py) : 0); // keep dx,dy correctly
 }
+
 
 function bossPatternAimedBurst(e, S){
   // mira al pet con piccola dispersione

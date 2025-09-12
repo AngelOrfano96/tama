@@ -464,7 +464,7 @@ const ATLAS_TILE = 16;                     // <— 16 px ciascun tassello (prova
 const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
 // filename per livelli “chiari” vs “scuri”
 function getAtlasFilenameForLevel(lvl){
-  return (lvl >= 5) ? 'LL_fantasy_dungeons2.png' : 'LL_fantasy_dungeons.png';
+  return (lvl >= 4) ? 'LL_fantasy_dungeons2.png' : 'LL_fantasy_dungeons.png';
 }
 
 // applica l’atlas corretto + invalida il cache dei bake

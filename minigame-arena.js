@@ -2442,6 +2442,7 @@ for (const p of G.enemyProjectiles) {
 
 
 // --- PET (atlas o PNG legacy) ---
+// --- PET (atlas o PNG) ---
 {
   const tile = G.tile;
   const basePad = 6;
@@ -2449,51 +2450,52 @@ for (const p of G.enemyProjectiles) {
 
   const sz  = (tile - basePad * 2) * scale;
   const off = (tile - sz) / 2;
-
-  const px = G.pet.px + off;
-  const py = G.pet.py + off;
+  const px  = G.pet.px + off;
+  const py  = G.pet.py + off;
 
   // HUD in-canvas (centrato in alto)
   drawHUDInCanvas();
 
   const PET = G.sprites.pet;
-  if (!PET) {
-    ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz);
-  } else if (PET._atlas && PET.sheet?.complete && PET.frames) {
-    // ← usa l'ATLAS se presente (es. pet_4)
+
+  // ── ATLAS (4x12: idle 0–3, walk 4–7, attack 8–11) ──
+  if (PET && PET._atlas && PET.sheet?.complete && PET.frames) {
     const now   = performance.now();
     const state = (G.pet._attackUntil || 0) > now ? 'attack' : (G.pet.moving ? 'walk' : 'idle');
 
+    // facing sempre in {up,down,left,right}
     let face = G.pet.facing;
-    if (!['up','down','left','right'].includes(face)) face = 'down';
+    if (!('up,down,left,right'.includes(face))) face = 'down';
 
+    // mappa corretta delle righe dell’atlas
+    // (già creata in buildPetFromAtlas: attack = rows 8..11)
     const FR     = PET.frames[state] || PET.frames.idle;
-    const frames = FR?.[face] || PET.frames.idle.down;
+    let frames   = FR?.[face];
+    if (!frames || !frames.length) frames = PET.frames.idle.down; // fallback
 
-    if (!frames || !frames.length) {
-      ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz);
-    } else {
-      const fps = state === 'attack' ? 10 : state === 'walk' ? 8 : 6;
-      const idx = ((now * 0.001 * fps) | 0) % frames.length;
-      const frame = frames[idx];
-      // riuso dell’helper che già usi per i nemici
-      drawEnemyFrame(PET.sheet, frame, px, py, sz, sz, false);
-    }
+    const fps    = state === 'attack' ? 10 : state === 'walk' ? 8 : 6;
+    const idx    = ((now * 0.001 * fps) | 0) % frames.length;
+    const frame  = frames[idx];
+
+    // niente flip: l’atlas ha già la riga "left"
+    ctx.drawImage(PET.sheet, frame.sx, frame.sy, frame.sw, frame.sh, px, py, sz, sz);
   } else {
-    // ← fallback PNG legacy (pet senza atlas)
+    // ── PNG legacy ──
     let img = null;
-    if (!G.pet.moving) {
-      img = PET.idle;
-    } else {
-      const dirArr = PET[G.pet.facing];
-      img = Array.isArray(dirArr)
-        ? dirArr[Math.abs(G.pet.stepFrame | 0) % dirArr.length]
-        : PET.idle;
+    if (PET) {
+      if (!G.pet.moving) img = PET.idle;
+      else {
+        const dirArr = PET[G.pet.facing];
+        img = Array.isArray(dirArr) && dirArr.length
+          ? dirArr[Math.abs(G.pet.stepFrame|0) % dirArr.length]
+          : PET.idle;
+      }
     }
     if (img && img.complete) ctx.drawImage(img, px, py, sz, sz);
     else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
   }
 }
+
 
 
   if (G.renderCache.arenaForeLayer) {
@@ -3223,16 +3225,26 @@ function useArenaMove(p, moveKey){
   const cd  = (p._cooldowns ??= {});
   const ms  = def.cooldownMs ?? 400;
 
-  if ((cd[moveKey] || 0) > now) return; // ancora in CD
+  // cooldown
+  if ((cd[moveKey] || 0) > now) return;
   cd[moveKey] = now + ms;
   startCooldownUIByKey(moveKey, ms);
 
+  // 🔔 trigger anim di attacco per atlas (righe 9–12)
+  // se vuoi disattivarla per una mossa specifica metti attackAnimMs: 0 in MOVES[chiave]
+  if (G.sprites.pet?._atlas) {
+    const animMs = def.attackAnimMs ?? 260;   // default ~0.26s
+    if (animMs > 0) G.pet._attackUntil = now + animMs;
+  }
+
+  // esegui la mossa
   const res = def.run(arenaAPI, p) || { damageDealt: 0 };
   if (res.damageDealt > 0) {
-    G.score += 1 + Math.floor(res.damageDealt/5);
+    G.score += 1 + Math.floor(res.damageDealt / 5);
     syncHUD?.();
   }
 }
+
 
 
 // *** Cooldown config (ms) – tienilo in scope globale ***

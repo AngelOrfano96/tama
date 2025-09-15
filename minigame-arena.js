@@ -232,6 +232,7 @@ const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
 
     projectiles: [],
     enemyProjectiles: [],
+    fxSprites: [],
   };
 
   // --- SPRITES & CACHE (arena) ---
@@ -260,6 +261,31 @@ const KEY_LABELS = { A: 'Z', B: 'X', C: 'C', dash: 'Space' };
 const labelForMove = (key) => key === 'dash' ? 'Dash' : prettifyName(key);
 
 
+// === MOVE FX (atlas 32×32 per pet) ========================================
+const MOVES_ATLAS_TILE = 32;
+const pick32 = (c, r, w=1, h=1) => ({
+  sx: c * MOVES_ATLAS_TILE,
+  sy: r * MOVES_ATLAS_TILE,
+  sw: w * MOVES_ATLAS_TILE,
+  sh: h * MOVES_ATLAS_TILE,
+});
+
+/** Mappa “mossa → sequenze per direzione”.
+ *  Per left possiamo usare 'mirror:right' (flip orizzontale).
+ *  Se up/down non sono definiti, farà fallback su 'right'. */
+const MOVE_FX_DB = {
+  basic_attack: {
+    fps: 12,           // velocità anim
+    sizeMul: 1.10,     // scala rispetto alla tile del pet
+    offsetTiles: 0.35, // quanto “stacca” davanti al pet
+    // 4 frame sulla riga 2, colonne 6..9
+    right: [ pick32(6,2), pick32(7,2), pick32(8,2), pick32(9,2) ],
+    left:  'mirror:right',
+    // se hai righe dedicate:
+    // down:  [ pick32(6,3), pick32(7,3), pick32(8,3), pick32(9,3) ],
+    // up:    [ pick32(6,1), pick32(7,1), pick32(8,1), pick32(9,1) ],
+  },
+};
 
 
 
@@ -1359,6 +1385,9 @@ async function preloadArenaResources(update){
       apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
     { label:'Nemico ragno', kind:'img', src:`${enemyAtlasBase}/chara_spider.png`,
       apply: ({img}) => { G.sprites.spiderSheet = img; buildSpiderFromAtlas?.(); } },
+      { label:'Atlas mosse del pet', kind:'img', src:`${imgBase}/pets/pet_${petNum}_moves.png`,
+  apply: ({img}) => { G.sprites.petMovesSheet = img; } },
+
   ];
 
   // --- PET: se c'è un atlas definito, carica SOLO quello; altrimenti i PNG legacy
@@ -2605,6 +2634,37 @@ drawAbilityChipsInCanvas();
   }
 }
 
+// --- MOVE FX SPRITES (sopra al pet) ---
+{
+  const now = performance.now();
+  for (let i = G.fxSprites.length - 1; i >= 0; i--) {
+    const fx = G.fxSprites[i];
+    const t = (now - fx.born) / 1000;
+    if (t >= fx.life) { G.fxSprites.splice(i,1); continue; }
+
+    // frame corrente
+    const idx = Math.min(fx.frames.length - 1, Math.floor(t * fx.fps));
+    const fr = fx.frames[idx];
+    if (!fr) continue;
+
+    // opzionale: follow pet (se attivato)
+    if (fx.followPet) {
+      fx.x = G.pet.px + (G.tile - fx.w)/2;
+      fx.y = G.pet.py + (G.tile - fx.h)/2;
+    }
+
+    // disegno (con flip orizzontale se necessario)
+    if (fx.flip) {
+      ctx.save();
+      ctx.translate(fx.x + fx.w, fx.y);
+      ctx.scale(-1, 1);
+      ctx.drawImage(fx.sheet, fr.sx, fr.sy, fr.sw, fr.sh, 0, 0, fx.w, fx.h);
+      ctx.restore();
+    } else {
+      ctx.drawImage(fx.sheet, fr.sx, fr.sy, fr.sw, fr.sh, fx.x, fx.y, fx.w, fx.h);
+    }
+  }
+}
 
 
   if (G.renderCache.arenaForeLayer) {
@@ -3081,6 +3141,7 @@ forceExitButtonLayout();
   G.wave = 0;
   G.score = 0;
   G.enemies = [];
+  G.fxSprites = [];         
   G.projectiles = G.projectiles || [];
   G.enemyProjectiles = [];
 
@@ -3197,6 +3258,56 @@ async function gameOver() {
   G.keys.clear();
 }
 //////////////////////MOSSE//////////////////////////
+function resolveMoveFrames(key, facing) {
+  const def = MOVE_FX_DB[key];
+  if (!def) return null;
+
+  // prendi la direzione richiesta, con fallback a right
+  let seq = def[facing] || def.right;
+  let flip = false;
+
+  // supporta 'mirror:qualcosa' (flip orizzontale)
+  if (typeof seq === 'string' && seq.startsWith('mirror:')) {
+    const base = seq.split(':')[1] || 'right';
+    seq = def[base] || def.right || [];
+    flip = true;
+  }
+  if (!seq || !seq.length) return null;
+  return { frames: seq, meta: { fps:def.fps||10, sizeMul:def.sizeMul||1, offsetTiles:def.offsetTiles||0.3, flip } };
+}
+
+function spawnMoveFX(key, self) {
+  const sheet = G.sprites.petMovesSheet;
+  if (!sheet || !sheet.complete) return;
+
+  const face = self.facing || 'right';
+  const resolved = resolveMoveFrames(key, face) || resolveMoveFrames(key, 'right');
+  if (!resolved) return;
+
+  const { frames, meta } = resolved;
+  const tile = G.tile;
+  const size = tile * meta.sizeMul;
+  const off  = (tile - size) / 2;
+
+  // posizione: davanti al pet
+  const v = facingToVec(face);
+  const px = self.px + off + v.x * (meta.offsetTiles * tile);
+  const py = self.py + off + v.y * (meta.offsetTiles * tile);
+
+  G.fxSprites.push({
+    sheet,
+    frames,
+    flip: meta.flip || false,
+    x: px, y: py, w: size, h: size,
+    fps: meta.fps || 10,
+    born: performance.now(),
+    life: frames.length / (meta.fps || 10), // durata in secondi
+    followPet: false, // se vuoi che segua il pet, metti true
+  });
+}
+
+// esponi nell’API dell’arena (così la chiami dalle mosse)
+arenaAPI.playMoveAnim = (moveKey, self) => spawnMoveFX(moveKey, self);
 
 // tienilo in uno scope accessibile sia a useArenaMove che qui
 const arenaAPI = {
@@ -3392,25 +3503,23 @@ function useArenaMove(p, moveKey){
   const cd  = (p._cooldowns ??= {});
   const ms  = def.cooldownMs ?? 400;
 
-  // cooldown
   if ((cd[moveKey] || 0) > now) return;
   cd[moveKey] = now + ms;
   startCooldownUIByKey(moveKey, ms);
 
-  // 🔔 trigger anim di attacco per atlas (righe 9–12)
-  // se vuoi disattivarla per una mossa specifica metti attackAnimMs: 0 in MOVES[chiave]
-  if (G.sprites.pet?._atlas) {
-    const animMs = def.attackAnimMs ?? 260;   // default ~0.26s
-    if (animMs > 0) G.pet._attackUntil = now + animMs;
-  }
+  // (opzionale) anim del pet
+  G.pet._attackUntil = performance.now() + (def.attackAnimMs || 260);
 
-  // esegui la mossa
+  // 🔽 anim FX della mossa dal nuovo atlas 32x32
+  arenaAPI.playMoveAnim(moveKey, p);
+
   const res = def.run(arenaAPI, p) || { damageDealt: 0 };
   if (res.damageDealt > 0) {
-    G.score += 1 + Math.floor(res.damageDealt / 5);
+    G.score += 1 + Math.floor(res.damageDealt/5);
     syncHUD?.();
   }
 }
+
 
 
 

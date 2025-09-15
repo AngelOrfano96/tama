@@ -157,24 +157,37 @@ let ctx = null;
 
 // ===== Boss tuning =====
 const BossTuning = {
-  keepTiles: 3.2,          // distanza “di sicurezza” dal pet (in tile)
-  anchorPull: 2.8,         // quanto lo richiama verso il centro (lerp)
-  contactDmg: 6,           // danno se ti tocca
-  contactIFrameMs: 350,
-  baseCD: 1.6,             // cadenza attacchi base (sec)
-  minCD: 0.6,
-  bullet: { speed: 320, r: 9, baseDmg: 10 }, // proiettile di base
-  // scala coi bossIndex: 1 alla wave 5, 2 alla 10, ecc.
+  keepTiles: 3.8,          // stai più lontano dal player
+  anchorPull: 2.4,         // rincula verso il centro meno aggressivo
+  contactDmg: 0,           // niente danno a contatto (lo riattivi più avanti)
+  contactIFrameMs: 420,
+  baseCD: 2.0,             // attacca meno spesso
+  minCD: 1.0,
+  bullet: { speed: 260, r: 9, baseDmg: 7 }, // proiettili più lenti e meno dannosi
+
+  // scala per “incontri” boss (1=wave5, 2=wave10, ecc.)
   scale(bossIndex){
+    if (bossIndex === 1) {
+      // ✅ PRIMO BOSS: volutamente soft
+      return {
+        cdMul: 1.15,        // tempi più lunghi tra gli attacchi
+        speedMul: 0.95,     // proiettili un filo più lenti
+        dmgMul: 0.85,       // meno danno
+        extraShots: 0,      // niente raffiche extra
+        ringCount: 8        // meno proiettili nel cerchio
+      };
+    }
+    // dalla seconda volta in poi scala con calma
     return {
-      cdMul: Math.max(0.6, 1 - (bossIndex-1)*0.10),
-      speedMul: 1 + (bossIndex-1)*0.14,
-      dmgMul: 1 + (bossIndex-1)*0.15,
-      extraShots: Math.min(3, Math.floor((bossIndex-1)/1)), // +1 ogni incontro
-      ringCount: 12 + (bossIndex-1)*2
+      cdMul: Math.max(0.75, 1 - (bossIndex-1)*0.08),
+      speedMul: 1 + (bossIndex-1)*0.12,
+      dmgMul: 1 + (bossIndex-1)*0.12,
+      extraShots: Math.min(2, Math.floor((bossIndex-1)/2)),
+      ringCount: 10 + (bossIndex-1)*2
     };
   }
 };
+
 
 
 /*
@@ -2162,6 +2175,9 @@ function spawnBossForWave(n){
 spawnCornerSpidersForBoss(n);
 }
 function spawnCornerSpidersForBoss(n){
+  // ❗ attiva i ragni d’angolo solo dalla wave 10 in poi
+  if (n < 10) return;
+
   const scale = 1 + Math.floor(n/5) * 0.10;
   const ePad = Math.round(G.tile * 0.2);
   const B = getPlayBounds();
@@ -2183,6 +2199,7 @@ function spawnCornerSpidersForBoss(n){
     G.enemies.push(s);
   }
 }
+
 
 
 

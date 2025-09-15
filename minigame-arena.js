@@ -607,6 +607,8 @@ const MOVE_ICON_MAP = {
   ball:         { c:12, r:5, w:1, h:1 },
   // ... aggiungi le altre mosse che possono droppare
 };
+const hasImg = (img) => !!(img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
+
 // helper pick per l’atlas mosse (usa la stessa unità dell’altro atlas)
 const pickMove = (c, r, w=1, h=1) => ({
   sx: c * MOVE_DROP_CFG.tile,
@@ -1392,15 +1394,21 @@ async function preloadArenaResources(update){
   apply: ({img}) => { G.sprites.petMovesSheet = img; } },
 
   ];
-  steps.push({
+steps.push({
   label: 'Atlas mosse pet',
   kind:  'img',
-  src:   `${atlasBase}/pet_${petNum}_moves.png`, // <-- il tuo file per-pet
+  src:   `${atlasBase}/pet_${petNum}_moves.png`,   // es. assets/desktop/atlas/pet_4_moves.png
   apply: ({img, ok}) => {
-    if (!ok) { console.warn('[FX] atlas mosse mancante per pet', petNum); return; }
+    if (!ok || !hasImg(img)) {
+      console.warn('[FX] Atlas mosse non trovato:', `${atlasBase}/pet_${petNum}_moves.png`);
+      G.sprites.petMoveFX = null;   // importantissimo: NON lasciare un img rotto
+      return;
+    }
     G.sprites.petMoveFX = { sheet: img, tile: 32 };
+    console.log('[FX] Atlas mosse caricato:', img.naturalWidth, 'x', img.naturalHeight);
   }
 });
+
   // --- PET: se c'è un atlas definito, carica SOLO quello; altrimenti i PNG legacy
   const petImgs = {};
   if (atlasSpec) {
@@ -2587,7 +2595,40 @@ for (const p of G.enemyProjectiles) {
   ctx.restore();
 }
 
+if (Array.isArray(G.fxSprites) && G.fxSprites.length) {
+  const sheet = G.sprites.petMoveFX?.sheet;
+  if (!hasImg(sheet)) {
+    // se l’atlas non c’è o è rotto, evita il crash e svuota gli FX pendenti
+    G.fxSprites.length = 0;
+  } else {
+    const now = performance.now();
+    for (let i = G.fxSprites.length - 1; i >= 0; i--) {
+      const fx = G.fxSprites[i];
 
+      // vita finita?
+      if (now >= fx.endAt) { G.fxSprites.splice(i,1); continue; }
+
+      // frame index
+      const t = (now - fx.startAt) / 1000;
+      const idx = Math.min(fx.frames[fx.face].length - 1, Math.floor(t * fx.fps));
+      const fr = fx.frames[fx.face][idx];
+      if (!fr) continue;
+
+      // destinazione
+      const dw = fx.sizePx, dh = fx.sizePx;
+      const dx = fx.x - dw/2, dy = fx.y - dh/2;
+
+      // disegno sicuro
+      try {
+        ctx.drawImage(sheet, fr.sx, fr.sy, fr.sw, fr.sh, dx, dy, dw, dh);
+      } catch (err) {
+        // nel dubbio, smonta l’FX per non riprovare ogni frame
+        console.warn('[FX] drawImage error, rimuovo FX', err);
+        G.fxSprites.splice(i,1);
+      }
+    }
+  }
+}
 // --- PET (atlas o PNG legacy) ---
 // --- PET (atlas o PNG) ---
 {

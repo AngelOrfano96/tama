@@ -189,25 +189,6 @@ const BossTuning = {
 };
 
 
-
-/*
-
-  const DOM = {
-    modal:  document.getElementById('arena-minigame-modal'),
-    canvas: document.getElementById('arena-canvas'),
-    hudBox: document.getElementById('arena-hud'),
-    btnAtk: document.getElementById('arena-attack-btn'),
-    btnChg: document.getElementById('arena-charge-btn'),
-    btnDash:document.getElementById('arena-dash-btn'),
-
-    // joystick & overlay
-  joyBase: document.getElementById('arena-joy-base'),
-  joyStick: document.getElementById('arena-joy-stick'),
-  joyOverlay: document.getElementById('arena-joystick-overlay'),
-  actionsOverlay: document.getElementById('arena-actions-overlay'),
-  };
-  let ctx = DOM.canvas.getContext('2d'); */
-
   const isMobile = (window.matchMedia?.('(pointer:coarse)')?.matches ?? false) || /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
 
   if (isMobile) {
@@ -272,6 +253,11 @@ const PAD_X = 2;                                      // margine laterale visivo
 // due cancelli 2×2 nel muro top (x,y = angolo in alto-sx in tile)
 
 
+// --- Key label desktop (per ora fissi; domani li prenderai dal tuo keybinding) ---
+const KEY_LABELS = { A: 'Z', B: 'X', C: 'C', dash: 'Space' };
+
+// Fallback nome mosse per l'HUD (usa già prettifyName che hai)
+const labelForMove = (key) => key === 'dash' ? 'Dash' : prettifyName(key);
 
 
 
@@ -348,6 +334,10 @@ function drawHUDInCanvas() {
   ctx.font = '600 14px system-ui,-apple-system,Segoe UI,Roboto,Arial';
   ctx.fillStyle = '#e5e7eb';
   ctx.fillText(`${G.hpCur|0} / ${G.hpMax|0}`, x + panelW / 2, barY - 6);
+
+  // Memorizza il rettangolo del pannello per posizionare i chip sotto
+G._hudRect = { x, y, w: panelW, h: panelH };
+
 
   ctx.restore();
 }
@@ -430,53 +420,6 @@ function buildPetFromAtlas(img, spec={cols:4, rows:12}){
 
   function isMobileOrTablet() { return isMobile; }
 
-
-
-
-/*
-// === ATLAS base ===
-const ATLAS_TILE = 16;
-const atlasBase  = isMobileOrTablet() ? 'assets/mobile/atlas' : 'assets/desktop/atlas';
-
-// ritaglio generico da atlas 16×16
-const pick = (c, r, w=1, h=1) => ({
-  sx: c * ATLAS_TILE, sy: r * ATLAS_TILE, sw: w * ATLAS_TILE, sh: h * ATLAS_TILE,
-});
-
-// ⛏️ Sostituisci qui con le celle di Dungeon_2.png
-const DECOR_DESKTOP = {
-  floor: [ pick(0,6), pick(0,7), pick(1,6), pick(1,7) ],
-
-  // MURI — corpo (tile “base” del muro)
-  wallBody: {
-    top:    [ pick(1,7) ],
-    bottom: [ pick(7,2) ],
-    left:   [ pick(6,1) ],
-    right:  [ pick(8,1) ],
-    corner_tl: pick(0,7),
-    corner_tr: pick(2,6),
-    corner_bl: pick(0,10),
-    corner_br: pick(2,7),
-  },
-
-  // MURI — “cap” (il tassello che fa il secondo blocco)
-  // Se il tuo atlas non ha un cap diverso, rimetti GLI STESSI tile del body.
-  wallCap: {
-    top:    [ pick(1,6) ],
-    bottom: [ pick(1,11) ],
-    left:   [ pick(0,10) ],
-    right:  [ pick(2,10) ],
-    corner_tl: pick(0 ?? 9, 0 ?? 9),
-    corner_tr: pick(2 ?? 9, 2 ?? 9),
-    corner_bl: pick(0 ?? 11, 0 ?? 11),
-    corner_br: pick(2 ?? 11, 2 ?? 11),
-  },
-};
-const DECOR_MOBILE = DECOR_DESKTOP;
-let DECOR = isMobileOrTablet() ? DECOR_MOBILE : DECOR_DESKTOP; 
-
-
-*/
 
 
 
@@ -2290,6 +2233,97 @@ function spawnShockwave(x, y, R) {
   requestAnimationFrame(anim);
 }
 
+function drawCooldownChip(cx, cy, R, keyTxt, nameTxt, remainMs, totalMs, disabled=false){
+  const ready = !disabled && (remainMs <= 0) && (totalMs > 0);
+  const k = totalMs > 0 ? Math.max(0, Math.min(1, remainMs / totalMs)) : 0; // 1=full cd, 0=pronto
+  const start = -Math.PI/2;
+  const end   = start + (2*Math.PI) * (1 - k); // porzione completata
+
+  // base
+  ctx.save();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = disabled ? 'rgba(100,116,139,0.35)' : '#2a2f36';
+  ctx.fillStyle   = disabled ? 'rgba(15,23,42,0.45)'   : '#0d0f12';
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+  // progress
+  if (!disabled && !ready) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#93c5fd';
+    ctx.lineWidth = 3.5;
+    ctx.arc(cx, cy, R-1.5, start, end);
+    ctx.stroke();
+  }
+
+  // testo centrale (secondi rimanenti)
+  if (!disabled) {
+    ctx.fillStyle = ready ? '#e5e7eb' : '#cbd5e1';
+    ctx.font = `700 ${Math.round(R*0.9)}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const secs = remainMs/1000;
+    const txt = ready ? '' : (secs >= 10 ? String(Math.ceil(secs)) : secs.toFixed(1));
+    if (txt) ctx.fillText(txt, cx, cy+0.5);
+  }
+
+  // label sotto: [Tasto] Nome
+  ctx.fillStyle = disabled ? '#94a3b8' : '#e5e7eb';
+  ctx.font = '600 12px system-ui,-apple-system,Segoe UI,Roboto,Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${keyTxt ? `[${keyTxt}] ` : ''}${nameTxt}`, cx, cy + R + 6);
+
+  // bordino “blink” quando diventa pronto (molto soft)
+  if (ready) {
+    const pulse = 0.35 + 0.65 * Math.abs(Math.sin(performance.now()/250));
+    ctx.strokeStyle = `rgba(147,197,253,${pulse*0.65})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, R+2, 0, Math.PI*2); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// Legge i cooldown correnti per A/B/C/Dash
+function getCooldownInfoForHUD(){
+  const now = performance.now();
+  const cdMap = G.pet._cooldowns || {};
+
+  const A = G.playerMoves?.A || 'basic_attack';
+  const B = G.playerMoves?.B || 'repulse';
+  const C = G.playerMoves?.C || null;
+
+  const out = [];
+  out.push({slot:'A', move:A,   remain: Math.max(0, (cdMap[A]||0) - now), total: getMoveCDMs(A),   disabled:false});
+  out.push({slot:'B', move:B,   remain: Math.max(0, (cdMap[B]||0) - now), total: getMoveCDMs(B),   disabled:false});
+  out.push({slot:'C', move:C||'—', remain: C ? Math.max(0, (cdMap[C]||0) - now) : 0, total: C ? getMoveCDMs(C) : 0, disabled: !C});
+  out.push({slot:'dash', move:'dash', remain: Math.max(0, (G.pet.cdDash||0) * 1000), total: CD_MS.dash, disabled:false});
+
+  return out;
+}
+
+function drawAbilityChipsInCanvas(){
+  if (isMobile) return;            // solo desktop
+  if (!G._hudRect) return;         // aspetta che l'HUD calcoli la posizione
+
+  const { x, y, w, h } = G._hudRect;
+
+  // layout: 4 chip in fila centrati sotto il pannello HUD
+  const R = 18;                    // raggio cerchi
+  const chipW = R*2 + 56;          // a occhio: cerchio + label
+  const spacing = chipW;           // distanza orizzontale
+  const totalW = spacing*4;        // 4 chip
+  const startX = Math.round(x + (w - totalW)/2) + R;
+  const rowY = Math.round(y + h + 10) + R;  // 10px sotto il pannello
+
+  const infos = getCooldownInfoForHUD();
+  infos.forEach((it, i) => {
+    const cx = startX + i*spacing;
+    const cy = rowY;
+    const klabel = KEY_LABELS[it.slot] || '';
+    drawCooldownChip(cx, cy, R, klabel, labelForMove(it.move), it.remain, it.total, it.disabled);
+  });
+}
 
 function render() {
   // pulizia
@@ -2528,6 +2562,8 @@ for (const p of G.enemyProjectiles) {
 
   // HUD in-canvas (centrato in alto)
   drawHUDInCanvas();
+// Mini-bar mosse (desktop)
+drawAbilityChipsInCanvas();
 
   const PET = G.sprites.pet;
 

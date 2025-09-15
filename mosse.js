@@ -1,9 +1,19 @@
-// Catalogo mosse – riusabile in tutto il gioco
+// mosse.js
 export const MOVES = {
   basic_attack: {
     label: 'Attacco',
     cooldownMs: 300,
     params: { reachTiles: 1.1, coneDeg: 90, baseDamage: 20 },
+    fx: {
+      tile: 32,
+      fps: 12,
+      sizeMul: 1.10,
+      offsetTiles: 0.35,
+      // riga 2, colonne 6..9 (come mi avevi scritto)
+      right: [ [6,2], [7,2], [8,2], [9,2] ],
+      left: 'mirror:right'     // flip automatico della sequenza right
+      // up/down assenti → fallback su right (ok)
+    },
     run(api, self) {
       const { reachTiles, coneDeg, baseDamage } = this.params;
       const targets = api.targetsInCone(self, reachTiles, coneDeg);
@@ -20,6 +30,7 @@ export const MOVES = {
     label: 'Repulsione',
     cooldownMs: 3500,
     params: { radiusTiles: 2.2, knockback: 600, basePower: 12 },
+    // niente fx qui: continuiamo a usare lo shockwave “procedurale”
     run(api, self) {
       const { radiusTiles, knockback, basePower } = this.params;
       const targets = api.targetsInRadius(self, radiusTiles);
@@ -36,31 +47,33 @@ export const MOVES = {
       return { damageDealt: total };
     }
   },
-  // …le altre mosse…
+
   ball: {
-     label: 'Lancio Palla',           // opzionale ma utile
-     icon: { c:12, r:5, w:1, h:1 },   // <- coordinate sull’atlas LL_fantasy_dungeons.png (16x16)
-     cooldownMs: 3500,
+    label: 'Lancio Palla',
+    icon: { c:12, r:5, w:1, h:1 },
+    cooldownMs: 3500,
+    fx: {
+      tile: 32,
+      fps: 14,
+      sizeMul: 1.0,
+      offsetTiles: 0.45,
+      // esempio: 4 frame in riga 0, colonne 0..3 (cambiali coi tuoi reali)
+      right: [ [0,0], [1,0], [2,0], [3,0] ],
+      left: 'mirror:right'
+    },
     run(api, self) {
       const t = api.tileSize();
-      const speedPx   = 520;         // velocità proiettile
-      const rangeTiles= 7;           // distanza percorsa
-      const radiusPx  = t * 0.28;    // “hitbox” della palla
-      const basePower = 50;          // ~50 di potenza di mossa
-
       api.spawnProjectile?.({
         owner: 'pet',
         x: self.px + t/2,
         y: self.py + t/2,
-        facing: self.facing,     // 'up' | 'down' | 'left' | 'right'
-        speed: speedPx,
-        maxDistPx: rangeTiles * t,
-        radiusPx,
-        basePower,
-        pierce: true             // attraversa i nemici
+        facing: self.facing,
+        speed: 520,
+        maxDistPx: 7 * t,
+        radiusPx: t * 0.28,
+        basePower: 50,
+        pierce: true
       });
-
-      // il danno è “differito” durante il volo
       return { damageDealt: 0 };
     }
   }

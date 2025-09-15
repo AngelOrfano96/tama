@@ -262,18 +262,88 @@ const labelForMove = (key) => key === 'dash' ? 'Dash' : prettifyName(key);
 
 
 // === MOVE FX (atlas 32×32 per pet) ========================================
-const MOVES_ATLAS_TILE = 32;
-const pick32 = (c, r, w=1, h=1) => ({
-  sx: c * MOVES_ATLAS_TILE,
-  sy: r * MOVES_ATLAS_TILE,
-  sw: w * MOVES_ATLAS_TILE,
-  sh: h * MOVES_ATLAS_TILE,
-});
+// (arena) helper: converte celle [c,r,w=1,h=1] in rettangoli pixel
+const MOVES_ATLAS_TILE = 32; // default di sicurezza
+const cellToRect = (cell, tile=32) => {
+  const [c, r, w=1, h=1] = cell;
+  return { sx: c*tile, sy: r*tile, sw: w*tile, sh: h*tile };
+};
+
+// Legge l’FX dai dati della mossa in mosse.js
+function resolveMoveFramesFromMoves(key, facing){
+  const fx = MOVES[key]?.fx;
+  if (!fx) return null;
+
+  const tile = fx.tile || MOVES_ATLAS_TILE;
+
+  const getSeq = (dir) => {
+    let seq = fx[dir];
+    let flip = false;
+    if (!seq) return null;
+
+    if (typeof seq === 'string' && seq.startsWith('mirror:')) {
+      const base = seq.split(':')[1] || 'right';
+      seq = fx[base] || [];
+      flip = true;
+    }
+    if (!Array.isArray(seq) || !seq.length) return null;
+    return { frames: seq.map(c => cellToRect(c, tile)), flip };
+  };
+
+  // prova la direction richiesta, poi fallback a right
+  const picked = getSeq(facing) || getSeq('right');
+  if (!picked) return null;
+
+  return {
+    frames: picked.frames,
+    meta: {
+      fps: fx.fps || 10,
+      sizeMul: fx.sizeMul || 1,
+      offsetTiles: fx.offsetTiles || 0.3,
+      flip: !!picked.flip
+    }
+  };
+}
+
+// Mantieni la tua spawnMoveFX ma falla usare il risolutore sopra
+function spawnMoveFX(moveKey, self) {
+  const sheet = G.sprites.petMovesSheet; // caricato nel preload
+  if (!sheet || !sheet.complete) return;
+
+  const face = self.facing || 'right';
+  const resolved = resolveMoveFramesFromMoves(moveKey, face);
+  if (!resolved) return;
+
+  const { frames, meta } = resolved;
+  const tile = G.tile;
+  const size = tile * meta.sizeMul;
+  const off  = (tile - size) / 2;
+
+  // posizione davanti al pet (se preferisci in base alla mira, usa G._aim qui)
+  const v = facingToVec(face);
+  const px = self.px + off + v.x * (meta.offsetTiles * tile);
+  const py = self.py + off + v.y * (meta.offsetTiles * tile);
+
+  G.fxSprites.push({
+    sheet,
+    frames,
+    flip: meta.flip || false,
+    x: px, y: py, w: size, h: size,
+    fps: meta.fps || 10,
+    born: performance.now(),
+    life: frames.length / (meta.fps || 10),
+    followPet: false
+  });
+}
+
+// e lascia invariato:
+arenaAPI.playMoveAnim = (moveKey, self) => spawnMoveFX(moveKey, self);
+
 
 /** Mappa “mossa → sequenze per direzione”.
  *  Per left possiamo usare 'mirror:right' (flip orizzontale).
  *  Se up/down non sono definiti, farà fallback su 'right'. */
-const MOVE_FX_DB = {
+/*const MOVE_FX_DB = {
   basic_attack: {
     fps: 12,           // velocità anim
     sizeMul: 1.10,     // scala rispetto alla tile del pet
@@ -285,7 +355,7 @@ const MOVE_FX_DB = {
     // down:  [ pick32(6,3), pick32(7,3), pick32(8,3), pick32(9,3) ],
     // up:    [ pick32(6,1), pick32(7,1), pick32(8,1), pick32(9,1) ],
   },
-};
+};*/
 
 
 

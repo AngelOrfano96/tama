@@ -289,6 +289,7 @@ const MOVE_FX_DB = {
 
 
 
+
 async function enterFullscreen() {
   try {
     const root = DOM.modal || document.documentElement;
@@ -866,6 +867,7 @@ function buildGoblinFromAtlas() {
     G.sprites.goblinSheet.onload  = () => console.log('[GOBLIN] atlas ready');
     G.sprites.goblinSheet.onerror = (e) => console.error('[GOBLIN] atlas fail', e);
     G.sprites.goblinSheet.src = cfg.sheetSrc;
+    G.sprites.petMoveFX = null;
   }
 
   const mkRow = (row, cols) => cols.map(c => gPick(c, row));
@@ -1348,6 +1350,15 @@ async function preloadArenaResources(update){
                   /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent)
                   ? 'assets/mobile' : 'assets/desktop';
   const petNum    = detectPetNumFromDom();
+  steps.push({
+  label: 'Atlas mosse pet',
+  kind:  'img',
+  src:   `${atlasBase}/pet_${petNum}_moves.png`, // <-- il tuo file per-pet
+  apply: ({img, ok}) => {
+    if (!ok) { console.warn('[FX] atlas mosse mancante per pet', petNum); return; }
+    G.sprites.petMoveFX = { sheet: img, tile: 32 };
+  }
+});
   const atlasSpec = PET_ATLASES[String(petNum)] || null;
 
   const steps = [

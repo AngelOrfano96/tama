@@ -226,6 +226,7 @@ const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
     timerId: null,
     tile: Cfg.baseMoveTile,
       joy: { active:false, vx:0, vy:0 },
+      aim: { x: 0, y: 1 },
 
 
     // stat pet
@@ -1511,6 +1512,11 @@ if (dx || dy) {
   if (len > 1) { dx /= len; dy /= len; } // normalizza
 }
 G.pet.moving = !!(Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01);
+
+if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+  G.aim = { x: dx, y: dy };
+}
+
 
 // facing
 if (Math.abs(dx) > Math.abs(dy)) {
@@ -3193,9 +3199,25 @@ function facingToVec(face){
        : face === 'down'  ? {x: 0, y: 1}
        :                     {x: 0, y:-1};
 }
-
 arenaAPI.spawnProjectile = function(spec){
-  const dir = facingToVec(spec.facing || 'right');
+  // helper: normalizza un vettore
+  const norm = (v) => {
+    const len = Math.hypot(v.x || 0, v.y || 0) || 1;
+    return { x: (v.x || 0)/len, y: (v.y || 0)/len };
+  };
+
+  // 1) priorità: spec.dir (vettore), 2) spec.angle (radianti), 3) mira G.aim, 4) facing cardinale
+  let dir = null;
+  if (spec.dir && (spec.dir.x || spec.dir.y)) {
+    dir = norm(spec.dir);
+  } else if (Number.isFinite(spec.angle)) {
+    dir = { x: Math.cos(spec.angle), y: Math.sin(spec.angle) };
+  } else if (G?.aim && (G.aim.x || G.aim.y)) {
+    dir = norm(G.aim);
+  } else {
+    dir = facingToVec(spec.facing || 'right'); // fallback legacy
+  }
+
   G.projectiles.push({
     x: spec.x, y: spec.y,
     vx: dir.x * (spec.speed || 500),
@@ -3204,9 +3226,10 @@ arenaAPI.spawnProjectile = function(spec){
     r: Math.max(2, spec.radiusPx || (0.25 * G.tile)),
     base: Math.max(1, spec.basePower || 50),
     pierce: !!spec.pierce,
-    hitSet: new WeakSet(),       // per non colpire lo stesso nemico 2 volte
+    hitSet: new WeakSet(),
   });
 };
+
 function angleTo(ax,ay,bx,by){ return Math.atan2(by - ay, bx - ax); }
 function hurtPetRaw(dmg){
   const now = performance.now();

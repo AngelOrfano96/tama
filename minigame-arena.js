@@ -3607,7 +3607,9 @@ function useArenaMove(p, moveKey){
   G.pet._attackUntil = performance.now() + (def.attackAnimMs || 260);
 
   // 🔽 anim FX della mossa dal nuovo atlas 32x32
+  if (MOVES[moveKey]?.fxOnUse !== false) {
   arenaAPI.playMoveAnim(moveKey, p);
+}
 
   const res = def.run(arenaAPI, p) || { damageDealt: 0 };
   if (res.damageDealt > 0) {

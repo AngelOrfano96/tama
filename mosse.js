@@ -52,6 +52,7 @@ export const MOVES = {
     label: 'Lancio Palla',
     icon: { c:12, r:5, w:1, h:1 },
     cooldownMs: 3500,
+    fxOnUse: false,
     fx: {
       tile: 32,
       fps: 14,

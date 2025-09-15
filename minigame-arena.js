@@ -2356,7 +2356,7 @@ function render() {
       ctx.fill();
       ctx.restore();
     }
-
+/*
     // ombra ellittica
     ctx.save();
     ctx.globalAlpha = 0.25;
@@ -2370,7 +2370,7 @@ function render() {
       0, 0, Math.PI * 2
     );
     ctx.fill();
-    ctx.restore();
+    ctx.restore(); */
 
     // sprite (atlas) o fallback rect — con scala mobile
     const basePad = 8;

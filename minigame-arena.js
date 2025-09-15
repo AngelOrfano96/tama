@@ -337,7 +337,7 @@ function spawnMoveFX(moveKey, self) {
 }
 
 // e lascia invariato:
-arenaAPI.playMoveAnim = (moveKey, self) => spawnMoveFX(moveKey, self);
+//arenaAPI.playMoveAnim = (moveKey, self) => spawnMoveFX(moveKey, self);
 
 
 /** Mappa “mossa → sequenze per direzione”.
@@ -3429,7 +3429,7 @@ applyDamage(target, dmg){
   },
 };
 
-
+arenaAPI.playMoveAnim = (moveKey, self) => spawnMoveFX(moveKey, self);
 
 
 // direzione -> vettore normalizzato

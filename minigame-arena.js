@@ -227,6 +227,7 @@ const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
     tile: Cfg.baseMoveTile,
       joy: { active:false, vx:0, vy:0 },
       aim: { x: 0, y: 1 },
+      _aim: null,
 
 
     // stat pet
@@ -351,6 +352,7 @@ function drawHUDInCanvas() {
   ctx.restore();
 }
 
+window.ARENA_AUTOAIM = { enabled: true, maxAngleDeg: 16, maxDistTiles: 6 };
 
 function resizeCanvas() {
   if (!DOM.canvas) return;
@@ -1329,6 +1331,45 @@ function loadImg(src){
     img.src = src;
   });
 }
+function normalizeVec(v){
+  const l = Math.hypot(v.x, v.y) || 1;
+  return { x: v.x / l, y: v.y / l };
+}
+function currentAim(){
+  const v = G._aim || G.aim || facingToVec(G.pet.facing || 'down');
+  return normalizeVec(v);
+}
+
+// (FACOLTATIVO) Auto-aim leggero verso il nemico più “in linea”
+const AUTOAIM = { enabled: false, maxAngleDeg: 18, maxDistTiles: 6 };
+
+function assistedDir(base){
+  if (!AUTOAIM.enabled) return base;
+  const aBase = Math.atan2(base.y, base.x);
+  const distMaxPx = AUTOAIM.maxDistTiles * G.tile;
+
+  let bestAngDiff = Infinity;
+  let bestAngle   = null;
+
+  for (const e of (G.enemies || [])){
+    const dx = (e.px + G.tile/2) - (G.pet.px + G.tile/2);
+    const dy = (e.py + G.tile/2) - (G.pet.py + G.tile/2);
+    const d  = Math.hypot(dx, dy);
+    if (d > distMaxPx) continue;
+
+    let da = Math.atan2(dy, dx) - aBase;
+    while (da >  Math.PI) da -= 2*Math.PI;
+    while (da < -Math.PI) da += 2*Math.PI;
+
+    const abs = Math.abs(da);
+    if (abs < bestAngDiff) { bestAngDiff = abs; bestAngle = aBase + da; }
+  }
+
+  const max = AUTOAIM.maxAngleDeg * Math.PI / 180;
+  if (bestAngle == null || bestAngDiff > max) return base;
+
+  return { x: Math.cos(bestAngle), y: Math.sin(bestAngle) };
+}
 
 // === PRELOAD risorse Arena con progress ========================
 async function preloadArenaResources(update){
@@ -1516,6 +1557,15 @@ G.pet.moving = !!(Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01);
 if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
   G.aim = { x: dx, y: dy };
 }
+// === AIM: deadzone + smoothing ===
+const DZ = 0.15; // ignora micro-movimenti
+if (Math.hypot(dx, dy) > DZ) {
+  G.aim = { x: dx, y: dy };        // aggiorna la mira solo se sopra la deadzone
+}
+if (!G._aim) G._aim = { x: G.aim.x, y: G.aim.y };  // init una volta
+const LERP = 0.20; // 0..1 (più alto = più “reattivo”)
+G._aim.x += (G.aim.x - G._aim.x) * LERP;
+G._aim.y += (G.aim.y - G._aim.y) * LERP;
 
 
 // facing
@@ -3200,35 +3250,76 @@ function facingToVec(face){
        :                     {x: 0, y:-1};
 }
 arenaAPI.spawnProjectile = function(spec){
-  // helper: normalizza un vettore
+  // normalizza un vettore {x,y}
   const norm = (v) => {
-    const len = Math.hypot(v.x || 0, v.y || 0) || 1;
-    return { x: (v.x || 0)/len, y: (v.y || 0)/len };
+    const len = Math.hypot(v?.x || 0, v?.y || 0) || 1;
+    return { x: (v?.x || 0)/len, y: (v?.y || 0)/len };
   };
+  const hasVec = (v) => !!v && (Math.abs(v.x) > 1e-6 || Math.abs(v.y) > 1e-6);
 
-  // 1) priorità: spec.dir (vettore), 2) spec.angle (radianti), 3) mira G.aim, 4) facing cardinale
-  let dir = null;
-  if (spec.dir && (spec.dir.x || spec.dir.y)) {
-    dir = norm(spec.dir);
+  // 1) priorità: dir esplicita → angle → mira smussata → mira grezza → facing
+  let aim;
+  if (hasVec(spec.dir)) {
+    aim = norm(spec.dir);
   } else if (Number.isFinite(spec.angle)) {
-    dir = { x: Math.cos(spec.angle), y: Math.sin(spec.angle) };
-  } else if (G?.aim && (G.aim.x || G.aim.y)) {
-    dir = norm(G.aim);
+    aim = { x: Math.cos(spec.angle), y: Math.sin(spec.angle) };
+  } else if (hasVec(G?._aim)) {
+    aim = norm(G._aim);
+  } else if (hasVec(G?.aim)) {
+    aim = norm(G.aim);
   } else {
-    dir = facingToVec(spec.facing || 'right'); // fallback legacy
+    aim = facingToVec(spec.facing || G.pet?.facing || 'right');
   }
+
+  // 2) (OPZIONALE) auto-aim leggero verso un nemico vicino alla direzione
+  //    Attivalo impostando window.ARENA_AUTOAIM = { enabled:true, maxAngleDeg:18, maxDistTiles:6 }
+  const AA = (window.ARENA_AUTOAIM) || { enabled:false, maxAngleDeg:18, maxDistTiles:6 };
+  if (AA.enabled && Array.isArray(G.enemies) && G.enemies.length) {
+    const baseA   = Math.atan2(aim.y, aim.x);
+    const maxAng  = (AA.maxAngleDeg ?? 18) * Math.PI / 180;
+    const maxDist = (AA.maxDistTiles ?? 6) * G.tile;
+
+    const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
+    let bestDa = Infinity, bestAngle = null;
+
+    for (const e of G.enemies) {
+      if (!e || e.hp <= 0) continue;
+      const dx = (e.px + G.tile/2) - sx;
+      const dy = (e.py + G.tile/2) - sy;
+      const d  = Math.hypot(dx, dy);
+      if (d > maxDist) continue;
+
+      let ang = Math.atan2(dy, dx);
+      let da  = ang - baseA;
+      while (da >  Math.PI) da -= 2*Math.PI;
+      while (da < -Math.PI) da += 2*Math.PI;
+
+      const abs = Math.abs(da);
+      if (abs < bestDa) { bestDa = abs; bestAngle = ang; }
+    }
+    if (bestAngle != null && bestDa <= maxAng) {
+      aim = { x: Math.cos(bestAngle), y: Math.sin(bestAngle) };
+    }
+  }
+
+  // 3) spawn
+  const speed     = spec.speed     ?? 500;
+  const maxDistPx = Math.max(1, spec.maxDistPx ?? (6 * G.tile));
+  const radiusPx  = Math.max(2, spec.radiusPx  ?? (0.25 * G.tile));
+  const basePower = Math.max(1, spec.basePower ?? 50);
 
   G.projectiles.push({
     x: spec.x, y: spec.y,
-    vx: dir.x * (spec.speed || 500),
-    vy: dir.y * (spec.speed || 500),
-    leftPx: Math.max(1, spec.maxDistPx || (6 * G.tile)),
-    r: Math.max(2, spec.radiusPx || (0.25 * G.tile)),
-    base: Math.max(1, spec.basePower || 50),
+    vx: aim.x * speed,
+    vy: aim.y * speed,
+    leftPx: maxDistPx,
+    r: radiusPx,
+    base: basePower,
     pierce: !!spec.pierce,
     hitSet: new WeakSet(),
   });
 };
+
 
 function angleTo(ax,ay,bx,by){ return Math.atan2(by - ay, bx - ax); }
 function hurtPetRaw(dmg){

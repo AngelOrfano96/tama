@@ -2611,36 +2611,49 @@ for (const d of G.drops){
 }
 // --- PROJECTILES ---
 for (const p of G.projectiles) {
-  // sprite per la palla usando i frame di MOVES.ball.fx
-  if (p.kind === 'ball' && G.sprites.petMovesSheet?.complete) {
-    const fx = MOVES.ball?.fx;
-    const frames = fx?.right || [];
-    const tile = fx?.tile || 32;
-    if (frames.length) {
-      // anima il proiettile riusando l'fps dell'FX
-      const fps = fx?.fps || 14;
-      const idx = ((performance.now() * 0.001 * fps) | 0) % frames.length;
+  // --- SKIN: ball con sprite dall’atlas mosse ---
+  if (
+    p.kind === 'ball' &&
+    G.sprites.petMovesSheet?.complete &&
+    MOVES.ball?.fx?.right?.length
+  ) {
+    const fx   = MOVES.ball.fx;
+    const seq  = fx.right;             // usiamo la sequenza right e ruotiamo
+    const tile = fx.tile || 32;
+    const fps  = fx.fps  || 14;
+    const idx  = ((performance.now() * 0.001 * fps) | 0) % seq.length;
+    const fr   = cellToRect(seq[idx], tile);
 
-      // helper già presente nel tuo codice
-      const rect = cellToRect(frames[idx], tile);
+    // dimensione visiva del proiettile (puoi tararla)
+    const size = G.tile * 0.55;
 
-      const size = G.tile * 0.55;             // diametro visivo del proiettile
-      const ang  = Math.atan2(p.vy, p.vx);
+    // ruota verso la direzione di viaggio
+    const ang = Math.atan2(p.vy, p.vx);
 
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(ang);
-      ctx.drawImage(
-        G.sprites.petMovesSheet,
-        rect.sx, rect.sy, rect.sw, rect.sh,
-        -size/2, -size/2, size, size
-      );
-      ctx.restore();
+    // scia leggera (facoltativa)
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 1.25, 0, Math.PI * 2);
+    ctx.fillStyle = '#93c5fd';
+    ctx.fill();
+    ctx.restore();
 
-      continue; // salta il disegno "a sfera" default
-    }
+    // sprite del proiettile
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(ang);
+    ctx.drawImage(
+      G.sprites.petMovesSheet,
+      fr.sx, fr.sy, fr.sw, fr.sh,
+      -size/2, -size/2, size, size
+    );
+    ctx.restore();
+
+    continue; // 👈 evita di disegnare la “sfera” di fallback
   }
-  // scia semplice
+
+  // --- fallback: sfera vecchio stile ---
   ctx.save();
   ctx.globalAlpha = 0.25;
   ctx.beginPath();
@@ -2649,7 +2662,6 @@ for (const p of G.projectiles) {
   ctx.fill();
   ctx.restore();
 
-  // palla
   ctx.save();
   const grad = ctx.createRadialGradient(p.x, p.y, p.r*0.1, p.x, p.y, p.r);
   grad.addColorStop(0, '#f8fafc');
@@ -2660,6 +2672,7 @@ for (const p of G.projectiles) {
   ctx.fill();
   ctx.restore();
 }
+
 
 
 // --- Enemy bullets ---

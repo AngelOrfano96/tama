@@ -74,7 +74,7 @@ export const MOVES = {
         basePower: 50,
         pierce: true,
         // opzionale: vedi sezione 3 per sprite del proiettile
-        // kind: 'ball'
+        kind: 'ball'
       });
       return { damageDealt: 0 };
     }

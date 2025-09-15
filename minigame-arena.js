@@ -692,6 +692,12 @@ function registerMoveIcon(moveKey, c, r, w=1, h=1){
   MOVE_ICON_MAP[moveKey] = { c, r, w, h };
 }
 
+// dopo che esiste registerMoveIcon e hai importato MOVES:
+Object.entries(MOVES).forEach(([key, m]) => {
+  if (m?.icon) registerMoveIcon(key, m.icon.c, m.icon.r, m.icon.w || 1, m.icon.h || 1);
+});
+
+
 function getMoveIconRect(moveKey){
   const m = MOVE_ICON_MAP[moveKey];
   if (!m) return null;
@@ -2605,6 +2611,35 @@ for (const d of G.drops){
 }
 // --- PROJECTILES ---
 for (const p of G.projectiles) {
+  // sprite per la palla usando i frame di MOVES.ball.fx
+  if (p.kind === 'ball' && G.sprites.petMovesSheet?.complete) {
+    const fx = MOVES.ball?.fx;
+    const frames = fx?.right || [];
+    const tile = fx?.tile || 32;
+    if (frames.length) {
+      // anima il proiettile riusando l'fps dell'FX
+      const fps = fx?.fps || 14;
+      const idx = ((performance.now() * 0.001 * fps) | 0) % frames.length;
+
+      // helper già presente nel tuo codice
+      const rect = cellToRect(frames[idx], tile);
+
+      const size = G.tile * 0.55;             // diametro visivo del proiettile
+      const ang  = Math.atan2(p.vy, p.vx);
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(ang);
+      ctx.drawImage(
+        G.sprites.petMovesSheet,
+        rect.sx, rect.sy, rect.sw, rect.sh,
+        -size/2, -size/2, size, size
+      );
+      ctx.restore();
+
+      continue; // salta il disegno "a sfera" default
+    }
+  }
   // scia semplice
   ctx.save();
   ctx.globalAlpha = 0.25;
@@ -2625,6 +2660,8 @@ for (const p of G.projectiles) {
   ctx.fill();
   ctx.restore();
 }
+
+
 // --- Enemy bullets ---
 // --- Enemy bullets ---
 for (const p of G.enemyProjectiles) {

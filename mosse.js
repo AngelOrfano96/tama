@@ -55,13 +55,13 @@ export const MOVES = {
     fx: {
       tile: 32,
       fps: 14,
-      sizeMul: 1.0,
-      offsetTiles: 0.45,
+      sizeMul: 1.10,
+      offsetTiles: 0.35,
       // esempio: 4 frame in riga 0, colonne 0..3 (cambiali coi tuoi reali)
-      right: [ [0,0], [1,0], [2,0], [3,0] ],
-      left: 'mirror:right'
+      right: [ [11,9], [12,9], [13,9], [14,9] ],
+      left: 'mirror:right',
     },
-    run(api, self) {
+     run(api, self) {
       const t = api.tileSize();
       api.spawnProjectile?.({
         owner: 'pet',
@@ -72,7 +72,9 @@ export const MOVES = {
         maxDistPx: 7 * t,
         radiusPx: t * 0.28,
         basePower: 50,
-        pierce: true
+        pierce: true,
+        // opzionale: vedi sezione 3 per sprite del proiettile
+        // kind: 'ball'
       });
       return { damageDealt: 0 };
     }

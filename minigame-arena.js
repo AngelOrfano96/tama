@@ -3429,56 +3429,9 @@ applyDamage(target, dmg){
   },
 };
 
-function resolveMoveFrames(key, facing) {
-  const def = MOVE_FX_DB[key];
-  if (!def) return null;
 
-  // prendi la direzione richiesta, con fallback a right
-  let seq = def[facing] || def.right;
-  let flip = false;
 
-  // supporta 'mirror:qualcosa' (flip orizzontale)
-  if (typeof seq === 'string' && seq.startsWith('mirror:')) {
-    const base = seq.split(':')[1] || 'right';
-    seq = def[base] || def.right || [];
-    flip = true;
-  }
-  if (!seq || !seq.length) return null;
-  return { frames: seq, meta: { fps:def.fps||10, sizeMul:def.sizeMul||1, offsetTiles:def.offsetTiles||0.3, flip } };
-}
 
-function spawnMoveFX(key, self) {
-  const sheet = G.sprites.petMovesSheet;
-  if (!hasImg(sheet)) return;
-
-  const face = self.facing || 'right';
-  const resolved = resolveMoveFrames(key, face) || resolveMoveFrames(key, 'right');
-  if (!resolved) return;
-
-  const { frames, meta } = resolved;
-  const tile = G.tile;
-  const size = tile * meta.sizeMul;
-  const off  = (tile - size) / 2;
-
-  // posizione: davanti al pet
-  const v = facingToVec(face);
-  const px = self.px + off + v.x * (meta.offsetTiles * tile);
-  const py = self.py + off + v.y * (meta.offsetTiles * tile);
-
-  G.fxSprites.push({
-    sheet,
-    frames,
-    flip: meta.flip || false,
-    x: px, y: py, w: size, h: size,
-    fps: meta.fps || 10,
-    born: performance.now(),
-    life: frames.length / (meta.fps || 10), // durata in secondi
-    followPet: false, // se vuoi che segua il pet, metti true
-  });
-}
-
-// esponi nell’API dell’arena (così la chiami dalle mosse)
-arenaAPI.playMoveAnim = (moveKey, self) => spawnMoveFX(moveKey, self);
 // direzione -> vettore normalizzato
 function facingToVec(face){
   return face === 'right' ? {x: 1, y: 0}

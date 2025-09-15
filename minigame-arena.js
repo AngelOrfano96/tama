@@ -1350,15 +1350,7 @@ async function preloadArenaResources(update){
                   /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent)
                   ? 'assets/mobile' : 'assets/desktop';
   const petNum    = detectPetNumFromDom();
-  steps.push({
-  label: 'Atlas mosse pet',
-  kind:  'img',
-  src:   `${atlasBase}/pet_${petNum}_moves.png`, // <-- il tuo file per-pet
-  apply: ({img, ok}) => {
-    if (!ok) { console.warn('[FX] atlas mosse mancante per pet', petNum); return; }
-    G.sprites.petMoveFX = { sheet: img, tile: 32 };
-  }
-});
+
   const atlasSpec = PET_ATLASES[String(petNum)] || null;
 
   const steps = [
@@ -1400,7 +1392,15 @@ async function preloadArenaResources(update){
   apply: ({img}) => { G.sprites.petMovesSheet = img; } },
 
   ];
-
+  steps.push({
+  label: 'Atlas mosse pet',
+  kind:  'img',
+  src:   `${atlasBase}/pet_${petNum}_moves.png`, // <-- il tuo file per-pet
+  apply: ({img, ok}) => {
+    if (!ok) { console.warn('[FX] atlas mosse mancante per pet', petNum); return; }
+    G.sprites.petMoveFX = { sheet: img, tile: 32 };
+  }
+});
   // --- PET: se c'è un atlas definito, carica SOLO quello; altrimenti i PNG legacy
   const petImgs = {};
   if (atlasSpec) {

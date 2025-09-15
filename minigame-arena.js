@@ -2625,7 +2625,8 @@ for (const p of G.projectiles) {
     const fr   = cellToRect(seq[idx], tile);
 
     // dimensione visiva del proiettile (puoi tararla)
-    const size = G.tile * 0.55;
+    const size = Math.max(p.r * 2.2, G.tile * 0.45);
+
 
     // ruota verso la direzione di viaggio
     const ang = Math.atan2(p.vy, p.vx);
@@ -3543,7 +3544,7 @@ arenaAPI.spawnProjectile = function(spec){
   }
 
   // 3) spawn
-  const speed     = spec.speed     ?? 500;
+ const speed     = spec.speed     ?? 500;
   const maxDistPx = Math.max(1, spec.maxDistPx ?? (6 * G.tile));
   const radiusPx  = Math.max(2, spec.radiusPx  ?? (0.25 * G.tile));
   const basePower = Math.max(1, spec.basePower ?? 50);
@@ -3556,6 +3557,8 @@ arenaAPI.spawnProjectile = function(spec){
     r: radiusPx,
     base: basePower,
     pierce: !!spec.pierce,
+    kind: spec.kind || null,        // 👈 **IMPORTANTE**
+    bornAt: performance.now(),      // (opzionale)
     hitSet: new WeakSet(),
   });
 };

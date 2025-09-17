@@ -930,6 +930,45 @@ function buildSpiderFromAtlas() {
     }
   };
 }
+function buildSniperFromAtlas() {
+  const img = G.sprites.sniperSheet;
+  if (!img) return;
+  console.log('[SNIPER] atlas ready');
+
+  // Mappa righe: (0..5 = idle su 2 righe da 3 frame, 2..4 walk, 5..7 atk) come da tua descrizione
+  // Prima e seconda riga: idle (3 frame ciascuna)
+  // Terza: walk down (4), Quarta: walk right (4), Quinta: walk up (4)
+  // Sesta: atk down (4), Settima: atk right (4), Ottava: atk up (4)
+
+  const mkRow = (r, cols)=> cols.map(c=> gPick(c,r));
+  const mkPairs = (pairs)=> pairs.map(([c,r])=> gPick(c,r));
+
+  // idle: prendo 3 frame dalla riga 0 e 3 dalla riga 1
+  const idleDown = mkRow(0, [0,1,2]);   // 3 frame
+  const idleRight= mkRow(1, [0,1,2]);   // 3 frame
+  const idleUp   = mkRow(1, [0,1,2]);   // riciclo per coerenza visiva (non critico)
+
+  G.sprites.sniperFrames = {
+    idle: {
+      down: idleDown,
+      right: idleRight,
+      up: idleUp,
+      left: idleRight  // poi flip a disegno
+    },
+    walk: {
+      down:  mkRow(2, [0,1,2,3]),
+      right: mkRow(3, [0,1,2,3]),
+      up:    mkRow(4, [0,1,2,3]),
+      left:  mkRow(3, [0,1,2,3]), // flip a disegno
+    },
+    attack: {
+      down:  mkRow(5, [0,1,2,3]),
+      right: mkRow(6, [0,1,2,3]),
+      up:    mkRow(7, [0,1,2,3]),
+      left:  mkRow(6, [0,1,2,3]), // flip a disegno
+    }
+  };
+}
 
 function buildGoblinFromAtlas() {
   const cfg = {
@@ -1289,6 +1328,20 @@ function makeSpider(scale = 1){ return makeSpiderSmall(scale); }
 function makeBigSpider(scale = 1) { 
   return makeSpiderBig(scale); 
 }
+function makeSniper(scale = 1) {
+  const hp = Math.round(50 * scale);
+  return {
+    type: 'sniper',
+    hp, hpMax: hp,
+    atkP: Math.round(55 * scale),
+    defP: Math.round(42 * scale),
+    spdMul: 0.85 * scale,
+    x:0, y:0, px:0, py:0,
+    state: 'idle',
+    tState: 0,
+    _shotCD: 0
+  };
+}
 
 
   function makeGoblin(scale = 1) {
@@ -1466,7 +1519,15 @@ async function preloadArenaResources(update){
       apply: ({img}) => { G.sprites.bossSheet = img; buildBossFromAtlas?.(); } },
     { label:'Nemico ragno', kind:'img', src:`${enemyAtlasBase}/chara_spider.png`,
       apply: ({img}) => { G.sprites.spiderSheet = img; buildSpiderFromAtlas?.(); } },
+          { label:'Nemico cecchino', kind:'img', src:`${enemyAtlasBase}/chara_goblin_sniper.png`,
+      apply: ({img}) => { G.sprites.sniperSheet = img; buildSniperFromAtlas?.(); } },
 
+    { label:'Proiettile freccia', kind:'img', src:`${enemyAtlasBase}/projectille_arrow.png`,
+      apply: ({img}) => {
+        G.sprites.arrowSheet = img;
+        // config di base per lo sprite freccia (5 colonne; 6 righe: 0=N, 3=E, 5=S)
+        G.arrowCfg = { cols: 5, rows: 6, holdMs: 140, fps: 12 };
+      } },
   ];
 steps.push({
   label: 'Atlas mosse pet',
@@ -1842,6 +1903,49 @@ if (e.type === 'spider_big') {
   updateBigSpider(e, dt);
   continue;
 }
+// --- AI dedicata: SNIPER (ranged con micro-kite) ---
+if (e.type === 'sniper') {
+  const basePet = isMobile ? Cfg.petBaseSpeedMobile : Cfg.petBaseSpeedDesktop;
+  const enemySpd = basePet * (EnemyTuning.spdMul || 0.65) * (e.spdMul || 1);
+
+  const vx = G.pet.px - e.px, vy = G.pet.py - e.py;
+  const d = Math.hypot(vx, vy) || 1;
+  const nx = vx / d, ny = vy / d;
+  const dTiles = d / G.tile;
+
+  // distanza preferita: 4–6 tile
+  const minKeep = 4.0, maxKeep = 6.0;
+  if (dTiles < minKeep) {
+    // allontanati
+    e.px -= nx * enemySpd * dt;
+    e.py -= ny * enemySpd * dt;
+  } else if (dTiles > maxKeep) {
+    // avvicinati leggermente (non troppo)
+    e.px += nx * enemySpd * 0.60 * dt;
+    e.py += ny * enemySpd * 0.60 * dt;
+  }
+  clampToBounds(e);
+
+  // facing per animazioni
+  e.facing = (Math.abs(vx) > Math.abs(vy))
+    ? (vx >= 0 ? 'right' : 'left')
+    : (vy >= 0 ? 'down'  : 'up');
+
+  // cadenza di tiro (base 1.8s, scala un filo con le wave)
+  if (e._shotCD == null) e._shotCD = 1.8;
+  e._shotCD -= dt;
+  if (e._shotCD <= 0) {
+    const x = e.px + G.tile/2, y = e.py + G.tile/2;
+    const ang = Math.atan2(vy, vx);
+    spawnEnemyArrow(x, y, ang, { speed: 420, r: Math.round(G.tile*0.22), maxDistPx: 7 * G.tile });
+    e.state = 'attack';
+    e.tState = 0;
+    e._shotCD = 1.8; // puoi poi scalare con la wave
+  } else {
+    e.state = (Math.abs(nx)+Math.abs(ny) > 0.02) ? 'walk' : 'idle';
+  }
+  continue;
+}
 
   // FSM
   switch (e.state) {
@@ -1959,28 +2063,52 @@ if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
   }
 }
 // --- ENEMY PROJECTILES (colpiscono il pet) ---
+// --- ENEMY PROJECTILES (colpiscono il pet) ---
 {
   const t = G.tile;
   const petX = G.pet.px + t/2, petY = G.pet.py + t/2;
   const pr = t * 0.32; // raggio “pet”
   const B = getPlayBounds();
+  const now = performance.now();
 
   for (let i=G.enemyProjectiles.length-1; i>=0; i--){
     const p = G.enemyProjectiles[i];
+
+    // se è “piantata” (stuck), non si muove: scade dopo stuckUntil
+    if (p.kind === 'arrow' && p.stuckUntil > 0) {
+      if (now >= p.stuckUntil) { G.enemyProjectiles.splice(i,1); continue; }
+      // resta disegnata, niente collisioni
+      continue;
+    }
+
+    // movimento
     const dx = p.vx * dt, dy = p.vy * dt;
     p.x += dx; p.y += dy;
     p.leftPx -= Math.hypot(dx,dy);
-    // fuori
-    if (p.leftPx <= 0 || p.x < B.minX || p.x > B.maxX || p.y < B.minY || p.y > B.maxY){
-      G.enemyProjectiles.splice(i,1); continue;
+
+    // fuori / esaurita
+    const out = (p.leftPx <= 0 || p.x < B.minX || p.x > B.maxX || p.y < B.minY || p.y > B.maxY);
+    if (out) {
+      if (p.kind === 'arrow') {
+        // si “pianta” nell’ultimo frame per 3s
+        p.vx = p.vy = 0;
+        p.stuckUntil = now + 3000;
+        p.leftPx = 1e9; // ignora
+        continue;
+      } else {
+        G.enemyProjectiles.splice(i,1); continue;
+      }
     }
+
     // colpisce il pet?
     if (Math.hypot(p.x - petX, p.y - petY) <= (p.r + pr)){
       hurtPetRaw(p.dmg);
+      // on-hit cleanup immediato per freccia
       G.enemyProjectiles.splice(i,1);
     }
   }
- }
+}
+
 
   updateGates(dt);
 
@@ -2224,6 +2352,13 @@ function spawnWaveViaGates(n){
   for (let i = 0; i < count; i++) blue.push(makeGoblin(scale));
   for (let i = 0; i < bats;  i++) blue.push(makeBat(Math.max(1, scale * 0.95)));
 
+  // TEMP: qualche cecchino per test (rimuoveremo quando attiviamo i pattern)
+if (n % 5 !== 0) {
+  const snipers = Math.min(1 + Math.floor(n/6), 3); // 1→3 pezzi con la progressione
+  for (let i = 0; i < snipers; i++) blue.push(makeSniper(Math.max(1, scale * 0.95)));
+}
+
+
   let spawned = 0, gateIdx = 0;
   const SPACING_TILES = 0.90;
 
@@ -2258,6 +2393,9 @@ function spawnWaveViaGates(n){
   }
   return spawned;
 }
+
+
+
 
 // --- BOSS: spawn “drop dall’alto” per la wave n ---
 function spawnBossForWave(n){
@@ -2509,11 +2647,13 @@ function render() {
     const ey   = e.py + eoff;
 
     // selezione sheet + frames in stile Treasure
-    let sheet = null, FR = null;
-    if (e.type === 'goblin') { sheet = G.sprites.goblinSheet; FR = G.sprites.goblinFrames; }
+   let sheet = null, FR = null;
+if (e.type === 'goblin') { sheet = G.sprites.goblinSheet; FR = G.sprites.goblinFrames; }
 else if (e.type === 'bat') { sheet = G.sprites.batSheet; FR = G.sprites.batFrames; }
 else if (e.type === 'spider' || e.type === 'spider_big') { sheet = G.sprites.spiderSheet; FR = G.sprites.spiderFrames; }
+else if (e.type === 'sniper') { sheet = G.sprites.sniperSheet; FR = G.sprites.sniperFrames; }
 if (e.type === 'boss') { sheet = G.sprites.bossSheet; FR = G.sprites.bossFrames; }
+
 
 
 
@@ -2677,43 +2817,72 @@ for (const p of G.projectiles) {
 
 
 // --- Enemy bullets ---
-// --- Enemy bullets ---
 for (const p of G.enemyProjectiles) {
-  const isWeb = (p.kind === 'web');
+  if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
+    const cfg = p.cfg || { cols:5, rows:6, holdMs:140, fps:12 };
+    const fw = Math.round(G.sprites.arrowSheet.naturalWidth / cfg.cols);
+    const fh = Math.round(G.sprites.arrowSheet.naturalHeight / cfg.rows);
 
-  // scia (coda)
+    // anim: primo frame “lungo”, poi scorre; se stuck → ultimo frame
+    let frameIdx = 0;
+    if (p.stuckUntil > 0) {
+      frameIdx = p.lastFrame; // piantata: ultimo frame
+    } else {
+      const elapsed = performance.now() - p.bornAt;
+      if (elapsed <= cfg.holdMs) frameIdx = 0;
+      else {
+        const t = (elapsed - cfg.holdMs) / (1000 / (cfg.fps || 12));
+        frameIdx = 1 + Math.floor(t) % (cfg.cols - 1); // 1..4
+      }
+      // verso S: ordine invertito (5 frame → 4..0)
+      if (p.dir === 'S') {
+        const seq = [4,3,2,1,0];
+        frameIdx = seq[Math.min(seq.length-1, frameIdx)];
+      }
+    }
+
+    const sx = frameIdx * fw;
+    const sy = p.rowIdx * fh;
+
+    // dimensione visiva
+    const size = Math.max(12, Math.round(G.tile * 0.55));
+    const dx = p.x - size/2, dy = p.y - size/2;
+
+    // East/W = flip su X
+    const flipX = (p.dir === 'W');
+    ctx.save();
+    if (flipX) {
+      ctx.translate(p.x + size/2, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-(p.x + size/2), 0);
+    }
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(G.sprites.arrowSheet, sx, sy, fw, fh, dx, dy, size, size);
+    ctx.restore();
+
+    continue; // evita il disegno “pallina” sottostante
+  }
+
+  // --- (resto) proiettili generici esistenti ---
+  const isWeb = (p.kind === 'web');
   ctx.save();
   ctx.globalAlpha = 0.25;
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.r * 1.25, 0, Math.PI * 2);
-  ctx.fillStyle = isWeb ? 'rgba(203,213,225,0.8)' /* slate-300 */
-                        : '#f87171';              /* rosso */
+  ctx.fillStyle = isWeb ? 'rgba(203,213,225,0.8)' : '#f87171';
   ctx.fill();
   ctx.restore();
 
-  // corpo del proiettile
   ctx.save();
   const g = ctx.createRadialGradient(p.x, p.y, p.r * 0.1, p.x, p.y, p.r);
-  if (isWeb) {
-    g.addColorStop(0, '#f8fafc');  // quasi bianco
-    g.addColorStop(1, '#94a3b8');  // slate-400
-  } else {
-    g.addColorStop(0, '#fff1f2');  // chiaro rosato
-    g.addColorStop(1, '#ef4444');  // rosso
-  }
+  if (isWeb) { g.addColorStop(0, '#f8fafc'); g.addColorStop(1, '#94a3b8'); }
+  else { g.addColorStop(0, '#fff1f2'); g.addColorStop(1, '#ef4444'); }
   ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-  ctx.fill();
-
-  // sottile bordo per le ragnatele (maggior leggibilità)
-  if (isWeb) {
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(226,232,240,0.9)'; // gray-200
-    ctx.stroke();
-  }
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  if (isWeb) { ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(226,232,240,0.9)'; ctx.stroke(); }
   ctx.restore();
 }
+
 
 
 // --- PET (atlas o PNG legacy) ---
@@ -3588,6 +3757,46 @@ function spawnEnemyBullet(x, y, angle, opts = {}) {
   });
 }
 
+function cardinalFromAngle(a){
+  const pi = Math.PI, q = pi/4;
+  const dirs = ['E','NE','N','NW','W','SW','S','SE']; // ci serve N/E/S/W
+  const idx = Math.round(((a % (2*pi)) + 2*pi) % (2*pi) / q) % 8;
+  const d = dirs[idx];
+  if (d.includes('N')) return 'N';
+  if (d.includes('S')) return 'S';
+  if (d.includes('E')) return 'E';
+  return 'W';
+}
+
+function spawnEnemyArrow(x, y, angle, opts = {}) {
+  // requisiti: G.sprites.arrowSheet e G.arrowCfg
+  const sheet = G.sprites.arrowSheet;
+  const cfg   = G.arrowCfg || { cols:5, rows:6, holdMs:140, fps:12 };
+  if (!sheet || !sheet.complete) return;
+
+  const dir = cardinalFromAngle(angle); // 'N','E','S','W'
+  const speed = opts.speed ?? 420;
+  const r     = opts.r ?? Math.round(G.tile * 0.22);
+  const maxD  = opts.maxDistPx ?? (7 * G.tile);
+
+  // righe: 0 = N, 3 = E, (W = flip di E), 5 = S (ordine invertito)
+  const rowIdx = (dir === 'N') ? 0 : (dir === 'E' || dir === 'W') ? 3 : 5;
+  const bornAt = performance.now();
+
+  G.enemyProjectiles.push({
+    kind: 'arrow',
+    sheet, cfg,
+    dir, rowIdx,
+    x, y, r,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    dmg: 8,                          // ← danno fisso richiesto
+    leftPx: maxD,
+    bornAt,
+    stuckUntil: 0,                   // quando >0 diventa “piantata”
+    lastFrame: cfg.cols - 1,         // 0..4
+  });
+}
 
 
 // 3) uso: le chiavi arrivano dalla home (equip A/B)

@@ -3738,7 +3738,22 @@ arenaAPI.spawnProjectile = function(spec){
 };
 
 
-function angleTo(ax,ay,bx,by){ return Math.atan2(by - ay, bx - ax); }
+function angleTo(ax,ay,bx,by){
+  return Math.atan2(by - ay, bx - ax); 
+}
+function cardinalFromAngle(a){
+  // normalizza in [-π, π]
+  while (a >  Math.PI) a -= 2*Math.PI;
+  while (a < -Math.PI) a += 2*Math.PI;
+
+  const deg = a * 180 / Math.PI; // 0=destra, +90=GIÙ (schermo), -90=SU
+
+  if (deg >= -45 && deg < 45)   return 'E'; // destra
+  if (deg >= 45  && deg < 135)  return 'S'; // GIÙ   ✅
+  if (deg >= 135 || deg < -135) return 'W'; // sinistra
+  return 'N';                                  // SU
+}
+
 function hurtPetRaw(dmg){
   const now = performance.now();
   if (now <= G.pet.iFrameUntil) return false;

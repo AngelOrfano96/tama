@@ -1522,7 +1522,7 @@ async function preloadArenaResources(update){
           { label:'Nemico cecchino', kind:'img', src:`${enemyAtlasBase}/chara_goblin_sniper.png`,
       apply: ({img}) => { G.sprites.sniperSheet = img; buildSniperFromAtlas?.(); } },
 
-    { label:'Proiettile freccia', kind:'img', src:`${enemyAtlasBase}/projectille_arrow.png`,
+    { label:'Proiettile freccia', kind:'img', src:`${enemyAtlasBase}/projectile_arrow.png`,
       apply: ({img}) => {
         G.sprites.arrowSheet = img;
         // config di base per lo sprite freccia (5 colonne; 6 righe: 0=N, 3=E, 5=S)

@@ -1526,7 +1526,7 @@ async function preloadArenaResources(update){
       apply: ({img}) => {
         G.sprites.arrowSheet = img;
         // config di base per lo sprite freccia (5 colonne; 6 righe: 0=N, 3=E, 5=S)
-        G.arrowCfg = { cols: 5, rows: 6, holdMs: 140, fps: 12 };
+        G.arrowCfg = { cols: 5, rows: 8, holdMs: 140, fps: 12 };
       } },
   ];
 steps.push({
@@ -2821,19 +2821,19 @@ for (const p of G.enemyProjectiles) {
     const sheet = G.sprites.arrowSheet;
 
     // atlas freccia: 5 colonne x 6 righe
-    const cols = 5;
-    const tileW = (sheet.naturalWidth / cols) | 0;
-    const tileH = (sheet.naturalHeight / 6) | 0;
+   const cols = G.arrowCfg?.cols || 5;
+const rows = G.arrowCfg?.rows || 8;
+const tileW = (sheet.naturalWidth  / cols) | 0;
+const tileH = (sheet.naturalHeight / rows) | 0;
+
 
     // Sequenze per direzione
-    let row, seq;
-    switch (p.dir) {
-      case 'N': row = 0; seq = [0,1,2,3,4]; break;          // ↑
-      case 'E': row = 3; seq = [0,1,2,3,4]; break;          // →
-      case 'W': row = 3; seq = [0,1,2,3,4]; break;          // ← (flip dopo)
-      case 'S': row = 5; seq = [4,3,2,1,0]; break;          // ↓ (inverso)
-      default:  row = 0; seq = [0,1,2,3,4];
-    }
+   let row = Number.isFinite(p.rowIdx) ? p.rowIdx : (
+  p.dir === 'N' ? 0 :
+  (p.dir === 'E' || p.dir === 'W') ? 3 : 5
+);
+let seq = (p.dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4];
+
 
     // Hold del frame 0 per ~90% del volo
     const life = p.maxDistPx || (8 * G.tile);

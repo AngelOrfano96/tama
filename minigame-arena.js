@@ -2818,50 +2818,55 @@ for (const p of G.projectiles) {
 
 // --- Enemy bullets ---
 for (const p of G.enemyProjectiles) {
-  if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
-    const cfg = p.cfg || { cols:5, rows:6, holdMs:140, fps:12 };
-    const fw = Math.round(G.sprites.arrowSheet.naturalWidth / cfg.cols);
-    const fh = Math.round(G.sprites.arrowSheet.naturalHeight / cfg.rows);
+if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
+  const cfg = p.cfg || { cols:5, rows:6 };
+  const fw = Math.round(G.sprites.arrowSheet.naturalWidth / cfg.cols);
+  const fh = Math.round(G.sprites.arrowSheet.naturalHeight / cfg.rows);
 
-    // anim: primo frame “lungo”, poi scorre; se stuck → ultimo frame
-    let frameIdx = 0;
-    if (p.stuckUntil > 0) {
-      frameIdx = p.lastFrame; // piantata: ultimo frame
-    } else {
-      const elapsed = performance.now() - p.bornAt;
-      if (elapsed <= cfg.holdMs) frameIdx = 0;
-      else {
-        const t = (elapsed - cfg.holdMs) / (1000 / (cfg.fps || 12));
-        frameIdx = 1 + Math.floor(t) % (cfg.cols - 1); // 1..4
-      }
-      // verso S: ordine invertito (5 frame → 4..0)
-      if (p.dir === 'S') {
-        const seq = [4,3,2,1,0];
-        frameIdx = seq[Math.min(seq.length-1, frameIdx)];
-      }
-    }
+  // Sequenza per direzione già pronta nello spawn:
+  //  N/E/W: [0,1,2,3,4] (0=dritto, 4=piantata)
+  //  S:     [4,3,2,1,0] (4=dritto, 0=piantata)
+  const seq = p.seq || [0,1,2,3,4];
 
-    const sx = frameIdx * fw;
-    const sy = p.rowIdx * fh;
+  // Progress di volo: 0 all’inizio → 1 alla fine
+  const f = 1 - (p.leftPx / Math.max(1, p.distTotal));
+  const CURVE_FRAC = 0.10;          // ultimo 10% di volo = porzione “curva”
 
-    // dimensione visiva
-    const size = Math.max(12, Math.round(G.tile * 0.55));
-    const dx = p.x - size/2, dy = p.y - size/2;
-
-    // East/W = flip su X
-    const flipX = (p.dir === 'W');
-    ctx.save();
-    if (flipX) {
-      ctx.translate(p.x + size/2, 0);
-      ctx.scale(-1, 1);
-      ctx.translate(-(p.x + size/2), 0);
-    }
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(G.sprites.arrowSheet, sx, sy, fw, fh, dx, dy, size, size);
-    ctx.restore();
-
-    continue; // evita il disegno “pallina” sottostante
+  let frameIdx;
+  if (p.stuckUntil > 0) {
+    // piantata a terra → ultimo frame della sequenza
+    frameIdx = seq[4];
+  } else if (f < (1 - CURVE_FRAC)) {
+    // primi ~90%: sempre frame dritto
+    frameIdx = seq[0];
+  } else {
+    // coda finale: distribuisci 4 step (1..4) sull'ultimo 10%
+    const tail = (f - (1 - CURVE_FRAC)) / CURVE_FRAC; // 0..1
+    const step = 1 + Math.min(4, Math.floor(tail * 4)); // 1..4
+    frameIdx = seq[step];
   }
+
+  const sx = frameIdx * fw;
+  const sy = p.rowIdx * fh;
+
+  const size = Math.max(12, Math.round(G.tile * 0.55));
+  const dx = p.x - size/2, dy = p.y - size/2;
+
+  // West = flip su X
+  const flipX = (p.dir === 'W');
+  ctx.save();
+  if (flipX) {
+    ctx.translate(p.x + size/2, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-(p.x + size/2), 0);
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(G.sprites.arrowSheet, sx, sy, fw, fh, dx, dy, size, size);
+  ctx.restore();
+
+  continue; // non disegnare la “pallina” generica
+}
+
 
   // --- (resto) proiettili generici esistenti ---
   const isWeb = (p.kind === 'web');
@@ -3769,34 +3774,34 @@ function cardinalFromAngle(a){
 }
 
 function spawnEnemyArrow(x, y, angle, opts = {}) {
-  // requisiti: G.sprites.arrowSheet e G.arrowCfg
   const sheet = G.sprites.arrowSheet;
-  const cfg   = G.arrowCfg || { cols:5, rows:6, holdMs:140, fps:12 };
+  const cfg   = G.arrowCfg || { cols:5, rows:6 };
   if (!sheet || !sheet.complete) return;
 
-  const dir = cardinalFromAngle(angle); // 'N','E','S','W'
+  const dir   = cardinalFromAngle(angle);  // 'N','E','S','W'
   const speed = opts.speed ?? 420;
   const r     = opts.r ?? Math.round(G.tile * 0.22);
   const maxD  = opts.maxDistPx ?? (7 * G.tile);
-
-  // righe: 0 = N, 3 = E, (W = flip di E), 5 = S (ordine invertito)
   const rowIdx = (dir === 'N') ? 0 : (dir === 'E' || dir === 'W') ? 3 : 5;
-  const bornAt = performance.now();
+
+  // Sequenza direzionale: per S è invertita (dritto è il 5° frame)
+  const seq = (dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4];
 
   G.enemyProjectiles.push({
     kind: 'arrow',
     sheet, cfg,
-    dir, rowIdx,
+    dir, rowIdx, seq,
     x, y, r,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
-    dmg: 8,                          // ← danno fisso richiesto
+    dmg: 8,
     leftPx: maxD,
-    bornAt,
-    stuckUntil: 0,                   // quando >0 diventa “piantata”
-    lastFrame: cfg.cols - 1,         // 0..4
+    distTotal: maxD,          // ⬅️ useremo questa per sapere quanta strada resta
+    bornAt: performance.now(),
+    stuckUntil: 0,
   });
 }
+
 
 
 // 3) uso: le chiavi arrivano dalla home (equip A/B)

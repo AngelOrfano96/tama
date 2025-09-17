@@ -2087,17 +2087,21 @@ if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
 
     // fuori / esaurita
     const out = (p.leftPx <= 0 || p.x < B.minX || p.x > B.maxX || p.y < B.minY || p.y > B.maxY);
-    if (out) {
-      if (p.kind === 'arrow') {
-        // si “pianta” nell’ultimo frame per 3s
-        p.vx = p.vy = 0;
-        p.stuckUntil = now + 3000;
-        p.leftPx = 1e9; // ignora
-        continue;
-      } else {
-        G.enemyProjectiles.splice(i,1); continue;
-      }
-    }
+if (out) {
+  if (p.kind === 'arrow') {
+    // piantata a terra: ferma, tienila viva un po', e lascia leftPx=0 per la mini-anim finale
+    p.vx = p.vy = 0;
+    const ttl = p.groundTtlMs || 1400;
+    p.stuckUntil = now + ttl;
+    p.landedAt = now;   // <-- servirà al render per la mini-anim
+    p.leftPx = 0;       // <-- progresso completo (mostreremo gli ultimi frame)
+    continue;
+  } else {
+    G.enemyProjectiles.splice(i,1);
+    continue;
+  }
+}
+
 
     // colpisce il pet?
     if (Math.hypot(p.x - petX, p.y - petY) <= (p.r + pr)){
@@ -2821,54 +2825,51 @@ for (const p of G.enemyProjectiles) {
     const sheet = G.sprites.arrowSheet;
 
     // atlas freccia: 5 colonne x 6 righe
-   const cols = G.arrowCfg?.cols || 5;
+const cols = G.arrowCfg?.cols || 5;
 const rows = G.arrowCfg?.rows || 8;
 const tileW = (sheet.naturalWidth  / cols) | 0;
 const tileH = (sheet.naturalHeight / rows) | 0;
 
-
-    // Sequenze per direzione
-   let row = Number.isFinite(p.rowIdx) ? p.rowIdx : (
-  p.dir === 'N' ? 0 :
-  (p.dir === 'E' || p.dir === 'W') ? 3 : 5
-);
+// riga e sequenza (S invertita), flip per Ovest
+let row = Number.isFinite(p.rowIdx) ? p.rowIdx :
+          (p.dir === 'N' ? 0 : (p.dir === 'E' || p.dir === 'W') ? 3 : 5);
 let seq = (p.dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4];
+const flipX = !!p.flipX;
 
+// PROGRESSO: 0..1
+const total = p.distTotal || p.maxDistPx || (8 * G.tile);
+const left  = Math.max(0, Math.min(total, p.leftPx));
+let k = (total - left) / total;
 
-    // Hold del frame 0 per ~90% del volo
-    const life = p.maxDistPx || (8 * G.tile);
-    const flown = (p._dist0 ? p._dist0 - p.leftPx : life - p.leftPx);
-    if (!p._dist0) p._dist0 = life;
-    const k = Math.min(1, flown / life);
+// Se è piantata a terra, fai una mini-anim di 120ms che porta k da 0.9→1.0
+if (p.landedAt) {
+  const t = Math.min(1, (performance.now() - p.landedAt) / 120);
+  k = Math.max(k, 0.9 + 0.1 * t);
+}
 
-    let col;
-    if (k < 0.9) col = seq[0];                    // frame teso
-    else {
-      const t = (k - 0.9) / 0.1;                  // 0..1 sulla fase “atterraggio”
-      const idx = Math.min(seq.length - 1, Math.floor(t * seq.length));
-      col = seq[idx];
-    }
+// “hold” lungo sul primo frame
+const hold = p.holdFrac ?? 0.90;
+let col;
+if (k < hold) {
+  col = seq[0];
+} else {
+  const t = (k - hold) / (1 - hold);            // 0..1
+  const idx = Math.min(seq.length - 1, Math.floor(t * seq.length));
+  col = seq[idx];
+}
 
-    const sx = col * tileW;
-    const sy = row * tileH;
+const sx = col * tileW;
+const sy = row * tileH;
 
-    // disegna (flip per Ovest)
-    const size = p.r * 2.2; // taralo come preferisci
-    const dx = p.x - size/2;
-    const dy = p.y - size/2;
+// draw (flip per Ovest)
+const size = p.r * 2.2;
+ctx.save();
+ctx.translate(p.x, p.y);
+if (flipX) ctx.scale(-1, 1);
+ctx.drawImage(sheet, sx, sy, tileW, tileH, -size/2, -size/2, size, size);
+ctx.restore();
 
-    if (p.dir === 'W') {
-      ctx.save();
-      ctx.translate(p.x + size/2, p.y - size/2);
-      ctx.scale(-1, 1);
-      ctx.drawImage(sheet, sx, sy, tileW, tileH, 0, 0, size, size);
-      ctx.restore();
-    } else {
-      ctx.drawImage(sheet, sx, sy, tileW, tileH, dx, dy, size, size);
-    }
-
-    // se colpisce o si pianta a terra, rimuovila come già fai
-    continue; // evita i rami "web/boss"
+continue; // fine ramo freccia
   }
 
 

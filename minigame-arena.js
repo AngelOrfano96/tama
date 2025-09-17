@@ -2240,57 +2240,41 @@ function updateGates(dt){
     }
   }
 
-  // 5.a) Avvio nuova wave
-// --- avvio nuova wave ---
-// normale: apri cancelli se chiusi e non ci sono nemici
-// boss-wave: prima spawni il boss (cancelli chiusi), poi li apri quando ha "atterrato"
+// 5.a) Avvio nuova wave (una sola volta)
 if (Gates.state === 'idleUp' && !Gates.spawnedThisWave && G.enemies.length === 0) {
   const nextWave = (G.wave|0) + 1;
 
   if (nextWave % 5 === 0) {
-    // BOSS WAVE: spawna subito il boss e resta con cancelli chiusi
-    G.wave = nextWave; syncHUD?.();
-    // --- avvio nuova wave ---
-if (Gates.state === 'idleUp' && !Gates.spawnedThisWave && G.enemies.length === 0) {
-  const nextWave = (G.wave|0) + 1;
-
-  if (nextWave % 5 === 0) {
+    // Boss wave: spawna il boss e lascia i cancelli chiusi.
     G.wave = nextWave; syncHUD?.();
     spawnBossForWave(nextWave);
-    Gates.spawnedThisWave = true;
+    Gates.spawnedThisWave = true;        // evita retrigger
+    // NON cambiare Gates.state qui (resta 'idleUp').
+    console.info('[WAVE] armed boss wave', nextWave);
   } else {
-    // ⬇️ nuovo: scegli e annuncia il pattern
-    G._wavePattern = pickWavePattern(nextWave);
+    // Wave normale: scegli pattern e apri i cancelli.
+    G._wavePattern = pickWavePattern(nextWave);   // (mai 'boss' qui)
     announceWave(nextWave, G._wavePattern);
 
+    G.wave = nextWave; syncHUD?.();
     Gates.state = 'lowering';
     Gates.spawnedThisWave = true;
-    G.wave = nextWave; syncHUD?.();
+    console.info('[WAVE] start normal wave', nextWave, 'pattern=', G._wavePattern);
   }
 }
 
-    spawnBossForWave(nextWave);
-    Gates.spawnedThisWave = true;   // evita retrigger
-    // NB: NON cambiare state (resta 'idleUp'); i cancelli si apriranno dopo il land
-  } else {
-    // WAVE normale: apri i cancelli come prima
-    Gates.state = 'lowering';
-    Gates.spawnedThisWave = true;
-    G.wave = nextWave; syncHUD?.();
-  }
-}
 
 // boss: apri i cancelli quando è atterrato
 if (Boss.active && Boss.landed && Gates.state === 'idleUp' && Gates.spawnedThisWave) {
   Gates.state = 'lowering';
 }
 
-/*
+
   // 5.b) Se è una wave boss e il boss ha toccato terra → apri ora
   if (Gates.state === 'idleUp' && Gates.deferOpenUntilBossLanded && Boss.landed) {
     Gates.state = 'lowering';
     Gates.deferOpenUntilBossLanded = false;
-  } */
+  } 
 
 // 5.c) Spawn ondata quando i cancelli sono “open”
 if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
@@ -3858,16 +3842,6 @@ function spawnEnemyBullet(x, y, angle, opts = {}) {
   });
 }
 
-function cardinalFromAngle(a){
-  const pi = Math.PI, q = pi/4;
-  const dirs = ['E','NE','N','NW','W','SW','S','SE']; // ci serve N/E/S/W
-  const idx = Math.round(((a % (2*pi)) + 2*pi) % (2*pi) / q) % 8;
-  const d = dirs[idx];
-  if (d.includes('N')) return 'N';
-  if (d.includes('S')) return 'S';
-  if (d.includes('E')) return 'E';
-  return 'W';
-}
 
 function spawnEnemyArrow(x, y, angle, opts = {}) {
   const sheet = G.sprites.arrowSheet;

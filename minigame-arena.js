@@ -2063,7 +2063,6 @@ if (Boss.active && (!Boss.entity || Boss.entity.hp <= 0)) {
   }
 }
 // --- ENEMY PROJECTILES (colpiscono il pet) ---
-// --- ENEMY PROJECTILES (colpiscono il pet) ---
 {
   const t = G.tile;
   const petX = G.pet.px + t/2, petY = G.pet.py + t/2;
@@ -2818,54 +2817,59 @@ for (const p of G.projectiles) {
 
 // --- Enemy bullets ---
 for (const p of G.enemyProjectiles) {
-if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
-  const cfg = p.cfg || { cols:5, rows:6 };
-  const fw = Math.round(G.sprites.arrowSheet.naturalWidth / cfg.cols);
-  const fh = Math.round(G.sprites.arrowSheet.naturalHeight / cfg.rows);
+  if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
+    const sheet = G.sprites.arrowSheet;
 
-  // Sequenza per direzione già pronta nello spawn:
-  //  N/E/W: [0,1,2,3,4] (0=dritto, 4=piantata)
-  //  S:     [4,3,2,1,0] (4=dritto, 0=piantata)
-  const seq = p.seq || [0,1,2,3,4];
+    // atlas freccia: 5 colonne x 6 righe
+    const cols = 5;
+    const tileW = (sheet.naturalWidth / cols) | 0;
+    const tileH = (sheet.naturalHeight / 6) | 0;
 
-  // Progress di volo: 0 all’inizio → 1 alla fine
-  const f = 1 - (p.leftPx / Math.max(1, p.distTotal));
-  const CURVE_FRAC = 0.10;          // ultimo 10% di volo = porzione “curva”
+    // Sequenze per direzione
+    let row, seq;
+    switch (p.dir) {
+      case 'N': row = 0; seq = [0,1,2,3,4]; break;          // ↑
+      case 'E': row = 3; seq = [0,1,2,3,4]; break;          // →
+      case 'W': row = 3; seq = [0,1,2,3,4]; break;          // ← (flip dopo)
+      case 'S': row = 5; seq = [4,3,2,1,0]; break;          // ↓ (inverso)
+      default:  row = 0; seq = [0,1,2,3,4];
+    }
 
-  let frameIdx;
-  if (p.stuckUntil > 0) {
-    // piantata a terra → ultimo frame della sequenza
-    frameIdx = seq[4];
-  } else if (f < (1 - CURVE_FRAC)) {
-    // primi ~90%: sempre frame dritto
-    frameIdx = seq[0];
-  } else {
-    // coda finale: distribuisci 4 step (1..4) sull'ultimo 10%
-    const tail = (f - (1 - CURVE_FRAC)) / CURVE_FRAC; // 0..1
-    const step = 1 + Math.min(4, Math.floor(tail * 4)); // 1..4
-    frameIdx = seq[step];
+    // Hold del frame 0 per ~90% del volo
+    const life = p.maxDistPx || (8 * G.tile);
+    const flown = (p._dist0 ? p._dist0 - p.leftPx : life - p.leftPx);
+    if (!p._dist0) p._dist0 = life;
+    const k = Math.min(1, flown / life);
+
+    let col;
+    if (k < 0.9) col = seq[0];                    // frame teso
+    else {
+      const t = (k - 0.9) / 0.1;                  // 0..1 sulla fase “atterraggio”
+      const idx = Math.min(seq.length - 1, Math.floor(t * seq.length));
+      col = seq[idx];
+    }
+
+    const sx = col * tileW;
+    const sy = row * tileH;
+
+    // disegna (flip per Ovest)
+    const size = p.r * 2.2; // taralo come preferisci
+    const dx = p.x - size/2;
+    const dy = p.y - size/2;
+
+    if (p.dir === 'W') {
+      ctx.save();
+      ctx.translate(p.x + size/2, p.y - size/2);
+      ctx.scale(-1, 1);
+      ctx.drawImage(sheet, sx, sy, tileW, tileH, 0, 0, size, size);
+      ctx.restore();
+    } else {
+      ctx.drawImage(sheet, sx, sy, tileW, tileH, dx, dy, size, size);
+    }
+
+    // se colpisce o si pianta a terra, rimuovila come già fai
+    continue; // evita i rami "web/boss"
   }
-
-  const sx = frameIdx * fw;
-  const sy = p.rowIdx * fh;
-
-  const size = Math.max(12, Math.round(G.tile * 0.55));
-  const dx = p.x - size/2, dy = p.y - size/2;
-
-  // West = flip su X
-  const flipX = (p.dir === 'W');
-  ctx.save();
-  if (flipX) {
-    ctx.translate(p.x + size/2, 0);
-    ctx.scale(-1, 1);
-    ctx.translate(-(p.x + size/2), 0);
-  }
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(G.sprites.arrowSheet, sx, sy, fw, fh, dx, dy, size, size);
-  ctx.restore();
-
-  continue; // non disegnare la “pallina” generica
-}
 
 
   // --- (resto) proiettili generici esistenti ---
@@ -3793,29 +3797,43 @@ function spawnEnemyArrow(x, y, angle, opts = {}) {
   const cfg   = G.arrowCfg || { cols:5, rows:6 };
   if (!sheet || !sheet.complete) return;
 
-  const dir   = cardinalFromAngle(angle);  // 'N','E','S','W'
   const speed = opts.speed ?? 420;
   const r     = opts.r ?? Math.round(G.tile * 0.22);
   const maxD  = opts.maxDistPx ?? (7 * G.tile);
-  const rowIdx = (dir === 'N') ? 0 : (dir === 'E' || dir === 'W') ? 3 : 5;
 
-  // Sequenza direzionale: per S è invertita (dritto è il 5° frame)
-  const seq = (dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4];
+  // velocità
+  const vx = Math.cos(angle) * speed;
+  const vy = Math.sin(angle) * speed;
+
+  // direzione cardinale con Y→giù
+  const dir =
+    Math.abs(vx) >= Math.abs(vy)
+      ? (vx >= 0 ? 'E' : 'W')
+      : (vy >= 0 ? 'S' : 'N');
+
+  // riga dell’atlas (5=Sud, 3=Est/Ovest, 0=Nord)
+  const rowIdx = (dir === 'N') ? 0 : ((dir === 'E' || dir === 'W') ? 3 : 5);
+
+  // sequenza: Sud è invertita (frame 4→0), Nord/Est/Ovest 0→4
+  const seq   = (dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4];
+  const flipX = (dir === 'W'); // Ovest: stesso row della Est ma flip orizzontale
 
   G.enemyProjectiles.push({
     kind: 'arrow',
     sheet, cfg,
-    dir, rowIdx, seq,
+    dir, rowIdx, seq, flipX,
     x, y, r,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
+    vx, vy,
     dmg: 8,
     leftPx: maxD,
-    distTotal: maxD,          // ⬅️ useremo questa per sapere quanta strada resta
+    distTotal: maxD,          // per sapere quanta strada resta (render “hold”)
     bornAt: performance.now(),
     stuckUntil: 0,
+    holdFrac: opts.holdFrac ?? 0.90, // 90% del volo sul frame 0 (tesa)
+    groundTtlMs: opts.groundTtlMs ?? 1400 // scomparsa dopo essersi piantata
   });
 }
+
 
 
 

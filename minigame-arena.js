@@ -1526,7 +1526,7 @@ async function preloadArenaResources(update){
       apply: ({img}) => {
         G.sprites.arrowSheet = img;
         // config di base per lo sprite freccia (5 colonne; 6 righe: 0=N, 3=E, 5=S)
-        G.arrowCfg = { cols: 5, rows: 8, holdMs: 140, fps: 12 };
+        G.arrowCfg = { cols: 5, rows: 5, holdMs: 140, fps: 12 };
       } },
   ];
 steps.push({
@@ -2821,48 +2821,56 @@ for (const p of G.projectiles) {
 
 // --- Enemy bullets ---
 for (const p of G.enemyProjectiles) {
-  if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
+if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
+  const sheet = G.sprites.arrowSheet;
 
+  const cols  = 5;
+  const rows  = 5; // ✔️ non 6
+  const tileW = (sheet.naturalWidth  / cols) | 0;   // 16
+  const tileH = (sheet.naturalHeight / rows) | 0;   // 32
 
-    const sheet = G.sprites.arrowSheet;
-const cols  = 5;       // il tuo atlas
-const rows  = 6;       // 0=N, 3=E, 5=S (ma per S useremo 0 flippato)
-const tileW = (sheet.naturalWidth  / cols) | 0;
-const tileH = (sheet.naturalHeight / rows) | 0;
+  // riga dall’oggetto oppure dedotta dalla dir (N=0, E/W=2, S=4)
+  const row = Number.isFinite(p.rowIdx)
+    ? p.rowIdx
+    : (p.dir === 'N') ? 0 : ((p.dir === 'E' || p.dir === 'W') ? 2 : 4);
 
-// --- Direzioni: S = usa Nord (row 0) ma flip Y
-let row = 0, seq = [0,1,2,3,4], flipX = false, flipY = false;
-if (p.dir === 'E')      { row = 3; }
-else if (p.dir === 'W') { row = 3; flipX = true; }
-else if (p.dir === 'S') { row = 0; flipY = true; }   // 👈 Sud = Nord flippato
-// (Nord resta row=0 senza flip)
+  const seq = p.seq || [0,1,2,3,4];
+  const flipX = !!p.flipX;
 
-// --- “hold” del primo frame per ~90% del volo
-const total = p.distTotal || p.maxDistPx || (8 * G.tile);
-const flown = Math.max(0, total - Math.max(0, p.leftPx || 0));
-const k     = Math.min(1, flown / total);
-const hold  = p.holdFrac ?? 0.90;
+  // hold del frame 0 per ~90% del volo
+  const total = p.distTotal || p.maxDistPx || (8 * G.tile);
+  const flown = Math.max(0, total - Math.max(0, p.leftPx || 0));
+  const k     = Math.min(1, flown / total);
+  const hold  = p.holdFrac ?? 0.90;
 
-let col;
-if (k < hold) col = seq[0];
-else {
-  const t = (k - hold) / (1 - hold);
-  const idx = Math.min(seq.length - 1, Math.floor(t * seq.length));
-  col = seq[idx];
+  let col;
+  if (k < hold) col = seq[0];
+  else {
+    const t = (k - hold) / Math.max(1e-6, (1 - hold));
+    const idx = Math.min(seq.length - 1, Math.floor(t * seq.length));
+    col = seq[idx];
+  }
+
+  const sx = col * tileW;
+  const sy = row * tileH;
+
+  const size = p.r * 2.2;
+  const dx = p.x - size/2;
+  const dy = p.y - size/2;
+
+  if (flipX) {
+    ctx.save();
+    ctx.translate(p.x + size/2, p.y - size/2);
+    ctx.scale(-1, 1);
+    ctx.drawImage(sheet, sx, sy, tileW, tileH, 0, 0, size, size);
+    ctx.restore();
+  } else {
+    ctx.drawImage(sheet, sx, sy, tileW, tileH, dx, dy, size, size);
+  }
+
+  continue; // non disegnare gli altri tipi
 }
 
-const sx = col * tileW;
-const sy = row * tileH;
-
-const size = p.r * 2.2;
-ctx.save();
-ctx.translate(p.x, p.y);
-ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-ctx.drawImage(sheet, sx, sy, tileW, tileH, -size/2, -size/2, size, size);
-ctx.restore();
-
-continue; // evita gli altri rami
-  }
 
 
   // --- (resto) proiettili generici esistenti ---
@@ -3787,29 +3795,26 @@ function cardinalFromAngle(a){
 
 function spawnEnemyArrow(x, y, angle, opts = {}) {
   const sheet = G.sprites.arrowSheet;
-  const cfg   = G.arrowCfg || { cols:5, rows:6 };
+  const cfg   = G.arrowCfg || { cols:5, rows:5 };
   if (!sheet || !sheet.complete) return;
 
   const speed = opts.speed ?? 420;
   const r     = opts.r ?? Math.round(G.tile * 0.22);
   const maxD  = opts.maxDistPx ?? (7 * G.tile);
 
-  // velocità
   const vx = Math.cos(angle) * speed;
   const vy = Math.sin(angle) * speed;
 
-  // direzione cardinale con Y→giù
+  // riduci l’angolo a N/E/S/W (l’atlas ha solo cardinali)
   const dir =
     Math.abs(vx) >= Math.abs(vy)
       ? (vx >= 0 ? 'E' : 'W')
       : (vy >= 0 ? 'S' : 'N');
 
-  // riga dell’atlas (5=Sud, 3=Est/Ovest, 0=Nord)
-  const rowIdx = (dir === 'N') ? 0 : ((dir === 'E' || dir === 'W') ? 3 : 5);
-
-  // sequenza: Sud è invertita (frame 4→0), Nord/Est/Ovest 0→4
-  const seq   = (dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4];
-  const flipX = (dir === 'W'); // Ovest: stesso row della Est ma flip orizzontale
+  // ✔️ righe giuste nell’atlas 5×5
+  const rowIdx = (dir === 'N') ? 0 : ((dir === 'E' || dir === 'W') ? 2 : 4);
+  const seq    = (dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4]; // Sud “al contrario”
+  const flipX  = (dir === 'W');
 
   G.enemyProjectiles.push({
     kind: 'arrow',
@@ -3819,13 +3824,14 @@ function spawnEnemyArrow(x, y, angle, opts = {}) {
     vx, vy,
     dmg: 8,
     leftPx: maxD,
-    distTotal: maxD,          // per sapere quanta strada resta (render “hold”)
+    distTotal: maxD,
     bornAt: performance.now(),
     stuckUntil: 0,
-    holdFrac: opts.holdFrac ?? 0.90, // 90% del volo sul frame 0 (tesa)
-    groundTtlMs: opts.groundTtlMs ?? 1400 // scomparsa dopo essersi piantata
+    holdFrac: opts.holdFrac ?? 0.90,
+    groundTtlMs: opts.groundTtlMs ?? 1400
   });
 }
+
 
 
 

@@ -2822,38 +2822,31 @@ for (const p of G.projectiles) {
 // --- Enemy bullets ---
 for (const p of G.enemyProjectiles) {
   if (p.kind === 'arrow' && G.sprites.arrowSheet?.complete) {
-    const sheet = G.sprites.arrowSheet;
 
-    // atlas freccia: 5 colonne x 6 righe
-const cols = G.arrowCfg?.cols || 5;
-const rows = G.arrowCfg?.rows || 8;
+
+    const sheet = G.sprites.arrowSheet;
+const cols  = 5;       // il tuo atlas
+const rows  = 6;       // 0=N, 3=E, 5=S (ma per S useremo 0 flippato)
 const tileW = (sheet.naturalWidth  / cols) | 0;
 const tileH = (sheet.naturalHeight / rows) | 0;
 
-// riga e sequenza (S invertita), flip per Ovest
-let row = Number.isFinite(p.rowIdx) ? p.rowIdx :
-          (p.dir === 'N' ? 0 : (p.dir === 'E' || p.dir === 'W') ? 3 : 5);
-let seq = (p.dir === 'S') ? [4,3,2,1,0] : [0,1,2,3,4];
-const flipX = !!p.flipX;
+// --- Direzioni: S = usa Nord (row 0) ma flip Y
+let row = 0, seq = [0,1,2,3,4], flipX = false, flipY = false;
+if (p.dir === 'E')      { row = 3; }
+else if (p.dir === 'W') { row = 3; flipX = true; }
+else if (p.dir === 'S') { row = 0; flipY = true; }   // 👈 Sud = Nord flippato
+// (Nord resta row=0 senza flip)
 
-// PROGRESSO: 0..1
+// --- “hold” del primo frame per ~90% del volo
 const total = p.distTotal || p.maxDistPx || (8 * G.tile);
-const left  = Math.max(0, Math.min(total, p.leftPx));
-let k = (total - left) / total;
+const flown = Math.max(0, total - Math.max(0, p.leftPx || 0));
+const k     = Math.min(1, flown / total);
+const hold  = p.holdFrac ?? 0.90;
 
-// Se è piantata a terra, fai una mini-anim di 120ms che porta k da 0.9→1.0
-if (p.landedAt) {
-  const t = Math.min(1, (performance.now() - p.landedAt) / 120);
-  k = Math.max(k, 0.9 + 0.1 * t);
-}
-
-// “hold” lungo sul primo frame
-const hold = p.holdFrac ?? 0.90;
 let col;
-if (k < hold) {
-  col = seq[0];
-} else {
-  const t = (k - hold) / (1 - hold);            // 0..1
+if (k < hold) col = seq[0];
+else {
+  const t = (k - hold) / (1 - hold);
   const idx = Math.min(seq.length - 1, Math.floor(t * seq.length));
   col = seq[idx];
 }
@@ -2861,15 +2854,14 @@ if (k < hold) {
 const sx = col * tileW;
 const sy = row * tileH;
 
-// draw (flip per Ovest)
 const size = p.r * 2.2;
 ctx.save();
 ctx.translate(p.x, p.y);
-if (flipX) ctx.scale(-1, 1);
+ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
 ctx.drawImage(sheet, sx, sy, tileW, tileH, -size/2, -size/2, size, size);
 ctx.restore();
 
-continue; // fine ramo freccia
+continue; // evita gli altri rami
   }
 
 

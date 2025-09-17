@@ -209,6 +209,7 @@ const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
       joy: { active:false, vx:0, vy:0 },
       aim: { x: 0, y: 1 },
       _aim: null,
+      _wavePattern: 'swarm',
 
 
     // stat pet
@@ -2249,6 +2250,25 @@ if (Gates.state === 'idleUp' && !Gates.spawnedThisWave && G.enemies.length === 0
   if (nextWave % 5 === 0) {
     // BOSS WAVE: spawna subito il boss e resta con cancelli chiusi
     G.wave = nextWave; syncHUD?.();
+    // --- avvio nuova wave ---
+if (Gates.state === 'idleUp' && !Gates.spawnedThisWave && G.enemies.length === 0) {
+  const nextWave = (G.wave|0) + 1;
+
+  if (nextWave % 5 === 0) {
+    G.wave = nextWave; syncHUD?.();
+    spawnBossForWave(nextWave);
+    Gates.spawnedThisWave = true;
+  } else {
+    // ⬇️ nuovo: scegli e annuncia il pattern
+    G._wavePattern = pickWavePattern(nextWave);
+    announceWave(nextWave, G._wavePattern);
+
+    Gates.state = 'lowering';
+    Gates.spawnedThisWave = true;
+    G.wave = nextWave; syncHUD?.();
+  }
+}
+
     spawnBossForWave(nextWave);
     Gates.spawnedThisWave = true;   // evita retrigger
     // NB: NON cambiare state (resta 'idleUp'); i cancelli si apriranno dopo il land
@@ -2286,6 +2306,25 @@ if (Boss.active && Boss.landed && Gates.state === 'idleUp' && Gates.spawnedThisW
   }
 }
 
+// ----- Wave patterns -----
+function pickWavePattern(n){
+  if (n % 5 === 0) return 'boss';
+  // Rotazione semplice: Sciame → Cecchini → Sciame → Kiter → Mix → (repeat)
+  const rot = ['swarm','snipers','swarm','kiters','mix'];
+  return rot[(n-1) % rot.length];
+}
+
+function patternLabel(key){
+  return key === 'swarm'   ? 'Sciame'
+       : key === 'snipers' ? 'Cecchini'
+       : key === 'kiters'  ? 'Kiter'
+       : key === 'mix'     ? 'Mix 70/30'
+       : 'Boss';
+}
+
+function announceWave(n, pattern){
+  try { showArenaToast(`Wave ${n}: ${patternLabel(pattern)}`); } catch {}
+}
 
 
 function waveEnemyTotal(n){
@@ -2306,7 +2345,7 @@ function spawnWaveViaGates(n){
   const MAX_ENEMIES = 20;
   if (G.enemies.length >= MAX_ENEMIES) return 0;
 
-  // ——— Boss wave: 8 ragni piccoli dai cancelli
+  // ——— Boss wave: 8 ragni piccoli dai cancelli (come prima)
   if (n % 5 === 0) {
     const count = 8;
     const scale = 1 + Math.floor(n/5) * 0.10;
@@ -2316,7 +2355,6 @@ function spawnWaveViaGates(n){
 
     for (let k=0; k<count; k++){
       const e = makeSpider(scale);
-
       const gIndex = gateIdx % ARENA_GATES.length;
       const g = ARENA_GATES[gIndex];
       gateIdx++;
@@ -2327,17 +2365,12 @@ function spawnWaveViaGates(n){
       const startX = gx * G.tile;
       const startY = (g.y - 1 - q * SPACING_TILES) * G.tile;
 
-      e.x  = gx;
-      e.y  = g.y - 1 - q * SPACING_TILES;
-      e.px = startX;
-      e.py = startY;
-
+      e.x  = gx; e.y = g.y - 1 - q * SPACING_TILES;
+      e.px = startX; e.py = startY;
       e.spawnPx = startX;
       e.enteringViaGate = true;
-      e.state = 'ingress';
-      e.tState = 0;
-      e.nextAtkReadyTs = 0;
-      e.lastHitTs = 0;
+      e.state = 'ingress'; e.tState = 0;
+      e.nextAtkReadyTs = 0; e.lastHitTs = 0;
 
       G.enemies.push(e);
       Gates.queue[gIndex] = q + 1;
@@ -2346,26 +2379,51 @@ function spawnWaveViaGates(n){
     return spawned;
   }
 
-  // ——— Wave normale (goblin + bat) invariata
-  const count = waveEnemyTotal(n);
-  const bats  = waveBatCount(n, count);
+  // ——— Wave normale con pattern
+  const totalBase = waveEnemyTotal(n);
+  const pat = G._wavePattern || pickWavePattern(n);
   const scale = 1 + (n - 1) * 0.06;
 
-  const blue = [];
-  for (let i = 0; i < count; i++) blue.push(makeGoblin(scale));
-  for (let i = 0; i < bats;  i++) blue.push(makeBat(Math.max(1, scale * 0.95)));
+  // Composizione in base al pattern
+  // Nota: “Cecchini” = pochi snipers che pressano da lontano, con un po’ di goblin per ritmo;
+  //       “Kiter” = quasi tutti pipistrelli; “Mix” = 70% dominante + 30% secondaria (rota goblin→sniper→bat).
+  let cntGob = 0, cntSni = 0, cntBat = 0;
+  const clamp = (v,a,b)=> Math.max(a, Math.min(b,v));
 
-  // TEMP: qualche cecchino per test (rimuoveremo quando attiviamo i pattern)
-if (n % 5 !== 0) {
-  const snipers = Math.min(1 + Math.floor(n/6), 3); // 1→3 pezzi con la progressione
-  for (let i = 0; i < snipers; i++) blue.push(makeSniper(Math.max(1, scale * 0.95)));
-}
+  if (pat === 'swarm') {
+    // tanti goblin deboli
+    cntGob = totalBase;
+  } else if (pat === 'snipers') {
+    // pochi cecchini (2..6, cresce piano) + un po’ di goblin per tener viva la wave
+    const sn = clamp(2 + Math.floor(n/3), 2, 6);
+    cntSni = sn;
+    cntGob = Math.max(0, totalBase - sn);
+  } else if (pat === 'kiters') {
+    // quasi tutti pipistrelli
+    cntBat = Math.round(totalBase * 0.85);
+    cntGob = totalBase - cntBat; // un filo di goblin per varietà
+  } else /* mix */ {
+    // 70/30 a rotazione: goblin-dominante → sniper-dominante → bat-dominante → repeat
+    const domIdx = (Math.floor((n-1)/1) % 3); // cambia dominante ogni wave non-boss
+    const dom = ['gob','sni','bat'][domIdx];
+    const d70 = Math.round(totalBase * 0.7);
+    const r30 = totalBase - d70;
+    if (dom === 'gob') { cntGob = d70; cntSni = Math.round(r30 * 0.6); cntBat = r30 - cntSni; }
+    if (dom === 'sni') { cntSni = clamp(Math.round(d70 * 0.6), 2, d70); cntGob = r30; }
+    if (dom === 'bat') { cntBat = d70; cntGob = r30; }
+  }
 
+  // Costruisci la lista
+  const bag = [];
+  for (let i=0; i<cntGob; i++) bag.push(makeGoblin(scale));
+  for (let i=0; i<cntBat; i++) bag.push(makeBat(Math.max(1, scale*0.95)));
+  for (let i=0; i<cntSni; i++) bag.push(makeSniper(Math.max(1, scale*0.95)));
 
+  // Spawn dai cancelli (come prima)
   let spawned = 0, gateIdx = 0;
   const SPACING_TILES = 0.90;
 
-  for (const e of blue) {
+  for (const e of bag) {
     if (G.enemies.length >= MAX_ENEMIES) break;
 
     const gIndex = gateIdx % ARENA_GATES.length;
@@ -2378,10 +2436,8 @@ if (n % 5 !== 0) {
     const startX = gx * G.tile;
     const startY = (g.y - 1 - q * SPACING_TILES) * G.tile;
 
-    e.x  = gx;
-    e.y  = g.y - 1 - q * SPACING_TILES;
-    e.px = startX;
-    e.py = startY;
+    e.x  = gx; e.y  = g.y - 1 - q * SPACING_TILES;
+    e.px = startX; e.py = startY;
 
     e.spawnPx = startX;
     e.enteringViaGate = true;
@@ -2396,6 +2452,7 @@ if (n % 5 !== 0) {
   }
   return spawned;
 }
+
 
 
 

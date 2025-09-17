@@ -2292,13 +2292,24 @@ if (Boss.active && Boss.landed && Gates.state === 'idleUp' && Gates.spawnedThisW
     Gates.deferOpenUntilBossLanded = false;
   } */
 
-  // 5.c) Spawn ondata quando i cancelli sono “open” (immutato)
-  if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
-    Gates.queue = [0, 0];
+// 5.c) Spawn ondata quando i cancelli sono “open”
+if (Gates.state === 'open' && Gates.pendingIngress === 0 && !Gates._spawnedThisOpen) {
+  Gates.queue = [0, 0];
+
+  if ((G.wave|0) % 5 === 0) {
+    // ⬅️ Boss wave: spawna i ragni piccoli dai cancelli
+    console.info('[GATES] opening on boss wave', G.wave);
+    Gates.pendingIngress = spawnBossAddsViaGates(G.wave);
+  } else {
+    // Wave normale
+    console.info('[GATES] opening on normal wave', G.wave, 'pattern=', G._wavePattern);
     Gates.pendingIngress = spawnWaveViaGates(G.wave);
-    Gates._spawnedThisOpen = true;
-    if (Gates.pendingIngress === 0) Gates.state = 'raising';
   }
+
+  Gates._spawnedThisOpen = true;
+  if (Gates.pendingIngress === 0) Gates.state = 'raising';
+}
+
 
   // 5.d) Richiudi quando hanno oltrepassato il varco
   if (Gates.state === 'open' && Gates.pendingIngress === 0 && G.enemies.length > 0) {
@@ -2340,44 +2351,52 @@ function waveBatCount(n, total){
   if (n % 3 !== 0) return 0;
   return Math.min( Math.max(1, Math.round(total * 0.2)), 4 );
 }
+function spawnBossAddsViaGates(n){
+  const count = 8;
+  const scale = 1 + Math.floor(n/5) * 0.10;
+
+  let spawned = 0, gateIdx = 0;
+  const SPACING_TILES = 0.90;
+
+  for (let k = 0; k < count; k++){
+    const e = makeSpider(scale);        // ⬅️ ragno piccolo
+
+    const gIndex = gateIdx % ARENA_GATES.length;
+    const g = ARENA_GATES[gIndex];
+    gateIdx++;
+
+    const q  = (Gates.queue?.[gIndex] || 0);
+    const gx = g.x + (q % 2);
+
+    const startX = gx * G.tile;
+    const startY = (g.y - 1 - q * SPACING_TILES) * G.tile;
+
+    e.x  = gx;
+    e.y  = g.y - 1 - q * SPACING_TILES;
+    e.px = startX;
+    e.py = startY;
+
+    e.spawnPx = startX;
+    e.enteringViaGate = true;
+    e.state = 'ingress';
+    e.tState = 0;
+    e.nextAtkReadyTs = 0;
+    e.lastHitTs = 0;
+
+    G.enemies.push(e);
+    Gates.queue[gIndex] = q + 1;
+    spawned++;
+  }
+
+  console.info('[BOSS-ADDS] wave', n, 'spawned spiders:', spawned);
+  return spawned;
+}
 
 function spawnWaveViaGates(n){
   const MAX_ENEMIES = 20;
   if (G.enemies.length >= MAX_ENEMIES) return 0;
 
-  // ——— Boss wave: 8 ragni piccoli dai cancelli (come prima)
-  if (n % 5 === 0) {
-    const count = 8;
-    const scale = 1 + Math.floor(n/5) * 0.10;
 
-    let spawned = 0, gateIdx = 0;
-    const SPACING_TILES = 0.90;
-
-    for (let k=0; k<count; k++){
-      const e = makeSpider(scale);
-      const gIndex = gateIdx % ARENA_GATES.length;
-      const g = ARENA_GATES[gIndex];
-      gateIdx++;
-
-      const q  = (Gates.queue?.[gIndex] || 0);
-      const gx = g.x + (q % 2);
-
-      const startX = gx * G.tile;
-      const startY = (g.y - 1 - q * SPACING_TILES) * G.tile;
-
-      e.x  = gx; e.y = g.y - 1 - q * SPACING_TILES;
-      e.px = startX; e.py = startY;
-      e.spawnPx = startX;
-      e.enteringViaGate = true;
-      e.state = 'ingress'; e.tState = 0;
-      e.nextAtkReadyTs = 0; e.lastHitTs = 0;
-
-      G.enemies.push(e);
-      Gates.queue[gIndex] = q + 1;
-      spawned++;
-    }
-    return spawned;
-  }
 
   // ——— Wave normale con pattern
   const totalBase = waveEnemyTotal(n);

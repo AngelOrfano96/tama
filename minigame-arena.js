@@ -236,6 +236,9 @@ const ENEMY_SCALE_MOBILE = 2.80; // +6% nemici
     fxSprites: [],
   };
 
+G.aimCast = { active:false, key:null, vec:{x:0,y:0}, startedAt:0, moved:false };
+const norm = v => { const l=Math.hypot(v.x,v.y)||1; return {x:v.x/l, y:v.y/l}; };
+
   // --- SPRITES & CACHE (arena) ---
 G.sprites = {
   atlas: null,     // atlas dungeon
@@ -652,6 +655,67 @@ function initGateSprite(){
   Gates.sheet.src = GATE_CFG.src;
 }
 
+function bindAimButton(btn, moveKey){
+  if (!btn) return;
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault(); btn.setPointerCapture?.(e.pointerId);
+    G.aimCast = { active:true, key:moveKey, vec:{x:G._aim?.x||1,y:G._aim?.y||0}, startedAt:performance.now(), moved:false };
+  }, {passive:false});
+
+  btn.addEventListener('pointermove', e => {
+    if (!G.aimCast.active) return;
+    // calcola la mira dal PET → al punto del dito
+    const rect = DOM.canvas.getBoundingClientRect();
+    const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
+    const cx = (e.clientX - rect.left) * (DOM.canvas.width/rect.width);
+    const cy = (e.clientY - rect.top)  * (DOM.canvas.height/rect.height);
+    const v = { x: cx - sx, y: cy - sy };
+    G.aimCast.vec = norm(v);
+    if (Math.hypot(v.x, v.y) > 12) G.aimCast.moved = true;
+  }, {passive:false});
+
+  btn.addEventListener('pointerup', e => {
+    e.preventDefault();
+    const quick = (performance.now() - G.aimCast.startedAt) < 140 && !G.aimCast.moved;
+    // quick tap → cast istantaneo (come ora)
+    if (quick) useArenaMove(G.pet, moveKey);
+    else {
+      // hold → cast nella direzione mirata
+      const v = norm(G.aimCast.vec);
+      G._castAim = v;                 // ← priorità per il prossimo cast
+      useArenaMove(G.pet, moveKey);
+      G._castAim = null;
+    }
+    G.aimCast.active = false;
+  }, {passive:false});
+}
+// chiamala dopo hydrateActionButtons():
+bindAimButton(DOM.btnAtk,   G.playerMoves.A);
+bindAimButton(DOM.btnChg,   G.playerMoves.B);
+if (G.playerMoves.C) bindAimButton(DOM.btnSkill, G.playerMoves.C);
+const KEY2MOVE = { z:'A', x:'B', c:'C' };
+window.addEventListener('keydown', e => {
+  const slot = KEY2MOVE[e.key?.toLowerCase()]; if (!slot) return;
+  if (G.aimCast.active) return;
+  const key = G.playerMoves?.[slot]; if (!key) return;
+  G.aimCast = { active:true, key, vec:{x:G._aim?.x||1,y:G._aim?.y||0}, startedAt:performance.now(), moved:false };
+});
+window.addEventListener('keyup', e => {
+  const slot = KEY2MOVE[e.key?.toLowerCase()]; if (!slot || !G.aimCast.active) return;
+  const key = G.aimCast.key;
+  // usa mouse per la mira
+  const rect = DOM.canvas.getBoundingClientRect();
+  const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
+  const cx = (window._lastMouseX ?? (rect.left+rect.width/2)) - rect.left;
+  const cy = (window._lastMouseY ?? (rect.top+rect.height/2)) - rect.top;
+  const v = norm({ x: cx * (DOM.canvas.width/rect.width) - sx,
+                   y: cy * (DOM.canvas.height/rect.height) - sy });
+  G._castAim = v;
+  useArenaMove(G.pet, key);
+  G._castAim = null;
+  G.aimCast.active = false;
+});
+DOM.canvas.addEventListener('mousemove', e => { window._lastMouseX = e.clientX; window._lastMouseY = e.clientY; });
 
 // traccia stato “globale” boss della wave
 const Boss = { active:false, landed:false, entity:null, index:1 };
@@ -3739,17 +3803,14 @@ arenaAPI.spawnProjectile = function(spec){
 
   // 1) priorità: dir esplicita → angle → mira smussata → mira grezza → facing
   let aim;
-  if (hasVec(spec.dir)) {
-    aim = norm(spec.dir);
-  } else if (Number.isFinite(spec.angle)) {
-    aim = { x: Math.cos(spec.angle), y: Math.sin(spec.angle) };
-  } else if (hasVec(G?._aim)) {
-    aim = norm(G._aim);
-  } else if (hasVec(G?.aim)) {
-    aim = norm(G.aim);
-  } else {
-    aim = facingToVec(spec.facing || G.pet?.facing || 'right');
-  }
+// in arenaAPI.spawnProjectile(...)
+if (hasVec(spec.dir))       aim = norm(spec.dir);
+else if (Number.isFinite(spec.angle)) aim = {x:Math.cos(spec.angle), y:Math.sin(spec.angle)};
+else if (hasVec(G._castAim)) aim = norm(G._castAim);   // ← NUOVO
+else if (hasVec(G._aim))     aim = norm(G._aim);
+else if (hasVec(G.aim))      aim = norm(G.aim);
+else                         aim = facingToVec(spec.facing || G.pet?.facing || 'right');
+
 
   // 2) (OPZIONALE) auto-aim leggero verso un nemico vicino alla direzione
   //    Attivalo impostando window.ARENA_AUTOAIM = { enabled:true, maxAngleDeg:18, maxDistTiles:6 }
@@ -3802,6 +3863,23 @@ arenaAPI.spawnProjectile = function(spec){
   });
 };
 
+function drawAimPreview(){
+  if (!G.aimCast?.active) return;
+  const v = norm(G.aimCast.vec);
+  const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
+  const L  = 6 * G.tile; // lunghezza scia
+  ctx.save();
+  ctx.globalAlpha = 0.65;
+  ctx.setLineDash([8,6]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#93c5fd';
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + v.x*L, sy + v.y*L);
+  ctx.stroke();
+  ctx.restore();
+}
+// chiama drawAimPreview() dentro render(), dopo aver disegnato il pet.
 
 function angleTo(ax,ay,bx,by){
   return Math.atan2(by - ay, bx - ax); 

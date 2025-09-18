@@ -3535,33 +3535,26 @@ if (!DOM._abBound) {
     G.aimCast = { active:true, key, vec:{x:G._aim?.x||1, y:G._aim?.y||0}, startedAt:performance.now(), moved:false };
   }, { passive:true });
 
-  window.addEventListener('keyup', e => {
-    const slot = KEY2MOVE[e.key?.toLowerCase()]; 
-    if (!slot || !G.aimCast.active) return;
-    const key = G.aimCast.key;
+ window.addEventListener('keyup', e => {
+  const slot = KEY2MOVE[e.key?.toLowerCase()];
+  if (!slot || !G.aimCast.active) return;
 
-    // calcola mira dal mouse → pet
-    const rect = DOM.canvas.getBoundingClientRect();
-    const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
-    const cx = (window._lastMouseX ?? (rect.left + rect.width/2)) - rect.left;
-    const cy = (window._lastMouseY ?? (rect.top  + rect.height/2)) - rect.top;
-    const v = norm({
-      x: cx * (DOM.canvas.width/rect.width) - sx,
-      y: cy * (DOM.canvas.height/rect.height) - sy
-    });
+  const key = G.aimCast.key;
 
-    const quick = (performance.now() - G.aimCast.startedAt) < QUICK_MS && !G.aimCast.moved;
-    if (quick) {
-      // quick tap → come ora
-      useArenaMove(G.pet, key);
-    } else {
-      // hold → cast nella direzione mirata
-      G._castAim = v;
-      useArenaMove(G.pet, key);
-      G._castAim = null;
-    }
-    G.aimCast.active = false;
-  }, { passive:true });
+  // usa il mouse per la mira (in CSS px, senza moltiplicatori DPR)
+  const rect = DOM.canvas.getBoundingClientRect();
+  const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2; // CSS px
+  const cx = (window._lastMouseX ?? (rect.left + rect.width/2)) - rect.left;
+  const cy = (window._lastMouseY ?? (rect.top  + rect.height/2)) - rect.top;
+
+  const v = norm({ x: cx - sx, y: cy - sy });
+
+  G._castAim = v;
+  useArenaMove(G.pet, key);
+  G._castAim = null;
+  G.aimCast.active = false;
+});
+
 
   // traccia posizione mouse (dopo che DOM.canvas esiste!)
   DOM.canvas.addEventListener('mousemove', e => {
@@ -3807,6 +3800,64 @@ applyDamage(target, dmg){
 
 arenaAPI.playMoveAnim = (moveKey, self) => spawnMoveFX(moveKey, self);
 
+function defaultAimVec(){
+  // prima la mira smussata se “valida”, altrimenti il facing del pet
+  const v = (G._aim && (Math.abs(G._aim.x) + Math.abs(G._aim.y) > 0.01))
+    ? G._aim
+    : facingToVec(G.pet.facing || 'down');
+  const l = Math.hypot(v.x, v.y) || 1;
+  return { x: v.x / l, y: v.y / l };
+}
+
+function bindAimButton(btn, moveKey){
+  if (!btn) return;
+
+  // importantissimo su mobile: niente gesture/scroll
+  btn.style.touchAction = 'none';
+
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    btn.setPointerCapture?.(e.pointerId);
+    G.aimCast = {
+      active: true,
+      key: moveKey,
+      vec: defaultAimVec(),          // mira di default: movimento/facing
+      origin: { x: e.clientX, y: e.clientY },
+      startedAt: performance.now(),
+      moved: false
+    };
+  }, { passive:false });
+
+  btn.addEventListener('pointermove', e => {
+    if (!G.aimCast.active) return;
+    const dx = e.clientX - (G.aimCast.origin?.x ?? e.clientX);
+    const dy = e.clientY - (G.aimCast.origin?.y ?? e.clientY);
+
+    // deadzone più piccola = più “sensibile”
+    const len = Math.hypot(dx, dy);
+    if (len > 6) {                   // prima era ~12
+      const l = len || 1;
+      G.aimCast.vec = { x: dx / l, y: dy / l }; // direzione dal bottone
+      G.aimCast.moved = true;
+    }
+  }, { passive:false });
+
+  btn.addEventListener('pointerup', e => {
+    e.preventDefault();
+    const quick = (performance.now() - G.aimCast.startedAt) < 140 && !G.aimCast.moved;
+
+    if (quick) {
+      // tap rapido → come ora
+      useArenaMove(G.pet, moveKey);
+    } else {
+      // hold → usa la direzione mirata
+      G._castAim = { x: G.aimCast.vec.x, y: G.aimCast.vec.y };
+      useArenaMove(G.pet, moveKey);
+      G._castAim = null;
+    }
+    G.aimCast.active = false;
+  }, { passive:false });
+}
 
 // direzione -> vettore normalizzato
 function facingToVec(face){
@@ -3887,9 +3938,10 @@ else                         aim = facingToVec(spec.facing || G.pet?.facing || '
 
 function drawAimPreview(){
   if (!G.aimCast?.active) return;
-  const v = norm(G.aimCast.vec);
+  const v = G.aimCast.moved ? G.aimCast.vec : defaultAimVec();
   const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
-  const L  = 6 * G.tile; // lunghezza scia
+  const L  = 6 * G.tile;
+
   ctx.save();
   ctx.globalAlpha = 0.65;
   ctx.setLineDash([8,6]);
@@ -3901,6 +3953,7 @@ function drawAimPreview(){
   ctx.stroke();
   ctx.restore();
 }
+
 // chiama drawAimPreview() dentro render(), dopo aver disegnato il pet.
 
 function angleTo(ax,ay,bx,by){

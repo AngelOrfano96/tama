@@ -689,33 +689,9 @@ function bindAimButton(btn, moveKey){
     G.aimCast.active = false;
   }, {passive:false});
 }
-// chiamala dopo hydrateActionButtons():
-bindAimButton(DOM.btnAtk,   G.playerMoves.A);
-bindAimButton(DOM.btnChg,   G.playerMoves.B);
-if (G.playerMoves.C) bindAimButton(DOM.btnSkill, G.playerMoves.C);
-const KEY2MOVE = { z:'A', x:'B', c:'C' };
-window.addEventListener('keydown', e => {
-  const slot = KEY2MOVE[e.key?.toLowerCase()]; if (!slot) return;
-  if (G.aimCast.active) return;
-  const key = G.playerMoves?.[slot]; if (!key) return;
-  G.aimCast = { active:true, key, vec:{x:G._aim?.x||1,y:G._aim?.y||0}, startedAt:performance.now(), moved:false };
-});
-window.addEventListener('keyup', e => {
-  const slot = KEY2MOVE[e.key?.toLowerCase()]; if (!slot || !G.aimCast.active) return;
-  const key = G.aimCast.key;
-  // usa mouse per la mira
-  const rect = DOM.canvas.getBoundingClientRect();
-  const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
-  const cx = (window._lastMouseX ?? (rect.left+rect.width/2)) - rect.left;
-  const cy = (window._lastMouseY ?? (rect.top+rect.height/2)) - rect.top;
-  const v = norm({ x: cx * (DOM.canvas.width/rect.width) - sx,
-                   y: cy * (DOM.canvas.height/rect.height) - sy });
-  G._castAim = v;
-  useArenaMove(G.pet, key);
-  G._castAim = null;
-  G.aimCast.active = false;
-});
-DOM.canvas.addEventListener('mousemove', e => { window._lastMouseX = e.clientX; window._lastMouseY = e.clientY; });
+
+
+
 
 // traccia stato “globale” boss della wave
 const Boss = { active:false, landed:false, entity:null, index:1 };
@@ -3075,6 +3051,8 @@ drawAbilityChipsInCanvas();
     else { ctx.fillStyle = '#ffd54f'; ctx.fillRect(px, py, sz, sz); }
   }
 }
+drawAimPreview();
+
 
 // --- MOVE FX SPRITES (sopra al pet) ---
 {
@@ -3529,28 +3507,72 @@ forceExitButtonLayout();
   setBtnLabel(DOM.btnSkill, moves.C ? prettifyName(moves.C) : '—');
 
   // bind azioni (una sola volta)
-  if (!DOM._abBound) {
-    const bindAction = (el, handler) => {
-      if (!el) return;
-      const fire = (e)=>{ e.preventDefault(); e.stopPropagation(); if (G.playing) handler(); };
-      el.addEventListener('pointerdown', fire, { passive:false });
-      el.addEventListener('touchstart',  fire, { passive:false });
-    };
-    bindAction(DOM.btnAtk,   () => useArenaMove(G.pet, G.playerMoves.A));
-    bindAction(DOM.btnChg,   () => useArenaMove(G.pet, G.playerMoves.B));
-    bindAction(DOM.btnSkill, () => { if (G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C); });
-    bindAction(DOM.btnDash,  () => tryDash());
+if (!DOM._abBound) {
+  // --- MOBILE: usa i bottoni in modalità hold-to-aim ---
+  bindAimButton(DOM.btnAtk,   G.playerMoves.A);
+  bindAimButton(DOM.btnChg,   G.playerMoves.B);
+  if (G.playerMoves.C) bindAimButton(DOM.btnSkill, G.playerMoves.C);
 
-    // tastiera
-    window.addEventListener('keydown', (e) => {
-      if (!G.playing || e.repeat) return;
-      if (e.key === 'z' || e.key === 'Z') useArenaMove(G.pet, G.playerMoves.A);
-      if (e.key === 'x' || e.key === 'X') useArenaMove(G.pet, G.playerMoves.B);
-      if (e.key === 'c' && G.playerMoves.C) useArenaMove(G.pet, G.playerMoves.C);
-    }, { passive: true });
+  // Dash resta a tap
+  const bindDash = (el, handler) => {
+    if (!el) return;
+    const fire = (e)=>{ e.preventDefault(); e.stopPropagation(); if (G.playing) handler(); };
+    el.addEventListener('pointerdown', fire, { passive:false });
+    el.addEventListener('touchstart',  fire, { passive:false });
+  };
+  bindDash(DOM.btnDash, () => tryDash());
 
-    DOM._abBound = true;
-  }
+  // --- DESKTOP: hold Z/X/C per mirare, rilascio per castare ---
+  const KEY2MOVE = { z:'A', x:'B', c:'C' };
+  const QUICK_MS = 150;
+
+  window.addEventListener('keydown', e => {
+    const slot = KEY2MOVE[e.key?.toLowerCase()]; 
+    if (!slot || G.aimCast.active) return;
+    const key = G.playerMoves?.[slot]; 
+    if (!key) return;
+    // usa l’ultima mira smussata come default
+    G.aimCast = { active:true, key, vec:{x:G._aim?.x||1, y:G._aim?.y||0}, startedAt:performance.now(), moved:false };
+  }, { passive:true });
+
+  window.addEventListener('keyup', e => {
+    const slot = KEY2MOVE[e.key?.toLowerCase()]; 
+    if (!slot || !G.aimCast.active) return;
+    const key = G.aimCast.key;
+
+    // calcola mira dal mouse → pet
+    const rect = DOM.canvas.getBoundingClientRect();
+    const sx = G.pet.px + G.tile/2, sy = G.pet.py + G.tile/2;
+    const cx = (window._lastMouseX ?? (rect.left + rect.width/2)) - rect.left;
+    const cy = (window._lastMouseY ?? (rect.top  + rect.height/2)) - rect.top;
+    const v = norm({
+      x: cx * (DOM.canvas.width/rect.width) - sx,
+      y: cy * (DOM.canvas.height/rect.height) - sy
+    });
+
+    const quick = (performance.now() - G.aimCast.startedAt) < QUICK_MS && !G.aimCast.moved;
+    if (quick) {
+      // quick tap → come ora
+      useArenaMove(G.pet, key);
+    } else {
+      // hold → cast nella direzione mirata
+      G._castAim = v;
+      useArenaMove(G.pet, key);
+      G._castAim = null;
+    }
+    G.aimCast.active = false;
+  }, { passive:true });
+
+  // traccia posizione mouse (dopo che DOM.canvas esiste!)
+  DOM.canvas.addEventListener('mousemove', e => {
+    window._lastMouseX = e.clientX;
+    window._lastMouseY = e.clientY;
+    if (G.aimCast?.active) G.aimCast.moved = true;
+  }, { passive:true });
+
+  DOM._abBound = true;
+}
+
 
   // === 2) HUD mobile/desktop ==================================
   if (isMobile) {

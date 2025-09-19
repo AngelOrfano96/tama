@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pokémon Gen1 — First to Claim</title>
+<link rel="stylesheet" href="./styles.css" />
+<script defer src="./config.js"></script>
+<script type="module" defer src="./app.js"></script>
+</head>
+<body>
+<div id="app" class="wrap" oncontextmenu="return false">
+<aside class="sidebar">
+<h2>Classifica</h2>
+<div id="winnerBanner" class="banner hidden"></div>
+<ol id="scoreboard" class="board"></ol>
+</aside>
+
+
+<main class="main">
+<header class="top">
+<label>Nickname TikTok
+<input id="nicknameInput" maxlength="20" placeholder="@tuonick" />
+</label>
+<button id="confirmNickBtn" class="btn">Conferma</button>
+<span id="nickStatus" class="muted"></span>
+</header>
+
+
+<section id="quizPanel" class="panel hidden">
+<canvas id="quizCanvas" width="900" height="600" aria-hidden="true"></canvas>
+<div class="controls">
+<button id="verifyBtn" class="btn primary">Verifica</button>
+<button id="accessibleToggle" class="btn">Modalità accessibile</button>
+</div>
+<div id="accessible" class="accessible hidden"></div>
+<div id="result" class="result"></div>
+<button id="claimBtn" class="btn success hidden">Ricevi il tuo premio</button>
+</section>
+</main>
+</div>
+</body>
+</html>
